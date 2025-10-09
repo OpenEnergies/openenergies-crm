@@ -1,0 +1,57 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@lib/supabase';
+import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import type { PuntoSuministro } from '@lib/types';
+
+async function fetchPuntos(filter: string){
+  let q = supabase.from('puntos_suministro').select('*, clientes(nombre)').limit(100);
+  if (filter) {
+    q = q.or(`cups.ilike.%${filter}%,direccion.ilike.%${filter}%,titular.ilike.%${filter}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return data as (PuntoSuministro & { clientes: { nombre:string } | null })[];
+}
+
+export default function PuntosList(){
+  const [filter, setFilter] = useState('');
+  const { data, isLoading, isError } = useQuery({ queryKey:['puntos', filter], queryFn:()=>fetchPuntos(filter) });
+
+  return (
+    <div className="grid">
+      <div className="card">
+        <div style={{display:'flex', gap:'.5rem', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap'}}>
+          <h2 style={{margin:'0'}}>Puntos de suministro</h2>
+          <div style={{display:'flex', gap:'.5rem', width:'100%', maxWidth:500}}>
+            <input placeholder="CUPS, dirección o titular" value={filter} onChange={e=>setFilter(e.target.value)} aria-label="Filtro" />
+            <Link to="/app/puntos/nuevo"><button>Nuevo</button></Link>
+          </div>
+        </div>
+      </div>
+
+      {isLoading && <div className="card">Cargando…</div>}
+      {isError && <div className="card" role="alert">Error al cargar puntos.</div>}
+      {data && data.length>0 && (
+        <div className="card">
+          <table className="table">
+            <thead><tr><th>Titular</th><th>Cliente</th><th>CUPS</th><th>Dirección</th><th>Tarifa</th><th></th></tr></thead>
+            <tbody>
+              {data.map(p=>(
+                <tr key={p.id}>
+                  <td>{p.titular}</td>
+                  <td>{p.clientes?.nombre ?? '—'}</td>
+                  <td>{p.cups}</td>
+                  <td>{p.direccion}</td>
+                  <td><span className="kbd">{p.tarifa_acceso}</span></td>
+                  <td><Link to={`/app/puntos/${p.id}` as any}>Editar</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {data && data.length===0 && <div className="card">Sin resultados.</div>}
+    </div>
+  );
+}

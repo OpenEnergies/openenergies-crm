@@ -1,6 +1,6 @@
 // src/pages/puntos/PuntoForm.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,8 +20,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 type ClienteOpt = { id: string; nombre: string; cif: string | null };
 
-export default function PuntoForm() {
-  const { id } = useParams({ from: '/app/puntos/:id' }) as { id?: string };
+export default function PuntoForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
 

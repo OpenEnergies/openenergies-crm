@@ -1,164 +1,199 @@
-// src/router/routes.tsx
-import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router'
-import { RequireRole } from '@components/RouteGuards';
-
-// Páginas
-import Login from '@pages/auth/Login'
-import AppLayout from '@pages/layouts/AppLayout'
-import ClientesList from '@pages/clientes/ClientesList'
-import ClienteForm from '@pages/clientes/ClienteForm'
-import PuntosList from '@pages/puntos/PuntosList'
-import PuntoForm from '@pages/puntos/PuntoForm'
-import ContratosList from '@pages/contratos/ContratosList'
-import ContratoForm from '@pages/contratos/ContratoForm'
-import DocumentosList from '@pages/documentos/DocumentosList'
-import DocumentoUpload from '@pages/documentos/DocumentoUpload'
+import { createRootRoute, createRoute, createRouter, Outlet, redirect, NotFoundRoute, Link } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
+import Layout from '@components/Layout';
+import Login from '@pages/auth/Login';
+import Dashboard from '@pages/Dashboard';
+import ClientesList from '@pages/clientes/ClientesList';
+import ClienteForm from '@pages/clientes/ClienteForm';
+import PuntosList from '@pages/puntos/PuntosList';
+import PuntoForm from '@pages/puntos/PuntoForm';
+import ContratosList from '@pages/contratos/ContratosList';
+import ContratoForm from '@pages/contratos/ContratoForm';
+import DocumentosList from '@pages/documentos/DocumentosList';
+import DocumentoUpload from '@pages/documentos/DocumentoUpload';
 import UsuariosList from '@pages/usuarios/UsuariosList';
 import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
-import Layout from '@components/Layout';
+import EmpresasList from '@pages/empresas/EmpresasList';
+import EmpresaForm from '@pages/empresas/EmpresaForm';
+import { RequireAuth } from '@components/RouteGuards';
+import { RequireRole } from '@components/RouteGuards';
 
 
-const usuariosRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/usuarios',
-  component: () => (
-    <RequireRole roles={['administrador', 'comercializadora']}>
-      <UsuariosList />
-    </RequireRole>
-  )
+// --- 1. RUTA RAÍZ ---
+// Es el contenedor principal de toda la aplicación.
+export const rootRoute = createRootRoute({
+  component: () => <Outlet />,
 });
 
-const usuarioInviteRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/usuarios/invitar',
-  component: () => (
-    <RequireRole roles={['administrador', 'comercializadora']}>
-      <UsuarioInviteForm />
-    </RequireRole>
-  )
-});
+// --- 2. RUTAS PÚBLICAS ---
 
-const rootRoute = createRootRoute({
-  component: () => <Outlet />
-})
-
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  beforeLoad: () => {
-    // Esta función se ejecuta antes de cargar la ruta
-    // y redirige al usuario a /app
-    throw redirect({
-      to: '/app',
-    })
-  }
-});
-
+// Ruta para la página de login
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   component: Login,
-})
+});
 
+// Ruta para la raíz del sitio ('/')
+// Redirige automáticamente al área privada para una mejor experiencia.
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/app' });
+  },
+});
+
+// --- 3. RUTAS PRIVADAS (EL CRM) ---
+
+// Ruta base para toda el área privada.
+// Protegida por el guardia de autenticación.
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/app',
-  component: AppLayout,
-})
+  component: () => <RequireAuth><Layout /></RequireAuth>,
+});
 
-// 👇🏼 hijos **relativos** (SIN /app delante)
-const appIndexRoute = createRoute({
+// ESTA ES LA RUTA ÍNDICE (EL DASHBOARD)
+// Al tener path: '/', se convierte en la página por defecto de '/app'.
+// Su URL final es '/app' o '/app/'.
+const dashboardRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: '/', // index de /app
-  beforeLoad: () => {
-    throw redirect({ to: '/app/clientes' })
-  },
-})
+  path: '/',
+  component: Dashboard,
+});
 
-const clientesRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/clientes',
-  component: ClientesList,
-})
-const clienteNuevoRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/clientes/nuevo',
-  component: ClienteForm,
-})
-const clienteDetalleRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/clientes/:id',
-  component: ClienteForm,
-})
+// --- Definición de todas las demás rutas del CRM ---
+const clientesRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes', component: ClientesList });
+const clientesNewRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/clientes/nuevo', 
+  component: () => <ClienteForm /> 
+});
 
-const puntosRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/puntos',
-  component: PuntosList,
-})
-const puntoNuevoRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/puntos/nuevo',
-  component: PuntoForm,
-})
-const puntoDetalleRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/puntos/:id',
-  component: PuntoForm,
-})
+// La ruta EDITAR usa useParams y le pasa el 'id' al formulario
+const clientesEditRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/clientes/$id', 
+  component: function EditCliente() {
+    const { id } = useParams({ from: clientesEditRoute.id });
+    return <ClienteForm id={id} />;
+  }
+});
 
-const contratosRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/contratos',
-  component: ContratosList,
-})
-const contratoNuevoRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/contratos/nuevo',
-  component: ContratoForm,
-})
-const contratoDetalleRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/contratos/:id',
-  component: ContratoForm,
-})
+const puntosRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos', component: PuntosList });
+const puntoNewRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/puntos/nuevo', 
+  component: () => <PuntoForm /> 
+});
+const puntoEditRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/puntos/$id', 
+  component: function EditPunto() {
+    const { id } = useParams({ from: puntoEditRoute.id });
+    return <PuntoForm id={id} />;
+  }
+});
 
-const documentosRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/documentos',
-  component: DocumentosList,
-})
-const documentoSubirRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/documentos/subir',
-  component: DocumentoUpload,
-})
+const contratosRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos', component: ContratosList });
+const contratoNewRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/contratos/nuevo', 
+  component: () => <ContratoForm /> 
+});
+const contratoEditRoute = createRoute({ 
+  getParentRoute: () => appRoute, 
+  path: '/contratos/$id', 
+  component: function EditContrato() {
+    const { id } = useParams({ from: contratoEditRoute.id });
+    return <ContratoForm id={id} />;
+  }
+});
 
-export const routeTree = rootRoute.addChildren([
+const documentosRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos', component: DocumentosList });
+const documentoUploadRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos/subir', component: DocumentoUpload });
+
+const usuariosRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/usuarios',
+  component: () => <RequireRole roles={['administrador', 'comercializadora']}><UsuariosList /></RequireRole>,
+});
+const usuarioInviteRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/usuarios/invitar',
+  component: () => <RequireRole roles={['administrador', 'comercializadora']}><UsuarioInviteForm /></RequireRole>,
+});
+
+// --- 4. RUTA PARA "NO ENCONTRADO" (404) ---
+// Una página amigable para cuando el usuario va a una URL que no existe.
+const notFoundRoute = new NotFoundRoute({
+  getParentRoute: () => rootRoute,
+  component: () => (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>Página no encontrada</h2>
+      <p>La URL que has introducido no existe.</p>
+      <Link to="/app">Volver al Dashboard</Link>
+    </div>
+  ),
+});
+
+// --- AÑADE LAS RUTAS DE EMPRESAS ---
+export const empresasRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/empresas',
+  component: () => <RequireRole roles={['administrador']}><EmpresasList /></RequireRole>,
+});
+export const empresasNewRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/empresas/nueva',
+  // La ruta para crear simplemente renderiza el formulario sin 'id'
+  component: () => <RequireRole roles={['administrador']}><EmpresaForm /></RequireRole>,
+});
+export const empresasEditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/empresas/$id',
+  // La ruta para editar usa useParams y le pasa el 'id' al formulario
+  component: function EditEmpresa() {
+    const { id } = useParams({ from: empresasEditRoute.id });
+    return <RequireRole roles={['administrador']}><EmpresaForm id={id} /></RequireRole>;
+  }
+});
+
+
+// --- 5. CONSTRUCCIÓN DEL ÁRBOL DE RUTAS ---
+const routeTree = rootRoute.addChildren([
+  indexRoute,
   loginRoute,
   appRoute.addChildren([
-    appIndexRoute,
-    clientesRoute,
-    clienteNuevoRoute,
-    clienteDetalleRoute,
-    puntosRoute,
-    puntoNuevoRoute,
-    puntoDetalleRoute,
-    contratosRoute,
-    contratoNuevoRoute,
-    contratoDetalleRoute,
-    documentosRoute,
-    usuariosRoute, 
+    dashboardRoute, // El Dashboard es la primera ruta hija
+    empresasRoute,     
+    empresasNewRoute,  
+    empresasEditRoute,
+    usuariosRoute,
     usuarioInviteRoute,
-    documentoSubirRoute,
+    clientesRoute,
+    clientesNewRoute,
+    clientesEditRoute,
+    puntosRoute,
+    puntoNewRoute,
+    puntoEditRoute,
+    contratosRoute,
+    contratoNewRoute,
+    contratoEditRoute,
+    documentosRoute,
+    documentoUploadRoute,
   ]),
-])
+]);
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({ 
+  routeTree,
+  notFoundRoute, // Añadimos la ruta 404
+});
 
 declare module '@tanstack/react-router' {
   interface Register {
-    router: typeof router
+    router: typeof router;
   }
 }
 

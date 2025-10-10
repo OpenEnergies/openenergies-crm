@@ -3,90 +3,120 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useEmpresaId } from '@hooks/useEmpresaId';
-import { useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import type { Cliente } from '@lib/types';
 
 const schema = z.object({
-  nombre: z.string().min(2),
-  tipo: z.string().min(1), // ej: 'persona' | 'sociedad' (en DB es USER-DEFINED)
+  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
-  email_facturacion: z.string().email().optional().nullable()
+  email_facturacion: z.string().email('Introduce un email válido').optional().nullable().or(z.literal('')),
 });
 
 type FormData = z.infer<typeof schema>;
 
-export default function ClienteForm(){
-  const navigate = useNavigate();
-  const { id } = useParams({ from: '/app/clientes/:id' }) as { id?: string };
-    const editing = Boolean(id);
-  const { empresaId, loading } = useEmpresaId();
+export default function ClienteForm({ id }: { id?: string }) {
+  const navigate = useNavigate();;
+  const editing = Boolean(id);
+  const { empresaId, loading: loadingEmpresa } = useEmpresaId();
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const { register, handleSubmit, setValue, formState:{errors, isSubmitting} } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema)
   });
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!editing) return;
-    (async ()=>{
+    
+    const fetchCliente = async () => {
       const { data, error } = await supabase.from('clientes').select('*').eq('id', id!).maybeSingle();
-      if (error) { alert(error.message); return; }
-      if (!data) { alert('Cliente no encontrado'); return; }
-      const c = data as Cliente;
-      setValue('nombre', c.nombre);
-      setValue('tipo', c.tipo);
-      setValue('dni', c.dni);
-      setValue('cif', c.cif);
-      setValue('email_facturacion', c.email_facturacion);
-    })();
-  }, [editing, id, setValue]);
+      if (error) {
+        setServerError(`Error al cargar el cliente: ${error.message}`);
+        return;
+      }
+      if (data) {
+        reset(data as Cliente); // reset actualiza los valores del formulario
+      }
+    };
+    fetchCliente();
+  }, [editing, id, reset]);
 
   async function onSubmit(values: FormData) {
-    if (loading || !empresaId) { alert('No se pudo determinar la empresa'); return; }
-    if (editing) {
-      const { error } = await supabase.from('clientes').update(values).eq('id', id!);
-      if (error) return alert(error.message);
-    } else {
-      const { error } = await supabase.from('clientes').insert({ ...values, empresa_id: empresaId });
-      if (error) return alert(error.message);
+    setServerError(null);
+    if (loadingEmpresa || !empresaId) {
+      setServerError('No se pudo determinar tu empresa. Recarga la página.');
+      return;
     }
-    navigate({ to: '/app/clientes' });
+
+    try {
+      if (editing) {
+        const { error } = await supabase.from('clientes').update(values).eq('id', id!);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('clientes').insert({ ...values, empresa_id: empresaId });
+        if (error) throw error;
+      }
+      navigate({ to: '/app/clientes' });
+    } catch (e: any) {
+      setServerError(`Error al guardar: ${e.message}`);
+    }
   }
 
   return (
-    <div className="card" style={{maxWidth:720}}>
-      <h2 style={{marginTop:0}}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-      <form className="grid" onSubmit={handleSubmit(onSubmit)}>
-        <div className="form-row">
-          <div>
-            <label htmlFor="nombre">Nombre</label>
-            <input id="nombre" {...register('nombre')} aria-invalid={!!errors.nombre}/>
-            {errors.nombre && <div role="alert" style={{color:'#b91c1c'}}>{errors.nombre.message}</div>}
+    <div className="grid">
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: '0' }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="card">
+        <div className="grid" style={{ gap: '1.5rem' }}>
+          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
+
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+            <div>
+              <label htmlFor="nombre">Nombre o Razón Social</label>
+              <input id="nombre" {...register('nombre')} />
+              {errors.nombre && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.nombre.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="tipo">Tipo de cliente</label>
+              <select id="tipo" {...register('tipo')}>
+                <option value="">-- Selecciona --</option>
+                <option value="persona">Persona</option>
+                <option value="sociedad">Sociedad</option>
+              </select>
+              {errors.tipo && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.tipo.message}</p>}
+            </div>
           </div>
+
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+            <div>
+              <label htmlFor="dni">DNI</label>
+              <input id="dni" {...register('dni')} placeholder="Para personas físicas" />
+            </div>
+            <div>
+              <label htmlFor="cif">CIF</label>
+              <input id="cif" {...register('cif')} placeholder="Para sociedades" />
+            </div>
+          </div>
+
           <div>
-            <label htmlFor="tipo">Tipo</label>
-            <select id="tipo" {...register('tipo')} aria-invalid={!!errors.tipo}>
-              <option value="persona">Persona</option>
-              <option value="sociedad">Sociedad</option>
-            </select>
+            <label htmlFor="email_facturacion">Email de facturación</label>
+            <input id="email_facturacion" type="email" {...register('email_facturacion')} />
+            {errors.email_facturacion && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.email_facturacion.message}</p>}
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <button type="button" className="secondary" onClick={() => navigate({ to: '/app/clientes' })}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting || !isDirty}>
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
           </div>
         </div>
-        <div className="form-row">
-          <div>
-            <label htmlFor="dni">DNI</label>
-            <input id="dni" {...register('dni')} />
-          </div>
-          <div>
-            <label htmlFor="cif">CIF</label>
-            <input id="cif" {...register('cif')} />
-          </div>
-        </div>
-        <div>
-          <label htmlFor="email_facturacion">Email de facturación</label>
-          <input id="email_facturacion" type="email" {...register('email_facturacion')} />
-        </div>
-        <div><button disabled={isSubmitting}>{isSubmitting ? 'Guardando…' : 'Guardar'}</button></div>
       </form>
     </div>
   );

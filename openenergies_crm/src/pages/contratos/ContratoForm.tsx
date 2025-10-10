@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,9 +28,7 @@ type FormValues = z.input<typeof schema>;
 type PuntoOpt = { id: string; cups: string; direccion: string };
 type EmpresaOpt = { id: string; nombre: string };
 
-export default function ContratoForm() {
-  // id opcional (crear/editar)
-  const { id } = useParams({ from: '/app/contratos/:id' }) as { id?: string };
+export default function ContratoForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
 

@@ -1,16 +1,65 @@
 import { useSession } from '@hooks/useSession';
+import { Link } from '@tanstack/react-router';
 
-export default function Dashboard(){
+// Un pequeño componente para las tarjetas de acción
+function ActionCard({ to, title, description }: { to: string; title: string; description: string }) {
+  return (
+    <Link to={to} className="card-link">
+      <div className="card action-card">
+        <h3>{title} &rarr;</h3>
+        <p>{description}</p>
+      </div>
+    </Link>
+  );
+}
+
+export default function Dashboard() {
   const { rol } = useSession();
+
   return (
     <div className="grid">
-      <div className="card">
-        <h2 style={{marginTop:0}}>Bienvenido</h2>
-        <p>Este es tu panel. Tu rol es <span className="badge">{rol ?? '—'}</span>.</p>
-        <ul>
-          <li>Los menús se adaptan a tu rol.</li>
-          <li>Los datos están protegidos por <strong>RLS</strong> en la base de datos.</li>
-        </ul>
+      <div>
+        <h2 style={{ margin: 0 }}>Bienvenido al CRM de Open Energies</h2>
+        <p style={{ color: 'var(--muted)', marginTop: '0.25rem' }}>
+          Gestiona tus clientes, contratos y documentos desde un único lugar.
+        </p>
+      </div>
+
+      <div className="dashboard-grid">
+        {/* Mostramos tarjetas según el rol del usuario */}
+        {(rol === 'administrador' || rol === 'comercializadora') && (
+          <ActionCard
+            to="/app/usuarios"
+            title="Gestionar Usuarios"
+            description="Invita, edita y gestiona los accesos de tu equipo."
+          />
+        )}
+        
+        {(rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial') && (
+          <ActionCard
+            to="/app/clientes"
+            title="Ver Clientes"
+            description="Consulta y administra tu cartera de clientes."
+          />
+        )}
+
+        <ActionCard
+          to="/app/puntos"
+          title="Puntos de Suministro"
+          description="Accede al listado de todos los CUPS disponibles."
+        />
+
+        <ActionCard
+          to="/app/contratos"
+          title="Contratos"
+          description="Revisa los contratos activos y gestiona las renovaciones."
+        />
+
+        <ActionCard
+          to="/app/documentos"
+          title="Documentos"
+          description="Busca y descarga facturas, contratos y otros archivos."
+        />
       </div>
     </div>
   );

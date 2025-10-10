@@ -12,7 +12,8 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "types": ["vite/client", "vitest/globals"],
-    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",                // 👈 ESTA LÍNEA SILENCIA EL AVISO
+    "baseUrl": ".",                             
     "paths": {
       "@lib/*": ["src/lib/*"],
       "@hooks/*": ["src/hooks/*"],
@@ -24,4 +25,3 @@
   "include": ["src", "tests"],
   "exclude": ["supabase/functions"]
 }
-

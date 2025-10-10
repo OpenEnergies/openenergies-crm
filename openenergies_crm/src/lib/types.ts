@@ -3,6 +3,8 @@ export type RolUsuario = 'administrador' | 'comercializadora' | 'comercial' | 'c
 // Por simplicidad, tipos USER-DEFINED se tratan como string en TS.
 export type UUID = string;
 
+export type TipoCliente = 'persona' | 'sociedad';
+
 export interface UsuarioApp {
   user_id: UUID;
   empresa_id: UUID;
@@ -24,7 +26,7 @@ export interface Empresa {
 export interface Cliente {
   id: UUID;
   empresa_id: UUID;
-  tipo: string; // (persona | sociedad) → esquema no impone literal
+  tipo: TipoCliente; // (persona | sociedad) → esquema no impone literal
   nombre: string;
   dni: string | null;
   cif: string | null;

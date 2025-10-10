@@ -29,7 +29,7 @@ export default function Login(){
     <div className="container" style={{maxWidth:420, marginTop:'10vh'}}>
       <div className="card" aria-labelledby="login-title">
         <h1 id="login-title" style={{marginTop:0}}>Accede a tu cuenta</h1>
-        <p style={{color:'var(--muted)'}}>Puedes usar contraseña o dejarla vacía para recibir un magic link.</p>
+        <p style={{color:'var(--muted)'}}>Introduce tus credenciales. Si no recuerdas tu contraseña, déjala en blanco para recibir un enlace de acceso a tu correo.</p>
         <form onSubmit={handleSubmit(onSubmit)} className="grid" aria-describedby="login-hint">
           <div>
             <label htmlFor="email">Email</label>
@@ -40,7 +40,7 @@ export default function Login(){
             <label htmlFor="password">Contraseña (opcional)</label>
             <input id="password" type="password" autoComplete="current-password" {...register('password')} />
           </div>
-          <div id="login-hint" className="sr-only">Introduce email y, si quieres, contraseña. Sin contraseña te enviaremos un enlace.</div>
+          <div id="login-hint" className="sr-only"></div>
           <div><button disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button></div>
         </form>
       </div>

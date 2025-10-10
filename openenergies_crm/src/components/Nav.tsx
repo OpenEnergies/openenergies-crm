@@ -8,6 +8,7 @@ export function Nav() {
 
   const items = [
     { to: '/app', label: 'Inicio' },
+    canSeeModule(rol ?? 'cliente', 'usuarios') && { to: '/app/usuarios', label: 'Usuarios' },
     canSeeModule(rol ?? 'cliente', 'clientes') && { to: '/app/clientes', label: 'Clientes' },
     canSeeModule(rol ?? 'cliente', 'puntos') && { to: '/app/puntos', label: 'Puntos' },
     canSeeModule(rol ?? 'cliente', 'contratos') && { to: '/app/contratos', label: 'Contratos' },

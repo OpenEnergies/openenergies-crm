@@ -14,12 +14,16 @@ function ActionCard({ to, title, description }: { to: string; title: string; des
 }
 
 export default function Dashboard() {
-  const { rol } = useSession();
+  const { rol, nombre } = useSession();
 
   return (
     <div className="grid">
       <div>
-        <h2 style={{ margin: 0 }}>Bienvenido al CRM de Open Energies</h2>
+        {/* --- ¡MENSAJE PERSONALIZADO! --- */}
+        <h2 style={{ margin: 0 }}>
+          {/* Si tenemos el nombre, lo mostramos. Si no, un saludo genérico. */}
+          {nombre ? `Bienvenido, ${nombre}` : 'Bienvenido'} al CRM de Open Energies
+        </h2>
         <p style={{ color: 'var(--muted)', marginTop: '0.25rem' }}>
           Gestiona tus clientes, contratos y documentos desde un único lugar.
         </p>

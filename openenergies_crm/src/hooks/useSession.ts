@@ -6,11 +6,13 @@ type SessionInfo = {
   userId: UUID | null;
   rol: RolUsuario | null;
   empresaId: UUID | null;
+  nombre: string | null;      // <-- AÑADE ESTA LÍNEA
+  apellidos: string | null; // <-- AÑADE ESTA LÍNEA
   loading: boolean;
 };
 
 export function useSession(): SessionInfo {
-  const [state, setState] = useState<SessionInfo>({ userId: null, rol: null, empresaId: null, loading: true });
+  const [state, setState] = useState<SessionInfo>({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
 
   useEffect(() => {
     console.log('[useSession] Hook montado. Iniciando comprobación de sesión.');
@@ -23,7 +25,7 @@ export function useSession(): SessionInfo {
 
       if (!userId) {
         console.log('[useSession] No se encontró sesión. Usuario no logueado.');
-        if (mounted) setState({ userId: null, rol: null, empresaId: null, loading: false });
+        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
         return;
       }
       
@@ -32,24 +34,31 @@ export function useSession(): SessionInfo {
       // Buscar perfil en usuarios_app (RLS permite ver el propio registro)
       const { data, error } = await supabase
         .from('usuarios_app')
-        .select('user_id, rol, empresa_id')
+        .select('user_id, rol, empresa_id, nombre, apellidos') // <-- AÑADE 'nombre, apellidos'
         .eq('user_id', userId)
         .maybeSingle(); // maybeSingle() es clave, devuelve null si no lo encuentra en vez de un array vacío.
 
       if (error) {
         console.error('[useSession] Error al buscar el perfil de usuario:', error.message);
-        if (mounted) setState({ userId, rol: null, empresaId: null, loading: false });
+        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
         return;
       }
       
       if (!data) {
         console.warn(`[useSession] ¡Alerta! Se encontró un usuario en Auth (ID: ${userId}) pero no tiene un perfil correspondiente en la tabla 'usuarios_app'.`);
-        if (mounted) setState({ userId, rol: null, empresaId: null, loading: false });
+        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
         return;
       }
 
       console.log(`[useSession] Perfil encontrado. Rol asignado: ${data.rol}`);
-      if (mounted) setState({ userId, rol: data.rol as any, empresaId: data.empresa_id ?? null, loading: false });
+      if (mounted) setState({ 
+        userId, 
+        rol: data.rol as any, 
+        empresaId: data.empresa_id ?? null, 
+        nombre: data.nombre ?? null,          // <-- AÑADE ESTA LÍNEA
+        apellidos: data.apellidos ?? null,  // <-- AÑADE ESTA LÍNEA
+        loading: false 
+      });
     }
 
     load();

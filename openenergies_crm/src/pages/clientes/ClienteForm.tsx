@@ -7,6 +7,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { Cliente, TipoCliente } from '@lib/types';
 import { useSession } from '@hooks/useSession';
+import { HardHat, Tags, FileText, Mail, Lock } from 'lucide-react';
 
 // Usamos el tipo específico para mayor seguridad
 const createClienteSchema = (createAccess: boolean) => z.object({
@@ -122,8 +123,8 @@ export default function ClienteForm({ id }: { id?: string }) {
 
   return (
     <div className="grid">
-       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: '0' }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+      <div className="page-header">
+        <h2 style={{ margin: '0' }}>{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
@@ -133,64 +134,85 @@ export default function ClienteForm({ id }: { id?: string }) {
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre o Razón Social</label>
-              <input id="nombre" {...register('nombre')} />
-              {errors.nombre && <p style={{ color: 'red', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{errors.nombre.message}</p>}
+              <div className="input-icon-wrapper">
+                <HardHat size={18} className="input-icon" />
+                <input id="nombre" {...register('nombre')} />
+              </div>
+              {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
             </div>
             <div>
               <label htmlFor="tipo">Tipo de cliente</label>
-              <select id="tipo" {...register('tipo')}>
-                <option value="">-- Selecciona --</option>
-                <option value="persona">Persona</option>
-                <option value="sociedad">Sociedad</option>
-              </select>
-              {errors.tipo && <p style={{ color: 'red', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{errors.tipo.message}</p>}
+              <div className="input-icon-wrapper">
+                <Tags size={18} className="input-icon" />
+                <select id="tipo" {...register('tipo')}>
+                  <option value=""> Selecciona </option>
+                  <option value="persona">Persona</option>
+                  <option value="sociedad">Sociedad</option>
+                </select>
+              </div>
+              {errors.tipo && <p className="error-text">{errors.tipo.message}</p>}
             </div>
           </div>
 
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="dni">DNI (para personas físicas)</label>
-              <input id="dni" {...register('dni')} />
+              <div className="input-icon-wrapper">
+                <FileText size={18} className="input-icon" />
+                <input id="dni" {...register('dni')} />
+              </div>
             </div>
             <div>
               <label htmlFor="cif">CIF (para sociedades)</label>
-              <input id="cif" {...register('cif')} />
+              <div className="input-icon-wrapper">
+                <FileText size={18} className="input-icon" />
+                <input id="cif" {...register('cif')} />
+              </div>
             </div>
           </div>
 
           <div>
             <label htmlFor="email_facturacion">Email de facturación (opcional)</label>
-            <input id="email_facturacion" type="email" {...register('email_facturacion')} />
-            {errors.email_facturacion && <p style={{ color: 'red', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{errors.email_facturacion.message}</p>}
+            <div className="input-icon-wrapper">
+              <Mail size={18} className="input-icon" />
+              <input id="email_facturacion" type="email" {...register('email_facturacion')} />
+            </div>
+            {errors.email_facturacion && <p className="error-text">{errors.email_facturacion.message}</p>}
           </div>
 
-          {/* --- NUEVA SECCIÓN: Acceso al Portal (solo en modo creación) --- */}
           {!editing && (
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-              <h3 style={{ marginTop: 0 }}>Acceso al Portal de Cliente</h3>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', userSelect: 'none' }}>
+              <h3 style={{ marginTop: 0, fontSize: '1.1rem' }}>Acceso al Portal de Cliente</h3>
+              <label className="switch-wrapper">
                 <input 
                   type="checkbox" 
                   checked={createPortalAccess} 
                   onChange={(e) => setCreatePortalAccess(e.target.checked)}
                 />
-                Crear un usuario para que este cliente pueda acceder a su portal
+                <span className="switch-slider"></span>
+                <span className="switch-label">Crear un usuario para que este cliente pueda acceder a su portal</span>
               </label>
 
               {createPortalAccess && (
-                <div className="grid" style={{ gap: '1rem', marginTop: '1rem', paddingLeft: '1rem', borderLeft: '2px solid var(--primary)' }}>
+                <div className="grid" style={{ gap: '1rem', marginTop: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg)', borderRadius: '0.5rem' }}>
                   <p style={{color: 'var(--muted)', fontSize: '0.9rem', margin: 0}}>
                     Se creará un usuario con rol 'cliente'. Deberás comunicarle sus credenciales de acceso.
                   </p>
                   <div>
                     <label htmlFor="email">Email de acceso</label>
-                    <input id="email" type="email" {...register('email')} />
-                    {errors.email && <p style={{ color: 'red', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{errors.email.message}</p>}
+                    <div className="input-icon-wrapper">
+                      <Mail size={18} className="input-icon" />
+                      <input id="email" type="email" {...register('email')} />
+                    </div>
+                    {errors.email && <p className="error-text">{errors.email.message}</p>}
                   </div>
-                   <div>
+                  <div>
                     <label htmlFor="password">Contraseña inicial</label>
-                    <input id="password" type="password" {...register('password')} />
-                    {errors.password && <p style={{ color: 'red', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{errors.password.message}</p>}
+                    <div className="input-icon-wrapper">
+                      <Lock size={18} className="input-icon" />
+                      <input id="password" type="password" {...register('password')} />
+                    </div>
+                    {errors.password && <p className="error-text">{errors.password.message}</p>}
                   </div>
                 </div>
               )}

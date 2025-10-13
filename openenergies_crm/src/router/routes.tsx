@@ -16,6 +16,7 @@ import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
 import EmpresasList from '@pages/empresas/EmpresasList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
 import ForceChangePassword from '@pages/auth/ForceChangePassword';
+import PerfilPage from '@pages/perfil/PerfilPage';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
 
@@ -145,6 +146,13 @@ const notFoundRoute = new NotFoundRoute({
   ),
 });
 
+// --- AÑADE LA RUTA DEL PERFIL ---
+const perfilRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/perfil',
+  component: PerfilPage,
+});
+
 // --- AÑADE LAS RUTAS DE EMPRESAS ---
 export const empresasRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -175,6 +183,7 @@ const routeTree = rootRoute.addChildren([
   forceChangePasswordRoute,
   appRoute.addChildren([
     dashboardRoute, // El Dashboard es la primera ruta hija
+    perfilRoute,
     empresasRoute,     
     empresasNewRoute,  
     empresasEditRoute,

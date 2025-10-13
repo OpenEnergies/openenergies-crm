@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useEmpresaId } from '@hooks/useEmpresaId';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
+import { User, Mail, Phone, Shield, Building2, Lock } from 'lucide-react';
 
 // Schema dinámico que requiere contraseña solo si el rol no es admin
 const createUserSchema = (isAdmin: boolean, createWithPass: boolean) => z.object({
@@ -14,7 +15,7 @@ const createUserSchema = (isAdmin: boolean, createWithPass: boolean) => z.object
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
-  rol: z.enum(['comercializadora', 'comercial', 'cliente', 'administrador']),
+  rol: z.enum(['comercializadora', 'comercial', 'administrador']),
   empresa_id: isAdmin 
     ? z.string().uuid('Debes seleccionar una empresa') 
     : z.string().optional(),
@@ -62,8 +63,8 @@ export default function UsuarioInviteForm() {
   }, [isAdmin]);
 
   const rolesDisponibles: RolUsuario[] = isAdmin
-    ? ['administrador', 'comercializadora', 'comercial', 'cliente']
-    : ['comercial', 'cliente'];
+    ? ['administrador', 'comercializadora', 'comercial']
+    : ['comercial'];
 
    // ¡NUEVA FUNCIÓN PARA DEPURAR!
   // Esta función se ejecutará si la validación falla.
@@ -111,89 +112,117 @@ export default function UsuarioInviteForm() {
   const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
 
   return (
-    <div className="card" style={{ maxWidth: 720 }}>
-      <h2 style={{ marginTop: 0 }}>Nuevo Usuario</h2>
-      {serverError && <div role="alert" style={{ color: '#b91c1c', marginBottom: '1rem' }}>{serverError}</div>}
-      
-      <form className="grid" onSubmit={handleSubmit(onSubmit, onValidationErrors)} style={{gap: '1.5rem'}}>
-        <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-          <div>
-            <label htmlFor="nombre">Nombre</label>
-            <input id="nombre" {...register('nombre')} />
-            {errors.nombre && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.nombre.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="apellidos">Apellidos</label>
-            <input id="apellidos" {...register('apellidos')} />
-            {errors.apellidos && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.apellidos.message}</p>}
-          </div>
-        </div>
+    <div className="grid">
+      <div className="page-header">
+        <h2 style={{ margin: 0 }}>Nuevo Colaborador</h2>
+      </div>
 
-        <div>
+      <form onSubmit={handleSubmit(onSubmit)} className="card">
+        <div className="grid" style={{ gap: '1.5rem' }}>
+          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
+          
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+            <div>
+              <label htmlFor="nombre">Nombre</label>
+              <div className="input-icon-wrapper">
+                <User size={18} className="input-icon" />
+                <input id="nombre" {...register('nombre')} />
+              </div>
+              {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="apellidos">Apellidos</label>
+              <div className="input-icon-wrapper">
+                <User size={18} className="input-icon" />
+                <input id="apellidos" {...register('apellidos')} />
+              </div>
+              {errors.apellidos && <p className="error-text">{errors.apellidos.message}</p>}
+            </div>
+          </div>
+
+          <div>
             <label htmlFor="email">Email de acceso</label>
-            <input id="email" type="email" {...register('email')} />
-            {errors.email && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.email.message}</p>}
-        </div>
-
-        <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-          <div>
-            <label htmlFor="telefono">Teléfono (opcional)</label>
-            <input id="telefono" type="tel" {...register('telefono')} />
+            <div className="input-icon-wrapper">
+              <Mail size={18} className="input-icon" />
+              <input id="email" type="email" {...register('email')} />
+            </div>
+            {errors.email && <p className="error-text">{errors.email.message}</p>}
           </div>
-          <div>
-            <label htmlFor="rol">Rol</label>
-            <select id="rol" {...register('rol')}>
-              <option value="">-- Selecciona un rol --</option>
-              {rolesDisponibles.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-            {errors.rol && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.rol.message}</p>}
-          </div>
-        </div>
 
-        {isAdmin && (
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+            <div>
+              <label htmlFor="telefono">Teléfono (opcional)</label>
+              <div className="input-icon-wrapper">
+                <Phone size={18} className="input-icon" />
+                <input id="telefono" type="tel" {...register('telefono')} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="rol">Rol del Colaborador</label>
+              <div className="input-icon-wrapper">
+                <Shield size={18} className="input-icon" />
+                <select id="rol" {...register('rol')}>
+                  {rolesDisponibles.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              {errors.rol && <p className="error-text">{errors.rol.message}</p>}
+            </div>
+          </div>
+
+          {isAdmin && (
             <div>
               <label htmlFor="empresa_id">Empresa</label>
-              <select id="empresa_id" {...register('empresa_id')}>
-                <option value="">-- Selecciona una empresa --</option>
-                {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-              </select>
-              {errors.empresa_id && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.empresa_id.message}</p>}
-            </div>
-        )}
-
-        {isAdmin && (
-          <div style={{ padding: '1rem', background: 'var(--bg)', borderRadius: '0.5rem' }}>
-            <label>Método de creación</label>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-              <label><input type="radio" name="creation_method" checked={!createWithPassword} onChange={() => setCreateWithPassword(false)} /> Enviar invitación por email</label>
-              <label><input type="radio" name="creation_method" checked={createWithPassword} onChange={() => setCreateWithPassword(true)} /> Establecer contraseña manual</label>
-            </div>
-          </div>
-        )}
-
-        {(!isAdmin || createWithPassword) && (
-          <>
-            <p style={{color: 'var(--muted)', fontSize: '0.9rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem'}}>Define una contraseña inicial para el usuario. Deberás comunicársela de forma segura.</p>
-            <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-              <div>
-                <label htmlFor="password">Contraseña</label>
-                <input id="password" type="password" {...register('password')} />
-                {errors.password && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.password.message}</p>}
+              <div className="input-icon-wrapper">
+                <Building2 size={18} className="input-icon" />
+                <select id="empresa_id" {...register('empresa_id')}>
+                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
               </div>
-              <div>
-                <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                <input id="confirmPassword" type="password" {...register('confirmPassword')} />
-                {errors.confirmPassword && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.confirmPassword.message}</p>}
+              {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
+            </div>
+          )}
+          
+          {/* SECCIÓN DE MÉTODO DE CREACIÓN MEJORADA */}
+          {isAdmin && (
+            <div style={{ padding: '1rem', borderRadius: '0.5rem' }}>
+              <label style={{marginBottom: '0.5rem'}}>Método de creación</label>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={!createWithPassword} onChange={() => setCreateWithPassword(false)} /> Enviar invitación por email</label>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={createWithPassword} onChange={() => setCreateWithPassword(true)} /> Establecer contraseña manual</label>
               </div>
             </div>
-          </>
-        )}
+          )}
 
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+          {(!isAdmin || createWithPassword) && (
+            <>
+              <p style={{color: 'var(--muted)', fontSize: '0.9rem', paddingTop: '1.5rem', marginTop: 0}}>Define una contraseña inicial para el usuario.</p>
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                <div>
+                  <label htmlFor="password">Contraseña</label>
+                  <div className="input-icon-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input id="password" type="password" {...register('password')} />
+                  </div>
+                  {errors.password && <p className="error-text">{errors.password.message}</p>}
+                </div>
+                <div>
+                  <label htmlFor="confirmPassword">Confirmar Contraseña</label>
+                  <div className="input-icon-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input id="confirmPassword" type="password" {...register('confirmPassword')} />
+                  </div>
+                  {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem'}}>
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/usuarios' })}>Cancelar</button>
             <button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Creando...' : (creationType === 'invite' ? 'Enviar Invitación' : 'Crear Usuario')}
             </button>
+          </div>
         </div>
       </form>
     </div>

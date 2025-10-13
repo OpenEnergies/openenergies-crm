@@ -1,31 +1,44 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { canSeeModule } from '@lib/permissions';
 import { useSession } from '@hooks/useSession';
+import { clsx } from '@lib/utils';
+// Importamos los iconos que vamos a usar
+import { Home, Users, Building, HardHat, FileText, FolderKanban } from 'lucide-react';
 
 export function Nav() {
-  const routerState = useRouterState();
+  const { location } = useRouterState();
   const { rol } = useSession();
 
-  const items = [
-    { to: '/app', label: 'Inicio' },
-    canSeeModule(rol ?? 'cliente', 'empresas') && { to: '/app/empresas', label: 'Empresas' },
-    canSeeModule(rol ?? 'cliente', 'usuarios') && { to: '/app/usuarios', label: 'Usuarios' },
-    canSeeModule(rol ?? 'cliente', 'clientes') && { to: '/app/clientes', label: 'Clientes' },
-    canSeeModule(rol ?? 'cliente', 'puntos') && { to: '/app/puntos', label: 'Puntos' },
-    canSeeModule(rol ?? 'cliente', 'contratos') && { to: '/app/contratos', label: 'Contratos' },
-    canSeeModule(rol ?? 'cliente', 'documentos') && { to: '/app/documentos', label: 'Documentos' }
-  ].filter(Boolean) as {to:string;label:string}[];
+  const navItems = [
+    { to: '/app', label: 'Inicio', icon: Home, module: 'inicio' },
+    { to: '/app/empresas', label: 'Empresas', icon: Building, module: 'empresas' },
+    { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
+    { to: '/app/clientes', label: 'Clientes', icon: HardHat, module: 'clientes' },
+    { to: '/app/puntos', label: 'Puntos', icon: FolderKanban, module: 'puntos' },
+    { to: '/app/contratos', label: 'Contratos', icon: FileText, module: 'contratos' },
+    { to: '/app/documentos', label: 'Documentos', icon: FileText, module: 'documentos' },
+  ];
+
+  // Filtramos los items según los permisos del rol
+  const visibleItems = navItems.filter(item => {
+    if (item.module === 'inicio') return true;
+    return canSeeModule(rol ?? 'cliente', item.module as any);
+  });
 
   return (
-    <nav aria-label="Navegación principal">
-      <ul style={{listStyle:'none', padding:0, margin:0, display:'grid', gap:'.25rem'}}>
-        {items.map(it =>
-          <li key={it.to}>
-            <Link to={it.to} className={routerState.location.href?.startsWith(it.to) ? 'badge' : ''}>
-              {it.label}
-            </Link>
-          </li>
-        )}
+    <nav className="main-nav">
+      <ul>
+        {visibleItems.map(item => {
+          const isActive = location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app');
+          return (
+            <li key={item.to}>
+              <Link to={item.to} className={clsx('nav-link', isActive && 'active')}>
+                <item.icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

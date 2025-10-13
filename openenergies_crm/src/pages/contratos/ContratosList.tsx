@@ -3,6 +3,8 @@ import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
 import type { Contrato } from '@lib/types';
 import { fmtDate } from '@lib/utils';
+import { Pencil } from 'lucide-react';
+import { useSession } from '@hooks/useSession';
 
 async function fetchContratos(){
   const { data, error } = await supabase
@@ -14,39 +16,71 @@ async function fetchContratos(){
 }
 
 export default function ContratosList(){
+  const { rol } = useSession();
   const { data, isLoading, isError } = useQuery({ queryKey:['contratos'], queryFn: fetchContratos });
+
+  const canEdit = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
 
   return (
     <div className="grid">
-      <div className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      {/* --- CABECERA CON ESTILO Y ESPACIADO --- */}
+      <div className="page-header">
         <h2 style={{margin:0}}>Contratos</h2>
-        <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
+        <div className="page-actions">
+          {canEdit && (
+            <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
+          )}
+        </div>
       </div>
 
-      {isLoading && <div className="card">Cargando…</div>}
-      {isError && <div className="card" role="alert">Error al cargar contratos.</div>}
+      <div className="card">
+        {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>}
+        {isError && <div role="alert" style={{ padding: '2rem', textAlign: 'center' }}>Error al cargar contratos.</div>}
 
-      {data && data.length>0 && (
-        <div className="card">
-          <table className="table">
-            <thead><tr><th>CUPS</th><th>Comercializadora</th><th>Oferta</th><th>Inicio</th><th>Fin</th><th>Aviso</th><th></th></tr></thead>
-            <tbody>
-              {data.map(c=>(
-                <tr key={c.id}>
-                  <td>{c.puntos_suministro?.cups ?? '—'}</td>
-                  <td>{c.empresas?.nombre ?? '—'}</td>
-                  <td>{c.oferta ?? '—'}</td>
-                  <td>{fmtDate(c.fecha_inicio)}</td>
-                  <td>{fmtDate(c.fecha_fin)}</td>
-                  <td>{c.aviso_renovacion ? `Sí (${fmtDate(c.fecha_aviso)})` : 'No'}</td>
-                  <td><Link to={`/app/contratos/${c.id}` as any}>Editar</Link></td>
+        {data && data.length > 0 && (
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>CUPS</th>
+                  <th>Comercializadora</th>
+                  <th>Oferta</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                  <th>Aviso</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {data && data.length===0 && <div className="card">Sin resultados.</div>}
+              </thead>
+              <tbody>
+                {data.map(c => (
+                  <tr key={c.id}>
+                    <td>{c.puntos_suministro?.cups ?? '—'}</td>
+                    <td>{c.empresas?.nombre ?? '—'}</td>
+                    <td>{c.oferta ?? '—'}</td>
+                    <td>{fmtDate(c.fecha_inicio)}</td>
+                    <td>{fmtDate(c.fecha_fin)}</td>
+                    <td>{c.aviso_renovacion ? `Sí (${fmtDate(c.fecha_aviso)})` : 'No'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {/* --- ACCIÓN CON ICONO --- */}
+                      {canEdit && (
+                        <Link 
+                          to="/app/contratos/$id" 
+                          params={{ id: c.id }}
+                          className="icon-button secondary"
+                          title="Editar Contrato"
+                        >
+                          <Pencil size={18} />
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {data && data.length === 0 && !isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Sin resultados.</div>}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
+import { Plug, Building2, Calendar, Tag, Activity, BellRing } from 'lucide-react';
 
 // === Schema del formulario ===
 // Fechas en string (YYYY-MM-DD). El checkbox produce boolean.
@@ -141,85 +142,98 @@ export default function ContratoForm({ id }: { id?: string }) {
   );
 
   return (
-    <main className="max-w-2xl mx-auto p-4">
-      <h1 className="text-xl font-semibold mb-4">
-        {editing ? 'Editar contrato' : 'Nuevo contrato'}
-      </h1>
+    <div className="grid">
+      <div className="page-header">
+        <h2 style={{ margin: 0 }}>{editing ? 'Editar Contrato' : 'Nuevo Contrato'}</h2>
+      </div>
 
-      {serverError && (
-        <div role="alert" className="mb-4 rounded-lg p-3 bg-red-50 text-red-700 border border-red-200">
-          {serverError}
-        </div>
-      )}
+      <form onSubmit={handleSubmit(onSubmit)} className="card">
+        <div className="grid" style={{ gap: '1.5rem' }}>
+          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-busy={isSubmitting || loading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Punto de suministro</span>
-            <select {...register('punto_id')} className="input">
-              <option value="">— Selecciona —</option>
-              {puntos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {puntoLabel(p)}
-                </option>
-              ))}
-            </select>
-            {errors.punto_id && <span className="text-sm text-red-700">{errors.punto_id.message}</span>}
-          </label>
+          <div className="form-row">
+            <div>
+              <label htmlFor="punto_id">Punto de suministro</label>
+              <div className="input-icon-wrapper">
+                <Plug size={18} className="input-icon" />
+                <select id="punto_id" {...register('punto_id')}>
+                  <option value=""> Selecciona </option>
+                  {puntos.map((p) => <option key={p.id} value={p.id}>{puntoLabel(p)}</option>)}
+                </select>
+              </div>
+              {errors.punto_id && <p className="error-text">{errors.punto_id.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="comercializadora_id">Comercializadora</label>
+              <div className="input-icon-wrapper">
+                <Building2 size={18} className="input-icon" />
+                <select id="comercializadora_id" {...register('comercializadora_id')}>
+                  <option value=""> Selecciona </option>
+                  {empresas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
+              </div>
+              {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
+            </div>
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Comercializadora</span>
-            <select {...register('comercializadora_id')} className="input">
-              <option value="">— Selecciona —</option>
-              {empresas.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-            {errors.comercializadora_id && <span className="text-sm text-red-700">{errors.comercializadora_id.message}</span>}
-          </label>
+          <div className="form-row">
+            <div>
+              <label htmlFor="fecha_inicio">Fecha inicio</label>
+              <div className="input-icon-wrapper">
+                <Calendar size={18} className="input-icon" />
+                <input type="date" id="fecha_inicio" {...register('fecha_inicio')} />
+              </div>
+              {errors.fecha_inicio && <p className="error-text">{errors.fecha_inicio.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="fecha_fin">Fecha fin (opcional)</label>
+              <div className="input-icon-wrapper">
+                <Calendar size={18} className="input-icon" />
+                <input type="date" id="fecha_fin" {...register('fecha_fin')} />
+              </div>
+            </div>
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Fecha inicio</span>
-            <input type="date" className="input" {...register('fecha_inicio')} />
-            {errors.fecha_inicio && <span className="text-sm text-red-700">{errors.fecha_inicio.message}</span>}
-          </label>
+          <div>
+            <label htmlFor="oferta">Oferta (opcional)</label>
+            <div className="input-icon-wrapper">
+                <Tag size={18} className="input-icon" />
+                <input type="text" id="oferta" placeholder="Nombre o referencia de la oferta" {...register('oferta')} />
+            </div>
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Fecha fin (opcional)</span>
-            <input type="date" className="input" {...register('fecha_fin')} />
-          </label>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <h3 style={{ marginTop: 0, fontSize: '1.1rem' }}>Renovación y Estado</h3>
+            <div className="grid" style={{ gap: '1rem' }}>
+              <label className="switch-wrapper">
+                <input type="checkbox" {...register('aviso_renovacion')} />
+                <span className="switch-slider"></span>
+                <span className="switch-label">Activar aviso de renovación</span>
+              </label>
 
-          <label className="flex flex-col gap-1 md:col-span-2">
-            <span className="text-sm text-slate-700">Oferta (opcional)</span>
-            <input type="text" className="input" placeholder="Nombre o referencia de la oferta" {...register('oferta')} />
-          </label>
-
-          <label className="inline-flex items-center gap-2 md:col-span-2">
-            <input
-              type="checkbox"
-              {...register('aviso_renovacion')}
-              onChange={(e) => setValue('aviso_renovacion', e.target.checked)}
-            />
-            <span>Aviso de renovación</span>
-          </label>
-
-          <label className="flex flex-col gap-1 md:col-span-1">
-            <span className="text-sm text-slate-700">Fecha aviso</span>
-            <input type="date" className="input" disabled={!aviso} {...register('fecha_aviso')} />
-            {errors.fecha_aviso && <span className="text-sm text-red-700">{errors.fecha_aviso.message}</span>}
-          </label>
-
-          <label className="flex flex-col gap-1 md:col-span-1">
-            <span className="text-sm text-slate-700">Estado</span>
-            <input type="text" className="input" placeholder="activo" {...register('estado')} />
-            {errors.estado && <span className="text-sm text-red-700">{errors.estado.message}</span>}
-          </label>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button
+              <div className="form-row">
+                <div>
+                  <label htmlFor="fecha_aviso">Fecha aviso</label>
+                  <div className="input-icon-wrapper">
+                    <BellRing size={18} className="input-icon" />
+                    <input type="date" id="fecha_aviso" disabled={!aviso} {...register('fecha_aviso')} />
+                  </div>
+                  {errors.fecha_aviso && <p className="error-text">{errors.fecha_aviso.message}</p>}
+                </div>
+                <div>
+                  <label htmlFor="estado">Estado</label>
+                  <div className="input-icon-wrapper">
+                    <Activity size={18} className="input-icon" />
+                    <input type="text" id="estado" placeholder="Ej: activo, finalizado, pendiente" {...register('estado')} />
+                  </div>
+                  {errors.estado && <p className="error-text">{errors.estado.message}</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+            <button
             type="submit"
             className="btn-primary"
             disabled={isSubmitting || loading}
@@ -233,14 +247,9 @@ export default function ContratoForm({ id }: { id?: string }) {
           >
             Cancelar
           </button>
+          </div>
         </div>
       </form>
-    </main>
+    </div>
   );
 }
-
-/* --- estilos utilitarios (si no los tienes en tu CSS global) ---
-.input { @apply w-full rounded-lg border border-slate-300 px-3 py-2 bg-white; }
-.btn-primary { @apply inline-flex items-center rounded-lg bg-[#2BB673] hover:bg-[#1F9E61] text-white px-4 py-2; }
-.btn-secondary { @apply inline-flex items-center rounded-lg bg-[#2E87E5] hover:bg-[#1F6EC2] text-white px-4 py-2; }
--------------------------------------------------------------------*/

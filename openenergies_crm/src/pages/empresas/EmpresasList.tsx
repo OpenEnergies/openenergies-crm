@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import type { Empresa } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
+import { Pencil } from 'lucide-react';
 
 async function fetchEmpresas() {
   const { data, error } = await supabase
@@ -20,9 +21,12 @@ export default function EmpresasList() {
 
   return (
     <div className="grid">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* --- CABECERA CON EL ESTILO Y ESPACIADO CORRECTO --- */}
+      <div className="page-header">
         <h2 style={{ margin: 0 }}>Gestión de Empresas</h2>
-        <Link to="/app/empresas/nueva"><button>Nueva Empresa</button></Link>
+        <div className="page-actions">
+          <Link to="/app/empresas/nueva"><button>Nueva Empresa</button></Link>
+        </div>
       </div>
 
       <div className="card">
@@ -46,7 +50,7 @@ export default function EmpresasList() {
                   <th>CIF</th>
                   <th>Tipo</th>
                   <th>Creada en</th>
-                  <th>Acciones</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -56,7 +60,17 @@ export default function EmpresasList() {
                     <td>{e.cif ?? '—'}</td>
                     <td><span className="kbd">{e.tipo}</span></td>
                     <td>{fmtDate(e.creada_en)}</td>
-                    <td><Link to="/app/empresas/$id" params={{ id: e.id }}>Editar</Link></td>
+                    <td style={{ textAlign: 'right' }}>
+                      {/* --- ENLACE DE EDITAR CON ICONO --- */}
+                      <Link 
+                        to="/app/empresas/$id" 
+                        params={{ id: e.id }} 
+                        className="icon-button secondary"
+                        title="Editar Empresa"
+                      >
+                        <Pencil size={18} />
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

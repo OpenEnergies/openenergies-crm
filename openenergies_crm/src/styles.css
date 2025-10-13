@@ -232,3 +232,363 @@ button.danger:hover {
   max-width: 500px;
   width: 90%;
 }
+
+/* --- Estilos para la página de perfil --- */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.profile-grid > div > label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.profile-grid > div > p {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.error-text {
+  color: #DC2626; /* Rojo */
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+}
+
+.main-nav {
+  flex-grow: 1; /* Ocupa el espacio disponible en la barra lateral */
+}
+
+.main-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-link:hover {
+  background-color: var(--bg);
+  color: var(--fg);
+}
+
+.nav-link.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+/* --- Estilos para el Footer de la Barra Lateral --- */
+.sidebar-footer {
+  margin-top: auto; /* Empuja esta sección al final */
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  flex-grow: 1;
+}
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--secondary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-name {
+  color: var(--fg);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.profile-role {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.logout-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.logout-button:hover {
+  background-color: var(--bg);
+  color: var(--fg);
+}
+
+/* --- Estilos para Botones de Icono --- */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 0.5rem;
+  background-color: transparent; /* Fondo transparente por defecto */
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+/* --- Colores por tipo de acción --- */
+
+/* Botón Secundario (Azul - Bloquear/Activar) */
+.icon-button.secondary {
+  color: #191dff;
+}
+.icon-button.secondary:hover {
+  background-color: #EFF6FF; /* Azul muy claro */
+  color: #191dff;
+}
+
+/* Botón de Advertencia (Amarillo - Reset Password) */
+.icon-button.warning {
+  color: #f39b03; /* Ámbar */
+}
+.icon-button.warning:hover {
+  background-color: #FFFBEB; /* Ámbar muy claro */
+  color: #B45309;
+}
+
+/* Botón de Peligro (Rojo - Eliminar) */
+.icon-button.danger {
+  color: #ff6a6a; /* Rojo */
+}
+.icon-button.danger:hover {
+  background-color: #FEF2F2; /* Rojo muy claro */
+  color: #B91C1C;
+}
+
+/* Estado Deshabilitado */
+.icon-button:disabled {
+  color: #D1D5DB; /* Gris claro */
+  background-color: transparent;
+  cursor: not-allowed;
+}
+
+/* --- Estilos para Cabeceras de Página --- */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  /* flex-wrap para que se adapte en pantallas pequeñas */
+  flex-wrap: wrap; 
+  margin-bottom: 1.5rem;
+}
+
+.page-header h2 {
+  margin: 0;
+}
+
+.page-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* --- Estilos para Enlaces de Acción en Tablas --- */
+
+.table-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.table-action-link {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--secondary);
+  transition: color 0.2s;
+}
+
+.table-action-link:hover {
+  color: var(--secondary-600);
+  text-decoration: underline;
+}
+
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.file-input-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.file-input-button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.file-name {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* --- Estilos para Inputs con Iconos --- */
+.input-icon-wrapper {
+  position: relative;
+}
+
+.input-icon-wrapper .input-icon {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none; /* Para que no se pueda hacer clic en el icono */
+}
+
+.input-icon-wrapper input,
+.input-icon-wrapper select {
+  padding-left: 2.5rem; /* Hacemos espacio para el icono */
+}
+
+* Hacemos que todos los inputs de tipo fecha tengan el cursor de puntero para indicar que son clicables */
+input[type="date"] {
+  cursor: pointer;
+}
+
+/* El truco principal: seleccionamos el icono del calendario nativo del navegador */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* --- Estilos para Checkbox tipo Switch --- */
+.switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+.switch-wrapper input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background-color: #ccc;
+  border-radius: 34px;
+  transition: .4s;
+}
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+.switch-wrapper input:checked + .switch-slider {
+  background-color: var(--primary);
+}
+.switch-wrapper input:checked + .switch-slider:before {
+  transform: translateX(18px);
+}
+.switch-label {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* --- Estilos para la Maquetación de la Página de Perfil --- */
+.profile-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* Por defecto una columna en móvil */
+  gap: 2rem;
+  align-items: start;
+}
+
+/* En pantallas más grandes, pasamos a dos columnas */
+@media (min-width: 992px) {
+  .profile-layout-grid {
+    grid-template-columns: 1fr 2fr; /* Columna izquierda más pequeña */
+  }
+}
+
+.profile-summary {
+  text-align: center;
+}
+.profile-summary h4 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.profile-summary p {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+/* Estilo para los datos en modo 'solo lectura' */
+.profile-data-text {
+  margin: 0;
+  padding: 0.65rem 0.8rem 0.65rem 2.5rem; /* Alineado con los inputs */
+  min-height: 43px; /* Misma altura que los inputs */
+  display: flex;
+  align-items: center;
+}

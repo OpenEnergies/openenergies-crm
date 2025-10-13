@@ -5,6 +5,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
+import { User, HardHat, MapPin, Barcode, Tags, Zap, TrendingUp } from 'lucide-react';
 
 const schema = z.object({
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
@@ -130,85 +131,88 @@ export default function PuntoForm({ id }: { id?: string }) {
   };
 
   return (
-    <main className="max-w-2xl mx-auto p-4">
-      <h1 className="text-xl font-semibold mb-4">
-        {editing ? 'Editar punto de suministro' : 'Nuevo punto de suministro'}
-      </h1>
+    <div className="grid">
+      <div className="page-header">
+        <h2 style={{ margin: 0 }}>
+          {editing ? 'Editar Punto de Suministro' : 'Nuevo Punto de Suministro'}
+        </h2>
+      </div>
 
-      {serverError && (
-        <div role="alert" className="mb-4 rounded-lg p-3 bg-red-50 text-red-700 border border-red-200">
-          {serverError}
-        </div>
-      )}
+      <form onSubmit={handleSubmit(onSubmit)} className="card">
+        <div className="grid" style={{ gap: '1.5rem' }}>
+          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
+          
+          <div className="form-row">
+            <div>
+              <label htmlFor="cliente_id">Cliente</label>
+              <div className="input-icon-wrapper">
+                <HardHat size={18} className="input-icon" />
+                <select id="cliente_id" {...register('cliente_id')}>
+                  <option value=""> Selecciona </option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="titular">Titular</label>
+              <div className="input-icon-wrapper">
+                <User size={18} className="input-icon" />
+                <input type="text" id="titular" {...register('titular')} />
+              </div>
+              {errors.titular && <p className="error-text">{errors.titular.message}</p>}
+            </div>
+          </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-busy={isSubmitting || loading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Cliente</span>
-            <select className="input" {...register('cliente_id')}>
-              <option value="">— Selecciona —</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre} {c.cif ? `(${c.cif})` : ''}
-                </option>
-              ))}
-            </select>
-            {errors.cliente_id && <span className="text-sm text-red-700">{errors.cliente_id.message}</span>}
-          </label>
+          <div>
+            <label htmlFor="direccion">Dirección</label>
+            <div className="input-icon-wrapper">
+                <MapPin size={18} className="input-icon" />
+                <input type="text" id="direccion" {...register('direccion')} />
+            </div>
+            {errors.direccion && <p className="error-text">{errors.direccion.message}</p>}
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Titular</span>
-            <input type="text" className="input" {...register('titular')} />
-            {errors.titular && <span className="text-sm text-red-700">{errors.titular.message}</span>}
-          </label>
+          <div className="form-row">
+            <div>
+              <label htmlFor="cups">CUPS</label>
+              <div className="input-icon-wrapper">
+                <Barcode size={18} className="input-icon" />
+                <input type="text" id="cups" {...register('cups')} />
+              </div>
+              {errors.cups && <p className="error-text">{errors.cups.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="tarifa_acceso">Tarifa de acceso</label>
+              <div className="input-icon-wrapper">
+                <Tags size={18} className="input-icon" />
+                <input type="text" id="tarifa_acceso" {...register('tarifa_acceso')} />
+              </div>
+              {errors.tarifa_acceso && <p className="error-text">{errors.tarifa_acceso.message}</p>}
+            </div>
+          </div>
 
-          <label className="flex flex-col gap-1 md:col-span-2">
-            <span className="text-sm text-slate-700">Dirección</span>
-            <input type="text" className="input" {...register('direccion')} />
-            {errors.direccion && <span className="text-sm text-red-700">{errors.direccion.message}</span>}
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">CUPS</span>
-            <input type="text" className="input" {...register('cups')} />
-            {errors.cups && <span className="text-sm text-red-700">{errors.cups.message}</span>}
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Tarifa de acceso</span>
-            <input type="text" className="input" {...register('tarifa_acceso')} />
-            {errors.tarifa_acceso && (
-              <span className="text-sm text-red-700">{errors.tarifa_acceso.message}</span>
-            )}
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Potencia contratada (kW)</span>
-            <input
-              type="number"
-              step="0.01"
-              className="input"
-              {...register('potencia_contratada_kw', {
-                setValueAs: (v) => (v === '' || v === undefined || v === null ? null : Number(v)),
-              })}
-            />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-700">Consumo anual (kWh)</span>
-            <input
-              type="number"
-              step="1"
-              className="input"
-              {...register('consumo_anual_kwh', {
-                setValueAs: (v) => (v === '' || v === undefined || v === null ? null : Number(v)),
-              })}
-            />
-          </label>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button type="submit" className="btn-primary" disabled={isSubmitting || loading}>
+          <div className="form-row">
+            <div>
+              <label htmlFor="potencia_contratada_kw">Potencia contratada (kW)</label>
+              <div className="input-icon-wrapper">
+                <Zap size={18} className="input-icon" />
+                <input type="number" id="potencia_contratada_kw" step="0.01" {...register('potencia_contratada_kw', { setValueAs: v => (v === '' ? null : Number(v)) })} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="consumo_anual_kwh">Consumo anual (kWh)</label>
+              <div className="input-icon-wrapper">
+                <TrendingUp size={18} className="input-icon" />
+                <input type="number" id="consumo_anual_kwh" step="1" {...register('consumo_anual_kwh', { setValueAs: v => (v === '' ? null : Number(v)) })} />
+              </div>
+            </div>
+          </div>
+        
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem' }}>
+            <button type="submit" className="btn-primary" disabled={isSubmitting || loading}>
             {editing ? 'Guardar cambios' : 'Crear punto'}
           </button>
           <button
@@ -218,14 +222,11 @@ export default function PuntoForm({ id }: { id?: string }) {
           >
             Cancelar
           </button>
+          </div>
+
+          
         </div>
       </form>
-    </main>
+    </div>
   );
 }
-
-/* --- estilos utilitarios (si no los tienes en tu CSS global) ---
-.input { @apply w-full rounded-lg border border-slate-300 px-3 py-2 bg-white; }
-.btn-primary { @apply inline-flex items-center rounded-lg bg-[#2BB673] hover:bg-[#1F9E61] text-white px-4 py-2; }
-.btn-secondary { @apply inline-flex items-center rounded-lg bg-[#2E87E5] hover:bg-[#1F6EC2] text-white px-4 py-2; }
--------------------------------------------------------------------*/

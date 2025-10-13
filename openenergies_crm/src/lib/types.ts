@@ -15,6 +15,7 @@ export interface UsuarioApp {
   email: string | null;
   activo: boolean;
   creado_en: string | null;
+  avatar_url: string | null;
 }
 
 export interface Empresa {

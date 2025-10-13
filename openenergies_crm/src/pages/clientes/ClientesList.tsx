@@ -5,6 +5,9 @@ import type { Cliente } from '@lib/types';
 import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
+import { useSession } from '@hooks/useSession';
+import { Pencil, MapPin } from 'lucide-react';
+import { clsx } from '@lib/utils';
 
 async function fetchClientes(filter: string){
   let q = supabase.from('clientes').select('*').limit(100);
@@ -17,12 +20,16 @@ async function fetchClientes(filter: string){
 }
 
 export default function ClientesList(){
+  const { rol } = useSession();
   const [filter, setFilter] = useState('');
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey:['clientes', filter], queryFn:()=>fetchClientes(filter) });
+  const { data, isLoading, isError } = useQuery({ queryKey:['clientes', filter], queryFn:()=>fetchClientes(filter) });
+  // Determinamos si el usuario actual puede editar clientes
+  const canEdit = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
 
   return (
     <div className="grid">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* --- CABECERA CON EL ESPACIADO CORRECTO --- */}
+      <div className="page-header">
         <h2 style={{ margin: '0' }}>Clientes</h2>
         <Link to="/app/clientes/nuevo"><button>Nuevo Cliente</button></Link>
       </div>
@@ -56,7 +63,7 @@ export default function ClientesList(){
                   <th>DNI/CIF</th>
                   <th>Email facturación</th>
                   <th>Creado</th>
-                  <th>Acciones</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,7 +73,29 @@ export default function ClientesList(){
                     <td>{c.dni || c.cif || '—'}</td>
                     <td>{c.email_facturacion ?? '—'}</td>
                     <td>{fmtDate(c.creado_en)}</td>
-                    <td><Link to={`/app/puntos?cliente_id=${c.id}` as any}>Ver Puntos</Link></td>
+                    <td style={{ textAlign: 'right' }}>
+                      {/* --- ACCIONES CON ICONOS --- */}
+                      <div className="table-actions" style={{ justifyContent: 'flex-end' }}>
+                        <Link 
+                            to="/app/puntos" 
+                            search={{ cliente_id: c.id }} 
+                            className="icon-button secondary"
+                            title="Ver Puntos de Suministro"
+                        >
+                          <MapPin size={18} />
+                        </Link>
+                        {canEdit && (
+                          <Link 
+                            to="/app/clientes/$id" 
+                            params={{ id: c.id }} 
+                            className="icon-button secondary"
+                            title="Editar Cliente"
+                          >
+                            <Pencil size={18} />
+                          </Link>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

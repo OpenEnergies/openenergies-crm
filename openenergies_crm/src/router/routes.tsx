@@ -15,6 +15,7 @@ import UsuariosList from '@pages/usuarios/UsuariosList';
 import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
 import EmpresasList from '@pages/empresas/EmpresasList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
+import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
 
@@ -42,6 +43,12 @@ const indexRoute = createRoute({
   beforeLoad: () => {
     throw redirect({ to: '/app' });
   },
+});
+
+const forceChangePasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/force-change-password',
+  component: ForceChangePassword,
 });
 
 // --- 3. RUTAS PRIVADAS (EL CRM) ---
@@ -165,6 +172,7 @@ export const empresasEditRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
+  forceChangePasswordRoute,
   appRoute.addChildren([
     dashboardRoute, // El Dashboard es la primera ruta hija
     empresasRoute,     

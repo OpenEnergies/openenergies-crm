@@ -9,7 +9,9 @@ export interface UsuarioApp {
   user_id: UUID;
   empresa_id: UUID;
   rol: RolUsuario;
-  nombre_completo: string | null;
+  nombre: string | null;
+  apellidos: string | null;
+  telefono: string | null;
   email: string | null;
   activo: boolean;
   creado_en: string | null;

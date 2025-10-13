@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
 import type { UsuarioApp } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
+import { useSession } from '@hooks/useSession';
 
 // Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
 
-async function fetchUsuarios() {
+async function fetchUsuarios(): Promise<UsuarioConEmpresa[]> {
   const { data, error } = await supabase
     .from('usuarios_app')
     .select('*, empresas(nombre)')
@@ -17,8 +19,71 @@ async function fetchUsuarios() {
   return data as UsuarioConEmpresa[];
 }
 
+// --- Lógica para las acciones ---
+async function toggleUserActive({ userId, newActiveState }: { userId: string; newActiveState: boolean }) {
+  const { error } = await supabase.functions.invoke('manage-user', {
+    body: { action: 'toggle-active', payload: { userId, newActiveState } }
+  });
+  if (error) throw new Error(error.message);
+}
+
+async function resetUserPassword({ email }: { email: string }) {
+  if (!window.confirm(`¿Estás seguro de que quieres enviar un correo de restablecimiento de contraseña a ${email}?`)) {
+    throw new Error('Acción cancelada');
+  }
+  const { error } = await supabase.functions.invoke('manage-user', {
+    body: { action: 'reset-password', payload: { email } }
+  });
+  if (error) throw new Error(error.message);
+}
+
+async function deleteUser({ userId }: { userId: string }) {
+  const { error } = await supabase.functions.invoke('manage-user', {
+    body: { action: 'delete', payload: { userId } }
+  });
+  if (error) throw new Error(error.message);
+}
+
 export default function UsuariosList() {
-  const { data, isLoading, isError } = useQuery({ queryKey: ['usuarios'], queryFn: fetchUsuarios });
+  const queryClient = useQueryClient();
+  const { userId: currentUserId } = useSession(); // Para no poder bloquearse a uno mismo
+  const { data: usuarios, isLoading, isError } = useQuery({ queryKey: ['usuarios'], queryFn: fetchUsuarios });
+
+  // Estado para controlar el modal
+  const [userToDelete, setUserToDelete] = useState<UsuarioConEmpresa | null>(null);
+
+  // Mutación para cambiar el estado de activo/inactivo
+  const toggleActiveMutation = useMutation({
+    mutationFn: toggleUserActive,
+    onSuccess: () => {
+      alert('Estado del usuario actualizado.');
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
+    },
+    onError: (error) => alert(`Error: ${error.message}`),
+  });
+
+  // Mutación para resetear la contraseña
+  const resetPasswordMutation = useMutation({
+    mutationFn: resetUserPassword,
+    onSuccess: () => alert('Correo de restablecimiento enviado.'),
+    onError: (error) => {
+      // No mostramos el error si el usuario canceló la acción
+      if (error.message !== 'Acción cancelada') {
+        alert(`Error: ${error.message}`);
+      }
+    },
+  });
+
+  // NUEVA Mutación para eliminar usuario
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      alert('Usuario eliminado correctamente.');
+      setUserToDelete(null); // Cierra el modal
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
+    },
+    onError: (error) => alert(`Error al eliminar: ${error.message}`),
+  });
 
   return (
     <div className="grid">
@@ -30,17 +95,8 @@ export default function UsuariosList() {
       {isLoading && <div className="card">Cargando usuarios...</div>}
       {isError && <div className="card" role="alert">Error al cargar los usuarios.</div>}
 
-      {data && data.length === 0 && (
-        <EmptyState 
-          title="No hay usuarios" 
-          description="Invita al primer usuario para empezar a colaborar."
-          cta={<Link to="/app/usuarios/invitar"><button>Invitar Usuario</button></Link>}
-          //<Link to="/app/puntos/nuevo"><button>Nuevo</button></Link>
-        />
-      )}
-
-      {data && data.length > 0 && (
-        <div className="card">
+      {usuarios && usuarios.length > 0 && (
+        <div className="card table-wrapper">
           <table className="table">
             <thead>
               <tr>
@@ -48,21 +104,79 @@ export default function UsuariosList() {
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Empresa</th>
-                <th>Activo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {data.map(u => (
+              {usuarios.map(u => (
                 <tr key={u.user_id}>
-                  <td>{u.nombre_completo ?? '—'}</td>
-                  <td>{u.email ?? '—'}</td>
+                  <td>{u.nombre} {u.apellidos}</td>
+                  <td>{u.email}</td>
                   <td><span className="kbd">{u.rol}</span></td>
                   <td>{u.empresas?.nombre ?? '—'}</td>
-                  <td>{u.activo ? 'Sí' : 'No'}</td>
+                  <td>
+                    <span className={`badge ${u.activo ? 'active' : 'inactive'}`}>
+                      {u.activo ? 'Activo' : 'Bloqueado'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="small-button"
+                        onClick={() => toggleActiveMutation.mutate({ userId: u.user_id, newActiveState: !u.activo })}
+                        disabled={u.user_id === currentUserId || toggleActiveMutation.isPending}
+                        title={u.user_id === currentUserId ? "No puedes bloquearte a ti mismo" : (u.activo ? "Bloquear usuario" : "Activar usuario")}
+                      >
+                        {u.activo ? 'Bloquear' : 'Activar'}
+                      </button>
+                      <button 
+                        className="small-button secondary"
+                        onClick={() => resetPasswordMutation.mutate({ email: u.email! })}
+                        disabled={resetPasswordMutation.isPending}
+                      >
+                        Reset Pass
+                      </button>
+                      <button 
+                        className="small-button danger"
+                        onClick={() => setUserToDelete(u)} // <-- Abre el modal
+                        disabled={u.user_id === currentUserId || deleteMutation.isPending}
+                        title={u.user_id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* --- NUEVO: Modal de Confirmación --- */}
+      {userToDelete && (
+        <div className="modal-overlay">
+          <div className="modal-content card">
+            <h3 style={{marginTop: 0}}>Confirmar Eliminación</h3>
+            <p>
+              ¿Estás seguro de que quieres eliminar al usuario <strong>{userToDelete.nombre} {userToDelete.apellidos}</strong>?
+              <br />
+              Esta acción es irreversible.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+              <button className="secondary" onClick={() => setUserToDelete(null)}>
+                Cancelar
+              </button>
+              <button 
+                className="danger" 
+                onClick={() => deleteMutation.mutate({ userId: userToDelete.user_id })}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

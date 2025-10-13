@@ -193,3 +193,42 @@ label {
   color: var(--muted);
   font-size: 0.9rem;
 }
+
+/* --- Estilos para la tabla de usuarios --- */
+.badge.active {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+.badge.inactive {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
+button.small-button {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* --- Estilos para el botón de peligro --- */
+button.danger {
+  background-color: #DC2626; /* Rojo */
+}
+button.danger:hover {
+  background-color: #B91C1C;
+}
+
+/* --- Estilos para el Modal --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5); /* Fondo oscuro semitransparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  max-width: 500px;
+  width: 90%;
+}

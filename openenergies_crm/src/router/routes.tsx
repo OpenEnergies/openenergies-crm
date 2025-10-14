@@ -17,6 +17,7 @@ import EmpresasList from '@pages/empresas/EmpresasList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
 import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import PerfilPage from '@pages/perfil/PerfilPage';
+import ComparativaForm from '@pages/comparativas/ComparativaForm';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
 
@@ -133,6 +134,13 @@ const usuarioInviteRoute = createRoute({
   component: () => <RequireRole roles={['administrador', 'comercializadora']}><UsuarioInviteForm /></RequireRole>,
 });
 
+// --- AÑADE LA RUTA DE COMPARATIVAS ---
+const comparativasNewRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/comparativas/nueva',
+  component: () => <RequireRole roles={['administrador']}><ComparativaForm /></RequireRole>,
+});
+
 // --- 4. RUTA PARA "NO ENCONTRADO" (404) ---
 // Una página amigable para cuando el usuario va a una URL que no existe.
 const notFoundRoute = new NotFoundRoute({
@@ -184,6 +192,7 @@ const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     dashboardRoute, // El Dashboard es la primera ruta hija
     perfilRoute,
+    comparativasNewRoute,
     empresasRoute,     
     empresasNewRoute,  
     empresasEditRoute,

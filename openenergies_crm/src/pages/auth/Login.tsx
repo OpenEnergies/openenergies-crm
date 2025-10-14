@@ -26,24 +26,32 @@ export default function Login(){
   }
 
   return (
-    <div className="container" style={{maxWidth:420, marginTop:'10vh'}}>
-      <div className="card" aria-labelledby="login-title">
-        <h1 id="login-title" style={{marginTop:0}}>Accede a tu cuenta</h1>
-        <p style={{color:'var(--muted)'}}>Introduce tus credenciales. Si no recuerdas tu contraseña, déjala en blanco para recibir un enlace de acceso a tu correo.</p>
-        <form onSubmit={handleSubmit(onSubmit)} className="grid" aria-describedby="login-hint">
-          <div>
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" autoComplete="email" {...register('email')} aria-invalid={!!errors.email} />
-            {errors.email && <div role="alert" style={{color:'#b91c1c'}}>{errors.email.message}</div>}
-          </div>
-          <div>
-            <label htmlFor="password">Contraseña (opcional)</label>
-            <input id="password" type="password" autoComplete="current-password" {...register('password')} />
-          </div>
-          <div id="login-hint" className="sr-only"></div>
-          <div><button disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button></div>
-        </form>
+    <main style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      padding: '1rem'
+    }}>
+      <div className="container" style={{maxWidth:420, marginTop:'10vh'}}>
+        <div className="card" aria-labelledby="login-title">
+          <h1 id="login-title" style={{marginTop:0}}>Accede a tu cuenta</h1>
+          <p style={{color:'var(--muted)'}}>Introduce tus credenciales. Si no recuerdas tu contraseña, déjala en blanco para recibir un enlace de acceso a tu correo.</p>
+          <form onSubmit={handleSubmit(onSubmit)} className="grid" aria-describedby="login-hint" >
+            <div>
+              <label htmlFor="email">Email</label>
+              <input id="email" type="email" autoComplete="email" {...register('email')} aria-invalid={!!errors.email} />
+              {errors.email && <div role="alert" style={{color:'#b91c1c'}}>{errors.email.message}</div>}
+            </div>
+            <div>
+              <label htmlFor="password">Contraseña (opcional)</label>
+              <input id="password" type="password" autoComplete="current-password" {...register('password')} />
+            </div>
+            <div id="login-hint" className="sr-only" style={{marginTop: '2rem'}}></div>
+            <div><button disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button></div>
+          </form>
+        </div>
       </div>
-    </div>
+  </main>
   );
 }

@@ -84,8 +84,6 @@ export default function EmpresaForm({ id }: { id?: string }) {
                 <Tags size={18} className="input-icon" />
                 <select id="tipo" {...register('tipo')}>
                     <option value="comercializadora">Comercializadora</option>
-                    <option value="distribuidora">Distribuidora</option>
-                    <option value="transportista">Transportista</option>
                     <option value="openenergies">Interna (Open Energies)</option>
                 </select>
               </div>

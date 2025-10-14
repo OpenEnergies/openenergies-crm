@@ -592,3 +592,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
 }
+
+.profile-forms-column {
+  display: grid;
+  gap: 2rem; /* ¡Aquí está el espaciado que quieres! */
+  align-content: start; /* Asegura que las tarjetas se apilan desde arriba */
+}

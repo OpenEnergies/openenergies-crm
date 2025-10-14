@@ -6,8 +6,8 @@ type SessionInfo = {
   userId: UUID | null;
   rol: RolUsuario | null;
   empresaId: UUID | null;
-  nombre: string | null;      // <-- AÑADE ESTA LÍNEA
-  apellidos: string | null; // <-- AÑADE ESTA LÍNEA
+  nombre: string | null;
+  apellidos: string | null;
   loading: boolean;
 };
 
@@ -15,63 +15,57 @@ export function useSession(): SessionInfo {
   const [state, setState] = useState<SessionInfo>({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
 
   useEffect(() => {
-    console.log('[useSession] Hook montado. Iniciando comprobación de sesión.');
     let mounted = true;
 
-    async function load() {
-      console.log('[useSession] Buscando sesión de Supabase Auth...');
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? null;
-
+    // Esta función carga el perfil del usuario una vez que tenemos una sesión
+    async function loadProfile(session: any) {
+      const userId = session?.user?.id;
       if (!userId) {
-        console.log('[useSession] No se encontró sesión. Usuario no logueado.');
-        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
+        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: false });
         return;
       }
-      
-      console.log(`[useSession] Sesión encontrada para el usuario ID: ${userId}. Buscando perfil en 'usuarios_app'...`);
-      
-      // Buscar perfil en usuarios_app (RLS permite ver el propio registro)
+
       const { data, error } = await supabase
         .from('usuarios_app')
-        .select('user_id, rol, empresa_id, nombre, apellidos') // <-- AÑADE 'nombre, apellidos'
+        .select('user_id, rol, empresa_id, nombre, apellidos')
         .eq('user_id', userId)
-        .maybeSingle(); // maybeSingle() es clave, devuelve null si no lo encuentra en vez de un array vacío.
+        .single(); // Usamos single() que da error si no lo encuentra, es más estricto
 
       if (error) {
-        console.error('[useSession] Error al buscar el perfil de usuario:', error.message);
-        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
+        console.error('[useSession] Error al buscar el perfil:', error.message);
+        if (mounted) setState({ userId, rol: null, empresaId: null, nombre: null, apellidos: null, loading: false });
         return;
       }
       
-      if (!data) {
-        console.warn(`[useSession] ¡Alerta! Se encontró un usuario en Auth (ID: ${userId}) pero no tiene un perfil correspondiente en la tabla 'usuarios_app'.`);
-        if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: true });
-        return;
+      if (data && mounted) {
+        setState({ 
+          userId, 
+          rol: data.rol as RolUsuario, 
+          empresaId: data.empresa_id, 
+          nombre: data.nombre,
+          apellidos: data.apellidos,
+          loading: false 
+        });
       }
-
-      console.log(`[useSession] Perfil encontrado. Rol asignado: ${data.rol}`);
-      if (mounted) setState({ 
-        userId, 
-        rol: data.rol as any, 
-        empresaId: data.empresa_id ?? null, 
-        nombre: data.nombre ?? null,          // <-- AÑADE ESTA LÍNEA
-        apellidos: data.apellidos ?? null,  // <-- AÑADE ESTA LÍNEA
-        loading: false 
-      });
     }
+    
+    // Verificamos la sesión inicial al cargar el componente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+            loadProfile(session);
+        } else {
+            if (mounted) setState({ userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, loading: false });
+        }
+    });
 
-    load();
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log(`[useSession] Cambio de estado de autenticación detectado: ${event}. Recargando perfil.`);
-        load();
+    // Y nos suscribimos a futuros cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadProfile(session);
     });
     
     return () => { 
-      console.log('[useSession] Hook desmontado. Limpiando subscripción.');
       mounted = false; 
-      sub?.subscription.unsubscribe(); 
+      subscription?.unsubscribe(); 
     };
   }, []);
 

@@ -1,5 +1,6 @@
 import { useSession } from '@hooks/useSession';
 import { Link } from '@tanstack/react-router';
+import { canSeeModule } from '@lib/permissions';
 
 // Un pequeño componente para las tarjetas de acción
 function ActionCard({ to, title, description }: { to: string; title: string; description: string }) {
@@ -30,8 +31,9 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-grid">
-        {/* Mostramos tarjetas según el rol del usuario */}
-        {(rol === 'administrador' || rol === 'comercializadora') && (
+        {/* Usamos la función canSeeModule para cada tarjeta */}
+        
+        {canSeeModule(rol ?? 'cliente', 'usuarios') && (
           <ActionCard
             to="/app/usuarios"
             title="Gestionar Usuarios"
@@ -39,7 +41,7 @@ export default function Dashboard() {
           />
         )}
         
-        {(rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial') && (
+        {canSeeModule(rol ?? 'cliente', 'clientes') && (
           <ActionCard
             to="/app/clientes"
             title="Ver Clientes"
@@ -47,23 +49,30 @@ export default function Dashboard() {
           />
         )}
 
-        <ActionCard
-          to="/app/puntos"
-          title="Puntos de Suministro"
-          description="Accede al listado de todos los CUPS disponibles."
-        />
+        {/* --- ¡AQUÍ ESTÁ LA CORRECCIÓN! --- */}
+        {canSeeModule(rol ?? 'cliente', 'puntos') && (
+          <ActionCard
+            to="/app/puntos"
+            title="Puntos de Suministro"
+            description="Accede al listado de todos los CUPS disponibles."
+          />
+        )}
 
-        <ActionCard
-          to="/app/contratos"
-          title="Contratos"
-          description="Revisa los contratos activos y gestiona las renovaciones."
-        />
+        {canSeeModule(rol ?? 'cliente', 'contratos') && (
+          <ActionCard
+            to="/app/contratos"
+            title="Contratos"
+            description="Revisa los contratos activos y gestiona las renovaciones."
+          />
+        )}
 
-        <ActionCard
-          to="/app/documentos"
-          title="Documentos"
-          description="Busca y descarga facturas, contratos y otros archivos."
-        />
+        {canSeeModule(rol ?? 'cliente', 'documentos') && (
+          <ActionCard
+            to="/app/documentos"
+            title="Documentos"
+            description="Busca y descarga facturas, contratos y otros archivos."
+          />
+        )}
       </div>
     </div>
   );

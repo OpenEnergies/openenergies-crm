@@ -6,17 +6,22 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
-import { Pencil, MapPin } from 'lucide-react';
-import { clsx } from '@lib/utils';
+import { Pencil, MapPin, Building2 } from 'lucide-react';
+
+type ClienteConEmpresa = Cliente & {
+  empresas: {
+    nombre: string;
+  } | null;
+};
 
 async function fetchClientes(filter: string){
-  let q = supabase.from('clientes').select('*').limit(100);
+  let q = supabase.from('clientes').select('*, empresas ( nombre )').limit(100);
   if (filter) {
     q = q.or(`nombre.ilike.%${filter}%,dni.ilike.%${filter}%,cif.ilike.%${filter}%`);
   }
   const { data, error } = await q.order('creado_en', { ascending: false });
   if (error) throw error;
-  return data as Cliente[];
+  return data as ClienteConEmpresa[];
 }
 
 export default function ClientesList(){
@@ -24,7 +29,7 @@ export default function ClientesList(){
   const [filter, setFilter] = useState('');
   const { data, isLoading, isError } = useQuery({ queryKey:['clientes', filter], queryFn:()=>fetchClientes(filter) });
   // Determinamos si el usuario actual puede editar clientes
-  const canEdit = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
+  const canEdit = rol === 'administrador' || rol === 'comercial';
 
   return (
     <div className="grid">
@@ -60,6 +65,7 @@ export default function ClientesList(){
               <thead>
                 <tr>
                   <th>Nombre</th>
+                  <th>Empresa</th>
                   <th>DNI/CIF</th>
                   <th>Email facturación</th>
                   <th>Creado</th>
@@ -73,6 +79,13 @@ export default function ClientesList(){
                       <Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">
                         {c.nombre}
                       </Link>
+                    </td>
+                    {/* --- CAMBIO #5: Mostramos el nombre de la empresa --- */}
+                    <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Building2 size={16} style={{ color: 'var(--muted)'}} />
+                            {c.empresas?.nombre ?? 'No asignada'}
+                        </div>
                     </td>
                     <td>{c.dni || c.cif || '—'}</td>
                     <td>{c.email_facturacion ?? '—'}</td>

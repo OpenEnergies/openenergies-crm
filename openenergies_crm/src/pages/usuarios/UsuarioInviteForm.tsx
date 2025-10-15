@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
@@ -15,7 +15,7 @@ const createUserSchema = (isAdmin: boolean, createWithPass: boolean) => z.object
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
-  rol: z.enum(['comercializadora', 'comercial', 'administrador']),
+  rol: z.enum(['comercial', 'administrador']),
   empresa_id: isAdmin 
     ? z.string().uuid('Debes seleccionar una empresa') 
     : z.string().optional(),
@@ -51,10 +51,15 @@ export default function UsuarioInviteForm() {
   const [createWithPassword, setCreateWithPassword] = useState(!isAdmin);
   const schema = createUserSchema(isAdmin, createWithPassword);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, control } = useForm<FormData>({
     resolver: zodResolver(schema),
-    context: { createWithPassword }
+    defaultValues: {
+        rol: 'comercial', // Valor por defecto
+    }
   });
+
+  const selectedRol = useWatch({ control, name: 'rol' });
+  const isComercialSelected = selectedRol === 'comercial';
   
   useEffect(() => {
     if (isAdmin) {
@@ -63,15 +68,8 @@ export default function UsuarioInviteForm() {
   }, [isAdmin]);
 
   const rolesDisponibles: RolUsuario[] = isAdmin
-    ? ['administrador', 'comercializadora', 'comercial']
-    : ['comercial'];
-
-   // ¡NUEVA FUNCIÓN PARA DEPURAR!
-  // Esta función se ejecutará si la validación falla.
-  const onValidationErrors = (errorList: any) => {
-    console.error('La validación del formulario ha fallado:', errorList);
-    alert('La validación del formulario ha fallado. Revisa la consola para más detalles (F12).');
-  };
+    ? ['administrador', 'comercial']
+    : [];
 
   async function onSubmit(values: FormData) {
     setServerError(null);
@@ -170,17 +168,20 @@ export default function UsuarioInviteForm() {
           </div>
 
           {isAdmin && (
-            <div>
-              <label htmlFor="empresa_id">Empresa</label>
-              <div className="input-icon-wrapper">
-                <Building2 size={18} className="input-icon" />
-                <select id="empresa_id" {...register('empresa_id')}>
-                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
-              </div>
-              {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
+          <div>
+            <label htmlFor="empresa_id">Empresa</label>
+            <div className="input-icon-wrapper">
+              <Building2 size={18} className="input-icon" />
+              {/* --- CAMBIO #3 (MEJORA UX): El select se deshabilita si es un comercial --- */}
+              <select id="empresa_id" {...register('empresa_id')} disabled={isComercialSelected}>
+                <option value="">{isComercialSelected ? 'Asignado a Open Energies' : 'Selecciona una empresa...'}</option>
+                {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
             </div>
-          )}
+            {isComercialSelected && <p className="info-text">Un 'comercial' siempre pertenece a Open Energies.</p>}
+            {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
+          </div>
+        )}
           
           {/* SECCIÓN DE MÉTODO DE CREACIÓN MEJORADA */}
           {isAdmin && (

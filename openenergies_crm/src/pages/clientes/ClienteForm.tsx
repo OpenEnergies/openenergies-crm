@@ -7,12 +7,14 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { Cliente, TipoCliente } from '@lib/types';
 import { useSession } from '@hooks/useSession';
-import { HardHat, Tags, FileText, Mail, Lock } from 'lucide-react';
+import { useEmpresas } from '@hooks/useEmpresas';
+import { HardHat, Tags, FileText, Mail, Lock, Building2 } from 'lucide-react';
 
 // Usamos el tipo específico para mayor seguridad
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
+  empresa_id: z.string().uuid('Debes seleccionar la empresa propietaria'),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
   email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
@@ -33,6 +35,8 @@ export default function ClienteForm({ id }: { id?: string }) {
 
   // Nuevo estado para controlar si se crea el acceso al portal
   const [createPortalAccess, setCreatePortalAccess] = useState(false);
+
+  const { empresas, loading: loadingEmpresas } = useEmpresas();
 
   const schema = createClienteSchema(createPortalAccess);
 
@@ -71,6 +75,7 @@ export default function ClienteForm({ id }: { id?: string }) {
         const { error } = await supabase.from('clientes').update({
           nombre: values.nombre,
           tipo: values.tipo,
+          empresa_id: values.empresa_id,
           dni: values.dni,
           cif: values.cif,
           email_facturacion: values.email_facturacion
@@ -88,10 +93,10 @@ export default function ClienteForm({ id }: { id?: string }) {
             clientData: {
               nombre: values.nombre,
               tipo: values.tipo,
+              empresa_id: values.empresa_id,
               dni: values.dni,
               cif: values.cif,
               email_facturacion: values.email_facturacion,
-              empresa_id: empresaId,
             },
             createPortalAccess: createPortalAccess,
             userData: createPortalAccess ? {
@@ -130,7 +135,19 @@ export default function ClienteForm({ id }: { id?: string }) {
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
           {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
-
+          {/* --- PASO 3: AÑADIMOS EL NUEVO CAMPO AL FORMULARIO --- */}
+            <div>
+              <label htmlFor="empresa_id">Empresa Propietaria</label>
+              <div className="input-icon-wrapper">
+                <Building2 size={18} className="input-icon" />
+                <select id="empresa_id" {...register('empresa_id')} disabled={loadingEmpresas}>
+                  <option value="">{loadingEmpresas ? 'Cargando empresas...' : 'Selecciona una empresa'}</option>
+                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
+              </div>
+              {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
+            </div>
+            
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre o Razón Social</label>

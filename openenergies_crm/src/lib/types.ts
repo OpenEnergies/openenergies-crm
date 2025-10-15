@@ -1,4 +1,4 @@
-export type RolUsuario = 'administrador' | 'comercializadora' | 'comercial' | 'cliente';
+export type RolUsuario = 'administrador' | 'comercial' | 'cliente';
 
 // Por simplicidad, tipos USER-DEFINED se tratan como string en TS.
 export type UUID = string;
@@ -22,7 +22,7 @@ export interface Empresa {
   id: UUID;
   nombre: string;
   cif: string | null;
-  tipo: string;  // p.ej. 'openenergies' | 'comercializadora'...
+  tipo: 'interna' | 'externa'; // p.ej. 'openenergies' | 'comercializadora'...
   creada_en: string | null;
 }
 

@@ -20,7 +20,8 @@ import PerfilPage from '@pages/perfil/PerfilPage';
 import ComparativaForm from '@pages/comparativas/ComparativaForm';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
-
+import ClienteDetailLayout from '@pages/clientes/ClienteDetailLayout'; // <-- Importa el nuevo layout
+import ClienteDocumentos from '@pages/clientes/ClienteDocumentos'; // <-- Importa el nuevo componente que crearemos
 
 // --- 1. RUTA RAÍZ ---
 // Es el contenedor principal de toda la aplicación.
@@ -81,13 +82,46 @@ const clientesNewRoute = createRoute({
 });
 
 // La ruta EDITAR usa useParams y le pasa el 'id' al formulario
-const clientesEditRoute = createRoute({ 
+export const clientesEditRoute = createRoute({ 
   getParentRoute: () => appRoute, 
   path: '/clientes/$id', 
-  component: function EditCliente() {
-    const { id } = useParams({ from: clientesEditRoute.id });
-    return <ClienteForm id={id} />;
+  component: ClienteDetailLayout, // Usa el nuevo layout como componente
+});
+
+// Ruta por defecto al entrar en la ficha (redirige a puntos de suministro)
+const clienteDetailIndexRoute = createRoute({
+  getParentRoute: () => clientesEditRoute,
+  path: '/',
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/app/clientes/$id/puntos', params });
   }
+});
+
+// Las nuevas rutas anidadas para Puntos, Contratos y Documentos
+const clientePuntosRoute = createRoute({
+  getParentRoute: () => clientesEditRoute,
+  path: 'puntos',
+  component: () => {
+    const { id } = useParams({ from: '/app/clientes/$id/puntos' });
+    // Reutilizamos el componente existente, pasándole el ID del cliente
+    return <PuntosList clienteId={id} />;
+  }
+});
+
+const clienteContratosRoute = createRoute({
+  getParentRoute: () => clientesEditRoute,
+  path: 'contratos',
+  component: () => {
+    const { id } = useParams({ from: '/app/clientes/$id/contratos' });
+    return <ContratosList clienteId={id} />;
+  }
+});
+
+// Por ahora, una placeholder para documentos
+export const clienteDocumentosRoute = createRoute({
+  getParentRoute: () => clientesEditRoute,
+  path: 'documentos/$', // <-- '$' es el nombre del parámetro splat
+  component: ClienteDocumentos,
 });
 
 const puntosRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos', component: PuntosList });
@@ -200,7 +234,12 @@ const routeTree = rootRoute.addChildren([
     usuarioInviteRoute,
     clientesRoute,
     clientesNewRoute,
-    clientesEditRoute,
+    clientesEditRoute.addChildren([
+      clienteDetailIndexRoute,
+      clientePuntosRoute,
+      clienteContratosRoute,
+      clienteDocumentosRoute
+    ]),
     puntosRoute,
     puntoNewRoute,
     puntoEditRoute,

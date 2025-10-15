@@ -5,8 +5,11 @@ import { Link } from '@tanstack/react-router';
 import type { PuntoSuministro } from '@lib/types';
 import { Pencil } from 'lucide-react';
 
-async function fetchPuntos(filter: string){
+async function fetchPuntos(filter: string, clienteId?: string){
   let q = supabase.from('puntos_suministro').select('*, clientes(nombre)').limit(100);
+  if (clienteId) {
+    q = q.eq('cliente_id', clienteId);
+  }
   if (filter) {
     q = q.or(`cups.ilike.%${filter}%,direccion.ilike.%${filter}%,titular.ilike.%${filter}%`);
   }
@@ -15,13 +18,18 @@ async function fetchPuntos(filter: string){
   return data as (PuntoSuministro & { clientes: { nombre:string } | null })[];
 }
 
-export default function PuntosList(){
+export default function PuntosList({ clienteId }: { clienteId?: string }){
   const [filter, setFilter] = useState('');
-  const { data, isLoading, isError } = useQuery({ queryKey:['puntos', filter], queryFn:()=>fetchPuntos(filter) });
+  // La clave de la query ahora incluye el clienteId para evitar conflictos de caché
+  const { data, isLoading, isError } = useQuery({ 
+    queryKey: ['puntos', filter, clienteId], 
+    queryFn: () => fetchPuntos(filter, clienteId) 
+  });
 
   return (
     <div className="grid">
       {/* --- CABECERA CON ESTILO Y ESPACIADO --- */}
+      {!clienteId && (
       <div className="page-header">
         <h2 style={{margin:'0'}}>Puntos de suministro</h2>
         <div className="page-actions" style={{width: '100%', maxWidth: 500}}>
@@ -34,6 +42,7 @@ export default function PuntosList(){
           <Link to="/app/puntos/nuevo"><button>Nuevo</button></Link>
         </div>
       </div>
+      )}
 
       {isLoading && <div className="card">Cargando…</div>}
       {isError && <div className="card" role="alert">Error al cargar puntos.</div>}

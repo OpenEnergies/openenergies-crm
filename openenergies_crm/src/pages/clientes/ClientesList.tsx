@@ -69,7 +69,11 @@ export default function ClientesList(){
               <tbody>
                 {data.map(c => (
                   <tr key={c.id}>
-                    <td>{c.nombre}</td>
+                    <td>
+                      <Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">
+                        {c.nombre}
+                      </Link>
+                    </td>
                     <td>{c.dni || c.cif || '—'}</td>
                     <td>{c.email_facturacion ?? '—'}</td>
                     <td>{fmtDate(c.creado_en)}</td>

@@ -6,32 +6,39 @@ import { fmtDate } from '@lib/utils';
 import { Pencil } from 'lucide-react';
 import { useSession } from '@hooks/useSession';
 
-async function fetchContratos(){
-  const { data, error } = await supabase
+async function fetchContratos(clienteId?: string){
+  let query = supabase
     .from('contratos')
-    .select('*, puntos_suministro(cups), empresas!contratos_comercializadora_id_fkey(nombre)')
+    .select('*, puntos_suministro!inner(cups, cliente_id), empresas!contratos_comercializadora_id_fkey(nombre)')
     .limit(100);
+  if (clienteId) {
+    query = query.eq('puntos_suministro.cliente_id', clienteId);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return data as (Contrato & { puntos_suministro: { cups:string } | null, empresas: { nombre:string } | null })[];
 }
 
-export default function ContratosList(){
+export default function ContratosList({ clienteId }: { clienteId?: string }){
   const { rol } = useSession();
-  const { data, isLoading, isError } = useQuery({ queryKey:['contratos'], queryFn: fetchContratos });
+  const { data, isLoading, isError } = useQuery({ 
+    queryKey:['contratos', clienteId], 
+    queryFn: () => fetchContratos(clienteId) 
+  });
 
   const canEdit = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
 
   return (
     <div className="grid">
       {/* --- CABECERA CON ESTILO Y ESPACIADO --- */}
-      <div className="page-header">
-        <h2 style={{margin:0}}>Contratos</h2>
-        <div className="page-actions">
-          {canEdit && (
+      {!clienteId && (
+        <div className="page-header">
+          <h2 style={{margin:0}}>Contratos</h2>
+          <div className="page-actions">
             <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="card">
         {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>}

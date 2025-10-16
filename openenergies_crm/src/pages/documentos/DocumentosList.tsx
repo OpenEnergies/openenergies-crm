@@ -1,39 +1,64 @@
+// @ts-nocheck
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import type { Documento } from '@lib/types';
 import { Link } from '@tanstack/react-router';
-// Importamos el icono de descarga
-import { Download } from 'lucide-react';
+import { RootDocumentItem } from '@lib/types'; // <-- Importamos el nuevo tipo
+import { Download, Folder, FileText } from 'lucide-react'; // <-- Íconos añadidos
 import { useSession } from '@hooks/useSession';
+import { EmptyState } from '@components/EmptyState';
+import { useState, useMemo } from 'react';
 
-async function fetchDocs() {
-  const { data, error } = await supabase.from('documentos').select('*, clientes(nombre)').order('subido_en', { ascending: false }).limit(100);
-  if (error) throw error;
-  return data as (Documento & { clientes: { nombre: string } | null })[];
+// --- CAMBIO #2: La función ahora llama a nuestra RPC 'get_all_root_documents' ---
+async function fetchAllRootDocuments(): Promise<RootDocumentItem[]> {
+  const { data, error } = await supabase.rpc('get_all_root_documents');
+  if (error) {
+    console.error("Error al llamar a la función RPC 'get_all_root_documents':", error);
+    throw error;
+  }
+  return data;
 }
 
-async function getSignedUrl(path: string) {
-  
-  // 5 minutos de validez para el enlace
-  const { data, error } = await supabase.storage.from('documentos').createSignedUrl(path, 60 * 5);
-  if (error) throw error;
-  return data.signedUrl;
-}
-
-export default function DocumentosList(){
+export default function DocumentosList() {
   const { rol } = useSession();
-  const { data, isLoading, isError } = useQuery({ queryKey:['documentos'], queryFn: fetchDocs });
+  // La query ahora llama a la nueva función
+  const [filter, setFilter] = useState('');
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['all_root_documents'],
+    queryFn: fetchAllRootDocuments,
+  });
 
-  const canUpload = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
+  // Los permisos para subir documentos se mantienen igual
+  const canUpload = rol === 'administrador' || rol === 'comercial';
+
+  // --- CAMBIO #2: Filtramos los datos antes de renderizarlos ---
+  // useMemo optimiza el rendimiento para que el filtrado no se ejecute en cada render.
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (!filter) return data; // Si no hay filtro, devolvemos todos los datos
+
+    return data.filter(item =>
+      item.item_name.toLowerCase().includes(filter.toLowerCase()) ||
+      item.cliente_nombre.toLowerCase().includes(filter.toLowerCase())
+    );
+  }, [data, filter]);
 
   return (
     <div className="grid">
       <div className="page-header">
-        <h2 style={{margin:0}}>Documentos</h2>
+        <h2 style={{ margin: 0 }}>Documentos Globales</h2>
         <div className="page-actions">
-          {/* --- 4. MUESTRA EL BOTÓN SOLO SI SE CUMPLE LA CONDICIÓN --- */}
+          {/* --- CAMBIO #3: Añadimos la barra de búsqueda --- */}
+          <input
+            type="text"
+            placeholder="Buscar por nombre o cliente..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{ minWidth: '250px' }}
+          />
           {canUpload && (
-            <Link to="/app/documentos/subir"><button>Subir Documento</button></Link>
+            <Link to="/app/documentos/subir">
+              <button>Subir Documento</button>
+            </Link>
           )}
         </div>
       </div>
@@ -42,40 +67,71 @@ export default function DocumentosList(){
         {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>}
         {isError && <div role="alert" style={{ padding: '2rem', textAlign: 'center' }}>Error al cargar documentos.</div>}
         
-        {data && data.length > 0 && (
+        {/* Usamos filteredData en lugar de 'data' para el renderizado */}
+        {filteredData && filteredData.length === 0 && !isLoading && (
+            <EmptyState 
+                title={filter ? "Sin resultados" : "Sin documentos"}
+                description={filter ? "No se encontraron documentos o carpetas que coincidan con tu búsqueda." : "No hay documentos ni carpetas en la raíz de ningún cliente."}
+            />
+        )}
+
+        {filteredData && filteredData.length > 0 && (
           <div className="table-wrapper">
-            <table className="table">
+            <table className="table file-explorer"> {/* Usamos la misma clase para consistencia visual */}
               <thead>
                 <tr>
-                  <th>Archivo</th>
-                  <th>Cliente</th>
-                  <th>Tipo</th>
-                  <th>Tamaño</th>
-                  <th>Subido</th>
+                  <th>Nombre del Archivo / Carpeta</th>
+                  <th>Cliente Propietario</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map(d => (
-                  <tr key={d.id}>
-                    <td>{d.nombre_archivo ?? d.ruta_storage}</td>
-                    <td>{d.clientes?.nombre ?? 'N/A'}</td>
-                    <td>{d.tipo}</td>
-                    <td>{d.tamano_bytes ? `${(d.tamano_bytes / 1024).toFixed(2)} KB` : '—'}</td>
-                    <td>{d.subido_en ? new Date(d.subido_en).toLocaleString('es-ES') : '—'}</td>
+                {filteredData.map(item => (
+                  <tr key={`${item.cliente_id}-${item.item_name}`}>
+                    {/* --- CAMBIO #3: Renderizado condicional para carpetas y ficheros --- */}
+                    <td className={`file-item ${item.is_folder ? 'is-folder' : 'is-file'}`}>
+                      {item.is_folder ? (
+                        // Si es una carpeta, el enlace apunta a la vista de documentos de ese cliente
+                        <Link to="/app/clientes/$id/documentos/$splat" params={{ id: item.cliente_id, splat: item.item_name }}>
+                          <Folder size={20} />
+                          <span>{item.item_name}</span>
+                        </Link>
+                      ) : (
+                        // Si es un fichero, simplemente mostramos el nombre
+                        <div>
+                          <FileText size={20} />
+                          <span>{item.item_name}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td>{item.cliente_nombre}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <button 
-                        className="icon-button secondary" 
-                        title="Descargar documento"
-                        onClick={async () => {
-                          try {
-                            const url = await getSignedUrl(d.ruta_storage);
-                            window.open(url, '_blank', 'noopener');
-                          } catch (e: any) { alert(e.message); }
-                        }}
-                      >
-                        <Download size={18} />
-                      </button>
+                      {/* La acción de descargar solo se muestra si NO es una carpeta */}
+                      {!item.is_folder && (
+                        <button
+                          className="icon-button secondary"
+                          title="Descargar documento"
+                          onClick={async () => {
+                            const fullPath = `clientes/${item.cliente_id}/${item.item_name}`;
+                            try {
+                              const { data, error } = await supabase.storage.from('documentos').download(fullPath);
+                              if (error) throw error;
+                              
+                              const url = URL.createObjectURL(data);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = item.item_name;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+
+                            } catch (e: any) { alert(e.message); }
+                          }}
+                        >
+                          <Download size={18} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -83,7 +139,6 @@ export default function DocumentosList(){
             </table>
           </div>
         )}
-        {data && data.length === 0 && !isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>No hay documentos.</div>}
       </div>
     </div>
   );

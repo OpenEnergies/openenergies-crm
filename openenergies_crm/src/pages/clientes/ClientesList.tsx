@@ -103,7 +103,7 @@ export default function ClientesList(){
                         </Link>
                         {canEdit && (
                           <Link 
-                            to="/app/clientes/$id" 
+                            to="/app/clientes/$id/editar" 
                             params={{ id: c.id }} 
                             className="icon-button secondary"
                             title="Editar Cliente"

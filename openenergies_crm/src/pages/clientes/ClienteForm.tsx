@@ -48,13 +48,13 @@ export default function ClienteForm({ id }: { id?: string }) {
     if (!editing) return;
     
     const fetchCliente = async () => {
-      const { data, error } = await supabase.from('clientes').select('*').eq('id', id!).maybeSingle();
+      // Al pedir los datos, también pedimos los de la empresa para asegurar consistencia
+      const { data, error } = await supabase.from('clientes').select('*, empresas(*)').eq('id', id!).maybeSingle();
       if (error) {
         setServerError(`Error al cargar el cliente: ${error.message}`);
         return;
       }
       if (data) {
-        // Aseguramos que el 'tipo' sea del tipo correcto antes de hacer reset
         const clienteData = { ...data, tipo: data.tipo as TipoCliente };
         reset(clienteData);
       }
@@ -240,7 +240,7 @@ export default function ClienteForm({ id }: { id?: string }) {
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/clientes' })}>
               Cancelar
             </button>
-            <button type="submit" disabled={isSubmitting || !isDirty}>
+            <button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>

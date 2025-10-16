@@ -7,7 +7,7 @@ import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
 import { clsx } from '@lib/utils';
 // ¡Importamos los nuevos iconos!
-import { ShieldCheck, ShieldOff, KeyRound, Trash2 } from 'lucide-react';
+import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil } from 'lucide-react';
 
 // Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
@@ -133,6 +133,15 @@ export default function UsuariosList() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                        {/* --- ¡NUEVO BOTÓN AÑADIDO! --- */}
+                        <Link
+                          to="/app/usuarios/$id/editar"
+                          params={{ id: u.user_id }}
+                          className="icon-button secondary"
+                          title="Editar usuario"
+                        >
+                          <Pencil size={18} />
+                        </Link>
                         <button 
                           className={clsx('icon-button', u.activo ? 'secondary' : 'success')}
                           onClick={() => toggleActiveMutation.mutate({ userId: u.user_id, newActiveState: !u.activo })}

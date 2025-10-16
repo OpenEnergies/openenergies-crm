@@ -26,7 +26,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
     queryFn: () => fetchContratos(clienteId) 
   });
 
-  const canEdit = rol === 'administrador' || rol === 'comercializadora' || rol === 'comercial';
+  const canEdit = rol === 'administrador' || rol === 'comercial';
 
   return (
     <div className="grid">

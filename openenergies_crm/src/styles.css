@@ -716,3 +716,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .file-item.is-file svg {
   color: var(--muted);
 }
+
+.file-actions {
+    text-align: right;
+    width: 1%; /* Truco para que ocupe el mínimo espacio */
+}
+.file-actions button {
+    margin-left: 0.5rem;
+}
+.icon-button.danger { color: #ef4444; }
+.icon-button.danger:hover { background-color: #fef2f2; }

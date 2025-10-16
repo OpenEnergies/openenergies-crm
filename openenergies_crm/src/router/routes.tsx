@@ -81,16 +81,26 @@ const clientesNewRoute = createRoute({
   component: () => <ClienteForm /> 
 });
 
-// La ruta EDITAR usa useParams y le pasa el 'id' al formulario
-export const clientesEditRoute = createRoute({ 
+// Esta ruta (la del ID) es el CONTENEDOR de la ficha del cliente (el Layout)
+export const clienteDetailRoute = createRoute({ 
   getParentRoute: () => appRoute, 
   path: '/clientes/$id', 
-  component: ClienteDetailLayout, // Usa el nuevo layout como componente
+  component: ClienteDetailLayout,
+});
+
+// Esta es la ruta específica para el FORMULARIO DE EDICIÓN.
+export const clienteEditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/clientes/$id/editar',
+  component: function EditCliente() {
+    const { id } = useParams({ from: clienteEditRoute.id });
+    return <ClienteForm id={id} />;
+  }
 });
 
 // Ruta por defecto al entrar en la ficha (redirige a puntos de suministro)
 const clienteDetailIndexRoute = createRoute({
-  getParentRoute: () => clientesEditRoute,
+  getParentRoute: () => clienteDetailRoute,
   path: '/',
   beforeLoad: ({ params }) => {
     throw redirect({ to: '/app/clientes/$id/puntos', params });
@@ -99,7 +109,7 @@ const clienteDetailIndexRoute = createRoute({
 
 // Las nuevas rutas anidadas para Puntos, Contratos y Documentos
 const clientePuntosRoute = createRoute({
-  getParentRoute: () => clientesEditRoute,
+  getParentRoute: () => clienteDetailRoute,
   path: 'puntos',
   component: () => {
     const { id } = useParams({ from: '/app/clientes/$id/puntos' });
@@ -109,7 +119,7 @@ const clientePuntosRoute = createRoute({
 });
 
 const clienteContratosRoute = createRoute({
-  getParentRoute: () => clientesEditRoute,
+  getParentRoute: () => clienteDetailRoute,
   path: 'contratos',
   component: () => {
     const { id } = useParams({ from: '/app/clientes/$id/contratos' });
@@ -119,7 +129,7 @@ const clienteContratosRoute = createRoute({
 
 // Por ahora, una placeholder para documentos
 export const clienteDocumentosRoute = createRoute({
-  getParentRoute: () => clientesEditRoute,
+  getParentRoute: () => clienteDetailRoute,
   path: 'documentos/$', // <-- '$' es el nombre del parámetro splat
   component: ClienteDocumentos,
 });
@@ -154,19 +164,34 @@ const contratoEditRoute = createRoute({
   }
 });
 
+
+
 const documentosRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos', component: DocumentosList });
 const documentoUploadRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos/subir', component: DocumentoUpload });
 
 const usuariosRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/usuarios',
-  component: () => <RequireRole roles={['administrador', 'comercializadora']}><UsuariosList /></RequireRole>,
+  component: () => <RequireRole roles={['administrador']}><UsuariosList /></RequireRole>,
 });
 const usuarioInviteRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/usuarios/invitar',
-  component: () => <RequireRole roles={['administrador', 'comercializadora']}><UsuarioInviteForm /></RequireRole>,
+  component: () => <RequireRole roles={['administrador']}><UsuarioInviteForm /></RequireRole>,
 });
+
+export const usuarioEditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/usuarios/$id/editar', // La ruta es correcta
+  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+  // Añadimos una función 'component' que extrae el 'id' y lo pasa como prop.
+  component: function EditUsuario() {
+    const { id } = useParams({ from: usuarioEditRoute.id });
+    return <RequireRole roles={['administrador']}><UsuarioInviteForm userId={id} /></RequireRole>;
+  }
+});
+
+
 
 // --- AÑADE LA RUTA DE COMPARATIVAS ---
 const comparativasNewRoute = createRoute({
@@ -232,9 +257,11 @@ const routeTree = rootRoute.addChildren([
     empresasEditRoute,
     usuariosRoute,
     usuarioInviteRoute,
+    usuarioEditRoute,
     clientesRoute,
     clientesNewRoute,
-    clientesEditRoute.addChildren([
+    clienteEditRoute, // <-- Se añade la nueva ruta de edición aquí
+    clienteDetailRoute.addChildren([
       clienteDetailIndexRoute,
       clientePuntosRoute,
       clienteContratosRoute,

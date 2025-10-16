@@ -10,18 +10,19 @@ import { useSession } from '@hooks/useSession';
 import { User, Mail, Phone, Shield, Building2, Lock } from 'lucide-react';
 
 // Schema dinámico que requiere contraseña solo si el rol no es admin
-const createUserSchema = (isAdmin: boolean, createWithPass: boolean) => z.object({
+const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
-  rol: z.enum(['comercial', 'administrador']),
+  rol: z.enum(['comercial', 'administrador', 'cliente']),
   empresa_id: isAdmin 
     ? z.string().uuid('Debes seleccionar una empresa') 
     : z.string().optional(),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').optional().or(z.literal('')),
   confirmPassword: z.string().optional().or(z.literal('')),
 }).refine(data => {
+  if (editing) return true;
   // Si no es admin, la contraseña es obligatoria
   if (!isAdmin || createWithPass) return !!data.password;
   return true;
@@ -39,19 +40,20 @@ const createUserSchema = (isAdmin: boolean, createWithPass: boolean) => z.object
 
 type FormData = z.infer<ReturnType<typeof createUserSchema>>;
 
-export default function UsuarioInviteForm() {
+export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const navigate = useNavigate();
   const { rol: currentUserRol } = useSession();
   const { empresaId: ownEmpresaId, loading: loadingEmpresa } = useEmpresaId();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
+  const editing = Boolean(userId);
 
   const isAdmin = currentUserRol === 'administrador';
 
   const [createWithPassword, setCreateWithPassword] = useState(!isAdmin);
-  const schema = createUserSchema(isAdmin, createWithPassword);
+  const schema = createUserSchema(isAdmin, createWithPassword, editing);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, control } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, control, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
         rol: 'comercial', // Valor por defecto
@@ -59,7 +61,30 @@ export default function UsuarioInviteForm() {
   });
 
   const selectedRol = useWatch({ control, name: 'rol' });
-  const isComercialSelected = selectedRol === 'comercial';
+  const isInternalRol = selectedRol === 'comercial' || selectedRol === 'administrador';
+  const isClientRol = selectedRol === 'cliente';
+
+  // --- CAMBIO #3: Efecto para cargar los datos del usuario si estamos editando ---
+  useEffect(() => {
+    if (editing) {
+      async function fetchUsuario() {
+        const { data, error } = await supabase
+          .from('usuarios_app')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+        
+        if (error) {
+          setServerError('No se pudo cargar el usuario para editar.');
+          console.error(error);
+        } else if (data) {
+          // Usamos 'reset' para rellenar el formulario con los datos del usuario
+          reset(data);
+        }
+      }
+      fetchUsuario();
+    }
+  }, [editing, userId, reset]);
   
   useEffect(() => {
     if (isAdmin) {
@@ -68,42 +93,50 @@ export default function UsuarioInviteForm() {
   }, [isAdmin]);
 
   const rolesDisponibles: RolUsuario[] = isAdmin
-    ? ['administrador', 'comercial']
+    ? ['administrador', 'comercial', 'cliente']
     : [];
 
   async function onSubmit(values: FormData) {
     setServerError(null);
-    if (!isAdmin && (loadingEmpresa || !ownEmpresaId)) {
-      return setServerError('No se pudo determinar tu empresa. Recarga la página.');
-    }
 
-    // Definimos el TIPO de creación
-    const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
-    
-    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-    // Estructuramos el body de la petición como lo espera la Edge Function
-    const bodyPayload = {
-      action: 'create', // La acción principal es 'create'
-      payload: {        // El resto de la información va dentro de 'payload'
-        creationType: creationType,
-        userData: {
-          ...values,
-          empresa_id: isAdmin ? values.empresa_id : ownEmpresaId!,
-        }
-      }
-    };
-    
     try {
-      // Enviamos el bodyPayload corregido
-      const { error } = await supabase.functions.invoke('manage-user', { body: bodyPayload });
-
-      if (error) throw new Error(error.message);
-      
-      alert('¡Usuario creado con éxito!');
+      if (editing) {
+        // --- MODO EDICIÓN ---
+        const { error } = await supabase
+          .from('usuarios_app')
+          .update({
+            nombre: values.nombre,
+            apellidos: values.apellidos,
+            telefono: values.telefono,
+            rol: values.rol,
+            // La empresa solo se actualiza si el rol no es interno
+            empresa_id: isInternalRol ? undefined : values.empresa_id,
+          })
+          .eq('user_id', userId!);
+        
+        if (error) throw error;
+        alert('¡Usuario actualizado con éxito!');
+      } else {
+        // --- MODO CREACIÓN (TU CÓDIGO ORIGINAL) ---
+        const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
+        const bodyPayload = {
+          action: 'create',
+          payload: {
+            creationType: creationType,
+            userData: {
+              ...values,
+              empresa_id: isAdmin ? values.empresa_id : undefined,
+            }
+          }
+        };
+        const { error } = await supabase.functions.invoke('manage-user', { body: bodyPayload });
+        if (error) throw new Error(error.message);
+        alert('¡Usuario invitado con éxito!');
+      }
       navigate({ to: '/app/usuarios' });
 
     } catch (e: any) {
-      setServerError(`Error al crear el usuario: ${e.message}`);
+      setServerError(`Error: ${e.message}`);
     }
   }
 
@@ -112,7 +145,7 @@ export default function UsuarioInviteForm() {
   return (
     <div className="grid">
       <div className="page-header">
-        <h2 style={{ margin: 0 }}>Nuevo Colaborador</h2>
+        <h2 style={{ margin: 0 }}>{editing ? 'Editar Usuario' : 'Invitar Colaborador'}</h2>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
@@ -142,8 +175,10 @@ export default function UsuarioInviteForm() {
             <label htmlFor="email">Email de acceso</label>
             <div className="input-icon-wrapper">
               <Mail size={18} className="input-icon" />
-              <input id="email" type="email" {...register('email')} />
+              {/* En modo edición, el email no se puede cambiar */}
+              <input id="email" type="email" {...register('email')} disabled={editing} />
             </div>
+            {editing && <p className="info-text">El email de un usuario no puede ser modificado.</p>}
             {errors.email && <p className="error-text">{errors.email.message}</p>}
           </div>
 
@@ -173,55 +208,59 @@ export default function UsuarioInviteForm() {
             <div className="input-icon-wrapper">
               <Building2 size={18} className="input-icon" />
               {/* --- CAMBIO #3 (MEJORA UX): El select se deshabilita si es un comercial --- */}
-              <select id="empresa_id" {...register('empresa_id')} disabled={isComercialSelected}>
-                <option value="">{isComercialSelected ? 'Asignado a Open Energies' : 'Selecciona una empresa...'}</option>
+              <select id="empresa_id" {...register('empresa_id')} disabled={isInternalRol || isClientRol}>
+                <option value="">{isInternalRol ? 'Asignado a Open Energies' : (isClientRol ? 'Gestionado desde Ficha Cliente' : 'Selecciona una empresa...')}</option>
                 {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
               </select>
             </div>
-            {isComercialSelected && <p className="info-text">Un 'comercial' siempre pertenece a Open Energies.</p>}
-            {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
-          </div>
-        )}
-          
-          {/* SECCIÓN DE MÉTODO DE CREACIÓN MEJORADA */}
-          {isAdmin && (
-            <div style={{ padding: '1rem', borderRadius: '0.5rem' }}>
-              <label style={{marginBottom: '0.5rem'}}>Método de creación</label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={!createWithPassword} onChange={() => setCreateWithPassword(false)} /> Enviar invitación por email</label>
-                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={createWithPassword} onChange={() => setCreateWithPassword(true)} /> Establecer contraseña manual</label>
-              </div>
+              {isInternalRol && <p className="info-text">Un 'comercial' o 'administrador' siempre pertenece a Open Energies.</p>}
+              {isClientRol && <p className="info-text">La empresa de un cliente se gestiona desde su ficha principal.</p>}
+              {errors.empresa_id && !isInternalRol && <p className="error-text">{errors.empresa_id.message}</p>}
             </div>
           )}
-
-          {(!isAdmin || createWithPassword) && (
-            <>
-              <p style={{color: 'var(--muted)', fontSize: '0.9rem', paddingTop: '1.5rem', marginTop: 0}}>Define una contraseña inicial para el usuario.</p>
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                <div>
-                  <label htmlFor="password">Contraseña</label>
-                  <div className="input-icon-wrapper">
-                    <Lock size={18} className="input-icon" />
-                    <input id="password" type="password" {...register('password')} />
-                  </div>
-                  {errors.password && <p className="error-text">{errors.password.message}</p>}
-                </div>
-                <div>
-                  <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                  <div className="input-icon-wrapper">
-                    <Lock size={18} className="input-icon" />
-                    <input id="confirmPassword" type="password" {...register('confirmPassword')} />
-                  </div>
-                  {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
+          {!editing && (
+          <>
+            {/* SECCIÓN DE MÉTODO DE CREACIÓN MEJORADA */}
+            {isAdmin && (
+              <div style={{ padding: '1rem', borderRadius: '0.5rem' }}>
+                <label style={{marginBottom: '0.5rem'}}>Método de creación</label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={!createWithPassword} onChange={() => setCreateWithPassword(false)} /> Enviar invitación por email</label>
+                  <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={createWithPassword} onChange={() => setCreateWithPassword(true)} /> Establecer contraseña manual</label>
                 </div>
               </div>
-            </>
-          )}
+            )}
 
+            {(!isAdmin || createWithPassword) && (
+              <>
+                <p style={{color: 'var(--muted)', fontSize: '0.9rem', paddingTop: '1.5rem', marginTop: 0}}>Define una contraseña inicial para el usuario.</p>
+                <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                  <div>
+                    <label htmlFor="password">Contraseña</label>
+                    <div className="input-icon-wrapper">
+                      <Lock size={18} className="input-icon" />
+                      <input id="password" type="password" {...register('password')} />
+                    </div>
+                    {errors.password && <p className="error-text">{errors.password.message}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="confirmPassword">Confirmar Contraseña</label>
+                    <div className="input-icon-wrapper">
+                      <Lock size={18} className="input-icon" />
+                      <input id="confirmPassword" type="password" {...register('confirmPassword')} />
+                    </div>
+                    {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+          )}
+          
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem'}}>
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/usuarios' })}>Cancelar</button>
             <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : (creationType === 'invite' ? 'Enviar Invitación' : 'Crear Usuario')}
+              {isSubmitting ? 'Creando...' : (editing ? 'Guardar Cambios' : 'Invitar Usuario')}
             </button>
           </div>
         </div>

@@ -5,6 +5,13 @@ export type UUID = string;
 
 export type TipoCliente = 'persona' | 'sociedad';
 
+export type RootDocumentItem = {
+  cliente_id: string;
+  cliente_nombre: string;
+  item_name: string;
+  is_folder: boolean;
+};
+
 export interface UsuarioApp {
   user_id: UUID;
   empresa_id: UUID;

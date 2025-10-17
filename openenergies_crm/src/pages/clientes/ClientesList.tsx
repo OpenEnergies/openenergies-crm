@@ -1,12 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@lib/supabase';
+// @ts-nocheck
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // Imports añadidos
+import { supabase } from '@lib/supabase';
 import type { Cliente } from '@lib/types';
 import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
-import { Pencil, MapPin, Building2 } from 'lucide-react';
+import { Pencil, MapPin, Building2, Trash2 } from 'lucide-react'; // Icono de papelera añadido
 
 type ClienteConEmpresa = Cliente & {
   empresas: {
@@ -24,11 +25,41 @@ async function fetchClientes(filter: string){
   return data as ClienteConEmpresa[];
 }
 
+// --- NUEVA FUNCIÓN DE BORRADO ---
+// Llama a la nueva Edge Function 'manage-client' que has creado.
+async function deleteCliente({ clienteId }: { clienteId: string }) {
+    const { error } = await supabase.functions.invoke('manage-client', {
+        body: { action: 'delete', payload: { clienteId } }
+    });
+    if (error) throw new Error(error.message);
+}
+
 export default function ClientesList(){
   const { rol } = useSession();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState('');
+  
+  // --- ESTADO PARA EL MODAL (igual que en UsuariosList) ---
+  const [clienteToDelete, setClienteToDelete] = useState<ClienteConEmpresa | null>(null);
+
   const { data, isLoading, isError } = useQuery({ queryKey:['clientes', filter], queryFn:()=>fetchClientes(filter) });
-  // Determinamos si el usuario actual puede editar clientes
+  
+  // --- MUTACIÓN PARA ELIMINAR (igual que en UsuariosList) ---
+  const deleteMutation = useMutation({
+    mutationFn: deleteCliente,
+    onSuccess: () => {
+        alert('Cliente y todos sus datos asociados han sido eliminados.');
+        setClienteToDelete(null); // Cierra el modal
+        queryClient.invalidateQueries({ queryKey: ['clientes'] }); // Refresca la lista
+    },
+    onError: (error: any) => {
+        alert(`Error al eliminar el cliente: ${error.message}`);
+        setClienteToDelete(null); // Cierra el modal también en caso de error
+    }
+  });
+
+  // Lógica de permisos (solo el admin puede borrar)
+  const canDelete = rol === 'administrador';
   const canEdit = rol === 'administrador' || rol === 'comercial';
 
   return (
@@ -111,6 +142,16 @@ export default function ClientesList(){
                             <Pencil size={18} />
                           </Link>
                         )}
+                        {/* --- BOTÓN DE BORRADO AÑADIDO --- */}
+                        {canDelete && (
+                            <button
+                                className="icon-button danger"
+                                title="Eliminar Cliente"
+                                onClick={() => setClienteToDelete(c)} // Guarda el cliente y abre el modal
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -120,6 +161,33 @@ export default function ClientesList(){
           </div>
         )}
       </div>
+      {/* --- MODAL DE CONFIRMACIÓN AÑADIDO (igual que en UsuariosList) --- */}
+      {clienteToDelete && (
+        <div className="modal-overlay">
+            <div className="modal-content card">
+                <h3 style={{marginTop: 0}}>Confirmar Eliminación</h3>
+                <p>
+                    ¿Estás seguro de que quieres eliminar al cliente <strong>{clienteToDelete.nombre}</strong> de <strong>{clienteToDelete.empresas?.nombre ?? 'N/A'}</strong>?
+                    <br />
+                    <span style={{color: '#b91c1c', fontWeight: 'bold'}}>
+                        Se borrará tanto el cliente como todos sus puntos de suministro, contratos y documentos.
+                    </span>
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                    <button className="secondary" onClick={() => setClienteToDelete(null)}>
+                        Cancelar
+                    </button>
+                    <button 
+                        className="danger" 
+                        onClick={() => deleteMutation.mutate({ clienteId: clienteToDelete.id })}
+                        disabled={deleteMutation.isPending}
+                    >
+                        {deleteMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }

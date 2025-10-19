@@ -1,6 +1,7 @@
 import { useSession } from '@hooks/useSession';
 import { Link } from '@tanstack/react-router';
 import { canSeeModule } from '@lib/permissions';
+import ChatWidget from '@features/chat/ChatWidget';
 
 // Un pequeño componente para las tarjetas de acción
 function ActionCard({ to, title, description }: { to: string; title: string; description: string }) {
@@ -74,6 +75,9 @@ export default function Dashboard() {
           />
         )}
       </div>
+
+      {/* Floating chat widget */}
+      <ChatWidget />
     </div>
   );
 }

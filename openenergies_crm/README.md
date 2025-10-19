@@ -71,3 +71,26 @@ export default defineConfig([
   },
 ])
 ```
+
+## Chat en inicio
+
+- Variable de entorno requerida:
+  - `VITE_N8N_CHAT_WEBHOOK_URL`: URL del Webhook de chat (POST JSON)
+    - Ejemplo: `https://n8n.openenergiesgroup.com/webhook/f818530f-f9dc-411b-bdc9-7d89c0103cf5/chat`
+
+- Comportamiento:
+  - Botón flotante "Abrir chat" visible en `/app` (Dashboard).
+  - Conversación persistida en `localStorage` por `user_id` del usuario autenticado.
+  - Envío al Webhook con cuerpo mínimo:
+    ```json
+    { "user_id": "<string|number>", "name": "<string>", "message": "<string>" }
+    ```
+  - Respuesta: se extrae texto de `reply` | `message` | `data.message` | `text`.
+
+- CORS / Proxy interno (opcional):
+  - Si el navegador bloquea por CORS, el cliente usará automáticamente `'/api/chat'` como fallback cuando `VITE_N8N_CHAT_WEBHOOK_URL` no esté disponible en el navegador.
+  - Implementa un proxy en tu servidor (o Edge Function) que reenvíe al valor de `VITE_N8N_CHAT_WEBHOOK_URL` con método `POST` y cabecera `Content-Type: application/json`.
+
+- Uso local:
+  - Configura `VITE_N8N_CHAT_WEBHOOK_URL` en tu `.env.local`.
+  - Ejecuta `npm run dev` y accede a `/app`.

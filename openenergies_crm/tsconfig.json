@@ -19,7 +19,8 @@
       "@hooks/*": ["src/hooks/*"],
       "@components/*": ["src/components/*"],
       "@pages/*": ["src/pages/*"],
-      "@router/*": ["src/router/*"]
+      "@router/*": ["src/router/*"],
+      "@features/*": ["src/features/*"]
     }
   },
   "include": ["src", "tests"],

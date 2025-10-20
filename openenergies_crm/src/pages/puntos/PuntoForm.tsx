@@ -5,7 +5,9 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { User, HardHat, MapPin, Barcode, Tags, Zap, TrendingUp } from 'lucide-react';
+import { User, HardHat, MapPin, Barcode, Tags, Zap, TrendingUp, FileText } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
 
 const schema = z.object({
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
@@ -16,6 +18,9 @@ const schema = z.object({
   // Importante: SIN preprocess -> evita "unknown"
   potencia_contratada_kw: z.number().nullable().optional(),
   consumo_anual_kwh: z.number().nullable().optional(),
+  localidad: z.string().optional().nullable(),
+   provincia: z.string().optional().nullable(),
+   tipo_factura: z.enum(['Luz', 'Gas'], { invalid_type_error: 'Debes seleccionar Luz o Gas' }).optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -64,7 +69,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       const { data, error } = await supabase
         .from('puntos_suministro')
         .select(
-          'id,cliente_id,titular,direccion,cups,tarifa_acceso,potencia_contratada_kw,consumo_anual_kwh'
+          'id,cliente_id,titular,direccion,cups,tarifa_acceso,potencia_contratada_kw,consumo_anual_kwh,localidad,provincia,tipo_factura'
         )
         .eq('id', id!)
         .maybeSingle();
@@ -72,7 +77,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       if (!alive) return;
 
       if (error) {
-        setServerError(error.message);
+        toast.error(`Error al cargar: ${error.message}`);
       } else if (data) {
         reset({
           cliente_id: data.cliente_id,
@@ -88,6 +93,9 @@ export default function PuntoForm({ id }: { id?: string }) {
             data.consumo_anual_kwh === null || data.consumo_anual_kwh === undefined
               ? null
               : Number(data.consumo_anual_kwh),
+          localidad: data.localidad ?? null,
+          provincia: data.provincia ?? null,
+          tipo_factura: data.tipo_factura ?? null,
         });
       }
       setLoading(false);
@@ -102,32 +110,38 @@ export default function PuntoForm({ id }: { id?: string }) {
     setServerError(null);
 
     // Normaliza undefined -> null para columnas opcionales
-    const payload: FormValues = {
-      ...values,
-      potencia_contratada_kw:
-        values.potencia_contratada_kw === undefined ? null : values.potencia_contratada_kw,
-      consumo_anual_kwh:
-        values.consumo_anual_kwh === undefined ? null : values.consumo_anual_kwh,
+    const payload = {
+      cliente_id: values.cliente_id,
+      titular: values.titular,
+      direccion: values.direccion,
+      cups: values.cups,
+      tarifa_acceso: values.tarifa_acceso,
+      potencia_contratada_kw: values.potencia_contratada_kw === undefined ? null : values.potencia_contratada_kw,
+      consumo_anual_kwh: values.consumo_anual_kwh === undefined ? null : values.consumo_anual_kwh,
+     localidad: values.localidad === undefined ? null : values.localidad,
+     provincia: values.provincia === undefined ? null : values.provincia,
+     tipo_factura: values.tipo_factura === undefined ? null : values.tipo_factura,
     };
 
-    if (editing) {
-      const { error } = await supabase
-        .from('puntos_suministro')
-        .update(payload)
-        .eq('id', id!);
-      if (error) {
-        setServerError(error.message);
-        return;
-      }
-    } else {
-      const { error } = await supabase.from('puntos_suministro').insert(payload);
-      if (error) {
-        setServerError(error.message);
-        return;
-      }
+    try { // <-- Añadir try/catch
+        if (editing) {
+          const { error } = await supabase
+            .from('puntos_suministro')
+            .update(payload) // <-- payload ya incluye los nuevos campos
+            .eq('id', id!);
+          if (error) throw error; // Lanzamos error para el catch
+        } else {
+          const { error } = await supabase.from('puntos_suministro').insert(payload); // <-- payload ya incluye los nuevos campos
+          if (error) throw error; // Lanzamos error para el catch
+        }
+        toast.success(editing ? 'Punto actualizado' : 'Punto creado'); // <-- Toast de éxito
+        navigate({ to: '/app/puntos' });
+    } catch (error: any) { // <-- Añadir catch
+        console.error("Error al guardar punto:", error);
+        toast.error(`Error al guardar: ${error.message}`); // <-- Toast de error
+    } finally { // <-- Añadir finally (opcional, para quitar estado de carga si lo hubiera)
+        // setLoading(false); // Si usaras un estado de carga global
     }
-
-    navigate({ to: '/app/puntos' });
   };
 
   return (
@@ -139,9 +153,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
-        <div className="grid" style={{ gap: '1.5rem' }}>
-          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
-          
+        <div className="grid" style={{ gap: '1.5rem' }}>          
           <div className="form-row">
             <div>
               <label htmlFor="cliente_id">Cliente</label>
@@ -174,8 +186,41 @@ export default function PuntoForm({ id }: { id?: string }) {
             </div>
             {errors.direccion && <p className="error-text">{errors.direccion.message}</p>}
           </div>
-
+          
           <div className="form-row">
+            <div className="form-row">
+            <div>
+              <label htmlFor="localidad">Localidad</label>
+              <div className="input-icon-wrapper">
+                {/* Puedes elegir un icono adecuado, ej: MapPin o Building */}
+                <MapPin size={18} className="input-icon" />
+                <input type="text" id="localidad" {...register('localidad')} />
+              </div>
+              {errors.localidad && <p className="error-text">{errors.localidad.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="provincia">Provincia</label>
+              <div className="input-icon-wrapper">
+                <MapPin size={18} className="input-icon" />
+                <input type="text" id="provincia" {...register('provincia')} />
+              </div>
+              {errors.provincia && <p className="error-text">{errors.provincia.message}</p>}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="tipo_factura">Tipo Factura</label>
+            <div className="input-icon-wrapper">
+              {/* Icono ejemplo: FileText, List, etc. */}
+              <FileText size={18} className="input-icon" />
+              <select id="tipo_factura" {...register('tipo_factura')}>
+                <option value="">Selecciona (Luz/Gas)</option>
+                <option value="Luz">Luz</option>
+                <option value="Gas">Gas</option>
+              </select>
+            </div>
+            {errors.tipo_factura && <p className="error-text">{errors.tipo_factura.message}</p>}
+          </div>
             <div>
               <label htmlFor="cups">CUPS</label>
               <div className="input-icon-wrapper">

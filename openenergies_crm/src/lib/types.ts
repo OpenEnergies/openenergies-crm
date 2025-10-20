@@ -45,6 +45,7 @@ export interface Cliente {
   creado_en: string | null;
 }
 
+export type TipoFactura = 'Luz' | 'Gas';
 export interface PuntoSuministro {
   id: UUID;
   cliente_id: UUID;
@@ -54,7 +55,12 @@ export interface PuntoSuministro {
   tarifa_acceso: string;
   potencia_contratada_kw: number | null;
   consumo_anual_kwh: number | null;
+  localidad?: string | null; // <-- NUEVO
+  provincia?: string | null; // <-- NUEVO
+  tipo_factura?: TipoFactura | null;
 }
+
+
 
 export interface Contrato {
   id: UUID;

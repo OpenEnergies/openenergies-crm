@@ -8,6 +8,15 @@
   --border-color: #E2E8F0;
   --fg: #0F172A;
   --muted: #64748b;
+  --primary-light: #A7F3D0; /* Un verde pálido para el subrayado de enlaces (ajusta si prefieres otro) */
+  --bg-muted: #F1F5F9;     /* Un gris muy claro para fondos deshabilitados o código */
+  --bg-hover: #F8FAFC;     /* Un fondo sutil para hover (similar a --bg, o puedes usar #EFF6FF si quieres un azul pálido) */
+  --border-color-light: #F1F5F9; /* Un borde aún más claro que --border-color */
+  --muted-dark: #475569;
+  --chat-gradient-start: #34D399; /* Un verde más brillante */
+  --chat-gradient-end: var(--primary); /* Tu verde actual */
+  --chat-assistant-bg: #F0F9FF; /* Un azul muy pálido para el asistente */
+  --chat-panel-bg: #FFFFFF;
 }
 
 * { box-sizing: border-box; }
@@ -251,18 +260,13 @@ button.danger:hover {
   align-items: center;
   justify-content: center;
   padding: 0;
+  background-image: linear-gradient(to bottom right, var(--chat-gradient-start), var(--chat-gradient-end)); /* Gradiente */
+  color: white;
 }
 
 .chat-fab-initials { font-weight: 700; letter-spacing: 0.5px; }
 
-.chat-panel {
-  position: fixed;
-  right: 20px;
-  bottom: 84px; /* above the fab */
-  width: 400px;
-  height: 520px;
-  z-index: 1100;
-}
+
 
 /* --- Estilos para la página de perfil --- */
 .profile-grid {
@@ -757,3 +761,292 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .icon-button.danger { color: #ef4444; }
 .icon-button.danger:hover { background-color: #fef2f2; }
+
+.chat-fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background-color: var(--primary); /* Color principal del CRM */
+  color: white;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra por defecto */
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.chat-fab:hover {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2); /* Sombra al pasar el ratón */
+}
+
+.chat-fab-initials {
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+/* Chat Panel */
+.chat-panel {
+  position: fixed;
+  bottom: calc(2rem + 56px + 1rem); /* Encima del FAB + espacio */
+  right: 2rem;
+  width: 350px; /* Ancho del panel */
+  height: 500px; /* Altura del panel */
+  max-height: calc(100vh - 4rem - 56px - 1rem); /* Altura máxima */
+  background-color: var(--bg); /* Fondo del panel */
+  border-radius: 0.75rem; /* Bordes redondeados */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); /* Sombra más pronunciada */
+  z-index: 999;
+  border: 1px solid var(--border-color-light); /* Borde sutil */
+  /* Animación (opcional) */
+  animation: chat-panel-enter 0.3s ease-out;
+}
+
+@keyframes chat-panel-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-inner-card {
+  padding: 1rem; /* Padding interno general */
+}
+
+/* Chat Header */
+.chat-header {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem; /* Espacio antes de los mensajes */
+}
+.chat-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+.chat-header .icon-button.secondary { /* Selector más específico */
+  padding: 0.25rem;
+  height: auto;
+  width: auto;
+  line-height: 1;
+  color: var(--primary); /* ¡Color verde! */
+  background-color: transparent; /* Quitar fondo si lo tuviera */
+  border: none; /* Quitar borde si lo tuviera */
+}
+.chat-header .icon-button.secondary:hover {
+  color: var(--primary-600); /* Verde más oscuro al pasar el ratón */
+  background-color: rgba(43, 182, 115, 0.1); /* Fondo verde muy sutil al pasar el ratón */
+}
+
+/* Message List */
+.chat-message-list {
+  gap: 0.75rem; /* Espacio entre burbujas */
+  padding: 1rem 0.25rem; /* Padding vertical */
+  scrollbar-width: thin; /* Estilo scrollbar (Firefox) */
+  scrollbar-color: var(--muted) transparent; /* Color scrollbar (Firefox) */
+}
+/* Estilo scrollbar (Webkit - Chrome/Safari) */
+.chat-message-list::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-message-list::-webkit-scrollbar-thumb {
+  background-color: var(--muted);
+  border-radius: 3px;
+}
+.chat-message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* Message Bubbles */
+.chat-bubble-align-user {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  margin-left: auto; /* Asegura alineación derecha */
+}
+.chat-bubble-align-other {
+  display: flex;
+  justify-content: flex-start;
+  margin-right: auto; /* Asegura alineación izquierda */
+}
+
+.chat-bubble {
+  display: inline-block;
+  padding: 0.6rem 1rem; /* Más padding */
+  border-radius: 1rem; /* Bordes más redondeados */
+  max-width: 85%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Sombra muy sutil */
+}
+
+.chat-bubble-user {
+  background-image: linear-gradient(to bottom right, var(--chat-gradient-start), var(--chat-gradient-end)); /* Mismo gradiente que el FAB */
+  color: white;
+  border-bottom-right-radius: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Esquina diferente */
+}
+
+.chat-bubble-assistant {
+  background-color: var(--chat-assistant-bg); /* Azul muy pálido */
+  color: #0F172A; /* Texto oscuro para contraste */
+  border: 1px solid #E0F2FE; /* Borde azul pálido a juego */
+  border-bottom-left-radius: 0.25rem; /* Esquina diferente */
+}
+
+.chat-bubble-error {
+  background-color: #FFF1F2; /* Fondo rosa pálido */
+  color: #DC2626; /* Texto rojo oscuro */
+  border: 1px solid #FECACA; /* Borde rojo claro */
+  border-bottom-left-radius: 0.25rem;
+}
+/* Ajustes dentro de las burbujas */
+.chat-bubble p:first-child { margin-top: 0; }
+.chat-bubble p:last-child { margin-bottom: 0; }
+.chat-bubble ul { margin: 0.5rem 0; }
+
+/* Input Area */
+.chat-input-area {
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.chat-textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 40px; /* Altura mínima */
+  max-height: 150px; /* Altura máxima antes de scroll */
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  font-size: 0.95rem; /* Tamaño de fuente */
+  line-height: 1.5;
+  transition: border-color 0.2s;
+  overflow-y: auto;
+}
+.chat-textarea:focus {
+  outline: none;
+  border-color: var(--primary); /* Borde de color al enfocar */
+  box-shadow: 0 0 0 2px var(--primary-light); /* Anillo de foco (opcional) */
+}
+.chat-textarea:disabled {
+    background-color: var(--bg-muted); /* Fondo grisáceo si está deshabilitado */
+}
+
+.chat-send-button {
+  height: 40px;
+  width: 40px;
+  background-image: linear-gradient(to bottom right, var(--chat-gradient-start), var(--chat-gradient-end));
+  color: white;
+  border: none;
+  border-radius: 6px; /* Coincide con textarea */
+  flex-shrink: 0; /* Evita que se encoja */
+  transition: opacity 0.2s;
+}
+
+.chat-send-button:disabled {
+  background-color: var(--muted); /* Color cuando está deshabilitado */
+  cursor: not-allowed;
+}
+
+/* File Display */
+.chat-file-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem; /* Ajusta padding */
+  border: 1px solid var(--border-color-light); /* Borde más claro */
+  border-radius: 0.75rem;
+  text-decoration: none;
+  color: var(--fg);
+  background: var(--bg); /* Fondo sutil */
+  max-width: 280px;
+  transition: background-color 0.2s;
+}
+.chat-file-display:hover {
+    background-color: var(--bg-hover); /* Fondo al pasar el ratón */
+}
+
+.chat-file-icon {
+  color: var(--primary); /* Icono con color principal */
+  flex-shrink: 0;
+}
+
+.chat-file-name {
+  font-weight: 500; /* Peso de fuente normal */
+}
+
+.chat-file-type {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.chat-file-download-icon {
+  color: var(--secondary); /* Color secundario para descarga */
+  flex-shrink: 0;
+}
+
+/* Markdown Text */
+.chat-inline-code {
+  background: var(--bg-muted); /* Fondo para código */
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: monospace;
+}
+
+.chat-link {
+  color: var(--primary); /* Color de enlace principal */
+  text-decoration: underline;
+  text-decoration-color: var(--primary-light); /* Subrayado más sutil */
+}
+.chat-link:hover {
+  text-decoration-color: var(--primary);
+}
+
+.chat-list {
+  padding-left: 1.5rem; /* Indentación lista */
+  margin: 0.5rem 0;
+}
+.chat-list li {
+  margin-bottom: 0.25rem;
+}
+
+.chat-paragraph {
+  margin: 0.25rem 0;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0.6rem 0; /* Para alinear con el texto */
+}
+
+.typing-dot {
+  width: 7px; /* Un poco más grandes */
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-dark); /* Color más oscuro */
+  display: inline-block;
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+/* Animación para los puntos */
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+/* Sombras (si no usas Tailwind) */
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1); }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1); }
+.hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1); }
+.transition-shadow { transition-property: box-shadow; transition-timing-function: cubic-bezier(.4,0,.2,1); transition-duration: .15s; }

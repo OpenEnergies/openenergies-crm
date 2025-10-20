@@ -101,19 +101,19 @@ export default function ChatWidget() {
   // El resto del componente (el JSX) no necesita cambios.
   return (
     <>
-      <button onClick={toggle} className="chat-fab" aria-expanded={open} aria-controls="chat-panel" title={open ? 'Cerrar chat' : 'Abrir chat'}>
+      <button onClick={toggle} className="chat-fab shadow-lg hover:shadow-xl transition-shadow" aria-expanded={open} aria-controls="chat-panel" title={open ? 'Cerrar chat' : 'Abrir chat'}>
         <span className="chat-fab-initials">OE</span>
       </button>
 
       {open && (
-        <div id="chat-panel" className="chat-panel" role="dialog" aria-label="Chat">
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h3 style={{ margin: 0 }}>Asistente</h3>
-              <button onClick={toggle} className="small-button">Cerrar</button>
+        <div id="chat-panel" className="chat-panel shadow-xl border border-gray-200 rounded-lg" role="dialog" aria-label="Chat">
+          <div className="chat-inner-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem' }}> {/* Añade clase y padding */}
+            <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ margin: 0 }}> Asistente</h3>
+              <button onClick={toggle} className="icon-button secondary small">✕</button>
             </div>
 
-            <div ref={listRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '0.25rem' }}>
+            <div ref={listRef} className="chat-message-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem 0.25rem' }}>
               {messages.map((m) => (
                 <MessageBubble key={m.id} role={m.role}>
                   {m.type === 'text' && <MarkdownText text={m.content as string} />}
@@ -127,7 +127,7 @@ export default function ChatWidget() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingTop: '0.5rem' }}>
+            <div className="chat-input-area" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -136,13 +136,12 @@ export default function ChatWidget() {
                 placeholder="Escribe tu mensaje..."
                 rows={1}
                 disabled={pending || !userId || !nombre}
-                style={{ flex: 1, resize: 'none', minHeight: '40px' }}
+                className="chat-textarea" style={{ flex: 1, minHeight: '40px', maxHeight: '150px', borderRadius: '6px', border: '1px solid var(--border-color)', padding: '8px 12px' }}
               />
               <button 
                 onClick={handleSend} 
                 disabled={!canSend}
-                className="icon-button"
-                style={{ height: '40px', width: '40px', backgroundColor: 'var(--primary)', color: 'white' }}
+                className="icon-button chat-send-button" style={{ height: '40px', width: '40px' }}
                 title="Enviar mensaje"
               >
                 <Send size={18} />

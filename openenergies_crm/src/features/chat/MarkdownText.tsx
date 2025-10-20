@@ -29,13 +29,13 @@ function renderInline(text: string): React.ReactNode {
     // Código: `texto`
     const codeMatch = part.match(/^`(.*?)`$/);
     if (codeMatch) {
-      return <code key={index} style={{ background: '#F1F5F9', padding: '0 4px', borderRadius: 4 }}>{escapeText(codeMatch[1] || '')}</code>;
+      return <code key={index} className="chat-inline-code">{escapeText(codeMatch[1] || '')}</code>;
     }
     
     // Enlace: [texto](url)
     const linkMatch = part.match(/^\[(.*?)\]\((https?:\/\/[^\s)]+)\)$/);
     if (linkMatch) {
-      return <a key={index} href={linkMatch[2]} target="_blank" rel="noopener noreferrer">{escapeText(linkMatch[1] || '')}</a>;
+      return <a key={index} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="chat-link">{escapeText(linkMatch[1] || '')}</a>;
     }
 
     // Si no es nada de lo anterior, es texto normal.
@@ -59,7 +59,7 @@ export default function MarkdownText({ text }: { text: string }) {
   function flushList() {
     if (!listType || listItems.length === 0) return;
     out.push(
-        <ul key={`ul-${out.length}`} style={{ paddingLeft: '1.25rem', margin: '0.25rem 0' }}>
+        <ul key={`ul-${out.length}`} className="chat-list">
             {listItems.map((it, idx) => <li key={idx}>{renderInline(it)}</li>)}
         </ul>
     );
@@ -86,7 +86,7 @@ export default function MarkdownText({ text }: { text: string }) {
       continue; 
     }
     
-    out.push(<p key={`p-${out.length}`} style={{ margin: '0.25rem 0' }}>{renderInline(line)}</p>);
+    out.push(<p key={`p-${out.length}`} className="chat-paragraph">{renderInline(line)}</p>);
   }
   
   flushList();

@@ -6,6 +6,38 @@ import { corsHeaders } from '../_shared/cors.ts';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')!;
 
+async function listAllFilesRecursively(
+  supabaseAdmin: SupabaseClient,
+  path: string
+): Promise<string[]> {
+  const { data: items, error: listError } = await supabaseAdmin.storage
+    .from('documentos')
+    .list(path);
+
+  if (listError) {
+    console.error(`Error listando ${path}:`, listError.message);
+    return [];
+  }
+
+  let filePaths: string[] = [];
+  for (const item of items) {
+    const fullPath = `${path}/${item.name}`;
+    if (item.id) {
+      // Es un fichero, añadir a la lista
+      filePaths.push(fullPath);
+    } else {
+      // Es una carpeta, listar su contenido recursivamente
+      const subPaths = await listAllFilesRecursively(supabaseAdmin, fullPath);
+      filePaths = filePaths.concat(subPaths);
+      // Añadir el placeholder de la carpeta (para borrar la carpeta misma)
+      if (item.name !== '.emptyFolderPlaceholder') {
+        filePaths.push(`${fullPath}/.emptyFolderPlaceholder`);
+      }
+    }
+  }
+  return filePaths;
+}
+
 async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient) {
   const { clienteId } = payload;
   if (!clienteId) {
@@ -34,24 +66,23 @@ async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient) {
   }
 
   // 2. Borrar todos los archivos del Storage
-  const folderPath = `clientes/${clienteId}`;
-  const { data: files, error: listError } = await supabaseAdmin.storage
-    .from('documentos')
-    .list(folderPath);
+  const clientFolderPath = `clientes/${clienteId}`;
   
-  if (listError) console.warn(`No se pudo listar archivos en ${folderPath}:`, listError.message);
+  // Usamos la nueva función auxiliar
+  const allPathsToDelete = await listAllFilesRecursively(supabaseAdmin, clientFolderPath);
 
-  if (files && files.length > 0) {
-    const filePaths = files.map(file => `${folderPath}/${file.name}`);
-    const { error: removeError } = await supabaseAdmin.storage.from('documentos').remove(filePaths);
-    if (removeError) console.error(`Error al borrar archivos del storage en ${folderPath}:`, removeError.message);
+  if (allPathsToDelete.length > 0) {
+    const { error: removeError } = await supabaseAdmin.storage
+      .from('documentos')
+      .remove(allPathsToDelete);
+      
+    if (removeError) {
+      // No lanzar error fatal, solo log
+      console.error(`Error al borrar archivos del storage en ${clientFolderPath}:`, removeError.message);
+    }
   }
 
-  // 3. Borrar el cliente de la base de datos
-  // Si tienes 'ON DELETE CASCADE' en las Foreign Keys de tus tablas, Supabase se encargará del resto.
-  // Si no, este es el lugar para añadir los DELETEs manuales en el orden correcto (contratos -> puntos -> cliente).
-  // Por simplicidad y buenas prácticas, asumimos que el borrado en cascada está configurado o que un trigger lo maneja.
-  // El borrado directo del cliente es el paso final.
+  // 3. Borrar el cliente de la base de datos (Sin cambios)
   const { error: dbError } = await supabaseAdmin
     .from('clientes')
     .delete()

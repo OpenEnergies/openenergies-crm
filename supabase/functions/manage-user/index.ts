@@ -11,6 +11,37 @@ const OPEN_ENERGIES_EMPRESA_ID = '860e5d61-9e6f-471f-8424-4803772a342c';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')!;
 
+async function listAllFilesRecursively(
+  supabaseAdmin: SupabaseClient,
+  path: string
+): Promise<string[]> {
+  const { data: items, error: listError } = await supabaseAdmin.storage
+    .from('documentos')
+    .list(path);
+
+  if (listError) {
+    console.error(`Error listando ${path}:`, listError.message);
+    return [];
+  }
+
+  let filePaths: string[] = [];
+  for (const item of items) {
+    const fullPath = `${path}/${item.name}`;
+    if (item.id) {
+      // Es un fichero
+      filePaths.push(fullPath);
+    } else {
+      // Es una carpeta
+      const subPaths = await listAllFilesRecursively(supabaseAdmin, fullPath);
+      filePaths = filePaths.concat(subPaths);
+      if (item.name !== '.emptyFolderPlaceholder') {
+        filePaths.push(`${fullPath}/.emptyFolderPlaceholder`);
+      }
+    }
+  }
+  return filePaths;
+}
+
 // --- 1. Lógica de Creación de Colaboradores (Administradores / Comerciales) ---
 async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
   const { creationType, userData } = payload;
@@ -23,7 +54,7 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
   // --- CAMBIO CLAVE #1: Lógica de Negocio Centralizada ---
   // Si el nuevo usuario es un 'comercial', forzamos que su empresa sea 'Open Energies'.
   // Para cualquier otro rol (como 'administrador'), usamos la empresa que venga del formulario.
-  const finalEmpresaId = rol === 'comercial' ? OPEN_ENERGIES_EMPRESA_ID : empresa_id;
+  const finalEmpresaId = (rol === 'comercial' || rol === 'administrador') ? OPEN_ENERGIES_EMPRESA_ID : empresa_id;
 
   if (!finalEmpresaId) {
       throw new Error("El campo 'empresa_id' es obligatorio.");
@@ -181,13 +212,36 @@ async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
   const { data: userProfile, error: profileError } = await supabaseAdmin.from('usuarios_app').select('rol').eq('user_id', userId).single();
   if (profileError) console.warn("No se encontró perfil para el usuario, se intentará borrar solo de Auth.");
 
+  // --- LÓGICA DE BORRADO DE CLIENTE ACTUALIZADA ---
   if (userProfile?.rol === 'cliente') {
-    const { data: contacto, error: contactoError } = await supabaseAdmin.from('contactos_cliente').select('cliente_id').eq('user_id', userId).single();
+    const { data: contacto, error: contactoError } = await supabaseAdmin
+      .from('contactos_cliente')
+      .select('cliente_id')
+      .eq('user_id', userId)
+      .single();
+      
     if (contactoError) throw new Error('No se pudo encontrar el cliente asociado para eliminarlo.');
-    const { error: clienteError } = await supabaseAdmin.from('clientes').delete().eq('id', contacto.cliente_id);
+    
+    const clienteId = contacto.cliente_id;
+
+    // --- INICIO: NUEVA LÓGICA DE BORRADO DE STORAGE ---
+    const clientFolderPath = `clientes/${clienteId}`;
+    const allPathsToDelete = await listAllFilesRecursively(supabaseAdmin, clientFolderPath);
+
+    if (allPathsToDelete.length > 0) {
+      const { error: removeError } = await supabaseAdmin.storage
+        .from('documentos')
+        .remove(allPathsToDelete);
+      if (removeError) console.warn(`Error al borrar archivos de storage para cliente ${clienteId}:`, removeError.message);
+    }
+    // --- FIN: NUEVA LÓGICA DE BORRADO DE STORAGE ---
+
+    // Borrar al cliente de la BBDD (la cascada se encarga del resto)
+    const { error: clienteError } = await supabaseAdmin.from('clientes').delete().eq('id', clienteId);
     if (clienteError) throw new Error(`Error al eliminar la ficha del cliente: ${clienteError.message}`);
   }
 
+  // Borrar usuario de Auth (esto se hace para todos los roles)
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (authError) throw authError;
 }

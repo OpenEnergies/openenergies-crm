@@ -5,6 +5,7 @@ import type { Empresa } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { Pencil } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 async function fetchEmpresas() {
   const { data, error } = await supabase

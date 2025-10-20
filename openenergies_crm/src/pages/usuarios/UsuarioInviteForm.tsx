@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
 import { User, Mail, Phone, Shield, Building2, Lock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 // El Schema ahora recibe 'editing' para saber si la contraseña es opcional
 const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: boolean) => z.object({
@@ -106,7 +107,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           .eq('user_id', userId!);
         
         if (error) throw error;
-        alert('¡Usuario actualizado con éxito!');
+        toast.success('¡Usuario actualizado con éxito!');
 
       } else {
         // --- MODO CREACIÓN (Tu lógica original) ---
@@ -123,7 +124,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
         };
         const { error } = await supabase.functions.invoke('manage-user', { body: bodyPayload });
         if (error) throw new Error(error.message);
-        alert('¡Usuario creado con éxito!');
+        toast.success('¡Usuario creado con éxito!');
       }
       navigate({ to: '/app/usuarios' });
 

@@ -6,6 +6,7 @@ import { supabase } from '@lib/supabase';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Download, FileText, Calendar, Zap, TrendingUp, User, Home, Hash, MapPin, Building } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 // --- Schemas de validación con Zod ---
 const planSchema = z.object({
@@ -73,14 +74,14 @@ export default function ComparativaForm() {
   const mutation = useMutation({
     mutationFn: generateComparison,
     onSuccess: async (data) => {
-      alert('¡Comparativa generada con éxito!');
+      toast.success('¡Comparativa generada con éxito!');
       const { data: urlData } = await supabase.storage
         .from('documentos')
         .createSignedUrl(data.filePath, 300);
       if (urlData) setDownloadLink(urlData.signedUrl);
     },
     onError: (error) => {
-      alert(`Error al generar la comparativa: ${error.message}`);
+      toast.error(`Error al generar la comparativa: ${error.message}`);
     },
   });
 

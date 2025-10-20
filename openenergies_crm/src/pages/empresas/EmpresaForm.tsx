@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import type { Empresa } from '@lib/types';
 import { empresasEditRoute } from '@router/routes';
 import { Building2, FileText, Tags } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),

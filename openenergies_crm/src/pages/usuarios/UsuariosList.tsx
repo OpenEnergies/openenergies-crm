@@ -6,8 +6,10 @@ import type { UsuarioApp } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
 import { clsx } from '@lib/utils';
+import { toast } from 'react-hot-toast';
 // ¡Importamos los nuevos iconos!
 import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil } from 'lucide-react';
+import ConfirmationModal from '@components/ConfirmationModal'; // Ajusta la ruta si es necesario
 
 // Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
@@ -31,9 +33,6 @@ async function toggleUserActive({ userId, newActiveState }: { userId: string; ne
 }
 
 async function resetUserPassword({ email }: { email: string }) {
-  if (!window.confirm(`¿Estás seguro de que quieres enviar un correo de restablecimiento de contraseña a ${email}?`)) {
-    throw new Error('Acción cancelada');
-  }
   const { error } = await supabase.functions.invoke('manage-user', {
     body: { action: 'reset-password', payload: { email } }
   });
@@ -54,25 +53,26 @@ export default function UsuariosList() {
 
   // Estado para controlar el modal
   const [userToDelete, setUserToDelete] = useState<UsuarioConEmpresa | null>(null);
+  const [userToReset, setUserToReset] = useState<{ email: string } | null>(null);
 
   // Mutación para cambiar el estado de activo/inactivo
   const toggleActiveMutation = useMutation({
     mutationFn: toggleUserActive,
     onSuccess: () => {
-      alert('Estado del usuario actualizado.');
+      toast.success('Estado del usuario actualizado.');
       queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
     },
-    onError: (error) => alert(`Error: ${error.message}`),
+    onError: (error) => toast.error(`Error: ${error.message}`),
   });
 
   // Mutación para resetear la contraseña
   const resetPasswordMutation = useMutation({
     mutationFn: resetUserPassword,
-    onSuccess: () => alert('Correo de restablecimiento enviado.'),
+    onSuccess: () => toast.success('Correo de restablecimiento enviado.'),
     onError: (error) => {
       // No mostramos el error si el usuario canceló la acción
       if (error.message !== 'Acción cancelada') {
-        alert(`Error: ${error.message}`);
+        toast.error(`Error: ${error.message}`);
       }
     },
   });
@@ -81,11 +81,11 @@ export default function UsuariosList() {
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
-      alert('Usuario eliminado correctamente.');
+      toast.success('Usuario eliminado correctamente.');
       setUserToDelete(null); // Cierra el modal
       queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
     },
-    onError: (error) => alert(`Error al eliminar: ${error.message}`),
+    onError: (error) => toast.error(`Error al eliminar: ${error.message}`),
   });
 
   return (
@@ -154,7 +154,7 @@ export default function UsuariosList() {
                         <button 
                           // --- ¡CAMBIO AQUÍ! ---
                           className="icon-button warning" // Cambiamos 'secondary' por 'warning'
-                          onClick={() => resetPasswordMutation.mutate({ email: u.email! })}
+                          onClick={() => setUserToReset({ email: u.email! })}
                           disabled={resetPasswordMutation.isPending}
                           title="Enviar correo de restablecimiento de contraseña"
                         >
@@ -203,6 +203,23 @@ export default function UsuariosList() {
             </div>
           </div>
         </div>
+      )}
+      {userToReset && (
+        <ConfirmationModal
+          isOpen={!!userToReset} // Abierto si userToReset tiene datos
+          onClose={() => setUserToReset(null)} // Cierra al cancelar
+          onConfirm={() => {
+            // Llama a la mutación al confirmar
+            resetPasswordMutation.mutate({ email: userToReset.email });
+            setUserToReset(null); // Cierra el modal
+          }}
+          title="Confirmar Restablecimiento"
+          message={`¿Estás seguro de que quieres enviar un correo de restablecimiento de contraseña a ${userToReset.email}?`}
+          confirmText="Sí, Enviar Correo"
+          cancelText="Cancelar"
+          confirmButtonClass="warning" // Botón amarillo/naranja
+          isConfirming={resetPasswordMutation.isPending} // Estado de carga
+        />
       )}
     </div>
   );

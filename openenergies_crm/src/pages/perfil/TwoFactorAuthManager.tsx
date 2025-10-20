@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useForm } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
 
 // --- Funciones de API ---
 // Obtiene los factores 2FA que el usuario ya tiene activos
@@ -74,19 +75,19 @@ export default function TwoFactorAuthManager() {
   const verifyMutation = useMutation({ 
     mutationFn: challengeAndVerify,
     onSuccess: () => {
-      alert('2FA activado con éxito.');
+      toast.success('2FA activado con éxito.');
       setEnrollData(null);
       queryClient.invalidateQueries({ queryKey: ['mfaFactors'] });
     },
-    onError: (e) => alert(e.message)
+    onError: (e) => toast.error(e.message)
   });
   const unenrollMutation = useMutation({ 
     mutationFn: unenrollMfa,
     onSuccess: () => {
-      alert('2FA desactivado.');
+      toast.success('2FA desactivado.');
       queryClient.invalidateQueries({ queryKey: ['mfaFactors'] });
     },
-    onError: (e) => alert(e.message)
+    onError: (e) => toast.error(e.message)
   });
 
   const onVerifySubmit = (formData: { code: string }) => {

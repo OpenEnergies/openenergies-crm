@@ -12,3 +12,11 @@ export function fmtDate(d?: string | null) {
 export function clsx(...xs: (string | false | null | undefined)[]) {
   return xs.filter(Boolean).join(' ');
 }
+
+// --- Utils ---
+export function joinPath(...segments: Array<string | undefined | null>) {
+  return segments
+    .filter((s) => typeof s === 'string' && s !== undefined && s !== null && s.trim() !== '')
+    .map((s) => (s as string).replace(/^\/+|\/+$/g, ''))
+    .join('/');
+}

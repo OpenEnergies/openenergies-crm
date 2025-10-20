@@ -10,6 +10,7 @@ export type RootDocumentItem = {
   cliente_nombre: string;
   item_name: string;
   is_folder: boolean;
+  full_path: string;
 };
 
 export interface UsuarioApp {

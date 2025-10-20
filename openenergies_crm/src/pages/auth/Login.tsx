@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
+import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   email: z.string().email(),
@@ -16,12 +17,12 @@ export default function Login(){
   async function onSubmit({ email, password }: FormData){
     if (password) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert(error.message);
+      if (error) toast.error(error.message);
       else window.location.href = '/app';
     } else {
       const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + '/app' } });
-      if (error) alert(error.message);
-      else alert('Te hemos enviado un enlace de acceso a tu correo.');
+      if (error) toast.error(error.message);
+      else toast.success('Te hemos enviado un enlace de acceso a tu correo.');
     }
   }
 

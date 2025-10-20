@@ -5,6 +5,7 @@ import { supabase } from '@lib/supabase';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   password: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
@@ -45,11 +46,11 @@ export default function ForceChangePassword() {
       await queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
 
       // 4. Redirigir al Dashboard
-      alert('Contraseña actualizada correctamente. Ya puedes acceder al CRM.');
+      toast.success('Contraseña actualizada correctamente, ya puedes acceder al CRM.');
       navigate({ to: '/app', replace: true });
 
     } catch (e: any) {
-      setServerError(`Error al actualizar la contraseña: ${e.message}`);
+      toast.error(`Error al actualizar la contraseña: ${e.message}`);
     }
   }
 
@@ -58,9 +59,6 @@ export default function ForceChangePassword() {
       <div className="card" style={{ maxWidth: 420, width: '100%' }}>
         <h1 style={{ marginTop: 0 }}>Actualiza tu contraseña</h1>
         <p style={{ color: 'var(--muted)' }}>Por seguridad, debes establecer una nueva contraseña personal para poder acceder al sistema.</p>
-        
-        {serverError && <div role="alert" style={{ color: '#b91c1c', marginBottom: '1rem' }}>{serverError}</div>}
-        
         <form onSubmit={handleSubmit(onSubmit)} className="grid" style={{ gap: '1rem' }}>
           <div>
             <label htmlFor="password">Nueva Contraseña</label>

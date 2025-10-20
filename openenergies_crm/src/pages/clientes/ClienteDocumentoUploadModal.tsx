@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { buildStoragePath } from '@lib/utils';
 import { FileUp } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   tipo: z.string().min(1, "El tipo de documento es obligatorio"),
@@ -44,10 +45,10 @@ export default function ClienteDocumentoUploadModal({ clienteId, currentPath, on
       const { error: insertError } = await supabase.from('documentos').insert(meta);
       if (insertError) throw insertError;
 
-      alert('Documento subido correctamente.');
+      toast.success('Documento subido correctamente.');
       onSuccess(); // Llama a la función de éxito (refrescar y cerrar)
     } catch (e: any) {
-      alert(`Error al subir el documento: ${e.message}`);
+      toast.error(`Error al subir el documento: ${e.message}`);
     }
   }
 

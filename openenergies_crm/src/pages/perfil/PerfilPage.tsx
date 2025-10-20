@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
 import { User, Phone, Lock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 // Schema de validación para el formulario de perfil
 const profileSchema = z.object({
@@ -79,12 +80,12 @@ export default function PerfilPage() {
   const updateProfileMutation = useMutation({
     mutationFn: updateUserProfile,
     onSuccess: () => {
-      alert('Perfil actualizado correctamente.');
+      toast.success('Perfil actualizado correctamente.');
       queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
       setIsEditing(false); // Volvemos al modo vista
     },
     onError: (error) => {
-      alert(`Error al actualizar el perfil: ${error.message}`);
+      toast.error(`Error al actualizar el perfil: ${error.message}`);
     },
   });
 
@@ -92,11 +93,11 @@ export default function PerfilPage() {
   const updatePasswordMutation = useMutation({
     mutationFn: updateUserPassword,
     onSuccess: () => {
-      alert('Contraseña actualizada correctamente.');
+      toast.success('Contraseña actualizada correctamente.');
       passwordForm.reset(); // Limpiamos el formulario de contraseña
     },
     onError: (error) => {
-      alert(`Error al actualizar la contraseña: ${error.message}`);
+      toast.error(`Error al actualizar la contraseña: ${error.message}`);
     },
   });
 

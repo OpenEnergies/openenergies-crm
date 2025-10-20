@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@lib/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 
 async function uploadAvatar({ userId, file }: { userId: string; file: File }) {
   const fileExt = file.name.split('.').pop();
@@ -22,10 +23,10 @@ export default function Avatar({ userId, url, onUpload }: { userId: string; url:
     mutationFn: uploadAvatar,
     onSuccess: () => {
       onUpload(); // Invalida la query del perfil en el componente padre
-      alert('Avatar actualizado correctamente.');
+      toast.success('Avatar actualizado correctamente.');
     },
     onError: (error) => {
-      alert(`Error al subir el avatar: ${error.message}`);
+      toast.error(`Error al subir el avatar: ${error.message}`);
     },
   });
 

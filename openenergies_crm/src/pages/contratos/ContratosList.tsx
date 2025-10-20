@@ -5,6 +5,7 @@ import type { Contrato } from '@lib/types';
 import { fmtDate } from '@lib/utils';
 import { Pencil } from 'lucide-react';
 import { useSession } from '@hooks/useSession';
+import { toast } from 'react-hot-toast';
 
 async function fetchContratos(clienteId?: string){
   let query = supabase

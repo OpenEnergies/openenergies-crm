@@ -9,6 +9,7 @@ import type { Cliente, TipoCliente } from '@lib/types';
 import { useSession } from '@hooks/useSession';
 import { useEmpresas } from '@hooks/useEmpresas';
 import { HardHat, Tags, FileText, Mail, Lock, Building2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 // Usamos el tipo específico para mayor seguridad
 const createClienteSchema = (createAccess: boolean) => z.object({
@@ -51,7 +52,7 @@ export default function ClienteForm({ id }: { id?: string }) {
       // Al pedir los datos, también pedimos los de la empresa para asegurar consistencia
       const { data, error } = await supabase.from('clientes').select('*, empresas(*)').eq('id', id!).maybeSingle();
       if (error) {
-        setServerError(`Error al cargar el cliente: ${error.message}`);
+        toast.error(`Error al cargar el cliente: ${error.message}`);
         return;
       }
       if (data) {
@@ -65,7 +66,7 @@ export default function ClienteForm({ id }: { id?: string }) {
   async function onSubmit(values: FormData) {
     setServerError(null);
     if (loadingEmpresa || !empresaId) {
-      setServerError('No se pudo determinar tu empresa. Recarga la página.');
+      toast.error('No se pudo determinar tu empresa. Recarga la página.');
       return;
     }
 
@@ -119,10 +120,11 @@ export default function ClienteForm({ id }: { id?: string }) {
             if (assignError) throw assignError;
         }
       }
+      toast.success(editing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente');
       navigate({ to: '/app/clientes' });
     } catch (e: any) {
       console.error("Error al guardar cliente:", e);
-      setServerError(`Error al guardar: ${e.message}.`);
+      toast.error(`Error al guardar: ${e.message}.`);
     }
   }
 
@@ -134,7 +136,6 @@ export default function ClienteForm({ id }: { id?: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
-          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
           {/* --- PASO 3: AÑADIMOS EL NUEVO CAMPO AL FORMULARIO --- */}
             <div>
               <label htmlFor="empresa_id">Empresa Propietaria</label>

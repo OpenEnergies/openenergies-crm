@@ -7,6 +7,7 @@ import type { Cliente } from '@lib/types';
 import { buildStoragePath } from '@lib/utils';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { FileUp } from 'lucide-react'; // Importamos un icono
+import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   cliente_id: z.string().uuid({ message: "Debes seleccionar un cliente" }),
@@ -48,10 +49,10 @@ export default function DocumentoUpload(){
       const { error: insertError } = await supabase.from('documentos').insert(meta);
       if (insertError) throw insertError;
 
-      alert('Documento subido correctamente.');
+      toast.success('Documento subido correctamente.');
       navigate({ to: '/app/documentos' });
     } catch(e: any) {
-      alert(`Error al subir el documento: ${e.message}`);
+      toast.error(`Error al subir el documento: ${e.message}`);
     }
   }
 

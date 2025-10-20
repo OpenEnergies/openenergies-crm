@@ -8,6 +8,7 @@ import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
 import { Pencil, MapPin, Building2, Trash2 } from 'lucide-react'; // Icono de papelera añadido
+import { toast } from 'react-hot-toast';
 
 type ClienteConEmpresa = Cliente & {
   empresas: {
@@ -48,12 +49,12 @@ export default function ClientesList(){
   const deleteMutation = useMutation({
     mutationFn: deleteCliente,
     onSuccess: () => {
-        alert('Cliente y todos sus datos asociados han sido eliminados.');
+        toast.success('Cliente y todos sus datos asociados han sido eliminados.');
         setClienteToDelete(null); // Cierra el modal
         queryClient.invalidateQueries({ queryKey: ['clientes'] }); // Refresca la lista
     },
     onError: (error: any) => {
-        alert(`Error al eliminar el cliente: ${error.message}`);
+        toast.error(`Error al eliminar el cliente: ${error.message}`);
         setClienteToDelete(null); // Cierra el modal también en caso de error
     }
   });

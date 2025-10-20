@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { Plug, Building2, Calendar, Tag, Activity, BellRing } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 // === Schema del formulario ===
 // Fechas en string (YYYY-MM-DD). El checkbox produce boolean.

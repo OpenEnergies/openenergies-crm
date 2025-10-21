@@ -143,7 +143,7 @@ label {
 
 /* R: Para que las tablas no se desborden en pantallas pequeñas */
 .table-wrapper {
-  overflow-x: auto;
+  overflow-x: visible;
 }
 .table {
   width: 100%;
@@ -1050,3 +1050,77 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1); }
 .hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1); }
 .transition-shadow { transition-property: box-shadow; transition-timing-function: cubic-bezier(.4,0,.2,1); transition-duration: .15s; }
+
+/* ============================================= */
+/* --- Estilos para el Menú Desplegable de Filtro --- */
+/* ============================================= */
+
+/* El menú desplegable que aparece al hacer clic.
+   Se posiciona de forma 'absoluta' respecto al contenedor del botón. */
+.dropdown-menu {
+  position: absolute;
+  top: 100%; /* Se sitúa justo debajo del elemento padre */
+  left: 0;
+  z-index: 10; /* Se asegura de que aparezca por encima del resto del contenido */
+  min-width: 220px; /* Un ancho mínimo para que las opciones se lean bien */
+  margin-top: 6px; /* Un pequeño espacio entre el botón y el menú */
+  padding: 0.5rem;
+  background-color: var(--card-background, white);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: var(--border-radius, 8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: fadeIn 0.1s ease-out; /* Una pequeña animación */
+}
+
+/* Estilo para cada fila dentro del menú (botones, checkboxes) */
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap; /* Evita que el texto se parta en dos líneas */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Añade "..." si el texto es muy largo */
+}
+
+/* Efecto visual al pasar el ratón por encima de una opción */
+.dropdown-item:hover {
+  background-color: var(--muted, #f3f4f6);
+}
+
+/* Estilo específico para las filas que contienen un checkbox */
+.dropdown-item.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* Espacio entre el checkbox y el texto */
+  font-weight: normal;
+}
+
+/* --- Estilo para el botón de filtro cuando tiene una selección activa --- */
+.icon-button.active {
+  background-color: #e0e7ff; /* Un color azul claro para indicar que hay un filtro */
+  color: #4338ca; /* Un color de texto más oscuro para que contraste */
+}
+
+/* Animación de aparición */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Estilos para Botones de Icono Pequeños (Filtros) --- */
+.icon-button.small {
+  width: 28px;
+  height: 28px;
+  padding: 0.25rem;
+}

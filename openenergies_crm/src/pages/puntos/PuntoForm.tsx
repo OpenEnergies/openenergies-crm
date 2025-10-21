@@ -1,148 +1,212 @@
 // src/pages/puntos/PuntoForm.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useForm, SubmitHandler } from 'react-hook-form';
+// --- Importa Controller ---
+import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { User, HardHat, MapPin, Barcode, Tags, Zap, TrendingUp, FileText } from 'lucide-react';
+// --- Importa iconos y tipos necesarios ---
+import { User, HardHat, MapPin, Barcode, Tags, Zap, TrendingUp, FileText, Building } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import type { Cliente, Empresa, TipoFactura } from '@lib/types'; // Asegúrate que TipoFactura esté en types.ts
 
-
+// --- Schema de Zod actualizado ---
 const schema = z.object({
+  comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }), // Nuevo campo
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
-  titular: z.string().min(1, 'Titular obligatorio'),
+  // 'titular' se elimina del schema, se obtendrá de la comercializadora
   direccion: z.string().min(1, 'Dirección obligatoria'),
   cups: z.string().min(5, 'CUPS obligatorio'),
   tarifa_acceso: z.string().min(1, 'Tarifa obligatoria'),
-  // Importante: SIN preprocess -> evita "unknown"
   potencia_contratada_kw: z.number().nullable().optional(),
   consumo_anual_kwh: z.number().nullable().optional(),
   localidad: z.string().optional().nullable(),
-   provincia: z.string().optional().nullable(),
-   tipo_factura: z.enum(['Luz', 'Gas'], { invalid_type_error: 'Debes seleccionar Luz o Gas' }).optional().nullable(),
+  provincia: z.string().optional().nullable(),
+  tipo_factura: z.enum(['Luz', 'Gas'], { invalid_type_error: 'Debes seleccionar Luz o Gas' }).optional().nullable(),
 });
+// ------------------------------
 
 type FormValues = z.infer<typeof schema>;
-type ClienteOpt = { id: string; nombre: string; cif: string | null };
+// Tipos para los desplegables
+type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif' | 'empresa_id'>;
+type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
+
+// --- Funciones para fetching con React Query ---
+async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
+    const { data, error } = await supabase
+        .from('empresas')
+        .select('id, nombre')
+        // Filtra por tipo 'externa' (el tipo ENUM que usamos para comercializadoras)
+        .eq('tipo', 'comercializadora')
+        .order('nombre', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+async function fetchAllClientes(): Promise<ClienteOpt[]> {
+    const { data, error } = await supabase
+        .from('clientes')
+        .select('id, nombre, cif, empresa_id') // Necesitamos empresa_id para filtrar
+        .order('nombre', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+// ---------------------------------------------
 
 export default function PuntoForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
 
-  const [clientes, setClientes] = useState<ClienteOpt[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  // --- Estados para manejar la lógica de los desplegables ---
+  const [selectedComercializadoraId, setSelectedComercializadoraId] = useState<string | null>(null);
+  const [filteredClientes, setFilteredClientes] = useState<ClienteOpt[]>([]);
+  // -----------------------------------------------------------
+
+  // --- Fetching de datos con React Query ---
+  const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
+      queryKey: ['comercializadoras'], // Clave para la caché
+      queryFn: fetchComercializadoras, // Función que obtiene los datos
+  });
+
+  const { data: allClientes = [], isLoading: loadingClientes } = useQuery({
+      queryKey: ['allClientesForPuntoForm'], // Clave distinta para evitar colisiones
+      queryFn: fetchAllClientes, // Obtiene TODOS los clientes una vez
+  });
+  // ---------------------------------------
 
   const {
     register,
     handleSubmit,
     reset,
+    control, // Necesario para Controller (select de cliente)
+    setValue, // Para limpiar cliente_id
+    watch, // Para observar cambios en comercializadora_id
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    // Podrías añadir defaultValues si es necesario
   });
 
-  // Opciones de clientes
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('id,nombre,cif')
-        .order('nombre', { ascending: true });
-      if (!alive) return;
-      if (!error && data) setClientes(data as ClienteOpt[]);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // --- Observa el valor seleccionado en el desplegable de comercializadora ---
+  const watchedComercializadoraId = watch('comercializadora_id');
+  // ----------------------------------------------------------------------
 
-  // Carga punto si edita
+  // --- Efecto para filtrar Clientes cuando cambia la Comercializadora ---
   useEffect(() => {
-    if (!editing) return;
+      // Si hay una comercializadora seleccionada en el form...
+      if (watchedComercializadoraId) {
+          setSelectedComercializadoraId(watchedComercializadoraId); // Actualiza estado local
+          // Filtra la lista completa de clientes
+          const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
+          setFilteredClientes(filtered);
+          // Resetea el valor del campo cliente_id en el formulario
+          setValue('cliente_id', '', { shouldValidate: false }); // No validar al resetear
+      } else {
+          // Si no hay comercializadora, vacía la lista y resetea
+          setSelectedComercializadoraId(null);
+          setFilteredClientes([]);
+          setValue('cliente_id', '', { shouldValidate: false });
+      }
+  // Se ejecuta cuando cambia la selección o cuando carga la lista completa de clientes
+  }, [watchedComercializadoraId, allClientes, setValue]);
+  // -------------------------------------------------------------------
+
+  // Carga punto si está en modo edición
+  useEffect(() => {
+    if (!editing || !id) return; // Sal si no estamos editando o no hay ID
+    if (comercializadoras.length === 0 || allClientes.length === 0) return; // Espera a que carguen los selects
+
     let alive = true;
-    setLoading(true);
-    setServerError(null);
     (async () => {
       const { data, error } = await supabase
         .from('puntos_suministro')
-        .select(
-          'id,cliente_id,titular,direccion,cups,tarifa_acceso,potencia_contratada_kw,consumo_anual_kwh,localidad,provincia,tipo_factura'
-        )
-        .eq('id', id!)
+        // Selecciona todos los campos necesarios
+        .select('id, cliente_id, titular, direccion, cups, tarifa_acceso, potencia_contratada_kw, consumo_anual_kwh, localidad, provincia, tipo_factura')
+        .eq('id', id)
         .maybeSingle();
 
       if (!alive) return;
 
       if (error) {
-        toast.error(`Error al cargar: ${error.message}`);
+        toast.error(`Error al cargar datos para editar: ${error.message}`);
       } else if (data) {
+        // Busca el ID de la comercializadora basándose en el nombre guardado en 'titular'
+        const matchingComercializadora = comercializadoras.find(c => c.nombre === data.titular);
+        const initialComercializadoraId = matchingComercializadora?.id ?? '';
+
+        // Resetea el formulario con los datos cargados
         reset({
+          comercializadora_id: initialComercializadoraId, // Preselecciona comercializadora
           cliente_id: data.cliente_id,
-          titular: data.titular ?? '',
+          // 'titular' ya no está en el form
           direccion: data.direccion ?? '',
           cups: data.cups ?? '',
           tarifa_acceso: data.tarifa_acceso ?? '',
-          potencia_contratada_kw:
-            data.potencia_contratada_kw === null || data.potencia_contratada_kw === undefined
-              ? null
-              : Number(data.potencia_contratada_kw),
-          consumo_anual_kwh:
-            data.consumo_anual_kwh === null || data.consumo_anual_kwh === undefined
-              ? null
-              : Number(data.consumo_anual_kwh),
+          potencia_contratada_kw: data.potencia_contratada_kw === null ? null : Number(data.potencia_contratada_kw),
+          consumo_anual_kwh: data.consumo_anual_kwh === null ? null : Number(data.consumo_anual_kwh),
           localidad: data.localidad ?? null,
           provincia: data.provincia ?? null,
-          tipo_factura: data.tipo_factura ?? null,
+          tipo_factura: (data.tipo_factura as TipoFactura) ?? null, // Cast al tipo ENUM
         });
+
+        // Si encontramos una comercializadora, filtramos los clientes iniciales
+        if (initialComercializadoraId) {
+            setSelectedComercializadoraId(initialComercializadoraId);
+            const initialFiltered = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
+            setFilteredClientes(initialFiltered);
+            // Aseguramos que el cliente_id correcto siga seleccionado después del reset/filtro
+            setValue('cliente_id', data.cliente_id, { shouldDirty: false });
+        }
       }
-      setLoading(false);
     })();
-    return () => {
-      alive = false;
-    };
-  }, [editing, id, reset]);
+    return () => { alive = false; };
+  // Dependencias clave: id, reset, y las listas cargadas
+  }, [editing, id, reset, comercializadoras, allClientes, setValue]);
 
-  // Tipamos el submit con el mismo FormValues del useForm
+
+  // --- Función onSubmit ---
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
-    setServerError(null);
+    // 1. Obtiene el NOMBRE de la comercializadora seleccionada
+    const selectedComercializadora = comercializadoras.find(c => c.id === values.comercializadora_id);
+    if (!selectedComercializadora) {
+        toast.error("Comercializadora seleccionada no es válida.");
+        return;
+    }
+    const titularNombre = selectedComercializadora.nombre;
 
-    // Normaliza undefined -> null para columnas opcionales
+    // 2. Prepara el payload para la BBDD
     const payload = {
       cliente_id: values.cliente_id,
-      titular: values.titular,
+      titular: titularNombre, // Guarda el NOMBRE como titular
       direccion: values.direccion,
       cups: values.cups,
       tarifa_acceso: values.tarifa_acceso,
-      potencia_contratada_kw: values.potencia_contratada_kw === undefined ? null : values.potencia_contratada_kw,
-      consumo_anual_kwh: values.consumo_anual_kwh === undefined ? null : values.consumo_anual_kwh,
-     localidad: values.localidad === undefined ? null : values.localidad,
-     provincia: values.provincia === undefined ? null : values.provincia,
-     tipo_factura: values.tipo_factura === undefined ? null : values.tipo_factura,
+      potencia_contratada_kw: values.potencia_contratada_kw ?? null, // Asegura null si es undefined/vacío
+      consumo_anual_kwh: values.consumo_anual_kwh ?? null,
+      localidad: values.localidad ?? null,
+      provincia: values.provincia ?? null,
+      tipo_factura: values.tipo_factura ?? null,
     };
 
-    try { // <-- Añadir try/catch
-        if (editing) {
-          const { error } = await supabase
-            .from('puntos_suministro')
-            .update(payload) // <-- payload ya incluye los nuevos campos
-            .eq('id', id!);
-          if (error) throw error; // Lanzamos error para el catch
-        } else {
-          const { error } = await supabase.from('puntos_suministro').insert(payload); // <-- payload ya incluye los nuevos campos
-          if (error) throw error; // Lanzamos error para el catch
+    try {
+        if (editing) { // Actualiza si estamos editando
+          const { error } = await supabase.from('puntos_suministro').update(payload).eq('id', id!);
+          if (error) throw error;
+        } else { // Inserta si estamos creando
+          const { error } = await supabase.from('puntos_suministro').insert(payload);
+          if (error) throw error;
         }
-        toast.success(editing ? 'Punto actualizado' : 'Punto creado'); // <-- Toast de éxito
+        toast.success(editing ? 'Punto actualizado correctamente' : 'Punto creado correctamente');
+        // Navega a la lista general de puntos (o donde prefieras)
         navigate({ to: '/app/puntos' });
-    } catch (error: any) { // <-- Añadir catch
+    } catch (error: any) {
         console.error("Error al guardar punto:", error);
-        toast.error(`Error al guardar: ${error.message}`); // <-- Toast de error
-    } finally { // <-- Añadir finally (opcional, para quitar estado de carga si lo hubiera)
-        // setLoading(false); // Si usaras un estado de carga global
+        toast.error(`Error al guardar: ${error.message}`);
     }
   };
+  // -----------------------
 
   return (
     <div className="grid">
@@ -153,31 +217,80 @@ export default function PuntoForm({ id }: { id?: string }) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
-        <div className="grid" style={{ gap: '1.5rem' }}>          
-          <div className="form-row">
+        <div className="grid" style={{ gap: '1.5rem' }}>
+
+          {/* --- CAMPOS REORDENADOS --- */}
+          <div className="form-row"> {/* Usa form-row para ponerlos lado a lado */}
+
+            {/* Columna Izquierda: Comercializadora */}
             <div>
-              <label htmlFor="cliente_id">Cliente</label>
+              <label htmlFor="comercializadora_id">Comercializadora</label>
               <div className="input-icon-wrapper">
-                <HardHat size={18} className="input-icon" />
-                <select id="cliente_id" {...register('cliente_id')}>
-                  <option value=""> Selecciona </option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
+                <Building size={18} className="input-icon" />
+                <select id="comercializadora_id" {...register('comercializadora_id')} disabled={loadingComercializadoras}>
+                  <option value="">{loadingComercializadoras ? 'Cargando...' : 'Selecciona comercializadora'}</option>
+                  {comercializadoras.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
                 </select>
               </div>
+              {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
+            </div>
+
+            {/* Columna Derecha: Cliente (Filtrado y Controlado) */}
+            <div>
+              <label htmlFor="cliente_id">Cliente</label>
+              {/* Div wrapper para capturar clic y mostrar tooltip */}
+              <div
+                  className="input-icon-wrapper"
+                  // Captura el clic ANTES de que el select intente abrirse
+                  onMouseDownCapture={(e) => {
+                      if (!selectedComercializadoraId) {
+                          e.preventDefault(); // Evita que el select se abra
+                          toast.error('Selecciona primero una comercializadora.');
+                      }
+                  }}
+                  title={!selectedComercializadoraId ? 'Selecciona primero una comercializadora' : undefined}
+              >
+                <HardHat size={18} className="input-icon" />
+                {/* Controller para gestionar el 'disabled' dinámico */}
+                <Controller
+                    name="cliente_id"
+                    control={control}
+                    render={({ field }) => (
+                        <select
+                            id="cliente_id"
+                            {...field}
+                            // Deshabilitado si no hay comercializadora o si los clientes están cargando
+                            disabled={!selectedComercializadoraId || loadingClientes}
+                            style={{ cursor: !selectedComercializadoraId ? 'not-allowed' : 'default' }}
+                        >
+                            <option value="">
+                                {/* Mensaje dinámico en la opción por defecto */}
+                                {!selectedComercializadoraId
+                                    ? '← Selecciona comercializadora'
+                                    : loadingClientes
+                                    ? 'Cargando clientes...'
+                                    : filteredClientes.length === 0
+                                    ? 'No hay clientes para esta comercializadora'
+                                    : 'Selecciona cliente'}
+                            </option>
+                            {/* Mapea sobre los clientes FILTRADOS */}
+                            {filteredClientes.map((c) => (
+                              <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
+                            ))}
+                        </select>
+                    )}
+                />
+              </div>
               {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>
-            <div>
-              <label htmlFor="titular">Titular</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input type="text" id="titular" {...register('titular')} />
-              </div>
-              {errors.titular && <p className="error-text">{errors.titular.message}</p>}
-            </div>
           </div>
+          {/* --------------------------- */}
 
+          {/* Campo Titular Eliminado */}
+
+          {/* Resto de campos (Dirección, Localidad, etc.) */}
           <div>
             <label htmlFor="direccion">Dirección</label>
             <div className="input-icon-wrapper">
@@ -186,13 +299,11 @@ export default function PuntoForm({ id }: { id?: string }) {
             </div>
             {errors.direccion && <p className="error-text">{errors.direccion.message}</p>}
           </div>
-          
+
           <div className="form-row">
-            <div className="form-row">
             <div>
               <label htmlFor="localidad">Localidad</label>
               <div className="input-icon-wrapper">
-                {/* Puedes elegir un icono adecuado, ej: MapPin o Building */}
                 <MapPin size={18} className="input-icon" />
                 <input type="text" id="localidad" {...register('localidad')} />
               </div>
@@ -211,7 +322,6 @@ export default function PuntoForm({ id }: { id?: string }) {
           <div>
             <label htmlFor="tipo_factura">Tipo Factura</label>
             <div className="input-icon-wrapper">
-              {/* Icono ejemplo: FileText, List, etc. */}
               <FileText size={18} className="input-icon" />
               <select id="tipo_factura" {...register('tipo_factura')}>
                 <option value="">Selecciona (Luz/Gas)</option>
@@ -221,6 +331,8 @@ export default function PuntoForm({ id }: { id?: string }) {
             </div>
             {errors.tipo_factura && <p className="error-text">{errors.tipo_factura.message}</p>}
           </div>
+
+          <div className="form-row">
             <div>
               <label htmlFor="cups">CUPS</label>
               <div className="input-icon-wrapper">
@@ -244,32 +356,34 @@ export default function PuntoForm({ id }: { id?: string }) {
               <label htmlFor="potencia_contratada_kw">Potencia contratada (kW)</label>
               <div className="input-icon-wrapper">
                 <Zap size={18} className="input-icon" />
-                <input type="number" id="potencia_contratada_kw" step="0.01" {...register('potencia_contratada_kw', { setValueAs: v => (v === '' ? null : Number(v)) })} />
+                <input type="number" id="potencia_contratada_kw" step="0.01" {...register('potencia_contratada_kw', { setValueAs: v => (v === '' || v === null ? null : Number(v)) })} />
               </div>
+              {/* El error de tipo ya lo maneja Zod, no necesitamos error específico aquí */}
             </div>
             <div>
               <label htmlFor="consumo_anual_kwh">Consumo anual (kWh)</label>
               <div className="input-icon-wrapper">
                 <TrendingUp size={18} className="input-icon" />
-                <input type="number" id="consumo_anual_kwh" step="1" {...register('consumo_anual_kwh', { setValueAs: v => (v === '' ? null : Number(v)) })} />
+                <input type="number" id="consumo_anual_kwh" step="1" {...register('consumo_anual_kwh', { setValueAs: v => (v === '' || v === null ? null : Number(v)) })} />
               </div>
+              {/* El error de tipo ya lo maneja Zod */}
             </div>
           </div>
-        
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem' }}>
-            <button type="submit" className="btn-primary" disabled={isSubmitting || loading}>
-            {editing ? 'Guardar cambios' : 'Crear punto'}
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => navigate({ to: '/app/puntos' })}
-          >
-            Cancelar
-          </button>
+
+          {/* Botones de acción */}
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => navigate({ to: '/app/puntos' })} // O volver a la lista de clientes si vienes de ahí
+            >
+              Cancelar
+            </button>
+            <button type="submit" disabled={isSubmitting || loadingComercializadoras || loadingClientes}>
+               {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear punto')}
+            </button>
           </div>
 
-          
         </div>
       </form>
     </div>

@@ -5,12 +5,21 @@ import { useSession } from '@hooks/useSession';
 import { LogOut } from 'lucide-react'; // Importamos un icono para el logout
 
 export default function Layout() {
-  const { rol, nombre } = useSession();
+  const { rol, nombre, avatar_url, loading: sessionLoading, userId } = useSession();
   const navigate = useNavigate();
 
   async function logout() {
     await supabase.auth.signOut();
     navigate({ to: '/login' });
+  }
+
+  const fallbackInitial = nombre ? nombre.charAt(0).toUpperCase() : '?';
+  if (sessionLoading) {
+       return <div className="card">Cargando sesión...</div>; // O un spinner más elegante
+  }
+  if (!userId && !sessionLoading) {
+      navigate({ to: '/login', replace: true });
+      return null; // Evita renderizar el layout
   }
 
   return (
@@ -29,7 +38,11 @@ export default function Layout() {
           <Link to="/app/perfil" className="profile-link">
             {/* Aquí podríamos poner el avatar en el futuro */}
             <div className="profile-avatar">
-              <span>{nombre ? nombre.charAt(0).toUpperCase() : '?'}</span>
+              {avatar_url ? (
+                 <img src={avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+               ) : (
+                 <span>{fallbackInitial}</span> // Usa el fallback calculado
+               )}
             </div>
             <div className="profile-info">
               <span className="profile-name">{nombre ?? 'Usuario'}</span>

@@ -22,9 +22,7 @@ export default function ForceChangePassword() {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
-
   async function onSubmit({ password }: FormData) {
-    setServerError(null);
     try {
       // 1. Actualizar la contraseña en Supabase Auth
       const { error: updateAuthError } = await supabase.auth.updateUser({ password });
@@ -41,15 +39,22 @@ export default function ForceChangePassword() {
       
       if (updateProfileError) throw updateProfileError;
 
-      // --- 3. ¡CORRECCIÓN CLAVE! ---
-      // Invalidamos la caché del perfil de usuario antes de navegar.
-      await queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
+      // --- 3. FORZAR REFETCH Y ESPERAR ---
+      // Invalidamos Y forzamos la recarga inmediata de la query del perfil,
+      // esperando a que termine antes de continuar.
+      await queryClient.refetchQueries({ queryKey: ['userProfile', user.id], exact: true });
+      // Alternativa (más explícita si la anterior no funciona):
+      // await queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
+      // await new Promise(resolve => setTimeout(resolve, 100)); // Pequeña pausa opcional
 
-      // 4. Redirigir al Dashboard
-      toast.success('Contraseña actualizada correctamente, ya puedes acceder al CRM.');
+      // --- 4. FEEDBACK Y REDIRECCIÓN ---
+      toast.success('Contraseña actualizada correctamente. Redirigiendo...');
+
+      // Navegamos DESPUÉS de asegurar que los datos se han recargado
       navigate({ to: '/app', replace: true });
 
     } catch (e: any) {
+      console.error("Error al actualizar contraseña:", e);
       toast.error(`Error al actualizar la contraseña: ${e.message}`);
     }
   }

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
-import { User, Phone, Lock } from 'lucide-react';
+import { User, Phone, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 // Schema de validación para el formulario de perfil
@@ -52,9 +52,10 @@ async function updateUserPassword(newPassword: string) {
 }
 
 export default function PerfilPage() {
-  const { userId } = useSession();
+  const { userId, nombre: sessionNombre, avatar_url: sessionAvatarUrl } = useSession();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
 
   const { data: perfil, isLoading, isError } = useQuery({
     queryKey: ['userProfile', userId],
@@ -82,6 +83,7 @@ export default function PerfilPage() {
     onSuccess: () => {
       toast.success('Perfil actualizado correctamente.');
       queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
+      queryClient.invalidateQueries({ queryKey: ['sessionData'] });
       setIsEditing(false); // Volvemos al modo vista
     },
     onError: (error) => {
@@ -111,8 +113,16 @@ export default function PerfilPage() {
     updatePasswordMutation.mutate(formData.password);
   };
 
+  const handleAvatarUploadSuccess = (newUrl: string) => {
+    setLocalAvatarUrl(newUrl); 
+  };
+
   if (isLoading) return <div className="card">Cargando perfil...</div>;
   if (isError) return <div className="card" role="alert">Error al cargar el perfil.</div>;
+  if (!perfil) return <div className="card" role="alert">No se encontró el perfil.</div>;
+
+  const displayNombre = perfil?.nombre ?? sessionNombre;
+  const displayAvatarUrl = localAvatarUrl ?? perfil?.avatar_url ?? sessionAvatarUrl;
 
   return (
     // --- NUEVA ESTRUCTURA DE COLUMNAS ---
@@ -124,16 +134,18 @@ export default function PerfilPage() {
           {userId && (
             <Avatar 
               userId={userId}
-              url={perfil?.avatar_url ?? null}
-              onUpload={() => queryClient.invalidateQueries({ queryKey: ['userProfile', userId] })}
+              url={displayAvatarUrl} // Pasa la URL a mostrar
+              onUpload={handleAvatarUploadSuccess} // Pasa el callback
+              nombre={displayNombre} // Pasa el nombre para el fallback
+              size={150}
             />
           )}
         </div>
         <div className="card">
           <div className="profile-summary">
-            <h4>{perfil?.nombre} {perfil?.apellidos}</h4>
-            <p>{perfil?.email}</p>
-            <span className="badge" style={{textTransform: 'capitalize'}}>{perfil?.rol}</span>
+            <h4>{displayNombre} {perfil?.apellidos ?? ''}</h4>
+            <p>{perfil?.email ?? 'No disponible'}</p>
+            <span className="badge" style={{textTransform: 'capitalize'}}>{perfil?.rol ?? '...'}</span>
           </div>
         </div>
       </div>

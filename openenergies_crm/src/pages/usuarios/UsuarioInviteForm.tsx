@@ -53,7 +53,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, control, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { rol: 'comercial' }
+    defaultValues: { rol: 'administrador' }
   });
 
   const selectedRol = useWatch({ control, name: 'rol' });

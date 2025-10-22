@@ -529,7 +529,7 @@ button.danger:hover {
   padding-left: 2.5rem; /* Hacemos espacio para el icono */
 }
 
-* Hacemos que todos los inputs de tipo fecha tengan el cursor de puntero para indicar que son clicables */
+/* Hacemos que todos los inputs de tipo fecha tengan el cursor de puntero para indicar que son clicables */
 input[type="date"] {
   cursor: pointer;
 }

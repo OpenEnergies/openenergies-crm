@@ -108,7 +108,7 @@ export default function ChatWidget() {
       {open && (
         <div id="chat-panel" className="chat-panel shadow-xl border border-gray-200 rounded-lg" role="dialog" aria-label="Chat">
           <div className="chat-inner-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem' }}> {/* Añade clase y padding */}
-            <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+            <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
               <h3 style={{ margin: 0 }}> Asistente</h3>
               <button onClick={toggle} className="icon-button secondary small">✕</button>
             </div>

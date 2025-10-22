@@ -5,7 +5,7 @@ import { clsx } from '@lib/utils';
 // Importamos los iconos que vamos a usar
 import { Home, Users, Building, HardHat, FileText, FolderKanban, BarChart } from 'lucide-react';
 
-export function Nav() {
+export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
   const { rol } = useSession();
 
@@ -35,7 +35,7 @@ export function Nav() {
             <li key={item.to}>
               <Link to={item.to} className={clsx('nav-link', isActive && 'active')}>
                 <item.icon size={20} />
-                <span>{item.label}</span>
+                <span className="nav-label">{item.label}</span>
               </Link>
             </li>
           );

@@ -2,11 +2,16 @@ import { Outlet, useNavigate, Link } from '@tanstack/react-router';
 import { Nav } from './Nav';
 import { supabase } from '@lib/supabase';
 import { useSession } from '@hooks/useSession';
-import { LogOut } from 'lucide-react'; // Importamos un icono para el logout
+import { LogOut, Sun } from 'lucide-react'; // Importamos un icono para el logout
+import { useState } from 'react';
+import { clsx } from '@lib/utils'; // Importamos clsx
 
 export default function Layout() {
   const { rol, nombre, avatar_url, loading: sessionLoading, userId } = useSession();
   const navigate = useNavigate();
+
+  // Estado para controlar el colapso del sidebar
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -24,14 +29,24 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      <aside 
+        className={clsx('sidebar', isCollapsed && 'collapsed')}
+        onMouseEnter={() => setIsCollapsed(false)}
+        onMouseLeave={() => setIsCollapsed(true)}
+      >
         {/* Sección Superior: Logo y Título */}
         <div>
-          <h1 style={{ margin: 7, fontSize: '1.25rem', color: 'var(--primary)' }}>CRM Open Energies</h1>
+          {/* Modificamos el título para que se adapte al colapso */}
+          <Link to="/app" className="sidebar-title-link">
+            <Sun className="sidebar-title-icon" size={20} />
+            <h1 className="sidebar-title-text">
+              CRM Open Energies
+            </h1>
+          </Link>
         </div>
 
         {/* Sección Central: Navegación Principal */}
-        <Nav />
+        <Nav isCollapsed={isCollapsed} />
 
         {/* Sección Inferior: Perfil y Logout */}
         <div className="sidebar-footer">

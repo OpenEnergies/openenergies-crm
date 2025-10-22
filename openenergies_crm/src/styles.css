@@ -83,12 +83,17 @@ body {
     height: 100vh; /* Ocupa toda la altura */
     border-bottom: none; /* Quitamos el borde inferior */
     border-right: 1px solid var(--border-color); /* Ponemos borde derecho */
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: hidden;
   }
   .topbar {
     justify-content: flex-end; /* Alineamos el botón de logout a la derecha */
   }
   .container {
     padding: 2rem; /* Aumentamos el padding */
+  }
+  .sidebar.collapsed {
+    width: 80px; /* Ancho suficiente para los iconos */
   }
 }
 
@@ -184,28 +189,33 @@ label {
 .card-link {
   text-decoration: none;
   color: inherit;
+  text-decoration: none;
 }
 
 .action-card {
   height: 100%;
   transition: all 0.2s ease-in-out;
+  text-decoration: none;
 }
 
 .action-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   border-color: var(--primary);
+  text-decoration: none;
 }
 
 .action-card h3 {
   margin: 0 0 0.5rem;
   color: var(--primary);
+  text-decoration: none;
 }
 
 .action-card p {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+  text-decoration: none;
 }
 
 /* --- Estilos para la tabla de usuarios --- */
@@ -296,6 +306,8 @@ button.danger:hover {
 
 .main-nav {
   flex-grow: 1; /* Ocupa el espacio disponible en la barra lateral */
+  
+  text-decoration: none;
 }
 
 .main-nav ul {
@@ -305,6 +317,7 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  text-decoration: none;
 }
 
 .nav-link {
@@ -317,16 +330,24 @@ button.danger:hover {
   font-weight: 500;
   text-decoration: none;
   transition: all 0.2s ease-in-out;
+  /* Aseguramos que el contenido no se rompa */
+  overflow: hidden;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
 .nav-link:hover {
   background-color: var(--bg);
   color: var(--fg);
+  
+  text-decoration: none;
 }
 
 .nav-link.active {
   background-color: var(--primary);
   color: white;
+  
+  text-decoration: none;
 }
 
 /* --- Estilos para el Footer de la Barra Lateral --- */
@@ -337,6 +358,7 @@ button.danger:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  overflow: hidden;
 }
 
 .profile-link {
@@ -345,6 +367,7 @@ button.danger:hover {
   gap: 0.75rem;
   text-decoration: none;
   flex-grow: 1;
+  transition: justify-content 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-avatar {
@@ -363,6 +386,22 @@ button.danger:hover {
 .profile-info {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  width: auto;
+  transition: opacity 0.2s ease, width 0.3s ease;
+}
+
+/* Centrar el avatar cuando está colapsado */
+.sidebar.collapsed .profile-link {
+  justify-content: center;
+}
+
+/* Ocultar la información del perfil cuando está colapsado */
+.sidebar.collapsed .profile-info {
+  opacity: 0;
+  width: 0;
 }
 
 .profile-name {
@@ -1123,4 +1162,70 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   width: 28px;
   height: 28px;
   padding: 0.25rem;
+}
+
+.sidebar-title-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem; /* Ajusta el padding para centrar */
+  text-decoration: none;
+  color: var(--primary);
+  /* Evita que el texto se rompa */
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sidebar-title-icon {
+  flex-shrink: 0; /* Evita que el icono se encoja */
+  transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-title-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  opacity: 1;
+  width: auto;
+  transition: opacity 0.2s ease, width 0.3s ease;
+  white-space: nowrap;
+}
+
+/* Centrar el icono cuando está colapsado */
+.sidebar.collapsed .sidebar-title-link {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+/* Ocultar el texto cuando está colapsado */
+.sidebar.collapsed .sidebar-title-text {
+  opacity: 0;
+  width: 0;
+}
+
+/* Centrar el icono cuando está colapsado */
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+
+}
+
+.nav-label {
+  opacity: 1;
+  width: auto;
+  /* Transición suave para el texto */
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Ocultar el texto del enlace cuando está colapsado */
+.sidebar.collapsed .nav-label {
+  opacity: 0;
+  width: 0;
+  /* Eliminamos el 'gap' (espacio) que estaba en el span */
+  /* El 'gap' original de 0.75rem estaba en .nav-link */
+  /* Al ocultar el span, el 'gap' desaparece, lo cual está bien */
 }

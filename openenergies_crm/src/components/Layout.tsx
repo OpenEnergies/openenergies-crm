@@ -40,7 +40,7 @@ export default function Layout() {
           <Link to="/app" className="sidebar-title-link">
             <Sun className="sidebar-title-icon" size={20} />
             <h1 className="sidebar-title-text">
-              CRM Open Energies
+              Open Energies
             </h1>
           </Link>
         </div>

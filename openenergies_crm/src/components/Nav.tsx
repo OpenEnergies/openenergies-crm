@@ -3,7 +3,7 @@ import { canSeeModule } from '@lib/permissions';
 import { useSession } from '@hooks/useSession';
 import { clsx } from '@lib/utils';
 // Importamos los iconos que vamos a usar
-import { Home, Users, Building, HardHat, FileText, FolderKanban, BarChart } from 'lucide-react';
+import { Home, Users, Building, HardHat, FileText, FolderKanban, BarChart, Calendar } from 'lucide-react';
 
 export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
@@ -18,6 +18,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     { to: '/app/contratos', label: 'Contratos', icon: FileText, module: 'contratos' },
     { to: '/app/documentos', label: 'Documentos', icon: FileText, module: 'documentos' },
     { to: '/app/comparativas/nueva', label: 'Comparativas', icon: BarChart, module: 'comparativas' },
+    { to: '/app/agenda', label: 'Agenda', icon: Calendar, module: 'agenda' },
   ];
 
   // Filtramos los items según los permisos del rol

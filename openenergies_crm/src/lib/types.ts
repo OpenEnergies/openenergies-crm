@@ -88,3 +88,27 @@ export interface Documento {
   subido_por_user_id: UUID | null;
   subido_en: string | null;
 }
+
+
+export type AgendaItem = {
+  id: string
+  titulo: string
+  fecha_inicio: string // (vendrá como string ISO 8601)
+  fecha_fin: string | null
+  color: string | null
+  etiqueta: string | null
+  tipo_evento: 'evento' | 'renovacion'
+  es_editable: boolean
+  cliente_id_relacionado: string | null
+}
+
+/**
+ * Campos para el formulario de eventos (crear/editar)
+ */
+export type AgendaEventoForm = {
+  titulo: string
+  fecha_inicio: string // Usamos string para el input datetime-local
+  fecha_fin?: string | null
+  color: string
+  etiqueta: string
+}

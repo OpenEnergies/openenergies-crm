@@ -1,3 +1,5 @@
+
+
 :root {
   --primary: #2BB673;
   --primary-600: #1F9E61;
@@ -17,6 +19,17 @@
   --chat-gradient-end: var(--primary); /* Tu verde actual */
   --chat-assistant-bg: #F0F9FF; /* Un azul muy pálido para el asistente */
   --chat-panel-bg: #FFFFFF;
+  --fc-border-color: var(--border-color);
+  --fc-today-bg-color: var(--bg-muted);
+  --fc-button-bg-color: var(--primary);
+  --fc-button-border-color: var(--primary);
+  --fc-button-hover-bg-color: var(--primary-600);
+  --fc-button-hover-border-color: var(--primary-600);
+  --fc-button-active-bg-color: var(--primary-600);
+  --fc-button-active-border-color: var(--primary-600);
+  --fc-button-text-color: #FFFFFF;
+  --fc-button-group-border-color: var(--border-color);
+  --purple: #8B5CF6;
 }
 
 * { box-sizing: border-box; }
@@ -1260,4 +1273,377 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   /* Eliminamos el 'gap' (espacio) que estaba en el span */
   /* El 'gap' original de 0.75rem estaba en .nav-link */
   /* Al ocultar el span, el 'gap' desaparece, lo cual está bien */
+}
+
+/* Ajustes de botones */
+.fc-button {
+  border: none !important;
+  background: var(--primary) !important;
+  color: white !important;
+  padding: 0.65rem 1rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s;
+  text-transform: none !important; /* Quitar mayúsculas */
+  font-size: 0.9rem !important;
+  line-height: 1 !important;
+  height: auto !important;
+  
+}
+
+.fc-button:hover {
+  background-color: var(--primary-600) !important;
+}
+
+/* Botón "today" (Hoy) */
+.fc-today-button {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+}
+.fc-today-button:hover {
+  background-color: var(--secondary-600) !important;
+}
+.fc-today-button:disabled {
+  background-color: var(--bg-muted) !important;
+  border-color: var(--border-color) !important;
+  color: var(--muted) !important;
+  opacity: 0.7 !important;
+}
+
+/* Botones de vista (Mes, Semana) cuando están activos */
+.fc-button-primary:not(:disabled).fc-button-active, 
+.fc-button-primary:not(:disabled):active {
+  background-color: var(--primary-600) !important;
+  border-color: var(--primary-600) !important;
+  box-shadow: none !important;
+}
+
+/* Eventos */
+.fc-event {
+  cursor: pointer;
+  border: none !important;
+  padding: 4px 6px;
+  font-weight: 500;
+}
+
+/* Eventos de lista */
+.fc-list-event-dot {
+  border: none !important; /* Usamos el color de fondo */
+  background-color: var(--fc-event-bg-color, var(--primary));
+}
+.fc-list-event:hover td {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Botones Prev/Next sin fondo */
+.fc .fc-prev-button,
+.fc .fc-next-button {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.5rem !important; /* Ajustar padding si es necesario */
+  color: var(--primary) !important; /* Icono en verde */
+  transition: color 0.2s ease;
+}
+
+.fc .fc-prev-button:hover,
+.fc .fc-next-button:hover {
+  color: var(--primary-600) !important; /* Verde más oscuro al pasar ratón */
+}
+
+.fc .fc-prev-button:focus,
+.fc .fc-next-button:focus {
+  outline: none !important; /* Quitar borde de foco */
+  box-shadow: none !important;
+}
+
+/* Botón Crear Evento más moderno */
+.create-event-button {
+  background-image: linear-gradient(to right, var(--primary) 0%, var(--primary-600) 100%) !important;
+  border: none !important;
+  border-radius: 0.5rem !important; /* O 999px si lo quieres más redondeado */
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-out;
+  display: inline-flex; /* Para alinear icono y texto */
+  align-items: center;
+}
+
+.create-event-button:hover {
+  transform: translateY(-2px); /* Efecto sutil al pasar ratón */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  background-image: linear-gradient(to right, var(--primary-600) 0%, var(--primary) 100%) !important;
+}
+
+/* Botones Mes/Semana/Día/Hoy (vistas y today) */
+.fc .fc-button-group > .fc-button, /* Agrupados */
+.fc .fc-today-button /* Botón Hoy */
+ {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.65rem 0.5rem !important; /* Ajustar padding */
+  font-weight: 600 !important;
+  text-transform: capitalize !important; /* Mejor que mayúsculas */
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+/* Color por defecto (verde para vistas) */
+.fc .fc-button-group > .fc-button {
+  color: var(--primary) !important;
+}
+/* Color por defecto (azul para Hoy) */
+.fc .fc-today-button {
+  color: var(--secondary) !important;
+}
+
+/* Estado Hover */
+.fc .fc-button-group > .fc-button:hover {
+  color: var(--primary-600) !important;
+  background-color: rgba(43, 182, 115, 0.1) !important; /* Fondo verde muy sutil */
+}
+.fc .fc-today-button:hover {
+  color: var(--secondary-600) !important;
+  background-color: rgba(46, 135, 229, 0.1) !important; /* Fondo azul muy sutil */
+}
+
+/* Estado Activo (vista seleccionada) */
+.fc .fc-button-group > .fc-button.fc-button-active {
+  color: var(--primary-600) !important;
+  background-color: rgba(43, 182, 115, 0.15) !important; /* Fondo verde un poco más intenso */
+  box-shadow: none !important;
+}
+
+/* Botón Hoy deshabilitado */
+.fc .fc-today-button:disabled {
+  color: var(--muted) !important;
+  opacity: 0.6 !important;
+  background: none !important;
+}
+
+/* Estilo General del Calendario */
+.fc { /* Contenedor principal */
+  font-family: inherit; /* Usa la fuente del CRM */
+}
+
+/* Cabecera del calendario (Título, botones) */
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.fc .fc-toolbar-title {
+  font-size: 1.25rem !important;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* Celdas de días */
+.fc .fc-daygrid-day {
+  border-color: var(--border-color-light); /* Borde más sutil entre días */
+}
+.fc .fc-daygrid-day-number {
+  padding: 0.5rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+/* Día actual */
+.fc .fc-day-today {
+  background-color: transparent !important; /* Quitar fondo por defecto */
+}
+.fc .fc-day-today .fc-daygrid-day-number {
+  /* Destacar número del día actual */
+  background-color: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-top: 4px; /* Ajuste visual */
+  margin-left: 4px;
+}
+
+/* Eventos */
+.fc .fc-daygrid-event {
+  border-radius: 4px;
+  margin-top: 3px;
+  padding: 3px 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none !important; /* Quitar borde por defecto */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Sombra sutil */
+  transition: transform 0.1s ease;
+}
+.fc .fc-daygrid-event:hover {
+  transform: scale(1.03); /* Efecto hover ligero */
+}
+
+/* Vista de Semana/Día (TimeGrid) */
+.fc .fc-timegrid-slot { /* Líneas de hora */
+  border-color: var(--border-color-light);
+}
+.fc .fc-timegrid-event {
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 4px;
+  font-size: 0.75rem;
+  border: none !important;
+}
+
+/* Hacer todo el input[type="datetime-local"] clickeable */
+input[type="datetime-local"] {
+  position: relative;
+  cursor: pointer;
+}
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+}
+
+/* Botones de cambio de vista (Agenda) */
+.view-toggle-buttons {
+  display: inline-flex;
+  background-color: var(--bg-muted); /* Fondo contenedor */
+  border-radius: 0.5rem;
+  padding: 4px;
+}
+
+.view-toggle-buttons .icon-button {
+  background-color: transparent;
+  color: var(--muted);
+  transition: all 0.2s ease;
+  padding: 0.4rem 0.6rem; /* Ajustar padding */
+  border-radius: 0.3rem; /* Menos redondeado */
+}
+
+.view-toggle-buttons .icon-button:hover {
+  color: var(--fg);
+}
+
+.view-toggle-buttons .icon-button.active {
+  background-color: var(--bg-card); /* Fondo blanco */
+  color: var(--primary); /* Icono verde */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* --- Estilos para AgendaListView (Añadir al final) --- */
+
+.agenda-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem; /* Espacio entre grupos de días */
+}
+
+/*.agenda-day-group {
+  Puedes añadir un borde o fondo si quieres separar más los días 
+}*/
+
+.agenda-day-header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--fg);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+}
+.agenda-day-header.today {
+  color: var(--primary); /* Destacar "Hoy" */
+  border-bottom-color: var(--primary-light);
+}
+
+.agenda-item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Espacio entre eventos del mismo día */
+}
+
+.agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background-color: var(--bg-card); /* Fondo blanco para cada item */
+  border: 1px solid var(--border-color-light);
+  transition: box-shadow 0.2s ease;
+}
+.agenda-item:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.item-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.item-time {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.9rem;
+  width: 110px; /* Ancho fijo para alinear */
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.item-icon {
+  flex-shrink: 0;
+  display: flex; /* Centrar icono si es necesario */
+  align-items: center;
+}
+/* Colores específicos para iconos si quieres */
+.item-icon .text-danger { color: #DC2626; }
+
+.item-details {
+  flex-grow: 1; /* Ocupa el espacio restante */
+  min-width: 0; /* Evita que el texto largo desborde */
+}
+
+.item-title {
+  display: block; /* Para que la etiqueta vaya debajo */
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Añadir "..." si el título es muy largo */
+}
+
+.item-tag {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Clases de utilidad que podrías necesitar (si no las tienes ya) */
+.text-muted { color: var(--muted); }
+.text-danger { color: #DC2626; }
+.text-center { text-align: center; }
+
+.fc .fc-list-event-title div[data-etiqueta]::after { /* <-- Selector ajustado */
+  content: attr(data-etiqueta);
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 2px;
 }

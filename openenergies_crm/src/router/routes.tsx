@@ -18,6 +18,7 @@ import EmpresaForm from '@pages/empresas/EmpresaForm';
 import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import PerfilPage from '@pages/perfil/PerfilPage';
 import ComparativaForm from '@pages/comparativas/ComparativaForm';
+import AgendaPage from '@pages/agenda/AgendaPage';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
 import ClienteDetailLayout from '@pages/clientes/ClienteDetailLayout'; // <-- Importa el nuevo layout
@@ -63,6 +64,14 @@ const appRoute = createRoute({
   path: '/app',
   component: () => <RequireAuth><Layout /></RequireAuth>,
 });
+
+// Creamos la ruta de la agenda, protegida
+const agendaRoute = createRoute({ // <-- 1. Usar createRoute
+  getParentRoute: () => appRoute,
+  path: 'agenda',
+  // 2. Usar el componente RequireRole como en el resto de tus rutas
+  component: () => <RequireRole roles={['administrador', 'comercial']}><AgendaPage /></RequireRole>,
+})
 
 // ESTA ES LA RUTA ÍNDICE (EL DASHBOARD)
 // Al tener path: '/', se convierte en la página por defecto de '/app'.
@@ -252,6 +261,7 @@ const routeTree = rootRoute.addChildren([
     dashboardRoute, // El Dashboard es la primera ruta hija
     perfilRoute,
     comparativasNewRoute,
+    agendaRoute,
     empresasRoute,     
     empresasNewRoute,  
     empresasEditRoute,

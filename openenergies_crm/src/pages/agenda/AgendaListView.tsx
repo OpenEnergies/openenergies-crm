@@ -112,13 +112,21 @@ export default function AgendaListView({ items, isLoading, onEdit, onDelete }: A
                     {etiquetaIconMap[item.extendedProps?.etiqueta || ''] || <Tag size={16} />}
                   </span>
 
-                  {/* Título y Etiqueta */}
+                  {/* Título, Etiqueta y Creador */}
                   <div className="item-details">
                     <span className="item-title">{item.title}</span>
-                    {item.extendedProps?.etiqueta && (
-                      <span className="item-tag">{item.extendedProps.etiqueta}</span>
-                    )}
-                    {/* Aquí podrías añadir un campo para 'Notas' si lo incluyes en la BBDD */}
+                    <div className="item-meta"> {/* Contenedor para etiqueta y creador */}
+                      {item.extendedProps?.etiqueta && (
+                        <span className="item-tag">{item.extendedProps.etiqueta}</span>
+                      )}
+                      {/* --- AÑADIR CREADOR AQUÍ --- */}
+                      {item.extendedProps?.tipo_evento === 'evento' && item.extendedProps?.creadorNombre && (
+                        <span className="item-creator">
+                           · Creado por {item.extendedProps.creadorNombre.split(' ')[0]} {/* Mostrar solo primer nombre */}
+                        </span>
+                      )}
+                      {/* --- FIN AÑADIR CREADOR --- */}
+                    </div>
                   </div>
 
                   {/* Acciones */}

@@ -1647,3 +1647,33 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--muted);
   margin-top: 2px;
 }
+
+/* En el Calendario (dentro del evento) */
+.fc-event-main-content {
+  display: flex; /* Para alinear título y creador */
+  align-items: baseline;
+  gap: 0.3em;
+  overflow: hidden; /* Evitar que el creador se desborde */
+  white-space: nowrap;
+}
+.fc-event-creator {
+  font-size: 0.8em; /* Más pequeño */
+  color: inherit; /* Hereda color del evento */
+  opacity: 0.8; /* Ligeramente más tenue */
+  margin-left: auto; /* Empujar a la derecha (opcional) */
+  flex-shrink: 0; /* Evitar que se encoja */
+}
+
+/* En la Vista de Lista */
+.item-meta { /* Contenedor para etiqueta y creador */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+/*.item-creator {
+  /* Estilos específicos si son necesarios, por ahora hereda de .item-meta */
+  /* Puedes añadir, por ejemplo: font-style: italic; 
+}*/

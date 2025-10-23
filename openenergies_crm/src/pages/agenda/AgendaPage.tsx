@@ -81,11 +81,11 @@ export default function AgendaPage() {
     retry: false,                // 👈 evita reintentos en 400
     refetchOnWindowFocus: false,
     select: (data) =>
-      data.map((item) => ({
+      data.map((item: AgendaItem) => ({ // <-- Asegúrate de usar AgendaItem aquí
         id: item.id,
         title: item.titulo,
         start: item.fecha_inicio,
-        end: item.fecha_fin ?? undefined,
+        end: item.fecha_fin ?? undefined, // Usa undefined para FullCalendar si es null
         color: item.color || (item.tipo_evento === 'renovacion' ? '#DC2626' : '#2E87E5'),
         borderColor: item.color || (item.tipo_evento === 'renovacion' ? '#DC2626' : '#2E87E5'),
         extendedProps: {
@@ -93,6 +93,9 @@ export default function AgendaPage() {
           tipo_evento: item.tipo_evento,
           es_editable: item.es_editable,
           cliente_id: item.cliente_id_relacionado,
+          // Ajuste semántico: Usa tipo_evento directamente si prefieres 'evento'/'renovacion'
+          source: item.tipo_evento === 'renovacion' ? 'renovacion' : 'crm', 
+          creadorNombre: item.creador_nombre || null, // <-- PASAR EL NOMBRE DEL CREADOR (con || null por si acaso)
         },
       })),
   })
@@ -275,6 +278,8 @@ export default function AgendaPage() {
           eventContent={(arg) => {
             // --- USA ESTA VERSIÓN ---
             const etiqueta = arg.event.extendedProps?.etiqueta || '';
+            const creador  = arg.event.extendedProps?.creadorNombre || ''; // <-- Obtener creador
+            const tipo     = arg.event.extendedProps?.tipo_evento || 'evento'; // <-- Obtener tipo
 
             const escapeHtml = (str: string) =>
               String(str)
@@ -286,9 +291,23 @@ export default function AgendaPage() {
 
             const title = escapeHtml(arg.event.title ?? '');
 
-            // Devuelve directamente el HTML con el data-attribute
-            return { html: `<div data-etiqueta="${escapeHtml(etiqueta)}">${title}</div>` };
-            // --- FIN DE LA VERSIÓN CORRECTA ---
+            // --- AÑADIR LÓGICA PARA MOSTRAR CREADOR ---
+            let creatorHtml = '';
+            // Solo mostramos creador para eventos ('crm') y si tenemos el nombre
+            if (tipo === 'evento' && creador) {
+               // Muestra el primer nombre entre paréntesis
+               creatorHtml = `<span class="fc-event-creator">(${escapeHtml(creador.split(' ')[0])})</span>`;
+            }
+            // --- FIN LÓGICA CREADOR ---
+
+            // Devolvemos HTML que incluye el título, data-etiqueta y el creador
+            return {
+              html: `
+                <div class="fc-event-main-content" data-etiqueta="${escapeHtml(etiqueta)}">
+                  ${title} ${creatorHtml}
+                </div>
+              `
+            };
           }}
         />
       </div>

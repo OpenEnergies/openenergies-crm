@@ -100,6 +100,7 @@ export type AgendaItem = {
   tipo_evento: 'evento' | 'renovacion'
   es_editable: boolean
   cliente_id_relacionado: string | null
+  creador_nombre: string | null
 }
 
 /**

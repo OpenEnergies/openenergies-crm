@@ -1494,22 +1494,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: none !important;
 }
 
-/* Hacer todo el input[type="datetime-local"] clickeable */
-input[type="datetime-local"] {
-  position: relative;
-  cursor: pointer;
-}
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: auto;
-  height: auto;
-  color: transparent;
-  background: transparent;
-}
 
 /* Botones de cambio de vista (Agenda) */
 .view-toggle-buttons {
@@ -1677,3 +1661,52 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   /* Estilos específicos si son necesarios, por ahora hereda de .item-meta */
   /* Puedes añadir, por ejemplo: font-style: italic; 
 }*/
+
+/* ================================================== */
+/* === Solución Bug Modal Agenda (FINAL, SEGURA) ==== */
+/* ================================================== */
+
+/* 1) Labels normales dentro del modal */
+.agenda-modal label {
+  position: static !important;
+  inset: auto !important;
+  display: inline-block;
+  width: auto;
+  height: auto;
+  pointer-events: auto;
+}
+
+/* 2) Asegura el control nativo visible y clicable */
+.agenda-modal input[type="date"],
+.agenda-modal input[type="time"],
+.agenda-modal input[type="datetime-local"] {
+  -webkit-appearance: auto !important;
+  appearance: auto !important;
+  cursor: pointer;
+}
+
+/* 3) Icono del calendario/reloj: NO bloquear clics, nada de overlays */
+.agenda-modal input[type="date"]::-webkit-calendar-picker-indicator,
+.agenda-modal input[type="time"]::-webkit-calendar-picker-indicator,
+.agenda-modal input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  position: static !important;
+  inset: auto !important;
+  width: auto !important;
+  height: auto !important;
+  z-index: auto !important;
+  pointer-events: auto !important;   /* <- CLAVE */
+  opacity: 0.85;
+  transition: opacity .2s;
+}
+.agenda-modal input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.agenda-modal input[type="time"]:hover::-webkit-calendar-picker-indicator,
+.agenda-modal input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+/* 4) Evitar stacking raro en contenedores */
+.agenda-modal .form-row,
+.agenda-modal .input-icon-wrapper {
+  position: static !important;
+  overflow: visible !important;
+}

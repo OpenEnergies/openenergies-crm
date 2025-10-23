@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query'
 import { supabase } from '@lib/supabase'
-import { AgendaEventoForm, AgendaItem } from '@lib/types'
+//import { AgendaEventoForm, AgendaItem } from '@lib/types'
 import { useEmpresaId } from '@hooks/useEmpresaId' // ¡Importante para RLS!
 import { toast } from 'react-hot-toast'
 import { Loader2, Trash2 } from 'lucide-react'
@@ -16,9 +16,21 @@ const eventoSchema = z.object({
   titulo: z.string().min(3, { message: 'El título es requerido' }),
   etiqueta: z.string().min(1, { message: 'La etiqueta es requerida' }),
   color: z.string().min(1, { message: 'El color es requerido' }),
-  fecha_inicio: z.string().min(1, { message: 'La fecha de inicio es requerida' }),
-  fecha_fin: z.string().nullable().optional(),
-})
+  fecha_inicio_fecha: z.string().min(1, { message: 'La fecha de inicio es requerida' }),
+  fecha_inicio_hora: z.string().min(1, { message: 'La hora de inicio es requerida' }),
+  fecha_fin_fecha: z.string().optional().nullable(),
+  fecha_fin_hora: z.string().optional().nullable(),
+}).refine(data => {
+    // Validación extra: si se pone fecha fin, se debe poner hora fin, y viceversa
+    const hasFechaFin = !!data.fecha_fin_fecha;
+    const hasHoraFin = !!data.fecha_fin_hora;
+    return (hasFechaFin && hasHoraFin) || (!hasFechaFin && !hasHoraFin);
+}, {
+    message: 'Si especificas una fecha de fin, también debes especificar una hora de fin',
+    path: ['fecha_fin_hora'], // O 'fecha_fin_fecha'
+});
+
+type AgendaEventoForm = z.infer<typeof eventoSchema>;
 
 // --- (NUEVO) Mapeo de Etiqueta a Color ---
 const etiquetaColorMap: Record<string, string> = {
@@ -57,24 +69,54 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
     },
     enabled: isEditMode, // Solo se ejecuta si estamos en modo edición
   })
+  // --- (CAMBIO 3: Añadir Función Helper) ---
+  // Esta función nos ayuda a separar un ISO string (o null) en partes
+  // fecha (YYYY-MM-DD) y hora (HH:mm) para los inputs del formulario.
+  const getFechaHoraParts = (isoString: string | null | undefined) => {
+    if (!isoString) return { fecha: '', hora: '' };
+    try {
+      // Usamos Date para que la conversión a partes respete la zona horaria local
+      const localDate = new Date(isoString);
+      // Comprobamos si la fecha es válida
+      if (isNaN(localDate.getTime())) return { fecha: '', hora: '' };
 
-  // --- Configuración del Formulario ---
+      // Formato YYYY-MM-DD
+      const fecha = localDate.getFullYear() + '-' +
+                    ('0' + (localDate.getMonth() + 1)).slice(-2) + '-' +
+                    ('0' + localDate.getDate()).slice(-2);
+      // Formato HH:mm
+      const hora = ('0' + localDate.getHours()).slice(-2) + ':' +
+                   ('0' + localDate.getMinutes()).slice(-2);
+      return { fecha, hora };
+    } catch (e) {
+      // En caso de error al parsear, devolvemos vacío
+      console.error("Error parsing date:", isoString, e);
+      return { fecha: '', hora: '' };
+    }
+  };
+  // --- FIN CAMBIO 3 ---
+
+  const initialParts = getFechaHoraParts(fechaSeleccionada);
   const defaultEtiqueta = etiquetas[0] || 'Reunión';
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isDirty, dirtyFields },
-    control, // <-- Necesario para Controller
-    setValue, // <-- Necesario para actualizar color
-  } = useForm<AgendaEventoForm>({
+    control,
+    setValue,
+  } = useForm<AgendaEventoForm>({ // <-- Usar el tipo inferido AgendaEventoForm
     resolver: zodResolver(eventoSchema),
+    // Cambiamos los defaultValues para usar los nuevos nombres de campo
     defaultValues: {
       titulo: '',
       etiqueta: defaultEtiqueta,
       color: etiquetaColorMap[defaultEtiqueta],
-      fecha_inicio: fechaSeleccionada ? fechaSeleccionada.slice(0, 16) : '',
-      fecha_fin: '',
+      // Valores iniciales para los campos separados
+      fecha_inicio_fecha: initialParts.fecha,
+      fecha_inicio_hora: initialParts.hora,
+      fecha_fin_fecha: '', // Empezar vacíos
+      fecha_fin_hora: '',  // Empezar vacíos
     },
   });
 
@@ -94,43 +136,78 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
     // Make sure 'isDirty' object itself is in the dependency array if you use it directly
   }, [watchedEtiqueta, setValue, dirtyFields]);
 
-  // --- Efecto para rellenar el formulario en Modo Edición ---
+  // --- (CAMBIO 5: Efecto para rellenar en Modo Edición) ---
   useEffect(() => {
     if (isEditMode && existingEvento) {
+      // Usamos el helper para separar las fechas de la BBDD en partes
+      const inicioParts = getFechaHoraParts(existingEvento.fecha_inicio);
+      const finParts = getFechaHoraParts(existingEvento.fecha_fin);
+      // Actualizamos el reset para usar los nuevos nombres de campo
       reset({
         titulo: existingEvento.titulo,
-        etiqueta: existingEvento.etiqueta || 'Reunión',
-        color: existingEvento.color || '#2E87E5',
-        // Formateamos la fecha para el input 'datetime-local' (YYYY-MM-DDTHH:mm)
-        fecha_inicio: existingEvento.fecha_inicio
-          ? new Date(existingEvento.fecha_inicio).toISOString().slice(0, 16)
-          : '',
-        fecha_fin: existingEvento.fecha_fin
-          ? new Date(existingEvento.fecha_fin).toISOString().slice(0, 16)
-          : '',
-      })
+        etiqueta: existingEvento.etiqueta || defaultEtiqueta, // Usar defaultEtiqueta como fallback
+        color: existingEvento.color || etiquetaColorMap[defaultEtiqueta], // Usar color por defecto como fallback
+        // Rellenar campos separados
+        fecha_inicio_fecha: inicioParts.fecha,
+        fecha_inicio_hora: inicioParts.hora,
+        fecha_fin_fecha: finParts.fecha,
+        fecha_fin_hora: finParts.hora,
+      });
     }
-  }, [existingEvento, isEditMode, reset])
+    // Aseguramos que defaultEtiqueta esté en las dependencias si se usa en el reset
+  }, [existingEvento, isEditMode, reset, defaultEtiqueta]);
 
-  // --- Mutación para Guardar (Crear o Actualizar) ---
+  // --- (CAMBIO 6: Mutación para Guardar - Combinar fecha y hora) ---
   const saveMutation = useMutation({
     mutationFn: async (formData: AgendaEventoForm) => {
-      const payload = {
-        ...formData,
-        fecha_fin: formData.fecha_fin || null, // Asegurar null si está vacío
+      // Combinamos fecha y hora en un string reconocible por `new Date()`
+      const fecha_inicio_str = `${formData.fecha_inicio_fecha}T${formData.fecha_inicio_hora}:00`;
+      let fecha_fin_str: string | null = null;
+      if (formData.fecha_fin_fecha && formData.fecha_fin_hora) {
+        fecha_fin_str = `${formData.fecha_fin_fecha}T${formData.fecha_fin_hora}:00`;
       }
 
+      // Convertimos a objetos Date para validación y conversión a ISO UTC
+      let startDate: Date;
+      let endDate: Date | null = null;
+      try {
+           startDate = new Date(fecha_inicio_str);
+           // Validamos si la fecha/hora de inicio es válida
+           if (isNaN(startDate.getTime())) throw new Error("Fecha u hora de inicio inválida.");
+
+           if (fecha_fin_str) {
+               endDate = new Date(fecha_fin_str);
+               // Validamos si la fecha/hora de fin es válida
+               if (isNaN(endDate.getTime())) throw new Error("Fecha u hora de fin inválida.");
+               // Opcional pero recomendado: Validar que fin sea posterior a inicio
+               if (endDate <= startDate) throw new Error("La fecha/hora de fin debe ser posterior a la de inicio.");
+           }
+      } catch (e: any) {
+           console.error("Error al construir fechas:", e);
+           // Lanzamos el error específico para mostrarlo al usuario
+           throw new Error(e.message || "Formato de fecha u hora inválido.");
+      }
+
+      // Creamos el payload final con los nombres originales de la BBDD (fecha_inicio, fecha_fin)
+      // y usamos toISOString() para enviar en formato UTC estándar.
+      const payload = {
+        titulo: formData.titulo,
+        etiqueta: formData.etiqueta,
+        color: formData.color,
+        fecha_inicio: startDate.toISOString(), // <-- Convertido a ISO UTC
+        fecha_fin: endDate ? endDate.toISOString() : null, // <-- Convertido a ISO UTC o null
+      };
+
+      // La lógica de update/insert no necesita cambiar aquí
       if (isEditMode) {
-        // --- ACTUALIZAR ---
-        const { error } = await supabase.from('agenda_eventos').update(payload).eq('id', id!)
-        if (error) throw error
+         const { error } = await supabase.from('agenda_eventos').update(payload).eq('id', id!)
+         if (error) throw error
       } else {
-        // --- CREAR ---
-        if (!empresaId) throw new Error('No se pudo determinar la empresa del usuario.')
-        const { error } = await supabase
-          .from('agenda_eventos')
-          .insert({ ...payload, empresa_id: empresaId })
-        if (error) throw error
+         if (!empresaId) throw new Error('No se pudo determinar la empresa del usuario.')
+         const { error } = await supabase
+           .from('agenda_eventos')
+           .insert({ ...payload, empresa_id: empresaId }) // Se añade empresa_id aquí
+         if (error) throw error
       }
     },
     onSuccess: () => {
@@ -170,10 +247,18 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
       deleteMutation.mutate()
     }
   }
+
+  const openPicker = (e: React.MouseEvent<HTMLInputElement>) => {
+  try {
+    (e.currentTarget as HTMLInputElement).showPicker?.();
+  } catch {}
+};
+
+
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content agenda-modal" onClick={(e) => e.stopPropagation()}>
           <div className="card" style={{ padding: 0 }}>
             {/* --- Cabecera del Modal --- */}
             <div className="page-header" style={{ padding: '1.5rem', marginBottom: 0, borderBottom: '1px solid var(--border-color)' }}>
@@ -245,25 +330,64 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
                   </div>
 
                   {/* --- Fila: Fechas --- */}
-                  <div className="form-row">
+                  <div className="form-row"> {/* Div para dividir en 2 columnas */}
+                    {/* Input Fecha Inicio */}
                     <div>
-                      <label htmlFor="fecha_inicio">Fecha de Inicio</label>
+                      <label htmlFor="fecha_inicio_fecha">Fecha Inicio</label>
                       <input
-                        id="fecha_inicio"
-                        type="datetime-local"
-                        {...register('fecha_inicio')}
+                        id="fecha_inicio_fecha"
+                        type="date" // <-- CAMBIO A 'date'
+                        {...register('fecha_inicio_fecha')} // <-- CAMBIO DE NOMBRE
+                        className="input-fecha" // Clase opcional
+                        onClick={openPicker}
                       />
-                      {errors.fecha_inicio && <span className="error-text">{errors.fecha_inicio.message}</span>}
+                      {/* Mostrar error específico */}
+                      {errors.fecha_inicio_fecha && <span className="error-text">{errors.fecha_inicio_fecha.message}</span>}
                     </div>
+                    {/* Input Hora Inicio */}
                     <div>
-                      <label htmlFor="fecha_fin">Fecha de Fin (opcional)</label>
+                      <label htmlFor="fecha_inicio_hora">Hora Inicio</label>
                       <input
-                        id="fecha_fin"
-                        type="datetime-local"
-                        {...register('fecha_fin')}
+                        id="fecha_inicio_hora"
+                        type="time" // <-- NUEVO INPUT 'time'
+                        step="900" // Opcional: intervalos de 15 min
+                        {...register('fecha_inicio_hora')} // <-- NUEVO REGISTRO
+                        className="input-hora" // Clase opcional
+                        onClick={openPicker}
                       />
+                      {/* Mostrar error específico */}
+                      {errors.fecha_inicio_hora && <span className="error-text">{errors.fecha_inicio_hora.message}</span>}
                     </div>
                   </div>
+                  {/* --- (CAMBIO 8: JSX - Inputs separados para Fecha/Hora Fin) --- */}
+                  <div className="form-row"> {/* Otra fila para Fin */}
+                     {/* Input Fecha Fin */}
+                     <div>
+                       <label htmlFor="fecha_fin_fecha">Fecha Fin (opcional)</label>
+                       <input
+                         id="fecha_fin_fecha"
+                         type="date" // <-- CAMBIO A 'date'
+                         {...register('fecha_fin_fecha')} // <-- CAMBIO DE NOMBRE
+                         className="input-fecha"
+                         onClick={openPicker}
+                       />
+                       {errors.fecha_fin_fecha && <span className="error-text">{errors.fecha_fin_fecha.message}</span>}
+                     </div>
+                     {/* Input Hora Fin */}
+                     <div>
+                       <label htmlFor="fecha_fin_hora">Hora Fin (opcional)</label>
+                       <input
+                         id="fecha_fin_hora"
+                         type="time" // <-- NUEVO INPUT 'time'
+                         step="900"
+                         {...register('fecha_fin_hora')} // <-- NUEVO REGISTRO
+                         className="input-hora"
+                         onClick={openPicker}
+                       />
+                       {/* Mostrar error específico */}
+                       {errors.fecha_fin_hora && <span className="error-text">{errors.fecha_fin_hora.message}</span>}
+                     </div>
+                   </div>
                 </div>
               )}
 

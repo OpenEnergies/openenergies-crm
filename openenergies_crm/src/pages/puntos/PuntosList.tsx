@@ -7,6 +7,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { toast } from 'react-hot-toast';
+import { EmptyState } from '@components/EmptyState';
 
 type PuntoConCliente = PuntoSuministro & {
   localidad?: string | null;
@@ -15,7 +16,6 @@ type PuntoConCliente = PuntoSuministro & {
   clientes: { nombre: string } | null
 };
 
-// --- ESTADO INICIAL PARA LOS FILTROS DE COLUMNA ---
 const initialColumnFilters = {
   localidad: [] as string[],
   provincia: [] as string[],
@@ -23,9 +23,7 @@ const initialColumnFilters = {
   tarifa_acceso: [] as string[],
 };
 
-// La función fetchPuntos vuelve a ser la que tenías, usando la búsqueda RPC simple
 async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoConCliente[]> {
-  // Si no hay filtro, consulta normal
   if (!filter) {
     let q = supabase.from('puntos_suministro').select('*, clientes(nombre)').limit(100);
     if (clienteId) q = q.eq('cliente_id', clienteId);
@@ -33,39 +31,24 @@ async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoCon
     if (error) throw error;
     return data as PuntoConCliente[];
   }
-
-  // Si hay filtro, llama a la función de búsqueda por texto
-  const { data, error } = await supabase
-    .rpc('search_puntos_suministro', {
-      search_text: filter,
-      p_cliente_id: clienteId || null
-    })
-    .select('*, clientes(nombre)')
-    .limit(100)
-    .order('cups', { ascending: true });
-  
+  const { data, error } = await supabase.rpc('search_puntos_suministro', { search_text: filter, p_cliente_id: clienteId || null }).select('*, clientes(nombre)').limit(100).order('cups', { ascending: true });
   if (error) throw error;
   return data as PuntoConCliente[];
 }
-
 
 export default function PuntosList({ clienteId }: { clienteId?: string }){
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const queryClient = useQueryClient();
-
-  // 1. Obtenemos los datos del servidor basados SOLO en la búsqueda de texto
   const { data: fetchedData, isLoading, isError } = useQuery({ 
     queryKey: ['puntos', filter, clienteId], 
     queryFn: () => fetchPuntos(filter, clienteId) 
   });
 
-  // 2. Calculamos las opciones de filtro a partir de los datos completos del servidor
   const filterOptions = useMemo(() => {
     if (!fetchedData) return initialColumnFilters;
     const getUnique = (key: keyof PuntoConCliente) => 
       Array.from(new Set(fetchedData.map(p => p[key]).filter(Boolean) as string[])).sort();
-    
     return {
       localidad: getUnique('localidad'),
       provincia: getUnique('provincia'),
@@ -73,8 +56,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
       tarifa_acceso: getUnique('tarifa_acceso'),
     };
   }, [fetchedData]);
-
-  // 3. Aplicamos los filtros de columna a los datos obtenidos para obtener los datos a mostrar
+  
   const displayedData = useMemo(() => {
     if (!fetchedData) return [];
     return fetchedData.filter(item => {
@@ -86,13 +68,12 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
       );
     });
   }, [fetchedData, columnFilters]);
-
+  
   const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
   const [puntoToDelete, setPuntoToDelete] = useState<PuntoConCliente | null>(null);
-  
   const deletePuntoMutation = useMutation({
     mutationFn: async (puntoId: string) => {
       const { error } = await supabase.rpc('delete_punto_suministro', {
@@ -115,6 +96,12 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
         setPuntoToDelete(null);
     },
   });
+  
+  const isFiltered = filter.length > 0 || 
+                     columnFilters.localidad.length > 0 ||
+                     columnFilters.provincia.length > 0 ||
+                     columnFilters.tipo_factura.length > 0 ||
+                     columnFilters.tarifa_acceso.length > 0;
 
   return (
     <div className="grid">
@@ -137,7 +124,21 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
       {isError && <div className="card" role="alert">Error al cargar puntos.</div>}
       
       <div className="card">
-        {fetchedData && (
+        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && !clienteId && (
+          <EmptyState
+            title="Sin puntos de suministro"
+            description="Aún no hay puntos de suministro (CUPS) registrados."
+            cta={<Link to="/app/puntos/nuevo"><button>Crear el primero</button></Link>}
+          />
+        )}
+        
+        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (
+           <div style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
+             Este cliente no tiene puntos de suministro asignados.
+           </div>
+        )}
+
+        {!isLoading && !isError && fetchedData && fetchedData.length > 0 && (
           <div className="table-wrapper">
             <table className="table">
               <thead>
@@ -185,32 +186,41 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
+              {/* --- CUERPO CORREGIDO --- */}
               <tbody>
-                {displayedData.map(p => (
-                  <tr key={p.id}>
-                    <td>{p.titular}</td>
-                    <td>{p.clientes?.nombre ?? '—'}</td>
-                    <td>{p.cups}</td>
-                    <td>{p.direccion}</td>
-                    <td>{p.localidad ?? '—'}</td>
-                    <td>{p.provincia ?? '—'}</td>
-                    <td>{p.tipo_factura ?? '—'}</td>
-                    <td><span className="kbd">{p.tarifa_acceso}</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Link to={`/app/puntos/$id`} params={{ id: p.id }} className="icon-button secondary" title="Editar Punto de Suministro">
-                        <Pencil size={18} />
-                      </Link>
-                      <button className="icon-button danger" title="Eliminar Punto de Suministro" onClick={() => setPuntoToDelete(p)} disabled={deletePuntoMutation.isPending}>
-                         <Trash2 size={18} />
-                      </button>
+                {displayedData.length > 0 ? (
+                  displayedData.map(p => (
+                    <tr key={p.id}>
+                      <td>{p.titular}</td>
+                      <td>{p.clientes?.nombre ?? '—'}</td>
+                      <td>{p.cups}</td>
+                      <td>{p.direccion}</td>
+                      <td>{p.localidad ?? '—'}</td>
+                      <td>{p.provincia ?? '—'}</td>
+                      <td>{p.tipo_factura ?? '—'}</td>
+                      <td><span className="kbd">{p.tarifa_acceso}</span></td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Link to={`/app/puntos/$id`} params={{ id: p.id }} className="icon-button secondary" title="Editar Punto de Suministro">
+                          <Pencil size={18} />
+                        </Link>
+                        <button className="icon-button danger" title="Eliminar Punto de Suministro" onClick={() => setPuntoToDelete(p)} disabled={deletePuntoMutation.isPending}>
+                           <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={9} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
+                      Sin resultados que coincidan con los filtros.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
+               {/* --- FIN CUERPO CORREGIDO --- */}
             </table>
           </div>
         )}
-        {displayedData && displayedData.length === 0 && !isLoading && <div style={{textAlign: 'center', padding: '2rem'}}>Sin resultados que coincidan con los filtros.</div>}
       </div>
       
       {puntoToDelete && (
@@ -218,12 +228,14 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
             isOpen={!!puntoToDelete}
             onClose={() => setPuntoToDelete(null)}
             onConfirm={() => {
+              // Corregido: Chequeo de null
               if (puntoToDelete) {
                 deletePuntoMutation.mutate(puntoToDelete.id);
               }
             }}
             title="Confirmar Eliminación"
-            message={`¿Estás seguro de que quieres eliminar el punto de suministro con CUPS "${puntoToDelete.cups}"?`}
+             // Corregido: Usar ?. (optional chaining)
+            message={`¿Estás seguro de que quieres eliminar el punto de suministro con CUPS "${puntoToDelete?.cups}"?`}
             confirmText="Sí, Eliminar"
             cancelText="Cancelar"
             confirmButtonClass="danger"

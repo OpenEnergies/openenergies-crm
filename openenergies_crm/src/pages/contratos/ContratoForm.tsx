@@ -9,11 +9,11 @@ import { supabase } from '@lib/supabase';
 // --- Importa HardHat y tipos ---
 import { Plug, Building2, Calendar, Tag, Activity, BellRing, HardHat } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useQuery } from '@tanstack/react-query';
+// --- Importa useQueryClient ---
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, Empresa, PuntoSuministro } from '@lib/types';
 
 // === Schema del formulario (sin cambios) ===
-// El schema ya tiene 'punto_id' y 'comercializadora_id' que es lo que se guarda.
 const schema = z.object({
   punto_id: z.string().uuid({ message: 'Punto obligatorio' }),
   comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }),
@@ -31,39 +31,32 @@ const schema = z.object({
 type FormValues = z.input<typeof schema>;
 
 // --- Tipos para los desplegables ---
-// (Usamos Pick para seleccionar solo los campos necesarios)
 type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
 type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif' | 'empresa_id'>;
 type PuntoOpt = Pick<PuntoSuministro, 'id' | 'cups' | 'direccion' | 'cliente_id'>;
-// ------------------------------------
 
-// --- Funciones para fetching con React Query ---
-// 1. Obtiene solo las empresas de tipo 'comercializadora'
+// --- Funciones para fetching (sin cambios) ---
 async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     const { data, error } = await supabase
         .from('empresas')
         .select('id, nombre')
-        .eq('tipo', 'comercializadora') // ¡Filtro clave!
+        .eq('tipo', 'comercializadora')
         .order('nombre', { ascending: true });
     if (error) throw error;
     return data || [];
 }
-
-// 2. Obtiene TODOS los clientes (para filtrar en el frontend)
 async function fetchAllClientes(): Promise<ClienteOpt[]> {
     const { data, error } = await supabase
         .from('clientes')
-        .select('id, nombre, cif, empresa_id') // Necesitamos empresa_id
+        .select('id, nombre, cif, empresa_id')
         .order('nombre', { ascending: true });
     if (error) throw error;
     return data || [];
 }
-
-// 3. Obtiene TODOS los puntos de suministro (para filtrar en el frontend)
 async function fetchAllPuntos(): Promise<PuntoOpt[]> {
     const { data, error } = await supabase
         .from('puntos_suministro')
-        .select('id, cups, direccion, cliente_id') // Necesitamos cliente_id
+        .select('id, cups, direccion, cliente_id')
         .order('cups', { ascending: true });
     if (error) throw error;
     return data || [];
@@ -73,35 +66,33 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
 export default function ContratoForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
+  // --- Obtiene el queryClient ---
+  const queryClient = useQueryClient();
 
   // --- Estados para las listas filtradas ---
   const [filteredClientes, setFilteredClientes] = useState<ClienteOpt[]>([]);
   const [filteredPuntos, setFilteredPuntos] = useState<PuntoOpt[]>([]);
-  // ---------------------------------------
-
-  // --- Fetching de datos ---
+  
+  // --- Fetching de datos (sin cambios) ---
   const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
       queryKey: ['comercializadoras'],
       queryFn: fetchComercializadoras,
   });
-
   const { data: allClientes = [], isLoading: loadingClientes } = useQuery({
       queryKey: ['allClientesForContratoForm'],
       queryFn: fetchAllClientes,
   });
-  
   const { data: allPuntos = [], isLoading: loadingPuntos } = useQuery({
       queryKey: ['allPuntosForContratoForm'],
       queryFn: fetchAllPuntos,
   });
-  // -------------------------
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    control, // Importante para los selects controlados
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<FormValues>({
@@ -112,14 +103,12 @@ export default function ContratoForm({ id }: { id?: string }) {
     },
   });
 
-  // Observamos los campos que actúan como filtros
+  // Observadores (sin cambios)
   const watchedComercializadoraId = watch('comercializadora_id');
-  // Creamos un campo 'cliente_id_filter' (NO está en el schema) para el 2º desplegable
   const watchedClienteId = watch('cliente_id_filter' as any); 
-  
   const aviso = watch('aviso_renovacion');
 
-  // --- Efecto 1: Filtrar Clientes por Comercializadora ---
+  // Efectos de filtrado (sin cambios)
   useEffect(() => {
       if (watchedComercializadoraId) {
           const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
@@ -127,12 +116,10 @@ export default function ContratoForm({ id }: { id?: string }) {
       } else {
           setFilteredClientes([]);
       }
-      // Al cambiar de comercializadora, reseteamos los campos dependientes
       setValue('cliente_id_filter' as any, '', { shouldValidate: false });
       setValue('punto_id', '', { shouldValidate: false });
   }, [watchedComercializadoraId, allClientes, setValue]);
 
-  // --- Efecto 2: Filtrar Puntos por Cliente ---
   useEffect(() => {
       if (watchedClienteId) {
           const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteId);
@@ -140,17 +127,13 @@ export default function ContratoForm({ id }: { id?: string }) {
       } else {
           setFilteredPuntos([]);
       }
-      // Al cambiar de cliente, reseteamos el punto
       setValue('punto_id', '', { shouldValidate: false });
   }, [watchedClienteId, allPuntos, setValue]);
-  // ----------------------------------------------
-
-  // Carga contrato si edita
+  
+  // Efecto de carga en edición (sin cambios)
   useEffect(() => {
     if (!editing || !id) return;
-    // Espera a que todos los datos de los desplegables estén cargados
     if (loadingComercializadoras || loadingClientes || loadingPuntos) return;
-
     let alive = true;
     (async () => {
       const { data, error } = await supabase
@@ -158,20 +141,14 @@ export default function ContratoForm({ id }: { id?: string }) {
         .select('id,punto_id,comercializadora_id,oferta,fecha_inicio,fecha_fin,aviso_renovacion,fecha_aviso,estado')
         .eq('id', id)
         .maybeSingle();
-
       if (!alive) return;
       if (error) {
         toast.error(`Error al cargar el contrato: ${error.message}`);
       } else if (data) {
-        // --- Lógica para pre-seleccionar los desplegables en modo edición ---
         const initialComercializadoraId = data.comercializadora_id;
         const initialPuntoId = data.punto_id;
-        
-        // 1. Encontrar el punto para saber el cliente
         const puntoInicial = allPuntos.find(p => p.id === initialPuntoId);
         const initialClienteId = puntoInicial?.cliente_id ?? '';
-
-        // 2. Filtrar las listas
         if (initialComercializadoraId) {
             const clientesFiltrados = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
             setFilteredClientes(clientesFiltrados);
@@ -180,8 +157,6 @@ export default function ContratoForm({ id }: { id?: string }) {
             const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteId);
             setFilteredPuntos(puntosFiltrados);
         }
-
-        // 3. Resetear el formulario con TODOS los valores
         reset({
           ...data,
           oferta: data.oferta ?? null,
@@ -190,34 +165,73 @@ export default function ContratoForm({ id }: { id?: string }) {
           fecha_aviso: data.fecha_aviso ?? null,
           estado: (data.estado as string) ?? 'activo',
         });
-        
-        // 4. Establecer el valor del campo 'cliente_id_filter' (que no está en 'data')
         setValue('cliente_id_filter' as any, initialClienteId, { shouldDirty: false });
       }
     })();
     return () => { alive = false; };
   }, [editing, id, reset, setValue, loadingComercializadoras, loadingClientes, loadingPuntos, allClientes, allPuntos]);
 
-
+  // --- FUNCIÓN ONSUBMIT MODIFICADA ---
   const onSubmit = async (values: FormValues) => {
-    // serverError ya no se usa, usamos toasts
     
-    // Normaliza opcionales a null si vienen vacíos
+    // --- OBTENER CLIENTE_ID ---
+    // Necesitamos el cliente_id para actualizar su estado si creamos un contrato.
+    let clienteIdParaActualizar: string | null = null;
+    try {
+      // Usamos la lista de puntos ya cargada para encontrar el cliente_id
+      const puntoSeleccionado = allPuntos.find(p => p.id === values.punto_id);
+      if (puntoSeleccionado) {
+        clienteIdParaActualizar = puntoSeleccionado.cliente_id;
+      } else {
+        // Fallback por si la lista no estuviera (raro)
+        const { data: puntoData, error: puntoError } = await supabase
+          .from('puntos_suministro')
+          .select('cliente_id')
+          .eq('id', values.punto_id)
+          .single();
+        if (puntoError) throw new Error(`Punto de suministro no encontrado: ${puntoError.message}`);
+        clienteIdParaActualizar = puntoData.cliente_id;
+      }
+    } catch (e: any) {
+      console.error("Error al buscar cliente_id:", e);
+      toast.error(`Error al validar el punto de suministro: ${e.message}`);
+      return; // Detenemos el envío si no podemos encontrar el cliente
+    }
+    // -------------------------
+
     const payload = {
       ...values,
       oferta: values.oferta?.toString().trim() || null,
       fecha_fin: values.fecha_fin?.toString().trim() || null,
       fecha_aviso: values.aviso_renovacion ? (values.fecha_aviso?.toString().trim() || null) : null,
     };
-    // El payload ya contiene 'punto_id' y 'comercializadora_id' del schema
 
     try {
         if (editing) {
           const { error } = await supabase.from('contratos').update(payload).eq('id', id!);
           if (error) throw error;
         } else {
+          // --- CREACIÓN ---
           const { error } = await supabase.from('contratos').insert(payload);
           if (error) throw error;
+
+          // --- LÓGICA DE ACTUALIZAR ESTADO DE CLIENTE ---
+          if (clienteIdParaActualizar) {
+            const { error: clienteUpdateError } = await supabase
+              .from('clientes')
+              .update({ estado: 'activo' }) // Establece el estado a 'activo'
+              .eq('id', clienteIdParaActualizar);
+              
+            if (clienteUpdateError) {
+              // No es un error fatal, solo lo notificamos
+              console.error('Error al actualizar estado del cliente:', clienteUpdateError.message);
+              toast.error('Contrato creado, pero no se pudo actualizar el estado del cliente.');
+            } else {
+              // Invalidamos la caché de clientes para que la lista se refresque
+              queryClient.invalidateQueries({ queryKey: ['clientes'] });
+            }
+          }
+          // ------------------------------------------
         }
         toast.success(editing ? 'Contrato actualizado' : 'Contrato creado');
         navigate({ to: '/app/contratos' });
@@ -235,6 +249,7 @@ export default function ContratoForm({ id }: { id?: string }) {
   const isLoadingData = loadingComercializadoras || loadingClientes || loadingPuntos;
   const isSubmittingForm = isSubmitting || isLoadingData;
 
+  // --- RENDERIZADO (JSX) SIN CAMBIOS ---
   return (
     <div className="grid">
       <div className="page-header">
@@ -244,7 +259,6 @@ export default function ContratoForm({ id }: { id?: string }) {
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
           
-          {/* --- NUEVO LAYOUT DE 3 COLUMNAS --- */}
           <div className="form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
             
             {/* 1. Comercializadora */}
@@ -300,7 +314,6 @@ export default function ContratoForm({ id }: { id?: string }) {
                     )}
                 />
               </div>
-              {/* No mostramos error de Zod aquí porque este campo no está en el schema */}
             </div>
 
             {/* 3. Punto de Suministro (Controlado y deshabilitado) */}
@@ -347,8 +360,6 @@ export default function ContratoForm({ id }: { id?: string }) {
             </div>
             
           </div>
-          {/* --- FIN LAYOUT 3 COLUMNAS --- */}
-
 
           <div className="form-row">
             <div>
@@ -399,10 +410,19 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <div className="input-icon-wrapper">
                     <Activity size={18} className="input-icon" />
                     <select id="estado" {...register('estado')}>
-                        <option value="activo">Activo</option>
-                        <option value="pendiente">Pendiente</option>
-                        <option value="vencido">Vencido</option>
-                        <option value="resuelto">Resuelto</option>
+                      {/* Añadimos el span con el punto de color */}
+                      <option value="stand by">
+                        <span className="status-dot status-standby" style={{ verticalAlign: 'middle' }}></span> Stand By
+                      </option>
+                      <option value="procesando">
+                        <span className="status-dot status-procesando" style={{ verticalAlign: 'middle' }}></span> Procesando
+                      </option>
+                      <option value="activo">
+                        <span className="status-dot status-activo" style={{ verticalAlign: 'middle' }}></span> Activo
+                      </option>
+                      <option value="desistido">
+                        <span className="status-dot status-desistido" style={{ verticalAlign: 'middle' }}></span> Desistido
+                      </option>
                     </select>
                   </div>
                   {errors.estado && <p className="error-text">{errors.estado.message}</p>}
@@ -414,14 +434,14 @@ export default function ContratoForm({ id }: { id?: string }) {
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
             <button
             type="submit"
-            className="" // Quita btn-primary si no lo usas
+            className=""
             disabled={isSubmittingForm}
           >
             {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear contrato')}
           </button>
           <button
             type="button"
-            className="secondary" // Quita btn-secondary
+            className="secondary"
             onClick={() => navigate({ to: '/app/contratos' })}
           >
             Cancelar

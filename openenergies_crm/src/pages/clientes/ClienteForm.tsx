@@ -1,3 +1,4 @@
+// src/pages/clientes/ClienteForm.tsx
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -5,10 +6,12 @@ import { supabase } from '@lib/supabase';
 import { useEmpresaId } from '@hooks/useEmpresaId';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import type { Cliente, TipoCliente } from '@lib/types';
+// --- Importa los nuevos tipos ---
+import type { Cliente, TipoCliente, EstadoCliente } from '@lib/types';
 import { useSession } from '@hooks/useSession';
 import { useEmpresas } from '@hooks/useEmpresas';
-import { HardHat, Tags, FileText, Mail, Lock, Building2 } from 'lucide-react';
+// --- Importa el icono Activity ---
+import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 // Usamos el tipo específico para mayor seguridad
@@ -16,6 +19,8 @@ const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
   empresa_id: z.string().uuid('Debes seleccionar la empresa propietaria'),
+  // --- CAMPO ESTADO AÑADIDO AL SCHEMA ---
+  estado: z.enum(['desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
   email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
@@ -43,6 +48,10 @@ export default function ClienteForm({ id }: { id?: string }) {
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    // --- VALOR POR DEFECTO PARA ESTADO ---
+    defaultValues: {
+      estado: 'stand by',
+    }
   });
 
   useEffect(() => {
@@ -56,7 +65,12 @@ export default function ClienteForm({ id }: { id?: string }) {
         return;
       }
       if (data) {
-        const clienteData = { ...data, tipo: data.tipo as TipoCliente };
+        // --- Casteamos los tipos ENUM ---
+        const clienteData = { 
+          ...data, 
+          tipo: data.tipo as TipoCliente,
+          estado: data.estado as EstadoCliente, // <-- CAMPO AÑADIDO
+        };
         reset(clienteData);
       }
     };
@@ -72,14 +86,15 @@ export default function ClienteForm({ id }: { id?: string }) {
 
     try {
       if (editing) {
-        // La edición sigue siendo una simple actualización del cliente
+        // --- CAMPO ESTADO AÑADIDO AL UPDATE ---
         const { error } = await supabase.from('clientes').update({
           nombre: values.nombre,
           tipo: values.tipo,
           empresa_id: values.empresa_id,
           dni: values.dni,
           cif: values.cif,
-          email_facturacion: values.email_facturacion
+          email_facturacion: values.email_facturacion,
+          estado: values.estado // <-- CAMPO AÑADIDO
         }).eq('id', id!);
         if (error) throw error;
       } else {
@@ -98,6 +113,7 @@ export default function ClienteForm({ id }: { id?: string }) {
               dni: values.dni,
               cif: values.cif,
               email_facturacion: values.email_facturacion,
+              estado: values.estado, // <-- CAMPO AÑADIDO
             },
             createPortalAccess: createPortalAccess,
             userData: createPortalAccess ? {
@@ -136,7 +152,6 @@ export default function ClienteForm({ id }: { id?: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
-          {/* --- PASO 3: AÑADIMOS EL NUEVO CAMPO AL FORMULARIO --- */}
             <div>
               <label htmlFor="empresa_id">Empresa Propietaria</label>
               <div className="input-icon-wrapper">
@@ -171,6 +186,23 @@ export default function ClienteForm({ id }: { id?: string }) {
               {errors.tipo && <p className="error-text">{errors.tipo.message}</p>}
             </div>
           </div>
+
+          {/* --- NUEVO CAMPO "ESTADO" AÑADIDO --- */}
+          <div>
+            <label htmlFor="estado">Estado</label>
+            <div className="input-icon-wrapper">
+              <Activity size={18} className="input-icon" />
+              <select id="estado" {...register('estado')}>
+                <option value="stand by">🟠 Stand By</option>
+                <option value="procesando">🟡 Procesando</option>
+                <option value="activo">🟢 Activo</option>
+                <option value="desistido">🔴 Desistido</option>
+              </select>
+            </div>
+            {errors.estado && <p className="error-text">{errors.estado.message}</p>}
+          </div>
+          {/* ---------------------------------- */}
+
 
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>

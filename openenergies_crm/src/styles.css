@@ -1141,7 +1141,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .dropdown-menu {
   position: absolute;
   top: 100%; /* Se sitúa justo debajo del elemento padre */
-  left: 0;
+  /* left: 0; */
+  right: 0;
   z-index: 10; /* Se asegura de que aparezca por encima del resto del contenido */
   min-width: 220px; /* Un ancho mínimo para que las opciones se lean bien */
   margin-top: 6px; /* Un pequeño espacio entre el botón y el menú */
@@ -1177,8 +1178,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .dropdown-item.checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.75rem; /* Espacio entre el checkbox y el texto */
-  font-weight: normal;
+  justify-content: space-between; /* extremos opuestos */
+  gap: .5rem;
+  /* no tocamos padding-top/bottom para no “estrechar” la fila */
+}
+
+.dropdown-menu .checkbox-label input[type="checkbox"] {
+  width: auto;
+  height: auto;
+  display: inline-block;
+  flex: 0 0 auto;   /* que no crezca ni se encoja */
+  margin: 0;
+}
+
+.dropdown-item.checkbox-label input[type="checkbox"] + * {
+  margin-left: .5rem;
+  flex: 1 1 auto;   /* ocupa el espacio restante */
+  text-align: right; /* pegado a la derecha */
+}
+
+.dropdown-item.checkbox-label span,
+.dropdown-item.checkbox-label .label,
+.dropdown-item.checkbox-label .text {
+  text-align: right;
+  flex-shrink: 0;
 }
 
 /* --- Estilo para el botón de filtro cuando tiene una selección activa --- */
@@ -1709,4 +1732,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .agenda-modal .input-icon-wrapper {
   position: static !important;
   overflow: visible !important;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+.status-activo { background-color: #2BB673; } /* Verde (primary) */
+.status-standby { background-color: #f39b03; } /* Naranja (aviso) */
+.status-procesando { background-color: #FCD34D; } /* Amarillo */
+.status-desistido { background-color: #DC2626; } /* Rojo (danger) */
+
+.status-text {
+  vertical-align: middle;
+  text-transform: capitalize;
 }

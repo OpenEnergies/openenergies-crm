@@ -19,6 +19,7 @@ import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import PerfilPage from '@pages/perfil/PerfilPage';
 import ComparativaForm from '@pages/comparativas/ComparativaForm';
 import AgendaPage from '@pages/agenda/AgendaPage';
+import RenovacionesPage from '@pages/renovaciones/RenovacionesPage';
 import { RequireAuth } from '@components/RouteGuards';
 import { RequireRole } from '@components/RouteGuards';
 import ClienteDetailLayout from '@pages/clientes/ClienteDetailLayout'; // <-- Importa el nuevo layout
@@ -173,7 +174,11 @@ const contratoEditRoute = createRoute({
   }
 });
 
-
+const renovacionesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/renovaciones',
+  component: () => <RequireRole roles={['administrador', 'comercial']}><RenovacionesPage /></RequireRole>,
+});
 
 const documentosRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos', component: DocumentosList });
 const documentoUploadRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos/subir', component: DocumentoUpload });
@@ -283,6 +288,7 @@ const routeTree = rootRoute.addChildren([
     contratosRoute,
     contratoNewRoute,
     contratoEditRoute,
+    renovacionesRoute,
     documentosRoute,
     documentoUploadRoute,
   ]),

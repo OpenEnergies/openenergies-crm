@@ -5,6 +5,8 @@ export type UUID = string;
 
 export type TipoCliente = 'persona' | 'sociedad';
 
+export type EstadoCliente = 'desistido' | 'stand by' | 'procesando' | 'activo';
+
 export type RootDocumentItem = {
   cliente_id: string;
   cliente_nombre: string;
@@ -30,7 +32,7 @@ export interface Empresa {
   id: UUID;
   nombre: string;
   cif: string | null;
-  tipo: 'interna' | 'externa'; // p.ej. 'openenergies' | 'comercializadora'...
+  tipo: 'openenergies' | 'comercializadora'; // p.ej. 'openenergies' | 'comercializadora'...
   creada_en: string | null;
 }
 
@@ -43,6 +45,7 @@ export interface Cliente {
   cif: string | null;
   email_facturacion: string | null;
   creado_en: string | null;
+  estado: EstadoCliente;
 }
 
 export type TipoFactura = 'Luz' | 'Gas';

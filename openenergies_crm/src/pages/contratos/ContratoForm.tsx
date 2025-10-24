@@ -1,15 +1,12 @@
 // src/pages/contratos/ContratoForm.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-// --- Importa Controller y useQuery ---
+import { router } from '@router/routes';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-// --- Importa HardHat y tipos ---
 import { Plug, Building2, Calendar, Tag, Activity, BellRing, HardHat } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-// --- Importa useQueryClient ---
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, Empresa, PuntoSuministro } from '@lib/types';
 
@@ -64,15 +61,13 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
 // ---------------------------------------------
 
 export default function ContratoForm({ id }: { id?: string }) {
-  const navigate = useNavigate();
   const editing = Boolean(id);
-  // --- Obtiene el queryClient ---
   const queryClient = useQueryClient();
 
   // --- Estados para las listas filtradas ---
   const [filteredClientes, setFilteredClientes] = useState<ClienteOpt[]>([]);
   const [filteredPuntos, setFilteredPuntos] = useState<PuntoOpt[]>([]);
-  
+
   // --- Fetching de datos (sin cambios) ---
   const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
       queryKey: ['comercializadoras'],
@@ -93,6 +88,7 @@ export default function ContratoForm({ id }: { id?: string }) {
     setValue,
     watch,
     control,
+    getValues,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<FormValues>({
@@ -105,35 +101,52 @@ export default function ContratoForm({ id }: { id?: string }) {
 
   // Observadores (sin cambios)
   const watchedComercializadoraId = watch('comercializadora_id');
-  const watchedClienteId = watch('cliente_id_filter' as any); 
+  const watchedClienteIdFilter = watch('cliente_id_filter' as any);
   const aviso = watch('aviso_renovacion');
 
-  // Efectos de filtrado (sin cambios)
+  // --- EFECTO FILTRADO CLIENTES (CORREGIDO) ---
   useEffect(() => {
       if (watchedComercializadoraId) {
           const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
           setFilteredClientes(filtered);
+
+          const currentClientIdFilter = getValues('cliente_id_filter' as any);
+          const clientInNewList = filtered.some(c => c.id === currentClientIdFilter);
+          if (!clientInNewList) {
+             setValue('cliente_id_filter' as any, '', { shouldValidate: false });
+             setValue('punto_id', '', { shouldValidate: false });
+          }
+
       } else {
           setFilteredClientes([]);
+          setValue('cliente_id_filter' as any, '', { shouldValidate: false });
+          setValue('punto_id', '', { shouldValidate: false });
       }
-      setValue('cliente_id_filter' as any, '', { shouldValidate: false });
-      setValue('punto_id', '', { shouldValidate: false });
-  }, [watchedComercializadoraId, allClientes, setValue]);
+  }, [watchedComercializadoraId, allClientes, setValue, getValues]);
 
+  // --- EFECTO FILTRADO PUNTOS (CORREGIDO) ---
   useEffect(() => {
-      if (watchedClienteId) {
-          const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteId);
+      if (watchedClienteIdFilter) {
+          const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteIdFilter);
           setFilteredPuntos(filtered);
+
+          const currentPuntoId = getValues('punto_id');
+          const puntoInNewList = filtered.some(p => p.id === currentPuntoId);
+          if (!puntoInNewList) {
+            setValue('punto_id', '', { shouldValidate: false });
+          }
+
       } else {
           setFilteredPuntos([]);
+          setValue('punto_id', '', { shouldValidate: false });
       }
-      setValue('punto_id', '', { shouldValidate: false });
-  }, [watchedClienteId, allPuntos, setValue]);
-  
-  // Efecto de carga en edición (sin cambios)
+  }, [watchedClienteIdFilter, allPuntos, setValue, getValues]);
+
+  // --- EFECTO CARGA EDICIÓN (CORREGIDO - ERROR TYPESCRIPT) ---
   useEffect(() => {
     if (!editing || !id) return;
     if (loadingComercializadoras || loadingClientes || loadingPuntos) return;
+
     let alive = true;
     (async () => {
       const { data, error } = await supabase
@@ -148,42 +161,49 @@ export default function ContratoForm({ id }: { id?: string }) {
         const initialComercializadoraId = data.comercializadora_id;
         const initialPuntoId = data.punto_id;
         const puntoInicial = allPuntos.find(p => p.id === initialPuntoId);
-        const initialClienteId = puntoInicial?.cliente_id ?? '';
-        if (initialComercializadoraId) {
-            const clientesFiltrados = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
-            setFilteredClientes(clientesFiltrados);
-        }
-        if (initialClienteId) {
-            const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteId);
-            setFilteredPuntos(puntosFiltrados);
-        }
+        const initialClienteIdFilter = puntoInicial?.cliente_id ?? '';
+
+        // *** CORRECCIÓN AQUÍ ***
+        // 1. Resetear SOLO los campos del schema
         reset({
-          ...data,
+          punto_id: data.punto_id,
+          comercializadora_id: data.comercializadora_id,
+          fecha_inicio: data.fecha_inicio,
+          estado: (data.estado as string) ?? 'activo',
           oferta: data.oferta ?? null,
           fecha_fin: data.fecha_fin ?? null,
           aviso_renovacion: Boolean(data.aviso_renovacion),
           fecha_aviso: data.fecha_aviso ?? null,
-          estado: (data.estado as string) ?? 'activo',
         });
-        setValue('cliente_id_filter' as any, initialClienteId, { shouldDirty: false });
+
+        // 2. Usar setValue para el campo de filtro DESPUÉS del reset
+        setValue('cliente_id_filter' as any, initialClienteIdFilter, { shouldDirty: false });
+        // *** FIN CORRECCIÓN ***
+
+        // Poblar estados locales (sin cambios)
+        if (initialComercializadoraId) {
+            const clientesFiltrados = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
+            setFilteredClientes(clientesFiltrados);
+        }
+        if (initialClienteIdFilter) {
+            const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteIdFilter);
+            setFilteredPuntos(puntosFiltrados);
+        }
       }
     })();
     return () => { alive = false; };
+  // Añadido setValue a las dependencias porque ahora se usa aquí
   }, [editing, id, reset, setValue, loadingComercializadoras, loadingClientes, loadingPuntos, allClientes, allPuntos]);
 
-  // --- FUNCIÓN ONSUBMIT MODIFICADA ---
+  // --- FUNCIÓN ONSUBMIT ---
   const onSubmit = async (values: FormValues) => {
-    
-    // --- OBTENER CLIENTE_ID ---
-    // Necesitamos el cliente_id para actualizar su estado si creamos un contrato.
+    // Necesitamos obtener el cliente_id real del punto seleccionado
     let clienteIdParaActualizar: string | null = null;
     try {
-      // Usamos la lista de puntos ya cargada para encontrar el cliente_id
       const puntoSeleccionado = allPuntos.find(p => p.id === values.punto_id);
       if (puntoSeleccionado) {
         clienteIdParaActualizar = puntoSeleccionado.cliente_id;
       } else {
-        // Fallback por si la lista no estuviera (raro)
         const { data: puntoData, error: puntoError } = await supabase
           .from('puntos_suministro')
           .select('cliente_id')
@@ -195,14 +215,18 @@ export default function ContratoForm({ id }: { id?: string }) {
     } catch (e: any) {
       console.error("Error al buscar cliente_id:", e);
       toast.error(`Error al validar el punto de suministro: ${e.message}`);
-      return; // Detenemos el envío si no podemos encontrar el cliente
+      return;
     }
-    // -------------------------
 
+    // Preparamos el payload sin el campo temporal 'cliente_id_filter'
     const payload = {
-      ...values,
+      punto_id: values.punto_id,
+      comercializadora_id: values.comercializadora_id,
+      fecha_inicio: values.fecha_inicio,
+      estado: values.estado,
       oferta: values.oferta?.toString().trim() || null,
       fecha_fin: values.fecha_fin?.toString().trim() || null,
+      aviso_renovacion: values.aviso_renovacion,
       fecha_aviso: values.aviso_renovacion ? (values.fecha_aviso?.toString().trim() || null) : null,
     };
 
@@ -219,27 +243,26 @@ export default function ContratoForm({ id }: { id?: string }) {
           if (clienteIdParaActualizar) {
             const { error: clienteUpdateError } = await supabase
               .from('clientes')
-              .update({ estado: 'activo' }) // Establece el estado a 'activo'
+              .update({ estado: 'activo' })
               .eq('id', clienteIdParaActualizar);
-              
+
             if (clienteUpdateError) {
-              // No es un error fatal, solo lo notificamos
               console.error('Error al actualizar estado del cliente:', clienteUpdateError.message);
               toast.error('Contrato creado, pero no se pudo actualizar el estado del cliente.');
             } else {
-              // Invalidamos la caché de clientes para que la lista se refresque
               queryClient.invalidateQueries({ queryKey: ['clientes'] });
             }
           }
           // ------------------------------------------
         }
         toast.success(editing ? 'Contrato actualizado' : 'Contrato creado');
-        navigate({ to: '/app/contratos' });
+        router.history.back();
     } catch (error: any) {
         console.error("Error al guardar contrato:", error);
         toast.error(`Error al guardar: ${error.message}`);
     }
   };
+
 
   const puntoLabel = useMemo(
     () => (p: PuntoOpt) => `${p.cups} — ${p.direccion}`,
@@ -249,7 +272,7 @@ export default function ContratoForm({ id }: { id?: string }) {
   const isLoadingData = loadingComercializadoras || loadingClientes || loadingPuntos;
   const isSubmittingForm = isSubmitting || isLoadingData;
 
-  // --- RENDERIZADO (JSX) SIN CAMBIOS ---
+  // --- RENDERIZADO (JSX) ---
   return (
     <div className="grid">
       <div className="page-header">
@@ -258,9 +281,9 @@ export default function ContratoForm({ id }: { id?: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
-          
+
           <div className="form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
-            
+
             {/* 1. Comercializadora */}
             <div>
               <label htmlFor="comercializadora_id">Comercializadora</label>
@@ -314,6 +337,7 @@ export default function ContratoForm({ id }: { id?: string }) {
                     )}
                 />
               </div>
+              {/* No mostramos error para el campo de filtro */}
             </div>
 
             {/* 3. Punto de Suministro (Controlado y deshabilitado) */}
@@ -322,12 +346,12 @@ export default function ContratoForm({ id }: { id?: string }) {
               <div
                   className="input-icon-wrapper"
                   onMouseDownCapture={(e) => {
-                      if (!watchedClienteId) {
+                      if (!watchedClienteIdFilter) { // Usar campo de filtro
                           e.preventDefault();
                           toast.error('Selecciona primero un cliente.');
                       }
                   }}
-                  title={!watchedClienteId ? 'Selecciona primero un cliente' : undefined}
+                  title={!watchedClienteIdFilter ? 'Selecciona primero un cliente' : undefined} // Usar campo de filtro
               >
                 <Plug size={18} className="input-icon" />
                 <Controller
@@ -337,11 +361,11 @@ export default function ContratoForm({ id }: { id?: string }) {
                         <select
                             id="punto_id"
                             {...field}
-                            disabled={!watchedClienteId || loadingPuntos}
-                            style={{ cursor: !watchedClienteId ? 'not-allowed' : 'default' }}
+                            disabled={!watchedClienteIdFilter || loadingPuntos} // Usar campo de filtro
+                            style={{ cursor: !watchedClienteIdFilter ? 'not-allowed' : 'default' }} // Usar campo de filtro
                         >
                             <option value="">
-                                {!watchedClienteId
+                                {!watchedClienteIdFilter // Usar campo de filtro
                                     ? '← Selecciona un cliente'
                                     : loadingPuntos
                                     ? 'Cargando...'
@@ -358,7 +382,7 @@ export default function ContratoForm({ id }: { id?: string }) {
               </div>
               {errors.punto_id && <p className="error-text">{errors.punto_id.message}</p>}
             </div>
-            
+
           </div>
 
           <div className="form-row">
@@ -430,7 +454,7 @@ export default function ContratoForm({ id }: { id?: string }) {
               </div>
             </div>
           </div>
-          
+
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
             <button
             type="submit"
@@ -442,7 +466,7 @@ export default function ContratoForm({ id }: { id?: string }) {
           <button
             type="button"
             className="secondary"
-            onClick={() => navigate({ to: '/app/contratos' })}
+            onClick={() => router.history.back()}
           >
             Cancelar
           </button>

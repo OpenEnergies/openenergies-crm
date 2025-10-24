@@ -1,6 +1,6 @@
 // src/pages/puntos/PuntoForm.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { router } from '@router/routes'; // <-- (1) Importar router
 // --- Importa Controller ---
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -56,7 +56,7 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
 // ---------------------------------------------
 
 export default function PuntoForm({ id }: { id?: string }) {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // <-- (2) Ya no se necesita navigate
   const editing = Boolean(id);
 
   // --- Estados para manejar la lógica de los desplegables ---
@@ -83,6 +83,7 @@ export default function PuntoForm({ id }: { id?: string }) {
     control, // Necesario para Controller (select de cliente)
     setValue, // Para limpiar cliente_id
     watch, // Para observar cambios en comercializadora_id
+    getValues, // <-- (1) OBTENEMOS getValues
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -93,7 +94,7 @@ export default function PuntoForm({ id }: { id?: string }) {
   const watchedComercializadoraId = watch('comercializadora_id');
   // ----------------------------------------------------------------------
 
-  // --- Efecto para filtrar Clientes cuando cambia la Comercializadora ---
+  // --- (2) EFECTO DE FILTRADO CORREGIDO ---
   useEffect(() => {
       // Si hay una comercializadora seleccionada en el form...
       if (watchedComercializadoraId) {
@@ -101,8 +102,20 @@ export default function PuntoForm({ id }: { id?: string }) {
           // Filtra la lista completa de clientes
           const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
           setFilteredClientes(filtered);
-          // Resetea el valor del campo cliente_id en el formulario
-          setValue('cliente_id', '', { shouldValidate: false }); // No validar al resetear
+          
+          // --- LÓGICA DE RESET INTELIGENTE ---
+          // Obtenemos el cliente_id actual del formulario
+          const currentClientId = getValues('cliente_id');
+          // Comprobamos si ese cliente está en la nueva lista filtrada
+          const currentClientInNewList = filtered.some(c => c.id === currentClientId);
+          
+          // Si el cliente actual NO está en la nueva lista (o no hay cliente), reseteamos.
+          // Esto ocurre en un cambio manual, pero no en la carga de edición.
+          if (!currentClientInNewList) {
+            setValue('cliente_id', '', { shouldValidate: false }); // No validar al resetear
+          }
+          // Si el cliente SÍ está, no hacemos nada y se mantiene seleccionado.
+          
       } else {
           // Si no hay comercializadora, vacía la lista y resetea
           setSelectedComercializadoraId(null);
@@ -110,7 +123,7 @@ export default function PuntoForm({ id }: { id?: string }) {
           setValue('cliente_id', '', { shouldValidate: false });
       }
   // Se ejecuta cuando cambia la selección o cuando carga la lista completa de clientes
-  }, [watchedComercializadoraId, allClientes, setValue]);
+  }, [watchedComercializadoraId, allClientes, setValue, getValues]); // <-- (3) AÑADIMOS getValues
   // -------------------------------------------------------------------
 
   // Carga punto si está en modo edición
@@ -151,19 +164,23 @@ export default function PuntoForm({ id }: { id?: string }) {
           tipo_factura: (data.tipo_factura as TipoFactura) ?? null, // Cast al tipo ENUM
         });
 
-        // Si encontramos una comercializadora, filtramos los clientes iniciales
+        // (4) LÓGICA SIMPLIFICADA
+        // El `reset` anterior ya ha disparado el `useEffect` de filtrado,
+        // que ahora es "inteligente" y habrá respetado el `cliente_id`
+        // si este pertenecía a la comercializadora.
+        
+        // Solo necesitamos poblar el estado local para `filteredClientes`
+        // para que el dropdown se renderice correctamente.
         if (initialComercializadoraId) {
             setSelectedComercializadoraId(initialComercializadoraId);
             const initialFiltered = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
             setFilteredClientes(initialFiltered);
-            // Aseguramos que el cliente_id correcto siga seleccionado después del reset/filtro
-            setValue('cliente_id', data.cliente_id, { shouldDirty: false });
         }
       }
     })();
     return () => { alive = false; };
-  // Dependencias clave: id, reset, y las listas cargadas
-  }, [editing, id, reset, comercializadoras, allClientes, setValue]);
+  // (5) Quitamos setValue de las dependencias ya que no se usa aquí
+  }, [editing, id, reset, comercializadoras, allClientes]);
 
 
   // --- Función onSubmit ---
@@ -199,8 +216,7 @@ export default function PuntoForm({ id }: { id?: string }) {
           if (error) throw error;
         }
         toast.success(editing ? 'Punto actualizado correctamente' : 'Punto creado correctamente');
-        // Navega a la lista general de puntos (o donde prefieras)
-        navigate({ to: '/app/puntos' });
+        router.history.back(); // <-- (3) CAMBIO: Volver atrás
     } catch (error: any) {
         console.error("Error al guardar punto:", error);
         toast.error(`Error al guardar: ${error.message}`);
@@ -375,7 +391,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             <button
               type="button"
               className="secondary"
-              onClick={() => navigate({ to: '/app/puntos' })} // O volver a la lista de clientes si vienes de ahí
+              onClick={() => router.history.back()} // <-- (4) CAMBIO: Volver atrás
             >
               Cancelar
             </button>

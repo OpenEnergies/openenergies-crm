@@ -161,7 +161,7 @@ label {
 
 /* R: Para que las tablas no se desborden en pantallas pequeñas */
 .table-wrapper {
-  overflow-x: visible;
+  overflow-x: auto;
 }
 .table {
   width: 100%;
@@ -377,8 +377,8 @@ button.danger:hover {
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   overflow: hidden;
+  gap: 0.5rem;
 }
 
 .profile-link {
@@ -1750,4 +1750,97 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .status-text {
   vertical-align: middle;
   text-transform: capitalize;
+}
+
+/* --- Estilos para Footer y Logout (Añadir al final de styles.css) --- */
+
+/* Ajustes al footer existente para acomodar el icono de notificación */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  /* Quitamos justify-content: space-between para que el icono quede pegado */
+  overflow: hidden;
+  gap: 0.5rem; /* Espacio entre perfil y campana */
+}
+
+/* El enlace al perfil sigue ocupando el espacio sobrante */
+.profile-link {
+  flex-grow: 1;
+  /* El resto de estilos de profile-link se mantienen */
+}
+
+/* Botón/Icono de Notificaciones */
+.notification-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  flex-shrink: 0;
+}
+
+.notification-button:hover {
+  background-color: var(--bg);
+  color: var(--fg);
+}
+
+/* Sección separada para el botón de logout */
+.logout-section {
+  padding-top: 0.5rem;
+  overflow: hidden;
+}
+
+/* Botón de Cerrar Sesión (estilo nav-link + color rojo) */
+.logout-button-styled {
+  /* Hereda la mayoría de estilos de .nav-link implícitamente si se aplica la clase */
+  /* Ajustes específicos: */
+  width: 100%;
+  display: flex; /* Asegura flex display como en .nav-link */
+  align-items: center; /* Asegura alineación vertical como en .nav-link */
+  color: #DC2626; /* Rojo */
+  background: none;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  padding-left: 0;  /* Quitamos padding izquierdo aquí */
+  padding-right: 0; /* Quitamos padding derecho aquí */
+  justify-content: flex-start;
+  border: none;
+  border-radius: 0.5rem; /* Heredado o añadir si falta */
+  font-weight: 500; /* Heredado o añadir si falta */
+  transition: all 0.2s ease-in-out; /* Heredado o añadir si falta */
+  overflow: hidden; /* Añadido */
+  white-space: nowrap; /* Añadido */
+  text-decoration: none; /* Añadido */
+}
+
+/* --- *** CORRECCIÓN AL ICONO DEL LOGOUT *** --- */
+.logout-button-styled svg {
+  flex-shrink: 0;
+  width: 80px; /* (1) Mismo ancho fijo que los iconos de nav */
+  padding: 0 36px 0 3 px; /* (2) Mismo padding horizontal para centrar el icono */
+  box-sizing: border-box;
+}
+/* --- *** FIN CORRECCIÓN *** --- */
+
+
+.logout-button-styled:hover {
+  background-color: #FEF2F2; /* Rojo muy pálido */
+  color: #B91C1C; /* Rojo oscuro */
+}
+
+/* No necesitamos la regla específica .sidebar.collapsed .logout-button-styled svg
+   porque ahora el icono siempre tiene el ancho fijo y padding correctos */
+
+/* Ocultar texto del logout al colapsar (esta regla está bien) */
+.sidebar.collapsed .logout-button-styled .nav-label {
+   opacity: 0;
+   width: 0;
 }

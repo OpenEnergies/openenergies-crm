@@ -2,9 +2,10 @@ import { Outlet, useNavigate, Link } from '@tanstack/react-router';
 import { Nav } from './Nav';
 import { supabase } from '@lib/supabase';
 import { useSession } from '@hooks/useSession';
-import { LogOut, Sun } from 'lucide-react'; // Importamos un icono para el logout
+// --- (1) Importar Bell (campana) ---
+import { LogOut, Sun, Bell } from 'lucide-react';
 import { useState } from 'react';
-import { clsx } from '@lib/utils'; // Importamos clsx
+import { clsx } from '@lib/utils';
 
 export default function Layout() {
   const { rol, nombre, avatar_url, loading: sessionLoading, userId } = useSession();
@@ -29,14 +30,13 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      <aside 
+      <aside
         className={clsx('sidebar', isCollapsed && 'collapsed')}
         onMouseEnter={() => setIsCollapsed(false)}
         onMouseLeave={() => setIsCollapsed(true)}
       >
         {/* Sección Superior: Logo y Título */}
         <div>
-          {/* Modificamos el título para que se adapte al colapso */}
           <Link to="/app" className="sidebar-title-link">
             <Sun className="sidebar-title-icon" size={20} />
             <h1 className="sidebar-title-text">
@@ -48,15 +48,15 @@ export default function Layout() {
         {/* Sección Central: Navegación Principal */}
         <Nav isCollapsed={isCollapsed} />
 
-        {/* Sección Inferior: Perfil y Logout */}
+        {/* --- (2) SECCIÓN INFERIOR MODIFICADA --- */}
         <div className="sidebar-footer">
+          {/* Enlace al Perfil */}
           <Link to="/app/perfil" className="profile-link">
-            {/* Aquí podríamos poner el avatar en el futuro */}
             <div className="profile-avatar">
               {avatar_url ? (
                  <img src={avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                ) : (
-                 <span>{fallbackInitial}</span> // Usa el fallback calculado
+                 <span>{fallbackInitial}</span>
                )}
             </div>
             <div className="profile-info">
@@ -64,14 +64,24 @@ export default function Layout() {
               <span className="profile-role">{rol}</span>
             </div>
           </Link>
-          <button onClick={logout} className="logout-button">
+
+          {/* Icono de Notificaciones (a la derecha del perfil) */}
+          <Link to="/app/notificaciones" className="notification-button" title="Notificaciones">
+             <Bell size={20} />
+          </Link>
+
+        </div>
+        {/* Botón de Cerrar Sesión (Debajo del footer) */}
+        <div className="logout-section">
+          <button onClick={logout} className="nav-link logout-button-styled">
             <LogOut size={20} />
+            <span className="nav-label">Cerrar sesión</span>
           </button>
         </div>
+         {/* --- FIN MODIFICACIÓN SECCIÓN INFERIOR --- */}
       </aside>
 
       <div className="main-content">
-        {/* La barra superior ahora puede estar vacía o tener otros elementos como notificaciones */}
         <header className="topbar"></header>
         <main className="container">
           <Outlet />

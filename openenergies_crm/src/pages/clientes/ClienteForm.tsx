@@ -54,8 +54,11 @@ export default function ClienteForm({ id }: { id?: string }) {
     }
   });
 
+  // --- *** CORRECCIÓN DEL BUG *** ---
   useEffect(() => {
-    if (!editing) return;
+    // (1) GUARD CLAUSE:
+    // No hacer nada si no estamos editando O si la lista de empresas aún está cargando.
+    if (!editing || !id || loadingEmpresas) return;
     
     const fetchCliente = async () => {
       // Al pedir los datos, también pedimos los de la empresa para asegurar consistencia
@@ -65,7 +68,9 @@ export default function ClienteForm({ id }: { id?: string }) {
         return;
       }
       if (data) {
-        // --- Casteamos los tipos ENUM ---
+        // (2) AHORA SÍ:
+        // El reset se ejecuta DESPUÉS de que loadingEmpresas es false,
+        // por lo que el <select> ya tiene sus <option> y puede ser preseleccionado.
         const clienteData = { 
           ...data, 
           tipo: data.tipo as TipoCliente,
@@ -75,7 +80,9 @@ export default function ClienteForm({ id }: { id?: string }) {
       }
     };
     fetchCliente();
-  }, [editing, id, reset]);
+  // (3) AÑADIR loadingEmpresas a la lista de dependencias.
+  }, [editing, id, reset, loadingEmpresas]);
+  // --- *** FIN DE LA CORRECCIÓN *** ---
 
   async function onSubmit(values: FormData) {
     setServerError(null);

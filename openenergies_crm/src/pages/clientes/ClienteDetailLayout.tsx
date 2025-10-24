@@ -1,14 +1,28 @@
 import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
-import type { Cliente } from '@lib/types';
+// Importamos el tipo base 'Cliente'
+import type { Cliente, EstadoCliente } from '@lib/types'; 
 import { clsx } from '@lib/utils';
 
-// Función para obtener los datos de un cliente específico
+// --- (1) Creamos un tipo local para los datos detallados que queremos ---
+type ClienteDetallado = Cliente & {
+  empresas: { nombre: string } | null;
+  estado: EstadoCliente; // Aseguramos el tipo de estado
+};
+
+// --- (2) Actualizamos la función de fetch ---
 async function fetchCliente(clienteId: string) {
-  const { data, error } = await supabase.from('clientes').select('*').eq('id', clienteId).single();
+  const { data, error } = await supabase
+    .from('clientes')
+    // Pedimos el nombre de la empresa relacionada
+    .select('*, empresas(nombre), estado') 
+    .eq('id', clienteId)
+    .single();
+    
   if (error) throw error;
-  return data as Cliente;
+  // Hacemos cast al nuevo tipo
+  return data as ClienteDetallado; 
 }
 
 export default function ClienteDetailLayout() {
@@ -17,7 +31,8 @@ export default function ClienteDetailLayout() {
 
   const { data: cliente, isLoading, isError } = useQuery({
     queryKey: ['cliente', clienteId],
-    queryFn: () => fetchCliente(clienteId),
+    // --- (3) La queryFn ahora usa el tipo ClienteDetallado ---
+    queryFn: (): Promise<ClienteDetallado> => fetchCliente(clienteId), 
   });
 
   const basePath = `/app/clientes/${clienteId}`;
@@ -29,19 +44,49 @@ export default function ClienteDetailLayout() {
 
   if (isLoading) return <div className="card">Cargando ficha del cliente...</div>;
   if (isError) return <div className="card" role="alert">Error al cargar los datos del cliente.</div>;
-  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-  // Si por alguna razón la carga termina pero no tenemos datos de cliente,
-  // mostramos un mensaje de error en lugar de intentar renderizar.
   if (!cliente) {
     return <div className="card" role="alert">No se pudo encontrar al cliente.</div>;
   }
+  
+  // --- (4) Tarjeta de cabecera rediseñada ---
   return (
     <div className="grid">
-      {/* Aquí podrías añadir los Breadcrumbs en el futuro */}
       <div className="card">
-        <h3>{cliente.nombre}</h3>
-        <p className="text-muted">{cliente.tipo === 'persona' ? `DNI: ${cliente.dni}` : `CIF: ${cliente.cif}`}</p>
-        {/* Aquí podrías mostrar más datos del cliente si quisieras */}
+        {/* Título principal */}
+        <h3 style={{ marginTop: 0, marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+          {cliente.nombre}
+        </h3>
+        
+        {/* Grid de datos (usando el estilo de .profile-grid de styles.css) */}
+        <div className="profile-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div>
+            <label>{cliente.tipo === 'persona' ? 'DNI' : 'CIF'}</label>
+            <p>{cliente.tipo === 'persona' ? (cliente.dni || '—') : (cliente.cif || '—')}</p>
+          </div>
+          <div>
+            <label>Estado</label>
+            {/* Usamos un <p> para alinear con los otros campos del grid */}
+            <p style={{ display: 'flex', alignItems: 'center', margin: 0, paddingTop: '0.25rem' }}>
+              <span 
+                className={`status-dot ${
+                  cliente.estado === 'activo' ? 'status-activo' :
+                  cliente.estado === 'desistido' ? 'status-desistido' :
+                  cliente.estado === 'procesando' ? 'status-procesando' :
+                  'status-standby'
+                }`}
+              ></span>
+              <span className="status-text">{cliente.estado || 'stand by'}</span>
+            </p>
+          </div>
+          <div>
+            <label>Empresa Propietaria</label>
+            <p>{cliente.empresas?.nombre ?? 'No asignada'}</p>
+          </div>
+          <div>
+            <label>Email Facturación</label>
+            <p>{cliente.email_facturacion || 'No especificado'}</p>
+          </div>
+        </div>
       </div>
 
       <div className="tabs-nav">
@@ -56,7 +101,6 @@ export default function ClienteDetailLayout() {
         ))}
       </div>
 
-      {/* El contenido de cada pestaña se renderizará aquí */}
       <Outlet />
     </div>
   );

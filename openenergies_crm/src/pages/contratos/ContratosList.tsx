@@ -24,14 +24,14 @@ const initialColumnFilters = {
 
 async function fetchContratos(filter: string, clienteId?: string): Promise<ContratoExtendido[]> {
     const selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
-    if (!filter) {
-        let q = supabase.from('contratos').select(selectQuery);
-        if (clienteId) q = q.eq('puntos_suministro.cliente_id', clienteId);
-        const { data, error } = await q.order('fecha_inicio', { ascending: false }).limit(100);
-        if (error) throw error;
-        return data as ContratoExtendido[];
-    }
-    const { data, error } = await supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null }).select(selectQuery).order('fecha_inicio', { ascending: false }).limit(100);
+
+    // Usamos SIEMPRE la función RPC. 
+    // Está preparada para manejar un search_text vacío Y el p_cliente_id correctamente.
+    const { data, error } = await supabase.rpc('search_contratos', { 
+        search_text: filter, 
+        p_cliente_id: clienteId || null 
+    }).select(selectQuery).order('fecha_inicio', { ascending: false }).limit(100);
+    
     if (error) throw error;
     return data as ContratoExtendido[];
 }
@@ -135,7 +135,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
         )}
 
         {!isLoading && !isError && fetchedData && fetchedData.length > 0 && (
-          <div className="table-wrapper" style={{overflow: 'visible'}}>
+          <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>

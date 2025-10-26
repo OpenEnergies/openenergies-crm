@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
@@ -10,9 +10,14 @@ import { toast } from 'react-hot-toast';
 // ¡Importamos los nuevos iconos!
 import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal'; // Ajusta la ruta si es necesario
+import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 
 // Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
+
+const initialColumnFilters = {
+  rol: [] as string[],
+};
 
 async function fetchUsuarios(): Promise<UsuarioConEmpresa[]> {
   const { data, error } = await supabase
@@ -49,7 +54,8 @@ async function deleteUser({ userId }: { userId: string }) {
 export default function UsuariosList() {
   const queryClient = useQueryClient();
   const { userId: currentUserId } = useSession(); // Para no poder bloquearse a uno mismo
-  const { data: usuarios, isLoading, isError } = useQuery({ queryKey: ['usuarios'], queryFn: fetchUsuarios });
+  const { data: fetchedData, isLoading, isError } = useQuery({ queryKey: ['usuarios'], queryFn: fetchUsuarios });
+  const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
 
   // Estado para controlar el modal
   const [userToDelete, setUserToDelete] = useState<UsuarioConEmpresa | null>(null);
@@ -88,6 +94,27 @@ export default function UsuariosList() {
     onError: (error) => toast.error(`Error al eliminar: ${error.message}`),
   });
 
+  const filterOptions = useMemo(() => {
+    return {
+      rol: ['administrador', 'comercial', 'cliente'],
+    };
+  }, []);
+
+  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => {
+    setColumnFilters(prev => ({ ...prev, [column]: selected }));
+  };
+
+  const displayedData = useMemo(() => {
+    if (!fetchedData) return [];
+    return fetchedData.filter(item => {
+      return (
+        (columnFilters.rol.length === 0 || columnFilters.rol.includes(item.rol))
+      );
+    });
+  }, [fetchedData, columnFilters]);
+
+  const isFiltered = columnFilters.rol.length > 0;
+
   return (
     <div className="grid">
       <div className="page-header">
@@ -100,27 +127,37 @@ export default function UsuariosList() {
       <div className="card">
         {isLoading && <div className="card">Cargando usuarios...</div>}
         {isError && <div className="card" role="alert">Error al cargar los usuarios.</div>}
-        {usuarios && usuarios.length === 0 && !isLoading && (
+
+        {fetchedData && fetchedData.length === 0 && !isLoading && !isFiltered && (
           <EmptyState 
             title="No hay usuarios"
             description="Invita a tu primer colaborador o da de alta a un cliente."
           />
         )}
-        {usuarios && usuarios.length > 0 && (
+        {fetchedData && fetchedData.length > 0 && (
           <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
                   <th>Nombre</th>
                   <th>Email</th>
-                  <th>Rol</th>
+                  <th>
+                    Rol
+                    <ColumnFilterDropdown
+                      columnName="Rol"
+                      options={filterOptions.rol}
+                      selectedOptions={columnFilters.rol}
+                      onChange={(selected) => handleColumnFilterChange('rol', selected as string[])}
+                    />
+                  </th>
                   <th>Empresa</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map(u => (
+                {displayedData.length > 0 ? (
+                  displayedData.map(u => (
                   <tr key={u.user_id}>
                     <td>{u.nombre} {u.apellidos}</td>
                     <td>{u.email}</td>
@@ -172,7 +209,14 @@ export default function UsuariosList() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
+                    Sin resultados que coincidan con los filtros.
+                  </td>
+                </tr>
+              )}
               </tbody>
             </table>
           </div>

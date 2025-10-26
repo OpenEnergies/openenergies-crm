@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { buildStoragePath } from '@lib/utils';
+import { buildStoragePath, joinPath } from '@lib/utils';
 import { FileUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -26,9 +26,9 @@ export default function ClienteDocumentoUploadModal({ clienteId, currentPath, on
   async function onSubmit(values: FormData) {
     const file = values.archivo;
     // Construimos la ruta completa, incluyendo las subcarpetas
-    const basePath = `clientes/${clienteId}/${currentPath}`;
-    const filePath = `${basePath ? `${basePath}/` : ''}${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-
+    const finalDirPath = joinPath('clientes', clienteId, currentPath); // Construye el directorio de destino
+    const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`; // Nombre seguro con timestamp
+    const filePath = joinPath(finalDirPath, safeFileName);
     try {
       const { error: uploadError } = await supabase.storage.from('documentos').upload(filePath, file);
       if (uploadError) throw uploadError;

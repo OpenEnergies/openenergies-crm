@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import { Link, useParams } from '@tanstack/react-router';
-import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2 } from 'lucide-react';
-import { clienteDocumentosRoute } from '@router/routes';
+// --- (1) Importar 'Link' y 'useParams' ---
+import { Link, useParams } from '@tanstack/react-router'; 
+// Arriba, con las otras importaciones de lucide-react
+import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2, Eye, EyeOff } from 'lucide-react';
+import { clienteDocumentosRoute, documentosClienteRoute } from '@router/routes'; 
 import { useState, useMemo } from 'react';
 import { useSession } from '@hooks/useSession';
 import ClienteDocumentoUploadModal from './ClienteDocumentoUploadModal';
@@ -10,21 +12,133 @@ import { joinPath } from '@lib/utils';
 import { saveAs } from 'file-saver';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@components/ConfirmationModal';
+import { th } from 'date-fns/locale/th';
 
+// --- (2) Eliminar tipos innecesarios ---
+// Ya no necesitamos ClienteDocParams ni DocClienteParams
 
 const PLACEHOLDER = '.emptyFolderPlaceholder';
 
+// ... (listFiles, isFolderEffectivelyEmpty no cambian) ...
 // Función para listar archivos y carpetas
-async function listFiles(clienteId: string, path: string) {
+
+type ExplorerItem = {
+  name: string;
+  is_folder: boolean;
+  id: string | null; // null para carpetas
+  full_path: string;
+  is_visible: boolean; // true si visible_para_cliente es true (para archivos)
+};
+
+// Reemplaza tu función listFiles existente por esta:
+
+// Reemplaza tu función listFiles completa por esta:
+
+// Reemplaza tu función listFiles completa por esta versión:
+
+async function listFiles(
+  clienteId: string,
+  path: string,
+  clientMode: boolean
+): Promise<ExplorerItem[]> {
   const fullPath = joinPath('clientes', clienteId, path);
-  const { data, error } = await supabase.storage.from('documentos').list(fullPath, {
-    limit: 100,
-    offset: 0,
-    sortBy: { column: 'name', order: 'asc' },
+
+  // 1. Obtener carpetas y archivos de Storage (Sin cambios)
+  const { data: storageData, error: storageError } = await supabase.storage
+    .from('documentos')
+    .list(fullPath, { limit: 100, offset: 0, sortBy: { column: 'name', order: 'asc' } });
+  if (storageError) throw storageError;
+
+  const itemsFromStorage = (storageData ?? []).filter((item) => item.name !== PLACEHOLDER);
+
+  // 2. Obtener metadatos de archivos de la BBDD (FILTRO CORREGIDO)
+  let query = supabase
+    .from('documentos')
+    .select('id, ruta_storage, visible_para_cliente, nombre_archivo') // Mantenemos nombre_archivo por si acaso
+    .eq('cliente_id', clienteId);
+
+  // Siempre pedimos todos los archivos bajo la ruta del cliente
+  const clientRootPathPrefix = `clientes/${clienteId}/`;
+  query = query.like('ruta_storage', `${clientRootPathPrefix}%`);
+
+  // --- ¡CORRECCIÓN IMPORTANTE AQUÍ! ---
+  // Aplicamos el filtro para cliente DESPUÉS de construir la query base
+  if (clientMode) {
+    query = query.eq('visible_para_cliente', true); // <-- ESTE FILTRO AHORA SE APLICA CORRECTAMENTE
+  }
+  // --- FIN CORRECCIÓN ---
+
+  // Ejecutamos la query final
+  const { data: dbFiles, error: dbError } = await query;
+  if (dbError) throw dbError;
+
+  // 3. Mergear y formatear (Lógica sin cambios respecto a la última versión)
+  const explorerItems: ExplorerItem[] = itemsFromStorage.map((item) => {
+    const itemFullPath = joinPath(fullPath, item.name);
+    const isFolder = !item.id;
+
+    const dbMatch = dbFiles.find(f => {
+      if (isFolder) return false;
+      const dbFileName = f.ruta_storage.substring(f.ruta_storage.lastIndexOf('/') + 1);
+      if (dbFileName !== item.name) return false;
+      const expectedDirPath = joinPath('clientes', clienteId, path);
+      const dirPartOfDbPath = f.ruta_storage.substring(0, f.ruta_storage.lastIndexOf('/'));
+      const cleanedDirPartOfDbPath = dirPartOfDbPath.replace(/\/+/g, '/');
+      return cleanedDirPartOfDbPath === expectedDirPath;
+    });
+    let isFolderVisible = false;
+    if (isFolder) {
+      const folderPrefix = itemFullPath + '/';
+      if (clientMode) {
+        // En modo cliente, dbFiles ya está filtrado por visible=true.
+        // Si algún archivo visible empieza con esta ruta de carpeta, la carpeta es visible.
+        isFolderVisible = dbFiles.some(f => f.ruta_storage.startsWith(folderPrefix));
+      } else {
+        // --- CORRECCIÓN AQUÍ ---
+        // En modo admin, dbFiles NO está filtrado, así que debemos comprobar
+        // la visibilidad de los archivos que encontramos dentro de la carpeta.
+        isFolderVisible = dbFiles.some(f => 
+          f.ruta_storage.startsWith(folderPrefix) && f.visible_para_cliente === true
+        );
+        // --- FIN CORRECCIÓN ---
+      }
+    }
+
+    // Si estamos en modo cliente y no encontramos coincidencia en dbFiles (que ya está filtrado),
+    // significa que este archivo no es visible, así que lo marcamos como no visible.
+    const isVisibleForClient = clientMode
+        ? isFolder ? isFolderVisible : !!dbMatch // En modo cliente, la visibilidad depende de si se encontró en dbFiles (ya filtrados)
+        : isFolder ? isFolderVisible : (dbMatch?.visible_para_cliente ?? false); // En modo admin, usamos el valor de la BD
+
+    return {
+      name: item.name,
+      is_folder: isFolder,
+      id: dbMatch?.id ?? null,
+      full_path: itemFullPath,
+      is_visible: isVisibleForClient, // <-- Usamos la visibilidad calculada
+    };
   });
-  if (error) throw error;
-  // No mostramos el placeholder
-  return (data ?? []).filter((item) => item.name !== PLACEHOLDER);
+  // --- FIN MERGE ---
+
+
+  // --- FILTRADO FINAL PARA CLIENTE ---
+  // Aunque la query ya filtra, necesitamos filtrar aquí también para:
+  // 1. Ocultar carpetas que quedaron vacías DESPUÉS del filtrado de la query.
+  // 2. Asegurar que solo se muestren los items que realmente deben verse.
+  if (clientMode) {
+    // Mantenemos solo los archivos (ya filtrados por la query) y las carpetas que calculamos como visibles
+    const clientVisibleItems = explorerItems.filter(item => item.is_visible);
+
+    // Lógica adicional para ocultar carpetas vacías (opcional pero recomendable)
+    // Esto requiere una comprobación más compleja o asumir que si isFolderVisible es true, no está vacía.
+    // Por simplicidad, devolveremos solo los items marcados como visibles:
+    return clientVisibleItems;
+  }
+  // --- FIN FILTRADO FINAL ---
+
+
+  // Para admin/comercial, devolvemos todo
+  return explorerItems;
 }
 
 // Comprueba si una carpeta está "efectivamente vacía":
@@ -43,21 +157,36 @@ async function isFolderEffectivelyEmpty(fullFolderPath: string) {
   return items.length === 0;
 }
 
-// Componente Breadcrumbs
-function Breadcrumbs({ clienteId, path }: { clienteId: string; path: string }) {
+
+// --- (3) Breadcrumbs CORREGIDO ---
+function Breadcrumbs({ clienteId, path, clientMode }: { clienteId: string; path: string; clientMode: boolean }) {
   const segments = path.split('/').filter(Boolean);
+
+  // Usamos los IDs de ruta directamente (son strings)
+  const baseTo = clientMode ? documentosClienteRoute.id : clienteDocumentosRoute.id; 
+  // Creamos los objetos de parámetros
+  const baseParams = clientMode 
+    ? { _splat: '' } 
+    : { id: clienteId, _splat: '' };
 
   return (
     <nav className="breadcrumbs">
-      <Link to={clienteDocumentosRoute.to} params={{ id: clienteId, _splat: '' }}>
+      {/* Pasamos los params directamente. TS debería inferirlos */}
+      <Link to={baseTo} params={baseParams}> 
         Documentos
       </Link>
       {segments.map((segment, index) => {
         const currentPath = segments.slice(0, index + 1).join('/');
+        // Creamos los objetos de parámetros
+        const segmentParams = clientMode 
+          ? { _splat: currentPath } 
+          : { id: clienteId, _splat: currentPath };
+        
         return (
           <span key={index}>
             /{' '}
-            <Link to={clienteDocumentosRoute.to} params={{ id: clienteId, _splat: currentPath }}>
+            {/* Pasamos los params directamente. TS debería inferirlos */}
+            <Link to={baseTo} params={segmentParams}> 
               {segment}
             </Link>
           </span>
@@ -66,7 +195,9 @@ function Breadcrumbs({ clienteId, path }: { clienteId: string; path: string }) {
     </nav>
   );
 }
+// --- Fin corrección Breadcrumbs ---
 
+// ... (createFolder no cambia) ...
 // Crear carpeta (sube placeholder vacío)
 async function createFolder({
   clienteId,
@@ -83,19 +214,39 @@ async function createFolder({
   if (error) throw error;
 }
 
-export default function ClienteDocumentos() {
-  const { id: clienteId, _splat: path } = useParams({ from: clienteDocumentosRoute.id });
+
+export default function ClienteDocumentos({
+  clienteId: explicitClienteId, 
+  pathSplat: explicitPathSplat, 
+  clientMode = false 
+}: {
+  clienteId?: string;
+  pathSplat?: string;
+  clientMode?: boolean;
+}) {
+  // --- (4) Corregir obtención de params ---
+  // Obtener params usando la ruta correcta según el modo
+  const paramsFromRoute = useParams({ 
+    from: clientMode ? documentosClienteRoute.id : clienteDocumentosRoute.id 
+  });
+  // Asegurar que clienteId es string o undefined
+  // Usamos un type assertion para indicarle a TS qué tipo esperar aquí
+  const clienteId: string | undefined = explicitClienteId ?? (paramsFromRoute as { id?: string }).id ?? undefined; 
+  const path: string | undefined = explicitPathSplat ?? paramsFromRoute._splat;
+  // --- Fin corrección params ---
+  
   const queryClient = useQueryClient();
   const { rol } = useSession();
 
+  // ... (Estados locales no cambian: isFolderModalOpen, etc.) ...
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  const isAdmin = rol === 'administrador';
-  const canUpload = isAdmin;
-  const canCreateFolder = isAdmin;
-  const canDelete = isAdmin;
+  const canManage = rol === 'administrador' || rol === 'comercial';
+  const canUpload = canManage;
+  const canCreateFolder = canManage;
+  const canDelete = canManage;
   const currentPath = path || '';
 
   const [modalState, setModalState] = useState<{
@@ -105,12 +256,22 @@ export default function ClienteDocumentos() {
 
   const [isZipping, setIsZipping] = useState<string | null>(null);
 
+  // --- Query (sin cambios, ya valida clienteId en enabled) ---
+  // Busca el useQuery de 'files' y modifícalo:
   const { data: files, isLoading, isError } = useQuery({
-    queryKey: ['documentos', clienteId, currentPath],
-    queryFn: () => listFiles(clienteId, currentPath),
+    queryKey: ['documentos', clienteId, currentPath, clientMode], // <-- Añadir clientMode
+    queryFn: () => {
+      if (typeof clienteId !== 'string') {
+          throw new Error("Cliente ID inválido para cargar documentos.");
+      }
+      // Pasar clientMode a la función
+      return listFiles(clienteId, currentPath, clientMode); 
+    },
+    enabled: typeof clienteId === 'string', 
   });
 
-  // Aux: reunir todas las rutas a borrar dentro de una carpeta (recursivo)
+  // ... (Mutaciones y Handlers: getAllPathsToDelete, deleteMutation, handleDelete, handleDownload, handleDownloadFolderZip, createFolderMutation, handleCreateFolder NO CAMBIAN) ...
+    // Aux: reunir todas las rutas a borrar dentro de una carpeta (recursivo)
   async function getAllPathsToDelete(currentFolderPath: string): Promise<string[]> {
     const { data: items, error: listError } = await supabase.storage
       .from('documentos')
@@ -190,6 +351,8 @@ export default function ClienteDocumentos() {
   });
 
   const handleDelete = async (itemName: string, isFolder: boolean) => {
+    // Asegurarse de que tenemos un clienteId válido
+    if (!clienteId) return; 
     // Construye la ruta igual que antes
     const fullPath = joinPath('clientes', clienteId, currentPath, itemName);
 
@@ -229,6 +392,8 @@ export default function ClienteDocumentos() {
 
   // Descargar fichero
   const handleDownload = async (itemName: string) => {
+    // Asegurarse de que tenemos un clienteId válido
+    if (!clienteId) return; 
     const fullPath = joinPath('clientes', clienteId, currentPath, itemName);
     try {
       const { data, error } = await supabase.storage.from('documentos').download(fullPath);
@@ -248,6 +413,8 @@ export default function ClienteDocumentos() {
 
   // Descargar carpeta como .zip (EDGE FUNCTION)
 const handleDownloadFolderZip = async (folderName: string) => {
+  // Asegurarse de que tenemos un clienteId válido
+  if (!clienteId) return; 
   // Usamos joinPath para asegurar consistencia, aunque la Edge Function también sanea
   const folderPath = joinPath(currentPath, folderName); 
   // Extraemos solo el nombre limpio para el .zip
@@ -307,9 +474,59 @@ const handleDownloadFolderZip = async (folderName: string) => {
     },
   });
 
+  // Mutación para un solo archivo
+// Mutación para un solo archivo (AHORA USA ID)
+const toggleFileVisibilityMutation = useMutation({
+  mutationFn: async ({ dbId, newVisibility }: { dbId: string; newVisibility: boolean }) => {
+    // Actualiza usando el ID de la tabla 'documentos'
+    const { error } = await supabase
+      .from('documentos')
+      .update({ visible_para_cliente: newVisibility })
+      .eq('id', dbId); // <-- CAMBIO: Usar eq('id', dbId)
+    if (error) throw error;
+  },
+  onSuccess: () => {
+    // La invalidación sigue igual
+    queryClient.invalidateQueries({
+      queryKey: ['documentos', clienteId, currentPath, clientMode],
+      exact: true
+    });
+  },
+  onError: (error: Error) => {
+    toast.error(`Error al actualizar visibilidad: ${error.message}`);
+  },
+});
+
+// Mutación para carpetas (RPC)
+  const toggleFolderVisibilityMutation = useMutation({
+    mutationFn: async ({ folderName, newVisibility }: { folderName: string; newVisibility: boolean }) => {
+      if (!clienteId) return;
+      const folderPath = joinPath(currentPath, folderName);
+      const { error } = await supabase.rpc('set_folder_visibility', {
+        p_cliente_id: clienteId,
+        p_folder_path: folderPath,
+        p_is_visible: newVisibility
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => { // <-- Función async
+    toast.success('Visibilidad de la carpeta actualizada.');
+    const queryKey = ['documentos', clienteId, currentPath, clientMode];
+
+    // 1. Invalidar primero para marcar como obsoleto
+    await queryClient.invalidateQueries({ queryKey, exact: true });
+
+    // 2. Forzar refetch inmediato y esperar
+    await queryClient.refetchQueries({ queryKey, exact: true });
+    },
+    onError: (error: Error) => {
+      toast.error(`Error al actualizar carpeta: ${error.message}`);
+    },
+  });
+
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim() || !clienteId) return; // Asegurar clienteId
     createFolderMutation.mutate({ clienteId, path: currentPath, folderName: newFolderName });
   };
 
@@ -317,18 +534,22 @@ const handleDownloadFolderZip = async (folderName: string) => {
   const sortedFiles = useMemo(() => {
     if (!files) return [] as any[];
     return [...files].sort((a: any, b: any) => {
-      const aIsFolder = !a.id;
-      const bIsFolder = !b.id;
+      // Corrección: 'is_folder' es un booleano en nuestro tipo ExplorerItem
+      const aIsFolder = a.is_folder;
+      const bIsFolder = b.is_folder;
       if (aIsFolder && !bIsFolder) return -1;
       if (!aIsFolder && bIsFolder) return 1;
       return a.name.localeCompare(b.name);
     });
   }, [files]);
-
+  
+  // --- Renderizado JSX (dentro del return) ---
   return (
-    <div className="card">
+    <div className="card"> 
       <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-        <Breadcrumbs clienteId={clienteId} path={currentPath || ''} />
+        {typeof clienteId === 'string' && 
+          <Breadcrumbs clienteId={clienteId} path={currentPath || ''} clientMode={clientMode} />
+        }
         <div className="page-actions">
           {canCreateFolder && (
             <button className="secondary" onClick={() => setIsFolderModalOpen(true)}>
@@ -346,26 +567,96 @@ const handleDownloadFolderZip = async (folderName: string) => {
       {isLoading && <div>Cargando...</div>}
       {isError && <div className="error-text">Error al cargar los documentos.</div>}
 
-      {sortedFiles && sortedFiles.length === 0 && !isLoading && (
+      {/* Asegurar que clienteId es un string válido antes de renderizar la tabla */}
+      {typeof clienteId !== 'string' && !isLoading && !isError && (
+          <div className="error-text" style={{padding: '2rem', textAlign: 'center'}}>ID de cliente no válido.</div>
+      )}
+
+      {sortedFiles && sortedFiles.length === 0 && !isLoading && typeof clienteId === 'string' && (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
           Esta carpeta está vacía.
         </div>
       )}
 
-      {sortedFiles && sortedFiles.length > 0 && (
+      {/* Renderizar tabla solo si hay archivos Y clienteId es válido */}
+      {sortedFiles && sortedFiles.length > 0 && typeof clienteId === 'string' && (
         <table className="table file-explorer">
+          {canManage && (
+            <thead>
+              <tr>
+                <th style={{ width: '50px', textAlign: 'center' }}>Visible</th>
+                <th>Nombre</th>
+                <th style={{ textAlign: 'right' }}>Acciones</th>
+              </tr>
+            </thead>
+          )}
+          {/* ====================================================================== */}
+          {/* === SECCIÓN CORREGIDA === */}
+          {/* ====================================================================== */}
+          {/* Pega esto reemplazando tu <tbody> ... </tbody> completo */}
           <tbody>
-            {sortedFiles.map((file: any) => {
-              const isFolder = !file.id;
+            {sortedFiles.map((file: ExplorerItem) => {
+              const isFolder = file.is_folder;
               const isZippingThisFolder = isZipping === file.name;
+
+              // Lógica para el link (sin cambios)
+              let folderLinkProps: { to: string; params: Record<string, string> };
+              if (clientMode) {
+                folderLinkProps = {
+                  to: documentosClienteRoute.id,
+                  params: { _splat: joinPath(currentPath, file.name) },
+                };
+              } else {
+                folderLinkProps = {
+                  to: clienteDocumentosRoute.id,
+                  params: { id: clienteId, _splat: joinPath(currentPath, file.name) },
+                };
+              }
+              
               return (
                 <tr key={file.id ?? file.name}>
+                  
+                  {/* === 1. CELDA DE VISIBILIDAD (CORREGIDA) === */}
+                  {/* === 1. CELDA DE VISIBILIDAD (CORREGIDA CON LLAMADA POR ID) === */}
+                  {canManage && (
+                    <td style={{ textAlign: 'center', padding: '0.5rem' }}>
+                      <input
+                        type="checkbox"
+                        title={file.is_visible ? (isFolder ? "Al menos un archivo es visible. Haz clic para ocultar todos." : "Ocultar al cliente") : (isFolder ? "Hacer toda la carpeta visible" : "Hacer visible al cliente")}
+                        checked={file.is_visible}
+                        onChange={(e) => {
+                        // Calcula el NUEVO estado deseado invirtiendo el estado ACTUAL de los datos
+                          const newVisibility = !file.is_visible;
+
+                          if (isFolder) {
+                            // Carpeta: Llama a RPC con el estado calculado
+                            toggleFolderVisibilityMutation.mutate({
+                              folderName: file.name,
+                              newVisibility: newVisibility // <--- Usa el estado calculado
+                            });
+                          } else {
+                            // Archivo: Llama a mutación CON ID (puede usar el estado calculado o el del evento)
+                            if (!file.id) {
+                              toast.error("Error: No se pudo identificar el documento.");
+                              console.error("Intento de toggle en archivo sin ID:", file);
+                              return;
+                            }
+                            toggleFileVisibilityMutation.mutate({
+                              dbId: file.id,
+                              newVisibility: newVisibility // <--- Usa el estado calculado también para consistencia
+                            });
+                          }
+                        }}
+                        // Deshabilita el checkbox mientras se guarda (sin cambios)
+                        disabled={toggleFileVisibilityMutation.isPending || toggleFolderVisibilityMutation.isPending}
+                      />
+                    </td>
+                  )}
+
+                  {/* === 2. CELDA DE NOMBRE (CORREGIDA) === */}
                   <td className={`file-item ${isFolder ? 'is-folder' : 'is-file'}`}>
                     {isFolder ? (
-                      <Link
-                        to={clienteDocumentosRoute.to}
-                        params={{ id: clienteId, _splat: joinPath(currentPath, file.name) }}
-                      >
+                      <Link {...folderLinkProps}>
                         <Folder size={20} />
                         <span>{file.name}</span>
                       </Link>
@@ -376,6 +667,8 @@ const handleDownloadFolderZip = async (folderName: string) => {
                       </div>
                     )}
                   </td>
+
+                  {/* === 3. CELDA DE ACCIONES (CORREGIDA) === */}
                   <td className="file-actions">
                     {!isFolder && (
                       <button onClick={() => handleDownload(file.name)} className="icon-button secondary" title="Descargar">
@@ -384,14 +677,11 @@ const handleDownloadFolderZip = async (folderName: string) => {
                     )}
                     {isFolder && (
                       <button
-                        // Llama a la nueva función
                         onClick={() => handleDownloadFolderZip(file.name)}
                         className="icon-button secondary"
                         title={`Descargar carpeta ${file.name} como .zip`}
-                        // Comprueba si *esta* carpeta se está zipeando
                         disabled={isZippingThisFolder}
                       >
-                        {/* Muestra texto/icono de carga si esta carpeta se está zipeando */}
                         {isZipping === file.name ? <Loader2 size={18} className="animate-spin" /> : <FileArchive size={18} />}
                       </button>
                     )}
@@ -410,10 +700,14 @@ const handleDownloadFolderZip = async (folderName: string) => {
               );
             })}
           </tbody>
+          {/* ====================================================================== */}
+          {/* === FIN DE SECCIÓN CORREGIDA === */}
+          {/* ====================================================================== */}
         </table>
       )}
 
-      {isFolderModalOpen && (
+      {/* Modales (Crear, Subir, Confirmar) - Asegurar clienteId para Crear/Subir */}
+      {canManage && isFolderModalOpen && typeof clienteId === 'string' && (
         <div className="modal-overlay">
           <form onSubmit={handleCreateFolder} className="modal-content card">
             <h3 style={{ marginTop: 0 }}>Crear Nueva Carpeta</h3>
@@ -440,7 +734,7 @@ const handleDownloadFolderZip = async (folderName: string) => {
         </div>
       )}
 
-      {isUploadModalOpen && (
+      {canManage && isUploadModalOpen && typeof clienteId === 'string' && (
         <ClienteDocumentoUploadModal
           clienteId={clienteId}
           currentPath={currentPath}
@@ -451,27 +745,25 @@ const handleDownloadFolderZip = async (folderName: string) => {
           }}
         />
       )}
-
+      
       <ConfirmationModal
         isOpen={modalState.isOpen}
-        onClose={() => setModalState({ isOpen: false, itemToDelete: null })} // Cierra el modal al cancelar
+        onClose={() => setModalState({ isOpen: false, itemToDelete: null })} 
         onConfirm={() => {
-          // Si hay un item guardado, ejecuta la mutación de borrado
           if (modalState.itemToDelete) {
             deleteMutation.mutate({
               fullPath: modalState.itemToDelete.fullPath,
               isFolder: modalState.itemToDelete.isFolder,
             });
           }
-          // Cierra el modal después de confirmar (la mutación mostrará toast de éxito/error)
            setModalState({ isOpen: false, itemToDelete: null });
         }}
         title={modalState.itemToDelete ? (modalState.itemToDelete.isFolder ? `Borrar Carpeta "${modalState.itemToDelete.name}"` : `Borrar Archivo "${modalState.itemToDelete.name}"`) : 'Confirmar Acción'}
         message={modalState.itemToDelete ? (modalState.itemToDelete.isFolder ? `La carpeta "${modalState.itemToDelete.name}" contiene elementos. ¿Estás seguro de que quieres borrarla junto con todo su contenido? Esta acción es irreversible.` : `¿Estás seguro de que quieres eliminar el archivo "${modalState.itemToDelete.name}"? Esta acción es irreversible.`) : 'Por favor, confirma la acción.'}
         confirmText="Sí, Eliminar"
         cancelText="Cancelar"
-        confirmButtonClass="danger" // Botón rojo para eliminar
-        isConfirming={deleteMutation.isPending} // Muestra 'Procesando...' si la mutación está activa
+        confirmButtonClass="danger" 
+        isConfirming={deleteMutation.isPending} 
       />
     </div>
   );

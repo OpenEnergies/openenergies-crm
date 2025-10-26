@@ -13,6 +13,7 @@ export type RootDocumentItem = {
   item_name: string;
   is_folder: boolean;
   full_path: string;
+  visible_para_cliente: boolean; // <-- AÑADIR ESTA LÍNEA
 };
 
 export interface UsuarioApp {
@@ -115,4 +116,20 @@ export type AgendaEventoForm = {
   fecha_fin?: string | null
   color: string
   etiqueta: string
+}
+
+export interface Documento {
+  id: UUID;
+  cliente_id: UUID | null;
+  punto_id: UUID | null;
+  contrato_id: UUID | null;
+  factura_id: UUID | null;
+  tipo: string;
+  ruta_storage: string;   // path en bucket
+  nombre_archivo: string | null;
+  mime_type: string | null;
+  tamano_bytes: number | null;
+  subido_por_user_id: UUID | null;
+  subido_en: string | null;
+  visible_para_cliente: boolean; // <-- AÑADIR ESTA LÍNEA
 }

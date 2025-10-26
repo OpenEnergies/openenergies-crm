@@ -10,6 +10,7 @@ import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { toast } from 'react-hot-toast';
 import { fmtDate } from '@lib/utils';
 import { EmptyState } from '@components/EmptyState';
+import { useSession } from '@hooks/useSession';
 
 type ContratoExtendido = Contrato & {
   puntos_suministro: { cups: string; direccion: string; clientes: { nombre: string } | null; } | null;
@@ -40,6 +41,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const queryClient = useQueryClient();
+
+  const { rol } = useSession();
+
   const { data: fetchedData, isLoading, isError } = useQuery({
       queryKey: ['contratos', filter, clienteId],
       queryFn: () => fetchContratos(filter, clienteId),
@@ -104,6 +108,8 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
                      columnFilters.fecha_fin.year !== null ||
                      columnFilters.aviso_renovacion.length > 0;
 
+  const canCreate = rol === 'administrador' || rol === 'comercial';
+
   return (
     <div className="grid">
       {!clienteId && (
@@ -111,7 +117,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
           <h2 style={{margin:0}}>Contratos</h2>
           <div className="page-actions" style={{width: '100%', maxWidth: 500}}>
             <input placeholder="Buscar por Comercializadora o CUPS..." value={filter} onChange={e => setFilter(e.target.value)} />
-            <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
+            {canCreate && (
+              <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
+            )}
           </div>
         </div>
       )}
@@ -124,8 +132,8 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
           <EmptyState
             title="Sin contratos"
             description="Aún no hay contratos registrados."
-            cta={<Link to="/app/contratos/nuevo"><button>Crear el primero</button></Link>}
-          />
+            cta={canCreate ? <Link to="/app/contratos/nuevo"><button>Crear el primero</button></Link> : null}
+          />    
         )}
         
         {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (

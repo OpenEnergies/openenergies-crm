@@ -1,39 +1,43 @@
 import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
-// Importamos el tipo base 'Cliente'
+import { clienteDetailRoute } from '@router/routes'; 
 import type { Cliente, EstadoCliente } from '@lib/types'; 
 import { clsx } from '@lib/utils';
+import { useSession } from '@hooks/useSession';
 
-// --- (1) Creamos un tipo local para los datos detallados que queremos ---
 type ClienteDetallado = Cliente & {
   empresas: { nombre: string } | null;
-  estado: EstadoCliente; // Aseguramos el tipo de estado
+  estado: EstadoCliente; 
 };
 
-// --- (2) Actualizamos la función de fetch ---
 async function fetchCliente(clienteId: string) {
   const { data, error } = await supabase
     .from('clientes')
-    // Pedimos el nombre de la empresa relacionada
     .select('*, empresas(nombre), estado') 
     .eq('id', clienteId)
     .single();
     
   if (error) throw error;
-  // Hacemos cast al nuevo tipo
   return data as ClienteDetallado; 
 }
 
 export default function ClienteDetailLayout() {
-  const { id: clienteId } = useParams({ from: '/app/clientes/$id' });
+  // --- (1) Type Assertion Añadida ---
+  // Explicitly tell TypeScript the expected shape of the params for this route
+  const { id: clienteId } = useParams({ from: clienteDetailRoute.id }) as { id: string }; 
+  // --- Fin Modificación (1) ---
+  
   const location = useLocation();
+  const { rol } = useSession();
 
+  // --- (2) Asegurarse de que clienteId es válido antes de la query ---
   const { data: cliente, isLoading, isError } = useQuery({
     queryKey: ['cliente', clienteId],
-    // --- (3) La queryFn ahora usa el tipo ClienteDetallado ---
-    queryFn: (): Promise<ClienteDetallado> => fetchCliente(clienteId), 
+    queryFn: (): Promise<ClienteDetallado> => fetchCliente(clienteId),
+    enabled: !!clienteId, // Query solo se activa si clienteId es válido
   });
+  // --- Fin Modificación (2) ---
 
   const basePath = `/app/clientes/${clienteId}`;
   const navLinks = [
@@ -42,22 +46,34 @@ export default function ClienteDetailLayout() {
     { path: `${basePath}/documentos`, label: 'Documentos' },
   ];
 
+  // --- (3) Añadir manejo si clienteId no es válido ---
+  if (!clienteId) {
+    return <div className="card" role="alert">Error: ID de cliente no encontrado en la URL.</div>;
+  }
+  // --- Fin Modificación (3) ---
+
   if (isLoading) return <div className="card">Cargando ficha del cliente...</div>;
   if (isError) return <div className="card" role="alert">Error al cargar los datos del cliente.</div>;
-  if (!cliente) {
-    return <div className="card" role="alert">No se pudo encontrar al cliente.</div>;
+  
+  if (rol === 'cliente') {
+    return (
+      <div className="grid">
+        <Outlet />
+      </div>
+    );
   }
   
-  // --- (4) Tarjeta de cabecera rediseñada ---
+  if (!cliente) {
+    return <div className="card" role="alert">No se pudo encontrar al cliente con ID: {clienteId}.</div>;
+  }  
+
+  // Renderizado normal para admin/comercial (sin cambios)
   return (
     <div className="grid">
       <div className="card">
-        {/* Título principal */}
         <h3 style={{ marginTop: 0, marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
           {cliente.nombre}
         </h3>
-        
-        {/* Grid de datos (usando el estilo de .profile-grid de styles.css) */}
         <div className="profile-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
           <div>
             <label>{cliente.tipo === 'persona' ? 'DNI' : 'CIF'}</label>
@@ -65,7 +81,6 @@ export default function ClienteDetailLayout() {
           </div>
           <div>
             <label>Estado</label>
-            {/* Usamos un <p> para alinear con los otros campos del grid */}
             <p style={{ display: 'flex', alignItems: 'center', margin: 0, paddingTop: '0.25rem' }}>
               <span 
                 className={`status-dot ${

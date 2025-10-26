@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@lib/supabase'
 import { Link } from '@tanstack/react-router'
 import { RootDocumentItem } from '@lib/types' // <-- Importamos el tipo actualizado
-import { Download, Folder, FileText } from 'lucide-react'
+import { Download, Folder, FileText, FileArchive, Loader2 } from 'lucide-react'
 import { useSession } from '@hooks/useSession'
 import { EmptyState } from '@components/EmptyState'
 import { useState, useMemo } from 'react'
@@ -23,37 +23,86 @@ async function fetchAllRootDocuments(): Promise<RootDocumentItem[]> {
 export default function DocumentosList() {
   const { rol } = useSession()
   const [filter, setFilter] = useState('')
+  const [isZipping, setIsZipping] = useState<string | null>(null); // key es 'clienteId-folderName'
   const { data, isLoading, isError } = useQuery({
     queryKey: ['all_root_documents'],
     queryFn: fetchAllRootDocuments,
   })
 
   const canUpload = rol === 'administrador' || rol === 'comercial'
-
+  const canSearch = rol === 'administrador' || rol === 'comercial'
+  // Modifica el useMemo 'filteredData'
   const filteredData = useMemo(() => {
     if (!data) return []
-    if (!filter) return data
 
-    return data.filter(
+    // Filtro para el cliente: solo ve items visibles
+    const clientVisibleData = (rol === 'cliente')
+      ? data.filter(item => item.visible_para_cliente)
+      : data;
+
+    if (!filter || !canSearch) return clientVisibleData;
+
+    // El filtro de texto se aplica sobre los datos ya filtrados por rol
+    return clientVisibleData.filter(
       item =>
-        // Los 'item.item_name' ahora están limpios (ej: 'factura.pdf' o 'Mi Carpeta')
         (item.item_name && item.item_name.toLowerCase().includes(filter.toLowerCase())) ||
         (item.cliente_nombre && item.cliente_nombre.toLowerCase().includes(filter.toLowerCase()))
     )
-  }, [data, filter])
+  }, [data, filter, canSearch, rol]); // <-- AÑADIR 'rol' A LAS DEPENDENCIAS
+
+  const handleDownloadFolderZip = async (clienteId: string, folderName: string) => {
+    // La ruta aquí es la raíz (path = '')
+    const currentPath = ''; 
+    const safeFolder = folderName.replace(/[^a-zA-Z0-9._-]/g, '_'); 
+    const zipKey = `${clienteId}-${folderName}`; // Clave única para el estado de carga
+
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/zip-folder?clienteId=${encodeURIComponent(
+      clienteId
+    )}&path=${encodeURIComponent(currentPath)}&folder=${encodeURIComponent(folderName)}`;
+
+    try {
+      setIsZipping(zipKey);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+          throw new Error("No se pudo obtener la sesión del usuario.");
+      }
+      const token = sessionData.session.access_token;
+
+      const res = await fetch(url, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({ message: res.statusText }));
+        console.error("Error response body:", errorBody);
+        throw new Error(errorBody.message || `Fallo al generar ZIP (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      saveAs(blob, `${safeFolder}.zip`);
+
+    } catch (error: any) {
+      console.error("Error al descargar/crear el ZIP:", error);
+      toast.error(`Error al crear el ZIP: ${error.message}`);
+    } finally {
+      setIsZipping(null);
+    }
+  };
 
   return (
     <div className="grid">
       <div className="page-header">
         <h2 style={{ margin: 0 }}>Documentos Globales</h2>
         <div className="page-actions">
-          <input
-            type="text"
-            placeholder="Buscar por nombre o cliente..."
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            style={{ minWidth: '250px' }}
-          />
+          {canSearch && (
+            <input
+              type="text"
+              placeholder="Buscar por nombre o cliente..."
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              style={{ minWidth: '250px' }}
+            />
+          )}
           {canUpload && (
             <Link to="/app/documentos/subir">
               <button>Subir Documento</button>
@@ -68,15 +117,14 @@ export default function DocumentosList() {
 
         {filteredData && filteredData.length === 0 && !isLoading && (
           <EmptyState
-            title={filter ? 'Sin resultados' : 'Sin documentos'}
+            title={filter && canSearch ? 'Sin resultados' : 'Sin documentos'}
             description={
-              filter
+              filter && canSearch
                 ? 'No se encontraron documentos o carpetas que coincidan con tu búsqueda.'
                 : 'No hay documentos ni carpetas en la raíz de ningún cliente.'
             }
           />
         )}
-
         {filteredData && filteredData.length > 0 && (
           <div className="table-wrapper">
             <table className="table file-explorer">
@@ -88,17 +136,21 @@ export default function DocumentosList() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map(item => (
-                  // --- CAMBIO #1: Usamos 'full_path' como key ---
-                  // Es único (ej: 'uuid/fichero.pdf' o 'uuid/carpeta/.empty...')
-                  // Esto soluciona el error de "key" en la consola.
+                {filteredData.map(item => {
+                  const zipKey = `${item.cliente_id}-${item.item_name}`;
+                  const isZippingThisFolder = isZipping === zipKey;
+                  return (
                   <tr key={item.full_path}>
                     <td className={`file-item ${item.is_folder ? 'is-folder' : 'is-file'}`}>
                       {item.is_folder ? (
                         <Link
-                          to="/app/clientes/$id/documentos/$splat"
-                          // 'item.item_name' ahora es el nombre limpio de la carpeta
-                          params={{ id: item.cliente_id, splat: item.item_name }}
+                          // --- (5) El enlace aquí cambia según el rol ---
+                          to={canSearch ? "/app/clientes/$id/documentos/$splat" : "/app/documentos-cliente/$splat"}
+                          params={canSearch 
+                            ? { id: item.cliente_id, splat: item.item_name }
+                            // En modo cliente, el ID de cliente no es necesario en los params
+                            : { splat: item.item_name } 
+                          }
                         >
                           <Folder size={20} />
                           <span>{item.item_name}</span>
@@ -112,6 +164,16 @@ export default function DocumentosList() {
                     </td>
                     <td>{item.cliente_nombre}</td>
                     <td style={{ textAlign: 'right' }}>
+                      {item.is_folder && (
+                        <button
+                          onClick={() => handleDownloadFolderZip(item.cliente_id, item.item_name)}
+                          className="icon-button secondary"
+                          title={`Descargar carpeta ${item.item_name} como .zip`}
+                          disabled={isZippingThisFolder}
+                        >
+                          {isZippingThisFolder ? <Loader2 size={18} className="animate-spin" /> : <FileArchive size={18} />}
+                        </button>
+                      )}
                       {!item.is_folder && (
                         <button
                           className="icon-button secondary"
@@ -147,7 +209,7 @@ export default function DocumentosList() {
                       )}
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

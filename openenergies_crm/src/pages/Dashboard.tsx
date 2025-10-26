@@ -18,6 +18,8 @@ function ActionCard({ to, title, description }: { to: string; title: string; des
 export default function Dashboard() {
   const { rol, nombre } = useSession();
 
+  const canChat = rol === 'administrador' || rol === 'comercial';
+
   return (
     <div className="grid">
       <div>
@@ -77,7 +79,7 @@ export default function Dashboard() {
       </div>
 
       {/* Floating chat widget */}
-      <ChatWidget />
+      {canChat && <ChatWidget />}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { useEmpresaId } from '@hooks/useEmpresaId' // ¡Importante para RLS!
 import { toast } from 'react-hot-toast'
 import { Loader2, Trash2 } from 'lucide-react'
 import ConfirmationModal from '@components/ConfirmationModal'
+import { etiquetaColorMap, etiquetasSeleccionables } from '@lib/agendaConstants';
 
 // --- Esquema de Validación con Zod ---
 const eventoSchema = z.object({
@@ -32,16 +33,6 @@ const eventoSchema = z.object({
 
 type AgendaEventoForm = z.infer<typeof eventoSchema>;
 
-// --- (NUEVO) Mapeo de Etiqueta a Color ---
-const etiquetaColorMap: Record<string, string> = {
-  'Reunión': '#2BB673', // Verde
-  'Tarea': '#2E87E5', // Azul
-  'Llamada': '#f39b03', // Naranja (Aviso)
-  'Recordatorio': '#8B5CF6', // Morado (nuevo color, añade a :root si quieres)
-  'Personal': '#64748b', // Gris (Muted)
-  'Renovación': '#DC2626', // Rojo (Aunque no se crea desde aquí)
-};
-const etiquetas = Object.keys(etiquetaColorMap).filter(et => et !== 'Renovación'); // Lista de etiquetas creables
 // --- Propiedades del Componente ---
 type EventoFormModalProps = {
   id: string | null // null = Modo Creación, string = Modo Edición
@@ -97,7 +88,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
   // --- FIN CAMBIO 3 ---
 
   const initialParts = getFechaHoraParts(fechaSeleccionada);
-  const defaultEtiqueta = etiquetas[0] || 'Reunión';
+  const defaultEtiqueta = etiquetasSeleccionables[0] || 'Reunión';
   const {
     register,
     handleSubmit,
@@ -299,7 +290,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
                       <div>
                         <label htmlFor="etiqueta">Etiqueta</label>
                         <select id="etiqueta" {...register('etiqueta')}>
-                          {etiquetas.map((et) => (
+                          {etiquetasSeleccionables.map((et) => (
                             <option key={et} value={et}>{et}</option>
                           ))}
                         </select>

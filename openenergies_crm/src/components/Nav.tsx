@@ -3,7 +3,7 @@ import { canSeeModule } from '@lib/permissions';
 import { useSession } from '@hooks/useSession';
 import { clsx } from '@lib/utils';
 // Importamos los iconos que vamos a usar
-import { Home, Users, Building, HardHat, FileText, FolderKanban, BarChart, Calendar, CalendarCheck } from 'lucide-react';
+import { Home, Users, Building2, Handshake, Files, EvCharger, ChartNoAxesCombined, CalendarCheck, CalendarDays, BriefcaseBusiness } from 'lucide-react';
 
 export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
@@ -12,14 +12,14 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const navItems = [
     { to: '/app', label: 'Inicio', icon: Home, module: 'inicio' },
     { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
-    { to: '/app/empresas', label: 'Empresas', icon: Building, module: 'empresas' },
-    { to: '/app/clientes', label: 'Clientes', icon: HardHat, module: 'clientes' },
-    { to: '/app/puntos', label: 'Puntos', icon: FolderKanban, module: 'puntos' },
-    { to: '/app/contratos', label: 'Contratos', icon: FileText, module: 'contratos' },
+    { to: '/app/empresas', label: 'Empresas', icon: Building2, module: 'empresas' },
+    { to: '/app/clientes', label: 'Clientes', icon: Handshake, module: 'clientes' },
+    { to: '/app/puntos', label: 'Puntos', icon: EvCharger, module: 'puntos' },
+    { to: '/app/contratos', label: 'Contratos', icon: BriefcaseBusiness, module: 'contratos' },
     { to: '/app/renovaciones', label: 'Renovaciones', icon: CalendarCheck, module: 'renovaciones' },
-    { to: '/app/documentos', label: 'Documentos', icon: FileText, module: 'documentos' },
-    { to: '/app/comparativas/nueva', label: 'Comparativas', icon: BarChart, module: 'comparativas' },
-    { to: '/app/agenda', label: 'Agenda', icon: Calendar, module: 'agenda' },
+    { to: '/app/documentos', label: 'Documentos', icon: Files, module: 'documentos' },
+    { to: '/app/comparativas/nueva', label: 'Comparativas', icon: ChartNoAxesCombined, module: 'comparativas' },
+    { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, module: 'agenda' },
   ];
 
   // Filtramos los items según los permisos del rol

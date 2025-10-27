@@ -1,6 +1,6 @@
 // src/features/chat/ChatWidget.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, MessagesSquare } from 'lucide-react';
 import { useSession } from '@hooks/useSession';
 import TypingIndicator from './TypingIndicator';
 import MessageBubble from './MessageBubble';
@@ -102,14 +102,14 @@ export default function ChatWidget() {
   return (
     <>
       <button onClick={toggle} className="chat-fab shadow-lg hover:shadow-xl transition-shadow" aria-expanded={open} aria-controls="chat-panel" title={open ? 'Cerrar chat' : 'Abrir chat'}>
-        <span className="chat-fab-initials">OE</span>
+        <span className="chat-fab-initials"><MessagesSquare /></span>
       </button>
 
       {open && (
         <div id="chat-panel" className="chat-panel shadow-xl border border-gray-200 rounded-lg" role="dialog" aria-label="Chat">
           <div className="chat-inner-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem' }}> {/* Añade clase y padding */}
             <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
-              <h3 style={{ margin: 0 }}> Asistente</h3>
+              <h3 style={{ margin: 0 }}> Pepe</h3>
               <button onClick={toggle} className="icon-button secondary small">✕</button>
             </div>
 

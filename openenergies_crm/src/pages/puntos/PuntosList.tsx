@@ -3,7 +3,7 @@ import { supabase } from '@lib/supabase';
 import { useState, useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { PuntoSuministro } from '@lib/types';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, MapPinPlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { toast } from 'react-hot-toast';
@@ -115,7 +115,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
               onChange={e=>setFilter(e.target.value)} 
               aria-label="Filtro" 
             />
-            <Link to="/app/puntos/nuevo"><button>Nuevo</button></Link>
+            <Link to="/app/puntos/nuevo"><button><MapPinPlus /></button></Link>
           </div>
         </div>
       )}

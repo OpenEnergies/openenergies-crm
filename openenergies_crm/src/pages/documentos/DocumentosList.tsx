@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@lib/supabase'
 import { Link } from '@tanstack/react-router'
 import { RootDocumentItem } from '@lib/types' // <-- Importamos el tipo actualizado
-import { Download, Folder, FileText, FileArchive, Loader2, File, FileImage, FileSpreadsheet } from 'lucide-react'
+import { Download, Folder, FileText, FileArchive, Loader2, FileUp, FileImage, FileSpreadsheet, Eye as EyeIcon } from 'lucide-react'
 import { useSession } from '@hooks/useSession'
 import { EmptyState } from '@components/EmptyState'
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast';
 import { saveAs } from 'file-saver';
+import FilePreviewModal from '@components/FilePreviewModal';
 
 // (Función auxiliar para obtener el icono del archivo)
 // (Función auxiliar para obtener el icono del archivo)
@@ -66,6 +67,11 @@ export default function DocumentosList() {
     queryFn: fetchAllRootDocuments,
   })
 
+  // --- 2. Estado para el modal de vista previa ---
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  // ---------------------------------------------
+
   const canUpload = rol === 'administrador' || rol === 'comercial'
   const canSearch = rol === 'administrador' || rol === 'comercial'
   // Modifica el useMemo 'filteredData'
@@ -85,7 +91,33 @@ export default function DocumentosList() {
         (item.item_name && item.item_name.toLowerCase().includes(filter.toLowerCase())) ||
         (item.cliente_nombre && item.cliente_nombre.toLowerCase().includes(filter.toLowerCase()))
     )
-  }, [data, filter, canSearch, rol]); // <-- AÑADIR 'rol' A LAS DEPENDENCIAS
+  }, [data, filter, canSearch, rol]);
+
+  // --- 3. Handler para abrir la vista previa ---
+  const handlePreview = async (filePath: string, fileName: string) => {
+      setIsLoadingPreview(true);
+      setPreviewFile({ url: '', name: fileName }); // Abre modal con spinner
+      try {
+          // Obtener URL firmada (válida por 1 hora en este ejemplo)
+          const { data, error } = await supabase.storage
+              .from('documentos')
+              .createSignedUrl(filePath, 3600); // 3600 segundos = 1 hora
+
+          if (error) throw error;
+          if (!data?.signedUrl) throw new Error("No se pudo obtener la URL firmada.");
+
+          // Actualiza el estado con la URL real
+          setPreviewFile({ url: data.signedUrl, name: fileName });
+
+      } catch (e: any) {
+          console.error('Error al obtener URL firmada:', e);
+          toast.error(`Error al preparar vista previa: ${e.message}`);
+          setPreviewFile(null); // Cierra el modal si hay error
+      } finally {
+        setIsLoadingPreview(false);
+      }
+  };
+  // ----------------------------------------------
 
   const handleDownloadFolderZip = async (clienteId: string, folderName: string) => {
     // La ruta aquí es la raíz (path = '')
@@ -142,7 +174,7 @@ export default function DocumentosList() {
           )}
           {canUpload && (
             <Link to="/app/documentos/subir">
-              <button>Subir</button>
+              <button><FileUp /></button>
             </Link>
           )}
         </div>
@@ -177,7 +209,7 @@ export default function DocumentosList() {
                   const zipKey = `${item.cliente_id}-${item.item_name}`;
                   const isZippingThisFolder = isZipping === zipKey;
                   return (
-                  <tr key={item.full_path}>
+                  <tr key={`${item.cliente_id}-${item.full_path}`}>
                     <td className={`file-item ${item.is_folder ? 'is-folder' : 'is-file'}`}>
                       {item.is_folder ? (
                         canSearch ? (
@@ -198,15 +230,47 @@ export default function DocumentosList() {
                           </Link>
                         )
                       ) : (
-                        <div>
+                        // --- 4. Renderizado del nombre del archivo como botón ---
+                        <button
+                          onClick={() => handlePreview(item.full_path, item.item_name)}
+                          className="file-preview-button" // Puedes añadir estilos específicos si quieres
+                          style={{ // Estilos básicos para que parezca texto normal
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              margin: 0,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex', // Re-aplica flex para alinear icono y texto
+                              alignItems: 'center',
+                              gap: '0.75rem',
+                              color: 'var(--fg)', // Hereda color
+                              fontWeight: 500, // Hereda fuente
+                              width: '100%' // Ocupa el ancho
+                          }}
+                          title={`Vista previa de ${item.item_name}`}
+                        >
                           {getFileIcon(item.item_name)}
                           <span>{item.item_name}</span>
-                        </div>
+                        </button>
+                        // -------------------------------------------------
                       )}
 
                     </td>
                     <td>{item.cliente_nombre}</td>
                     <td style={{ textAlign: 'right' }}>
+                      {/* --- 5. Botón de vista previa en acciones (Opcional) --- */}
+                      {!item.is_folder && (
+                            <button
+                                onClick={() => handlePreview(item.full_path, item.item_name)}
+                                className="icon-button secondary"
+                                title="Vista previa"
+                                style={{ marginLeft: '0.5rem' }} // Añade espacio si pones más botones
+                            >
+                                <EyeIcon size={18} />
+                            </button>
+                      )}
+                       {/* --- Fin Modificación 5 --- */}
                       {item.is_folder && (
                         <button
                           onClick={() => handleDownloadFolderZip(item.cliente_id, item.item_name)}
@@ -258,6 +322,25 @@ export default function DocumentosList() {
           </div>
         )}
       </div>
+      {/* --- 6. Renderizar el modal --- */}
+       <FilePreviewModal
+         isOpen={!!previewFile}
+         onClose={() => { setPreviewFile(null); setIsLoadingPreview(false); }}
+         fileUrl={previewFile?.url || null}
+         fileName={previewFile?.name || null}
+       />
+       {/* Muestra un overlay de carga mientras se obtiene la URL */}
+       {isLoadingPreview && !previewFile?.url && (
+           <div style={{
+               position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+               display: 'flex', alignItems: 'center', justifyContent: 'center',
+               zIndex: 1100, color: 'white'
+           }}>
+               <Loader2 className="animate-spin" size={32} />
+               <span style={{ marginLeft: '1rem' }}>Cargando vista previa...</span>
+           </div>
+       )}
+       {/* --- Fin Modificación 6 --- */}
     </div>
   )
 }

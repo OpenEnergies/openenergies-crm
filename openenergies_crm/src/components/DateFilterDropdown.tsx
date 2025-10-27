@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Filter } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 // Tipo para definir las partes de la fecha seleccionada
 export type DateParts = {
@@ -18,9 +19,30 @@ type Props = {
   onChange: (selected: DateParts) => void;
 };
 
+// Hook auxiliar para detectar clics fuera (igual que antes)
+function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
+  useEffect(() => {
+    const listener = (event: MouseEvent | TouchEvent) => {
+      if (!ref.current || ref.current.contains(event.target as Node)) {
+        return;
+      }
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
+
 export default function DateFilterDropdown({ columnName, options, selectedDate, onChange }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  // Ref para el botón
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Ref para el menú
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Estados para las opciones de los 3 selectores
   const [years, setYears] = useState<string[]>([]);
@@ -46,18 +68,9 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
   }, [options, selectedDate]);
 
 
-  // Cierra el menú si se hace clic fuera
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [wrapperRef]);
+  // Cierra al hacer clic fuera del menú
+  useOnClickOutside(menuRef, () => setIsOpen(false));
 
-  // Limpia toda la selección de fecha
   const handleClear = () => {
     onChange({ year: null, month: null, day: null });
     setIsOpen(false);
@@ -65,9 +78,21 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
 
   const hasFilter = selectedDate.year || selectedDate.month || selectedDate.day;
 
+  // Calcula posición (igual que antes)
+  const getMenuPosition = () => {
+    if (!buttonRef.current) return {};
+    const rect = buttonRef.current.getBoundingClientRect();
+    return {
+      top: `${rect.bottom + window.scrollY + 4}px`,
+      right: `${window.innerWidth - rect.right - window.scrollX}px`,
+      position: 'absolute' as React.CSSProperties['position'],
+    };
+  };
+
   return (
-    <div ref={wrapperRef} style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
+    <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
       <button
+        ref={buttonRef} // Asigna ref al botón
         onClick={() => setIsOpen(!isOpen)}
         className={`icon-button secondary small ${hasFilter ? 'active' : ''}`}
         title={`Filtrar por ${columnName}`}
@@ -75,8 +100,22 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
         <Filter size={14} />
       </button>
 
-      {isOpen && (
-        <div className="dropdown-menu card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem', minWidth: '250px' }}>
+      {/* 2. Usa createPortal */}
+      {isOpen && createPortal(
+        <div
+          ref={menuRef} // Asigna ref al menú
+          className="dropdown-menu card"
+          // 3. Aplica estilos
+          style={{
+            ...getMenuPosition(),
+            zIndex: 1050,
+            padding: '1rem', // Tus estilos originales
+            display: 'grid',
+            gap: '0.75rem',
+            minWidth: '250px'
+          }}
+        >
+          {/* Contenido del menú sin cambios */}
           <p style={{ margin: 0, fontWeight: 500 }}>Filtrar por {columnName}</p>
           <select
             value={selectedDate.year ?? ''}
@@ -88,7 +127,7 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
           <select
             value={selectedDate.month ?? ''}
             onChange={e => onChange({ ...selectedDate, month: e.target.value || null, day: null })}
-            disabled={!selectedDate.year} // Se activa solo si se ha seleccionado un año
+            disabled={!selectedDate.year}
           >
             <option value="">Cualquier Mes</option>
             {months.map(m => <option key={m} value={m}>{m}</option>)}
@@ -96,7 +135,7 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
           <select
             value={selectedDate.day ?? ''}
             onChange={e => onChange({ ...selectedDate, day: e.target.value || null })}
-            disabled={!selectedDate.month} // Se activa solo si se ha seleccionado un mes
+            disabled={!selectedDate.month}
           >
             <option value="">Cualquier Día</option>
             {days.map(d => <option key={d} value={d}>{d}</option>)}
@@ -105,7 +144,9 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
           <button onClick={handleClear} className="secondary small" disabled={!hasFilter}>
             Limpiar filtro
           </button>
-        </div>
+        </div>,
+        // 4. Renderiza en el body
+        document.body
       )}
     </div>
   );

@@ -3,7 +3,7 @@ import { Nav } from './Nav';
 import { supabase } from '@lib/supabase';
 import { useSession } from '@hooks/useSession';
 // --- (1) Importar Bell (campana) ---
-import { LogOut, Sun, Bell } from 'lucide-react';
+import { LogOut, Leaf, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { clsx } from '@lib/utils';
 
@@ -38,7 +38,7 @@ export default function Layout() {
         {/* Sección Superior: Logo y Título */}
         <div>
           <Link to="/app" className="sidebar-title-link">
-            <Sun className="sidebar-title-icon" size={20} />
+            <Leaf className="sidebar-title-icon" size={20} />
             <h1 className="sidebar-title-text">
               Open Energies
             </h1>

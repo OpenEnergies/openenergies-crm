@@ -1,24 +1,38 @@
 import { useSession } from '@hooks/useSession';
-import { Link } from '@tanstack/react-router';
-import { canSeeModule } from '@lib/permissions';
+// import { Link } from '@tanstack/react-router';
+// import { canSeeModule } from '@lib/permissions';
 import ChatWidget from '@features/chat/ChatWidget';
+import ProximosEventosWidget from './dashboard/widgets/ProximosEventosWidget';
+import ContratosPorVencerWidget from './dashboard/widgets/ContratosPorVencerWidget';
+import UltimosClientesWidget from './dashboard/widgets/UltimosClientesWidget';
+import ResumenUsuariosWidget from './dashboard/widgets/ResumenUsuariosWidget';
+import ResumenEmpresasWidget from './dashboard/widgets/ResumenEmpresasWidget';
+import MisClientesAsignadosWidget from './dashboard/widgets/MisClientesAsignadosWidget';
+import EstadoMisClientesWidget from './dashboard/widgets/EstadoMisClientesWidget';
 
 // Un pequeño componente para las tarjetas de acción
-function ActionCard({ to, title, description }: { to: string; title: string; description: string }) {
-  return (
-    <Link to={to} className="card-link">
-      <div className="card action-card">
-        <h3>{title} &rarr;</h3>
-        <p>{description}</p>
-      </div>
-    </Link>
-  );
-}
+//function ActionCard({ to, title, description }: { to: string; title: string; description: string }) {
+//  return (
+//    <Link to={to} className="card-link">
+//      <div className="card action-card">
+//        <h3>{title} &rarr;</h3>
+//        <p>{description}</p>
+//      </div>
+//    </Link>
+//  );
+//}
 
 export default function Dashboard() {
   const { rol, nombre } = useSession();
 
   const canChat = rol === 'administrador' || rol === 'comercial';
+  const canSeeAgendaWidget = rol === 'administrador' || rol === 'comercial';
+  const canSeeRenovacionesWidget = rol === 'administrador' || rol === 'comercial';
+  const canSeeClientesWidget = rol === 'administrador' || rol === 'comercial';
+  const canSeeUsuariosWidget = rol === 'administrador';
+  const canSeeEmpresasWidget = rol === 'administrador';
+  const canSeeMisClientesWidget = rol === 'comercial';
+  const canSeeEstadoMisClientesWidget = rol === 'comercial';
 
   return (
     <div className="grid">
@@ -33,8 +47,39 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Usamos la función canSeeModule para cada tarjeta */}
+      <div className="dashboard-widget-grid">
+        {/* Widget de Próximos Eventos */}
+        {canSeeAgendaWidget && (
+          <ProximosEventosWidget />
+        )}
+        {canSeeRenovacionesWidget && (
+          <ContratosPorVencerWidget />
+        )}
+        {canSeeClientesWidget && (
+          <UltimosClientesWidget />
+        )}
+        {canSeeUsuariosWidget && (
+          <ResumenUsuariosWidget />
+        )}
+        {canSeeEmpresasWidget && (
+          <ResumenEmpresasWidget />
+        )}
+        {canSeeMisClientesWidget && (
+          <MisClientesAsignadosWidget />
+        )}
+        {canSeeEstadoMisClientesWidget && (
+          <EstadoMisClientesWidget />
+        )}
+
+        {/* --- Aquí irán los futuros widgets --- */}
+        {/* <OtroWidget /> */}
+        {/* <OtroWidgetMas /> */}
+        {/* ... hasta 6 widgets ... */}
+
+      </div>
+
+      {/*<div className="dashboard-grid">
+        {/* Usamos la función canSeeModule para cada tarjeta 
         
         {canSeeModule(rol ?? 'cliente', 'usuarios') && (
           <ActionCard
@@ -52,7 +97,7 @@ export default function Dashboard() {
           />
         )}
 
-        {/* --- ¡AQUÍ ESTÁ LA CORRECCIÓN! --- */}
+        {/* --- ¡AQUÍ ESTÁ LA CORRECCIÓN! --- *
         {canSeeModule(rol ?? 'cliente', 'puntos') && (
           <ActionCard
             to="/app/puntos"

@@ -8,7 +8,7 @@ import { useSession } from '@hooks/useSession';
 import { clsx } from '@lib/utils';
 import { toast } from 'react-hot-toast';
 // ¡Importamos los nuevos iconos!
-import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil } from 'lucide-react';
+import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil, UserRoundPlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal'; // Ajusta la ruta si es necesario
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 
@@ -120,7 +120,7 @@ export default function UsuariosList() {
       <div className="page-header">
         <h2>Gestión de Usuarios</h2>
         <div className="page-actions">
-          <Link to="/app/usuarios/invitar"><button>Invitar Colaborador</button></Link>
+          <Link to="/app/usuarios/invitar" ><button><UserRoundPlus /></button></Link>
         </div>
       </div>
       <div className="card">

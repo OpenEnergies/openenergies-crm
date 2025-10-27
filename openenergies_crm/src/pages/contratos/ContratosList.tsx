@@ -3,7 +3,7 @@ import { supabase } from '@lib/supabase';
 import { useState, useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { Contrato } from '@lib/types';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, BadgePlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
@@ -118,7 +118,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
           <div className="page-actions" style={{width: '100%', maxWidth: 500}}>
             <input placeholder="Buscar por Comercializadora o CUPS..." value={filter} onChange={e => setFilter(e.target.value)} />
             {canCreate && (
-              <Link to="/app/contratos/nuevo"><button>Nuevo</button></Link>
+              <Link to="/app/contratos/nuevo"><button><BadgePlus /></button></Link>
             )}
           </div>
         </div>

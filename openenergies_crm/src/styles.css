@@ -1862,12 +1862,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ============================================= */
 
 /* Aplica escala a la tarjeta principal de la página de Agenda */
-/* Usamos una clase específica para evitar afectar otras páginas */
+/* Usamos una clase específica para evitar afectar otras páginas 
 .agenda-page-container {
-  /* No aplicamos escala aquí directamente para evitar problemas de layout */
-  /* En su lugar, ajustaremos el tamaño de fuente base si es necesario */
-  /* font-size: 80%; /* Descomenta esto si quieres escalar texto e hijos */
-}
+  No aplicamos escala aquí directamente para evitar problemas de layout 
+  En su lugar, ajustaremos el tamaño de fuente base si es necesario 
+  font-size: 80%; /* Descomenta esto si quieres escalar texto e hijos 
+}*/
 
 /* Escalado para el Modal de Eventos */
 .agenda-modal .modal-content {
@@ -1877,12 +1877,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   /* max-width: calc(500px / 0.75); /* Ejemplo de ajuste si escala causa problemas de ancho */
 }
 
-/* Opcional: Ajusta el overlay si el modal escalado se ve raro */
+/* Opcional: Ajusta el overlay si el modal escalado se ve raro 
 .agenda-modal.modal-overlay {
- /* Podrías añadir padding top/bottom aquí si el modal escalado queda mal alineado verticalmente */
- /* padding-top: 5vh; */
- /* padding-bottom: 5vh; */
-}
+  Podrías añadir padding top/bottom aquí si el modal escalado queda mal alineado verticalmente 
+  padding-top: 5vh; 
+  padding-bottom: 5vh; 
+}*/
 
 /* Ajustes específicos para FullCalendar dentro de Agenda al 80% */
 /* Esto requiere selectores más específicos para no afectar otros calendarios */
@@ -1917,4 +1917,178 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Ajustar el tamaño de fuente de los eventos */
 .agenda-page-container .fc .fc-event {
     font-size: 0.75rem; /* Más pequeño */
+}
+
+/* Que TODO el árbol del visor ocupe el alto del modal */
+#file-preview-modal .DocViewer,
+#file-preview-modal .react-doc-viewer,
+#file-preview-modal .rdv-outer,
+#file-preview-modal .rdv-document,
+#file-preview-modal .rdv-viewer {
+  height: 100% !important;
+}
+
+/* Iframes (Office) a tamaño completo */
+#file-preview-modal iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+}
+
+/* Imágenes: que quepan sin recortarse */
+#file-preview-modal img {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+
+/* ============================ */
+/* --- Estilos para Leyenda --- */
+/* ============================ */
+
+.agenda-legend {
+  display: flex; /* Coloca items en línea */
+  flex-wrap: wrap; /* Permite que pasen a la siguiente línea si no caben */
+  gap: 0.5rem 1.5rem; /* Espacio vertical y horizontal entre items */
+  padding: 0.75rem 0.5rem; /* Espaciado interno */
+  margin-top: -0.5rem; /* Reduce un poco el espacio con el header */
+  margin-bottom: 1rem; /* Espacio antes del calendario/lista */
+  border-bottom: 1px solid var(--border-color-light); /* Separador sutil */
+  font-size: 0.85rem; /* Tamaño de letra */
+}
+
+.legend-item {
+  display: flex; /* Alinea punto y texto */
+  align-items: center; /* Centra verticalmente */
+  gap: 0.5rem; /* Espacio entre punto y texto */
+}
+
+.legend-color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%; /* Círculo */
+  flex-shrink: 0; /* Evita que el punto se encoja */
+}
+
+.legend-label {
+  color: var(--muted); /* Color de texto sutil */
+  white-space: nowrap; /* Evita que la etiqueta se parta */
+}
+
+/* FullCalendar: que los enlaces hereden el color del contenedor */
+.fc a {
+  color: inherit;            /* ← anula el a{ color: var(--secondary); } global */
+  text-decoration: none;
+}
+
+/* Texto blanco en eventos oscuros (mes y semana/día) */
+.fc .fc-daygrid-event.fc-dark,
+.fc .fc-daygrid-event.fc-dark:link,
+.fc .fc-daygrid-event.fc-dark:visited,
+.fc .fc-daygrid-event.fc-dark .fc-event-main,
+.fc .fc-daygrid-event.fc-dark .fc-event-main *,
+.fc .fc-timegrid-event.fc-dark,
+.fc .fc-timegrid-event.fc-dark .fc-event-main,
+.fc .fc-timegrid-event.fc-dark .fc-event-main * {
+  color: #fff !important;
+}
+
+/* ============================================= */
+/* --- Fix Color Texto Eventos Agenda (Mes) --- */
+/* ============================================= */
+
+
+
+/* Primero: Forzar que NINGÚN enlace dentro de un evento FC tenga el color azul por defecto */
+.fc-event a,
+.fc-event a:visited, /* Asegurar que no cambie si el 'link' fue visitado */
+.fc-event a:hover,
+.fc-event a:active {
+  color: white inherit !important; /* Hereda SIEMPRE el color del contenedor .fc-event */
+  text-decoration: none !important;
+}
+
+/* Segundo: Aplicar color blanco al CONTENEDOR del evento para fondos oscuros */
+/* Usamos selectores de atributo para los estilos inline aplicados por JS */
+/* Incluimos TODOS los colores que necesitan texto blanco */
+.fc-daygrid-event[style*="background-color: rgb(43, 182, 115)"],  /* Verde (#2BB673) */
+.fc-daygrid-event[style*="background-color: rgb(46, 135, 229)"],  /* Azul (#2E87E5) */
+.fc-daygrid-event[style*="background-color: rgb(243, 155, 3)"],   /* Naranja (#f39b03) */
+.fc-daygrid-event[style*="background-color: rgb(139, 92, 246)"],  /* Morado (#8B5CF6) */
+.fc-daygrid-event[style*="background-color: rgb(100, 116, 139)"], /* Gris (#64748b) */
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"]   /* Rojo (#DC2626) */ {
+  color: white !important; /* Texto blanco para el contenedor */
+}
+
+/* Tercero: Asegurar que los elementos INTERNOS también sean blancos (redundancia por si acaso) */
+/* Repetimos selectores para máxima especificidad */
+.fc-daygrid-event[style*="background-color: rgb(43, 182, 115)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(46, 135, 229)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(243, 155, 3)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(139, 92, 246)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(100, 116, 139)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(43, 182, 115)"] .fc-event-creator,
+.fc-daygrid-event[style*="background-color: rgb(46, 135, 229)"] .fc-event-creator,
+.fc-daygrid-event[style*="background-color: rgb(243, 155, 3)"] .fc-event-creator,
+.fc-daygrid-event[style*="background-color: rgb(139, 92, 246)"] .fc-event-creator,
+.fc-daygrid-event[style*="background-color: rgb(100, 116, 139)"] .fc-event-creator,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-event-creator {
+  color: white !important;
+}
+
+/* Cuarto: Estilo del punto */
+.fc-daygrid-event[style*="background-color: rgb(43, 182, 115)"] .fc-daygrid-event-dot,
+.fc-daygrid-event[style*="background-color: rgb(46, 135, 229)"] .fc-daygrid-event-dot,
+.fc-daygrid-event[style*="background-color: rgb(243, 155, 3)"] .fc-daygrid-event-dot,
+.fc-daygrid-event[style*="background-color: rgb(139, 92, 246)"] .fc-daygrid-event-dot,
+.fc-daygrid-event[style*="background-color: rgb(100, 116, 139)"] .fc-daygrid-event-dot,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-daygrid-event-dot {
+  border-color: white !important; /* Borde blanco para contraste */
+}
+
+/* ============================================= */
+/* --- EXTRA FIX: Forzar Blanco en Texto Rojo --- */
+/* ============================================= */
+
+/* Regla ULTRA específica para enlaces DENTRO de eventos ROJOS */
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] a.fc-event,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] a .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-event-title,
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-event-main-content, /* Añadido por si acaso */
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-event-creator {
+  color: white !important;
+}
+
+/* Y asegurar que el punto también se vea bien en rojo */
+.fc-daygrid-event[style*="background-color: rgb(220, 38, 38)"] .fc-daygrid-event-dot {
+  border-color: white !important;
+  background-color: transparent !important;
+}
+
+/* ================================== */
+/* --- Estilos Dashboard Widgets --- */
+/* ================================== */
+
+.dashboard-widget-grid {
+  display: grid;
+  /* Define columnas automáticas:
+     - minmax(300px, 1fr): Cada columna tendrá un mínimo de 300px
+       y crecerá para ocupar el espacio disponible (1fr).
+     - auto-fill: Crea tantas columnas como quepan en el ancho disponible. */
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); /* Ajusta 350px si prefieres widgets más anchos/estrechos */
+  gap: 1.5rem; /* Espacio entre los widgets */
+  align-items: start; /* Alinea los widgets al inicio de su celda (útil si tienen alturas distintas) */
+}
+
+/* Opcional: Asegurar que las tarjetas dentro del grid ocupen todo el alto posible (si usas flex dentro) */
+.dashboard-widget-grid > .card {
+  height: 100%; /* Si la tarjeta es el contenedor directo del widget */
+  display: flex; /* Si quieres que el contenido interno se estire */
+  flex-direction: column;
 }

@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import type { Empresa } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
-import { Pencil } from 'lucide-react';
+import { Pencil, HousePlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 async function fetchEmpresas() {
@@ -26,7 +26,7 @@ export default function EmpresasList() {
       <div className="page-header">
         <h2 style={{ margin: 0 }}>Gestión de Empresas</h2>
         <div className="page-actions">
-          <Link to="/app/empresas/nueva"><button>Nueva Empresa</button></Link>
+          <Link to="/app/empresas/nueva"><button><HousePlus /></button></Link>
         </div>
       </div>
 

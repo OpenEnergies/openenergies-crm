@@ -3,7 +3,7 @@ import { supabase } from '@lib/supabase'
 // --- (1) Importar 'Link' y 'useParams' ---
 import { Link, useParams } from '@tanstack/react-router'
 // Arriba, con las otras importaciones de lucide-react
-import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2, Eye, EyeOff, FileImage, FileSpreadsheet, FileText} from 'lucide-react'
+import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2, Eye, EyeOff, FileImage, FileSpreadsheet, FileText, Eye as EyeIcon} from 'lucide-react'
 import { clienteDocumentosRoute, documentosClienteRoute } from '@router/routes'
 import { useState, useMemo } from 'react'
 import { useSession } from '@hooks/useSession'
@@ -13,6 +13,7 @@ import { saveAs } from 'file-saver'
 import { toast } from 'react-hot-toast'
 import ConfirmationModal from '@components/ConfirmationModal'
 import { th } from 'date-fns/locale/th'
+import FilePreviewModal from '@components/FilePreviewModal';
 
 // --- (2) Eliminar tipos innecesarios ---
 // Ya no necesitamos ClienteDocParams ni DocClienteParams
@@ -51,9 +52,6 @@ const getFileIcon = (fileName: string, size: number = 20) => {
 
 const PLACEHOLDER = '.emptyFolderPlaceholder';
 
-// ... (listFiles, isFolderEffectivelyEmpty no cambian) ...
-// Función para listar archivos y carpetas
-
 type ExplorerItem = {
   name: string;
   is_folder: boolean;
@@ -61,12 +59,6 @@ type ExplorerItem = {
   full_path: string;
   is_visible: boolean; // true si visible_para_cliente es true (para archivos)
 };
-
-// Reemplaza tu función listFiles existente por esta:
-
-// Reemplaza tu función listFiles completa por esta:
-
-// Reemplaza tu función listFiles completa por esta versión:
 
 async function listFiles(
   clienteId: string,
@@ -189,8 +181,6 @@ async function isFolderEffectivelyEmpty(fullFolderPath: string) {
   return items.length === 0;
 }
 
-
-// --- (3) Breadcrumbs CORREGIDO ---
 function Breadcrumbs({ clienteId, path, clientMode }: { clienteId: string; path: string; clientMode: boolean }) {
   const segments = path.split('/').filter(Boolean);
 
@@ -227,9 +217,7 @@ function Breadcrumbs({ clienteId, path, clientMode }: { clienteId: string; path:
     </nav>
   );
 }
-// --- Fin corrección Breadcrumbs ---
 
-// ... (createFolder no cambia) ...
 // Crear carpeta (sube placeholder vacío)
 async function createFolder({
   clienteId,
@@ -288,6 +276,11 @@ export default function ClienteDocumentos({
 
   const [isZipping, setIsZipping] = useState<string | null>(null);
 
+  // --- 2. Estado para el modal de vista previa ---
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+   // ---------------------------------------------
+
   // --- Query (sin cambios, ya valida clienteId en enabled) ---
   // Busca el useQuery de 'files' y modifícalo:
   const { data: files, isLoading, isError } = useQuery({
@@ -302,8 +295,30 @@ export default function ClienteDocumentos({
     enabled: typeof clienteId === 'string', 
   });
 
-  // ... (Mutaciones y Handlers: getAllPathsToDelete, deleteMutation, handleDelete, handleDownload, handleDownloadFolderZip, createFolderMutation, handleCreateFolder NO CAMBIAN) ...
-    // Aux: reunir todas las rutas a borrar dentro de una carpeta (recursivo)
+  // --- 3. Handler para abrir la vista previa (igual que en DocumentosList) ---
+   const handlePreview = async (filePath: string, fileName: string) => {
+       setIsLoadingPreview(true);
+       setPreviewFile({ url: '', name: fileName });
+       try {
+           const { data, error } = await supabase.storage
+               .from('documentos')
+               .createSignedUrl(filePath, 3600); // 1 hora
+
+           if (error) throw error;
+           if (!data?.signedUrl) throw new Error("No se pudo obtener la URL firmada.");
+
+           setPreviewFile({ url: data.signedUrl, name: fileName });
+
+       } catch (e: any) {
+           console.error('Error al obtener URL firmada:', e);
+           toast.error(`Error al preparar vista previa: ${e.message}`);
+           setPreviewFile(null);
+       } finally {
+          setIsLoadingPreview(false);
+       }
+   };
+   // ----------------------------------------------
+
   async function getAllPathsToDelete(currentFolderPath: string): Promise<string[]> {
     const { data: items, error: listError } = await supabase.storage
       .from('documentos')
@@ -506,9 +521,6 @@ const handleDownloadFolderZip = async (folderName: string) => {
     },
   });
 
-  // Mutación para un solo archivo
-// Mutación para un solo archivo (AHORA USA ID)
-// Mutación para un solo archivo (AHORA USA ID)
 const toggleFileVisibilityMutation = useMutation({
   mutationFn: async ({ dbId, newVisibility }: { dbId: string; newVisibility: boolean }) => {
     // Actualiza usando el ID de la tabla 'documentos'
@@ -539,8 +551,6 @@ const toggleFileVisibilityMutation = useMutation({
   },
 });
 
-// Mutación para carpetas (RPC)
-  // Mutación para carpetas (RPC)
   const toggleFolderVisibilityMutation = useMutation({
     mutationFn: async ({ folderName, newVisibility }: { folderName: string; newVisibility: boolean }) => {
       if (!clienteId) throw new Error("ID de cliente no encontrado"); // Guard
@@ -605,12 +615,12 @@ const toggleFileVisibilityMutation = useMutation({
         <div className="page-actions">
           {canCreateFolder && (
             <button className="secondary" onClick={() => setIsFolderModalOpen(true)}>
-              <FolderPlus size={16} /> Crear Carpeta
+              <FolderPlus size={20} />
             </button>
           )}
           {canUpload && (
             <button onClick={() => setIsUploadModalOpen(true)}>
-              <Upload size={16} /> Subir Documento
+              <Upload size={20} />
             </button>
           )}
         </div>
@@ -642,10 +652,6 @@ const toggleFileVisibilityMutation = useMutation({
               </tr>
             </thead>
           )}
-          {/* ====================================================================== */}
-          {/* === SECCIÓN CORREGIDA === */}
-          {/* ====================================================================== */}
-          {/* Pega esto reemplazando tu <tbody> ... </tbody> completo */}
           <tbody>
             {sortedFiles.map((file: ExplorerItem) => {
               const isFolder = file.is_folder;
@@ -667,9 +673,6 @@ const toggleFileVisibilityMutation = useMutation({
               
               return (
                 <tr key={file.id ?? file.name}>
-                  
-                  {/* === 1. CELDA DE VISIBILIDAD (CORREGIDA) === */}
-                  {/* === 1. CELDA DE VISIBILIDAD (CORREGIDA CON LLAMADA POR ID) === */}
                   {canManage && (
                     <td style={{ textAlign: 'center', padding: '0.5rem' }}>
                       <input
@@ -713,15 +716,36 @@ const toggleFileVisibilityMutation = useMutation({
                         <span>{file.name}</span>
                       </Link>
                     ) : (
-                      <div>
+                      // --- 4. Renderizado nombre archivo como botón ---
+                      <button
+                        onClick={() => handlePreview(file.full_path, file.name)}
+                        className="file-preview-button"
+                        style={{ background: 'none', border: 'none', padding: 0, margin: 0, textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--fg)', fontWeight: 500, width: '100%'}}
+                        title={`Vista previa de ${file.name}`}
+                      >
                         {getFileIcon(file.name)}
                         <span>{file.name}</span>
-                      </div>
+                      </button>
+                       // --- Fin Modificación 4 ---
                     )}
                   </td>
 
                   {/* === 3. CELDA DE ACCIONES (CORREGIDA) === */}
                   <td className="file-actions">
+                    {/* --- 5. Botón de vista previa en acciones (Opcional) --- */}
+                    {!isFolder && (
+                        <button
+                            onClick={() => handlePreview(file.full_path, file.name)}
+                            className="icon-button secondary"
+                            title="Vista previa"
+                             style={{ marginLeft: '0.5rem' }} // Ajusta si pones más botones
+                             disabled={isLoadingPreview && previewFile?.name === file.name} // Deshabilita mientras carga esta preview
+                        >
+                            {/* Muestra spinner si está cargando esta preview */}
+                            {isLoadingPreview && previewFile?.name === file.name ? <Loader2 size={18} className="animate-spin" /> : <EyeIcon size={18} />}
+                        </button>
+                    )}
+                     {/* --- Fin Modificación 5 --- */}
                     {!isFolder && (
                       <button onClick={() => handleDownload(file.name)} className="icon-button secondary" title="Descargar">
                         <Download size={18} />
@@ -817,6 +841,26 @@ const toggleFileVisibilityMutation = useMutation({
         confirmButtonClass="danger" 
         isConfirming={deleteMutation.isPending} 
       />
+
+      {/* --- 6. Renderizar el modal --- */}
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        onClose={() => { setPreviewFile(null); setIsLoadingPreview(false); }}
+        fileUrl={previewFile?.url || null}
+        fileName={previewFile?.name || null}
+      />
+      {/* Muestra un overlay de carga mientras se obtiene la URL */}
+      {isLoadingPreview && !previewFile?.url && (
+          <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 1100, color: 'white'
+          }}>
+              <Loader2 className="animate-spin" size={32} />
+              <span style={{ marginLeft: '1rem' }}>Cargando vista previa...</span>
+          </div>
+      )}
+       {/* --- Fin Modificación 6 --- */}
     </div>
   );
 }

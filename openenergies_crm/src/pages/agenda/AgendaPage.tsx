@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import FullCalendar from '@fullcalendar/react'
+import type { EventMountArg } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import esLocale from '@fullcalendar/core/locales/es'; // <-- Importar idioma español
-import { Calendar as CalendarIcon, List, Loader2, Plus, PlusCircle, Trash2 } from 'lucide-react'
+import { Calendar as CalendarIcon, List, Loader2, Plus, CalendarPlus, Trash2 } from 'lucide-react'
 import { supabase } from '@lib/supabase'
 import { AgendaItem } from '@lib/types'
 import EventoFormModal from './EventoFormModal'
@@ -15,6 +16,30 @@ import ConfirmationModal from '@components/ConfirmationModal' // <-- (3) Importa
 import AgendaListView from './AgendaListView'
 import { toast } from 'react-hot-toast'
 import { clsx } from '@lib/utils';
+import { etiquetaColorMap } from '@lib/agendaConstants';
+
+// --- 👇 NUEVO COMPONENTE PARA LA LEYENDA ---
+function AgendaLegend() {
+  // Obtenemos un array de [etiqueta, color]
+  const legendItems = Object.entries(etiquetaColorMap);
+
+  return (
+    // Contenedor principal de la leyenda
+    <div className="agenda-legend">
+      {legendItems.map(([label, color]) => (
+        // Cada item de la leyenda (punto de color + etiqueta)
+        <div key={label} className="legend-item">
+          <span
+            className="legend-color-dot"
+            style={{ backgroundColor: color }}
+            aria-hidden="true" // Decorativo
+          ></span>
+          <span className="legend-label">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Componente de página principal
 export default function AgendaPage() {
@@ -234,11 +259,14 @@ export default function AgendaPage() {
               setIsModalOpen(true)
             }}
           >
-            <PlusCircle size={18} style={{ marginRight: '0.5rem' }} /> {/* Icono cambiado */}
-            Crear Evento
+            <CalendarPlus size={18} /> {/* Icono cambiado */}
           </button>
         </div>
       </div>
+
+      {/* --- 👇 AÑADIR LA LEYENDA AQUÍ --- */}
+      <AgendaLegend />
+      {/* --- FIN LEYENDA --- */}
 
       {/* --- ÁREA de CONTENIDO --- */}
       {(isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) && ( // <-- (10) Añadir estado de carga de la mutación
@@ -313,6 +341,31 @@ export default function AgendaPage() {
                 </div>
               `
             };
+          }}
+          eventDidMount={(arg: EventMountArg) => {
+            const eventEl = arg.el;
+            const backgroundColor = arg.event.backgroundColor; // No necesitamos toLowerCase aquí
+            const borderColor = arg.event.borderColor;
+
+            // Solo aplica fondo y borde desde JS
+            if (backgroundColor) {
+              eventEl.style.backgroundColor = backgroundColor;
+            }
+            if (borderColor) {
+              eventEl.style.borderColor = borderColor;
+            } 
+            // El CSS ahora se encarga del color del texto
+          }}
+          eventClassNames={(arg) => {
+            const tipo = arg.event.extendedProps?.tipo_evento as string | undefined;
+            const bg = (arg.event.backgroundColor || '').toLowerCase();
+            const darkSet = new Set(['#64748b', '#8b5cf6', '#dc2626']); // gris, morado, rojo
+            const classes: string[] = [];
+
+            if (tipo === 'renovacion' || darkSet.has(bg)) {
+              classes.push('fc-dark');
+            }
+            return classes;
           }}
         />
       </div>

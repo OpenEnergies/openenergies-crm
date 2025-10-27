@@ -268,6 +268,16 @@ button.danger:hover {
 .modal-content {
   max-width: 500px;
   width: 90%;
+  /* --- ASEGÚRATE DE QUE ESTAS LÍNEAS ESTÉN PRESENTES --- */
+  display: flex; /* Habilita flexbox */
+  flex-direction: column; /* Apila header, form, footer */
+  max-height: 115vh; /* Puedes probar 85vh o 90vh */
+  overflow: hidden; /* Evita que el modal en sí tenga scroll */
+  /* --- FIN ASEGURADO --- */
+  background-color: var(--bg-card); /* Asegúrate que tenga fondo */
+  border: 1px solid var(--border-color); /* Asegúrate que tenga borde */
+  border-radius: 0.75rem; /* Asegúrate que tenga bordes redondeados */
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1); /* Sombra opcional */
 }
 
 /* --- Floating Chat Button --- */
@@ -1843,4 +1853,68 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .sidebar.collapsed .logout-button-styled .nav-label {
    opacity: 0;
    width: 0;
+}
+
+
+
+/* ============================================= */
+/* --- Ajuste de Escala para Agenda y Modal --- */
+/* ============================================= */
+
+/* Aplica escala a la tarjeta principal de la página de Agenda */
+/* Usamos una clase específica para evitar afectar otras páginas */
+.agenda-page-container {
+  /* No aplicamos escala aquí directamente para evitar problemas de layout */
+  /* En su lugar, ajustaremos el tamaño de fuente base si es necesario */
+  /* font-size: 80%; /* Descomenta esto si quieres escalar texto e hijos */
+}
+
+/* Escalado para el Modal de Eventos */
+.agenda-modal .modal-content {
+  transform: scale(0.75); /* Escala el modal al 75% */
+  transform-origin: center center; /* Escala desde el centro */
+  /* Ajusta el max-width si es necesario después de escalar */
+  /* max-width: calc(500px / 0.75); /* Ejemplo de ajuste si escala causa problemas de ancho */
+}
+
+/* Opcional: Ajusta el overlay si el modal escalado se ve raro */
+.agenda-modal.modal-overlay {
+ /* Podrías añadir padding top/bottom aquí si el modal escalado queda mal alineado verticalmente */
+ /* padding-top: 5vh; */
+ /* padding-bottom: 5vh; */
+}
+
+/* Ajustes específicos para FullCalendar dentro de Agenda al 80% */
+/* Esto requiere selectores más específicos para no afectar otros calendarios */
+.agenda-page-container .fc {
+  /* Escala el calendario */
+  /* transform: scale(0.8); */ /* Escalar directamente puede dar problemas de interacción */
+  /* transform-origin: top left; */
+
+  /* Alternativa: Reducir tamaño de fuente base del calendario */
+  font-size: 85%; /* Prueba ajustar este valor (80%, 85%, 90%) */
+}
+
+/* Ajustar el tamaño de los botones del toolbar del calendario */
+.agenda-page-container .fc .fc-button {
+  padding: 0.5rem 0.8rem !important; /* Más pequeños */
+  font-size: 0.8rem !important; /* Texto más pequeño */
+}
+.agenda-page-container .fc .fc-toolbar-title {
+    font-size: 1.1rem !important; /* Título más pequeño */
+}
+
+/* Ajustar el tamaño de los números de día */
+.agenda-page-container .fc .fc-daygrid-day-number {
+  padding: 0.4rem;
+  font-size: 85%; /* Más pequeño */
+}
+.agenda-page-container .fc .fc-day-today .fc-daygrid-day-number {
+    width: 24px;
+    height: 24px;
+}
+
+/* Ajustar el tamaño de fuente de los eventos */
+.agenda-page-container .fc .fc-event {
+    font-size: 0.75rem; /* Más pequeño */
 }

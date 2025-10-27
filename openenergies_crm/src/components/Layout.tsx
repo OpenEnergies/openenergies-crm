@@ -82,7 +82,6 @@ export default function Layout() {
       </aside>
 
       <div className="main-content">
-        <header className="topbar"></header>
         <main className="container">
           <Outlet />
         </main>

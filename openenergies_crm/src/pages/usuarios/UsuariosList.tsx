@@ -120,7 +120,6 @@ export default function UsuariosList() {
       <div className="page-header">
         <h2>Gestión de Usuarios</h2>
         <div className="page-actions">
-          <Link to="/app/clientes/nuevo"><button className="secondary">Dar de Alta Cliente</button></Link>
           <Link to="/app/usuarios/invitar"><button>Invitar Colaborador</button></Link>
         </div>
       </div>

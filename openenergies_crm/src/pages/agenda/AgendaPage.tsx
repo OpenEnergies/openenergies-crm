@@ -195,7 +195,7 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="card">
+    <div className="card agenda-page-container" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
       {/* --- CABECERA DE LA PÁGINA --- */}
       <div className="page-header">
         <h2>Agenda</h2>
@@ -248,9 +248,14 @@ export default function AgendaPage() {
       )}
       
       {/* Contenedor para que el calendario se pinte */}
-      <div style={{ display: viewMode === 'calendar' ? 'block' : 'none', marginTop: '1.5rem',
-                    opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.5 : 1 // <-- (12) Opacidad mientras carga
-                  }}>
+      <div style={{
+          display: viewMode === 'calendar' ? 'block' : 'none', // Volver a block
+          flexGrow: 1, // Permitir que crezca verticalmente en el card
+          overflow: 'auto', // Gestionar scroll interno si es necesario
+          marginTop: '1.5rem',
+          opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.5 : 1,
+          minHeight: '400px' // Mantenemos altura mínima
+         }}>
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
@@ -312,9 +317,14 @@ export default function AgendaPage() {
         />
       </div>
 
-      <div style={{ display: viewMode === 'list' ? 'block' : 'none', marginTop: '1.5rem',
-                    opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.5 : 1
-                  }}>
+      <div style={{
+          display: viewMode === 'list' ? 'flex' : 'none', // Usa flex
+          flexDirection: 'column', // Dirección columna
+          flexGrow: 1, // Ocupa espacio vertical
+          marginTop: '1.5rem',
+          opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.5 : 1,
+          overflowY: 'auto' // Añade scroll si la lista es muy larga
+         }}>
         <AgendaListView
           items={agendaItems || []}
           isLoading={isLoading}

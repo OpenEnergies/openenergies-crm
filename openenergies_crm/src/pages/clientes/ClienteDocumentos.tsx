@@ -1,21 +1,53 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@lib/supabase';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@lib/supabase'
 // --- (1) Importar 'Link' y 'useParams' ---
-import { Link, useParams } from '@tanstack/react-router'; 
+import { Link, useParams } from '@tanstack/react-router'
 // Arriba, con las otras importaciones de lucide-react
-import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2, Eye, EyeOff } from 'lucide-react';
-import { clienteDocumentosRoute, documentosClienteRoute } from '@router/routes'; 
-import { useState, useMemo } from 'react';
-import { useSession } from '@hooks/useSession';
-import ClienteDocumentoUploadModal from './ClienteDocumentoUploadModal';
-import { joinPath } from '@lib/utils';
-import { saveAs } from 'file-saver';
-import { toast } from 'react-hot-toast';
-import ConfirmationModal from '@components/ConfirmationModal';
-import { th } from 'date-fns/locale/th';
+import { Folder, File, Upload, FolderPlus, Trash2, Download, FileArchive, Loader2, Eye, EyeOff, FileImage, FileSpreadsheet, FileText} from 'lucide-react'
+import { clienteDocumentosRoute, documentosClienteRoute } from '@router/routes'
+import { useState, useMemo } from 'react'
+import { useSession } from '@hooks/useSession'
+import ClienteDocumentoUploadModal from './ClienteDocumentoUploadModal'
+import { joinPath } from '@lib/utils'
+import { saveAs } from 'file-saver'
+import { toast } from 'react-hot-toast'
+import ConfirmationModal from '@components/ConfirmationModal'
+import { th } from 'date-fns/locale/th'
 
 // --- (2) Eliminar tipos innecesarios ---
 // Ya no necesitamos ClienteDocParams ni DocClienteParams
+
+// (Función auxiliar para obtener el icono del archivo)
+const getFileIcon = (fileName: string, size: number = 20) => {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+
+  if (['pdf'].includes(extension)) {
+    // Icono para PDF (Rojo)
+    return <FileText size={size} style={{ color: '#E53E3E' }} />;
+  }
+  if (['doc', 'docx'].includes(extension)) {
+    // Icono para Word (Azul)
+    return <FileText size={size} style={{ color: 'var(--secondary)' }} />;
+  }
+  if (['txt'].includes(extension)) {
+    return <FileText size={size} style={{ color: 'var(--muted)' }} />;
+  }
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension)) {
+    // Icono para Imágenes (Verde)
+    return <FileImage size={size} style={{ color: '#48BB78' }} />;
+  }
+  if (['zip', 'rar', '7z', 'tar'].includes(extension)) {
+    // Icono para Archivos (Azul)
+    return <FileArchive size={size} style={{ color: '#4299E1' }} />;
+  }
+  if (['xls', 'xlsx', 'csv'].includes(extension)) {
+    // Icono para Hojas de Cálculo (Verde oscuro)
+    return <FileSpreadsheet size={size} style={{ color: '#38A169' }} />;
+  }
+  
+  // Icono por defecto (genérico)
+  return <File size={size} />;
+};
 
 const PLACEHOLDER = '.emptyFolderPlaceholder';
 
@@ -476,6 +508,7 @@ const handleDownloadFolderZip = async (folderName: string) => {
 
   // Mutación para un solo archivo
 // Mutación para un solo archivo (AHORA USA ID)
+// Mutación para un solo archivo (AHORA USA ID)
 const toggleFileVisibilityMutation = useMutation({
   mutationFn: async ({ dbId, newVisibility }: { dbId: string; newVisibility: boolean }) => {
     // Actualiza usando el ID de la tabla 'documentos'
@@ -484,8 +517,17 @@ const toggleFileVisibilityMutation = useMutation({
       .update({ visible_para_cliente: newVisibility })
       .eq('id', dbId); // <-- CAMBIO: Usar eq('id', dbId)
     if (error) throw error;
+    // --- (1) DEVOLVEMOS EL NUEVO ESTADO ---
+    return newVisibility;
   },
-  onSuccess: () => {
+  onSuccess: (newVisibility) => {
+    // --- (2) USAMOS EL NUEVO ESTADO PARA EL TOAST ---
+    if (newVisibility) {
+      toast.success("Visibilidad del archivo activada", { icon: <Eye size={18} /> });
+    } else {
+      toast.success("Visibilidad del archivo desactivada", { icon: <EyeOff size={18} /> });
+    }
+    
     // La invalidación sigue igual
     queryClient.invalidateQueries({
       queryKey: ['documentos', clienteId, currentPath, clientMode],
@@ -498,9 +540,10 @@ const toggleFileVisibilityMutation = useMutation({
 });
 
 // Mutación para carpetas (RPC)
+  // Mutación para carpetas (RPC)
   const toggleFolderVisibilityMutation = useMutation({
     mutationFn: async ({ folderName, newVisibility }: { folderName: string; newVisibility: boolean }) => {
-      if (!clienteId) return;
+      if (!clienteId) throw new Error("ID de cliente no encontrado"); // Guard
       const folderPath = joinPath(currentPath, folderName);
       const { error } = await supabase.rpc('set_folder_visibility', {
         p_cliente_id: clienteId,
@@ -508,21 +551,30 @@ const toggleFileVisibilityMutation = useMutation({
         p_is_visible: newVisibility
       });
       if (error) throw error;
+      // --- (1) DEVOLVEMOS EL NUEVO ESTADO ---
+      return newVisibility;
     },
-    onSuccess: async () => { // <-- Función async
-    toast.success('Visibilidad de la carpeta actualizada.');
-    const queryKey = ['documentos', clienteId, currentPath, clientMode];
+    onSuccess: async (newVisibility) => { // <-- Función async
+      // --- (2) USAMOS EL NUEVO ESTADO PARA EL TOAST ---
+      if (newVisibility) {
+        toast.success("Visibilidad de la carpeta activada", { icon: <Eye size={18} /> });
+      } else {
+        toast.success("Visibilidad de la carpeta desactivada", { icon: <EyeOff size={18} /> });
+      }
 
-    // 1. Invalidar primero para marcar como obsoleto
-    await queryClient.invalidateQueries({ queryKey, exact: true });
+      const queryKey = ['documentos', clienteId, currentPath, clientMode];
 
-    // 2. Forzar refetch inmediato y esperar
-    await queryClient.refetchQueries({ queryKey, exact: true });
+      // 1. Invalidar primero para marcar como obsoleto
+      await queryClient.invalidateQueries({ queryKey, exact: true });
+
+      // 2. Forzar refetch inmediato y esperar
+      await queryClient.refetchQueries({ queryKey, exact: true });
     },
     onError: (error: Error) => {
       toast.error(`Error al actualizar carpeta: ${error.message}`);
     },
   });
+
 
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -662,7 +714,7 @@ const toggleFileVisibilityMutation = useMutation({
                       </Link>
                     ) : (
                       <div>
-                        <File size={20} />
+                        {getFileIcon(file.name)}
                         <span>{file.name}</span>
                       </div>
                     )}

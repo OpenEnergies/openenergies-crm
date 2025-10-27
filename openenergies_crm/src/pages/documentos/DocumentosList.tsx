@@ -1,13 +1,50 @@
-// @ts-nocheck
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@lib/supabase'
 import { Link } from '@tanstack/react-router'
 import { RootDocumentItem } from '@lib/types' // <-- Importamos el tipo actualizado
-import { Download, Folder, FileText, FileArchive, Loader2 } from 'lucide-react'
+import { Download, Folder, FileText, FileArchive, Loader2, File, FileImage, FileSpreadsheet } from 'lucide-react'
 import { useSession } from '@hooks/useSession'
 import { EmptyState } from '@components/EmptyState'
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast';
+import { saveAs } from 'file-saver';
+
+// (Función auxiliar para obtener el icono del archivo)
+// (Función auxiliar para obtener el icono del archivo)
+const getFileIcon = (fileName: string, size: number = 20) => {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+
+  // --- 1. PDF (Rojo) ---
+  if (['pdf'].includes(extension)) {
+    return <FileText size={size} style={{ color: '#E53E3E' }} />;
+  }
+
+  // --- 2. Word (Azul) ---
+  if (['doc', 'docx'].includes(extension)) {
+    return <FileText size={size} style={{ color: 'var(--secondary)' }} />;
+  }
+
+  // --- 3. TXT (Gris) ---
+  if (['txt'].includes(extension)) {
+    return <FileText size={size} style={{ color: 'var(--muted)' }} />;
+  }
+
+  // --- Iconos que SÍ funcionan ---
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension)) {
+    return <FileImage size={size} style={{ color: '#48BB78' }} />;
+  }
+  if (['xls', 'xlsx', 'csv'].includes(extension)) {
+    return <FileSpreadsheet size={size} style={{ color: '#38A169' }} />;
+  }
+
+  // --- Otros ---
+  if (['zip', 'rar', '7z', 'tar'].includes(extension)) {
+    return <FileArchive size={size} style={{ color: '#4299E1' }} />;
+  }
+  
+  // Icono por defecto (genérico - FileText)
+  return <FileText size={size} />;
+};
 
 async function fetchAllRootDocuments(): Promise<RootDocumentItem[]> {
   // Esta llamada ahora usa la función SQL con UNION
@@ -105,7 +142,7 @@ export default function DocumentosList() {
           )}
           {canUpload && (
             <Link to="/app/documentos/subir">
-              <button>Subir Documento</button>
+              <button>Subir</button>
             </Link>
           )}
         </div>
@@ -143,24 +180,30 @@ export default function DocumentosList() {
                   <tr key={item.full_path}>
                     <td className={`file-item ${item.is_folder ? 'is-folder' : 'is-file'}`}>
                       {item.is_folder ? (
-                        <Link
-                          // --- (5) El enlace aquí cambia según el rol ---
-                          to={canSearch ? "/app/clientes/$id/documentos/$splat" : "/app/documentos-cliente/$splat"}
-                          params={canSearch 
-                            ? { id: item.cliente_id, splat: item.item_name }
-                            // En modo cliente, el ID de cliente no es necesario en los params
-                            : { splat: item.item_name } 
-                          }
-                        >
-                          <Folder size={20} />
-                          <span>{item.item_name}</span>
-                        </Link>
+                        canSearch ? (
+                          <Link
+                            to="/app/clientes/$id/documentos/$"
+                            params={{ id: item.cliente_id, _splat: item.item_name }}
+                          >
+                            <Folder size={20} />
+                            <span>{item.item_name}</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/app/documentos-cliente/$"
+                            params={{ _splat: item.item_name }}
+                          >
+                            <Folder size={20} />
+                            <span>{item.item_name}</span>
+                          </Link>
+                        )
                       ) : (
                         <div>
-                          <FileText size={20} />
+                          {getFileIcon(item.item_name)}
                           <span>{item.item_name}</span>
                         </div>
                       )}
+
                     </td>
                     <td>{item.cliente_nombre}</td>
                     <td style={{ textAlign: 'right' }}>

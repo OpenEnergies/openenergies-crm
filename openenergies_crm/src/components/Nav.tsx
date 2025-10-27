@@ -11,8 +11,8 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
 
   const navItems = [
     { to: '/app', label: 'Inicio', icon: Home, module: 'inicio' },
-    { to: '/app/empresas', label: 'Empresas', icon: Building, module: 'empresas' },
     { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
+    { to: '/app/empresas', label: 'Empresas', icon: Building, module: 'empresas' },
     { to: '/app/clientes', label: 'Clientes', icon: HardHat, module: 'clientes' },
     { to: '/app/puntos', label: 'Puntos', icon: FolderKanban, module: 'puntos' },
     { to: '/app/contratos', label: 'Contratos', icon: FileText, module: 'contratos' },

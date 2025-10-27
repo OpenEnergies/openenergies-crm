@@ -127,7 +127,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
   useEffect(() => {
     if (watchedEtiqueta && etiquetaColorMap[watchedEtiqueta]) {
       // --- CORRECTO: Check specific field ---
-      if (!dirtyFields.color) { 
+      if (!dirtyFields.color) {
       // --- FIN CORRECTO ---
          // Only update color automatically if the user hasn't manually changed it
          setValue('color', etiquetaColorMap[watchedEtiqueta], { shouldDirty: false });
@@ -249,15 +249,15 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
   }
 
   const openPicker = (e: React.MouseEvent<HTMLInputElement>) => {
-  try {
-    (e.currentTarget as HTMLInputElement).showPicker?.();
-  } catch {}
-};
+    try {
+      (e.currentTarget as HTMLInputElement).showPicker?.();
+    } catch {}
+  };
 
 
   return (
     <>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay agenda-modal" onClick={onClose}>
         <div className="modal-content agenda-modal" onClick={(e) => e.stopPropagation()}>
           <div className="card" style={{ padding: 0 }}>
             {/* --- Cabecera del Modal --- */}
@@ -276,138 +276,159 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
             </div>
 
             {/* --- Formulario --- */}
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
               {isLoadingEvento ? (
                 <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 className="animate-spin" /></div>
               ) : (
-                <div style={{ padding: '1.5rem', display: 'grid', gap: '1.5rem' }}>
-                  {/* --- Título --- */}
-                  <div className="input-icon-wrapper">
-                    <label htmlFor="titulo">Título</label>
-                    <input id="titulo" {...register('titulo')} />
-                    {errors.titulo && <span className="error-text">{errors.titulo.message}</span>}
-                  </div>
-
-                  {/* --- Fila: Etiqueta y Color --- */}
-                  <div className="form-row">
-                    <div>
-                      <label htmlFor="etiqueta">Etiqueta</label>
-                      <select id="etiqueta" {...register('etiqueta')}>
-                        {etiquetas.map((et) => (
-                          <option key={et} value={et}>{et}</option>
-                        ))}
-                      </select>
-                      {errors.etiqueta && <span className="error-text">{errors.etiqueta.message}</span>}
+                // --- DIV INTERMEDIO PARA SCROLL ---
+                <div style={{
+                    padding: '1rem',
+                    overflowY: 'auto', // Habilita scroll vertical
+                    flexGrow: 1 // Ocupa el espacio disponible
+                }}>
+                  <div style={{ display: 'grid', gap: '1rem' }}> {/* Mueve el grid aquí dentro */}
+                    {/* --- Título --- */}
+                    <div> {/* Envuelve el título en un div para mantener el grid */}
+                      <label htmlFor="titulo">Título</label>
+                      <input id="titulo" {...register('titulo')} />
+                      {errors.titulo && <span className="error-text">{errors.titulo.message}</span>}
                     </div>
-                    <div>
-                       <label>Color</label>
-                       {/* Input oculto para guardar el valor */}
-                       <input type="hidden" {...register('color')} />
-                       {/* Indicador visual del color */}
-                       <div style={{
-                         display: 'flex',
-                         alignItems: 'center',
-                         padding: '0.65rem 0.8rem',
-                         border: '1px solid var(--border-color)',
-                         borderRadius: '0.5rem',
-                         background: 'var(--bg-card)',
-                         height: '43px' // Misma altura que otros inputs
-                       }}>
-                         <span style={{
-                           width: '20px',
-                           height: '20px',
-                           borderRadius: '50%',
-                           backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc',
-                           display: 'inline-block',
-                           marginRight: '0.5rem'
-                         }}></span>
-                         <span style={{ color: 'var(--muted)' }}>
-                           {watchedEtiqueta ? `(${etiquetaColorMap[watchedEtiqueta]})` : ''}
-                         </span>
+
+                    {/* --- Fila: Etiqueta y Color --- */}
+                    <div className="form-row">
+                      <div>
+                        <label htmlFor="etiqueta">Etiqueta</label>
+                        <select id="etiqueta" {...register('etiqueta')}>
+                          {etiquetas.map((et) => (
+                            <option key={et} value={et}>{et}</option>
+                          ))}
+                        </select>
+                        {errors.etiqueta && <span className="error-text">{errors.etiqueta.message}</span>}
+                      </div>
+                      <div>
+                         <label>Color</label>
+                         {/* Input oculto para guardar el valor */}
+                         <input type="hidden" {...register('color')} />
+                         {/* Indicador visual del color */}
+                         <div style={{
+                           display: 'flex',
+                           alignItems: 'center',
+                           padding: '0.65rem 0.8rem',
+                           border: '1px solid var(--border-color)',
+                           borderRadius: '0.5rem',
+                           background: 'var(--bg-card)',
+                           height: '43px' // Misma altura que otros inputs
+                         }}>
+                           <span style={{
+                             width: '20px',
+                             height: '20px',
+                             borderRadius: '50%',
+                             backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc',
+                             display: 'inline-block',
+                             marginRight: '0.5rem'
+                           }}></span>
+                           <span style={{ color: 'var(--muted)' }}>
+                             {watchedEtiqueta ? `(${etiquetaColorMap[watchedEtiqueta]})` : ''}
+                           </span>
+                         </div>
+                         {errors.color && <span className="error-text">{errors.color.message}</span>}
                        </div>
-                       {errors.color && <span className="error-text">{errors.color.message}</span>}
-                     </div>
-                  </div>
+                    </div>
 
-                  {/* --- Fila: Fechas --- */}
-                  <div className="form-row"> {/* Div para dividir en 2 columnas */}
-                    {/* Input Fecha Inicio */}
-                    <div>
-                      <label htmlFor="fecha_inicio_fecha">Fecha Inicio</label>
-                      <input
-                        id="fecha_inicio_fecha"
-                        type="date" // <-- CAMBIO A 'date'
-                        {...register('fecha_inicio_fecha')} // <-- CAMBIO DE NOMBRE
-                        className="input-fecha" // Clase opcional
-                        onClick={openPicker}
-                      />
-                      {/* Mostrar error específico */}
-                      {errors.fecha_inicio_fecha && <span className="error-text">{errors.fecha_inicio_fecha.message}</span>}
+                    {/* --- Fila: Fechas Inicio --- */}
+                    <div className="form-row">
+                      {/* Input Fecha Inicio */}
+                      <div>
+                        <label htmlFor="fecha_inicio_fecha">Fecha Inicio</label>
+                        <input
+                          id="fecha_inicio_fecha"
+                          type="date" // <-- CAMBIO A 'date'
+                          {...register('fecha_inicio_fecha')} // <-- CAMBIO DE NOMBRE
+                          className="input-fecha" // Clase opcional
+                          onClick={openPicker}
+                        />
+                        {/* Mostrar error específico */}
+                        {errors.fecha_inicio_fecha && <span className="error-text">{errors.fecha_inicio_fecha.message}</span>}
+                      </div>
+                      {/* Input Hora Inicio */}
+                      <div>
+                        <label htmlFor="fecha_inicio_hora">Hora Inicio</label>
+                        <input
+                          id="fecha_inicio_hora"
+                          type="time" // <-- NUEVO INPUT 'time'
+                          step="900" // Opcional: intervalos de 15 min
+                          {...register('fecha_inicio_hora')} // <-- NUEVO REGISTRO
+                          className="input-hora" // Clase opcional
+                          onClick={openPicker}
+                        />
+                        {/* Mostrar error específico */}
+                        {errors.fecha_inicio_hora && <span className="error-text">{errors.fecha_inicio_hora.message}</span>}
+                      </div>
                     </div>
-                    {/* Input Hora Inicio */}
-                    <div>
-                      <label htmlFor="fecha_inicio_hora">Hora Inicio</label>
-                      <input
-                        id="fecha_inicio_hora"
-                        type="time" // <-- NUEVO INPUT 'time'
-                        step="900" // Opcional: intervalos de 15 min
-                        {...register('fecha_inicio_hora')} // <-- NUEVO REGISTRO
-                        className="input-hora" // Clase opcional
-                        onClick={openPicker}
-                      />
-                      {/* Mostrar error específico */}
-                      {errors.fecha_inicio_hora && <span className="error-text">{errors.fecha_inicio_hora.message}</span>}
+
+                    {/* --- Fila: Fechas Fin --- */}
+                    <div className="form-row">
+                       {/* Input Fecha Fin */}
+                       <div>
+                         <label htmlFor="fecha_fin_fecha">Fecha Fin (opcional)</label>
+                         <input
+                           id="fecha_fin_fecha"
+                           type="date" // <-- CAMBIO A 'date'
+                           {...register('fecha_fin_fecha')} // <-- CAMBIO DE NOMBRE
+                           className="input-fecha"
+                           onClick={openPicker}
+                         />
+                         {errors.fecha_fin_fecha && <span className="error-text">{errors.fecha_fin_fecha.message}</span>}
+                       </div>
+                       {/* Input Hora Fin */}
+                       <div>
+                         <label htmlFor="fecha_fin_hora">Hora Fin (opcional)</label>
+                         <input
+                           id="fecha_fin_hora"
+                           type="time" // <-- NUEVO INPUT 'time'
+                           step="900"
+                           {...register('fecha_fin_hora')} // <-- NUEVO REGISTRO
+                           className="input-hora"
+                           onClick={openPicker}
+                         />
+                         {/* Mostrar error específico */}
+                         {errors.fecha_fin_hora && <span className="error-text">{errors.fecha_fin_hora.message}</span>}
+                       </div>
                     </div>
                   </div>
-                  {/* --- (CAMBIO 8: JSX - Inputs separados para Fecha/Hora Fin) --- */}
-                  <div className="form-row"> {/* Otra fila para Fin */}
-                     {/* Input Fecha Fin */}
-                     <div>
-                       <label htmlFor="fecha_fin_fecha">Fecha Fin (opcional)</label>
-                       <input
-                         id="fecha_fin_fecha"
-                         type="date" // <-- CAMBIO A 'date'
-                         {...register('fecha_fin_fecha')} // <-- CAMBIO DE NOMBRE
-                         className="input-fecha"
-                         onClick={openPicker}
-                       />
-                       {errors.fecha_fin_fecha && <span className="error-text">{errors.fecha_fin_fecha.message}</span>}
-                     </div>
-                     {/* Input Hora Fin */}
-                     <div>
-                       <label htmlFor="fecha_fin_hora">Hora Fin (opcional)</label>
-                       <input
-                         id="fecha_fin_hora"
-                         type="time" // <-- NUEVO INPUT 'time'
-                         step="900"
-                         {...register('fecha_fin_hora')} // <-- NUEVO REGISTRO
-                         className="input-hora"
-                         onClick={openPicker}
-                       />
-                       {/* Mostrar error específico */}
-                       {errors.fecha_fin_hora && <span className="error-text">{errors.fecha_fin_hora.message}</span>}
-                     </div>
-                   </div>
                 </div>
+                // --- FIN DIV INTERMEDIO ---
               )}
 
-              {/* --- Pie del Modal (Botones) --- */}
-              <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={onClose}
-                  disabled={saveMutation.isPending}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!isDirty || saveMutation.isPending || isLoadingEvento}
-                >
-                  {saveMutation.isPending ? <Loader2 className="animate-spin" /> : 'Guardar'}
-                </button>
+              {/* --- Pie del Modal (Botones) - Fuera del div con scroll --- */}
+              {/* === INICIO SECCIÓN CORREGIDA === */}
+              <div style={{
+                  padding: '1rem',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '1rem',
+                  borderTop: '1px solid var(--border-color)',
+                  flexShrink: 0 // Evita que el footer se encoja
+                 }}>
+
+                  {/* Botones dentro del div */}
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={onClose}
+                    disabled={saveMutation.isPending}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!isDirty || saveMutation.isPending || isLoadingEvento}
+                  >
+                    {saveMutation.isPending ? <Loader2 className="animate-spin" /> : 'Guardar'}
+                  </button>
+
               </div>
+              {/* === FIN SECCIÓN CORREGIDA === */}
             </form>
           </div>
         </div>

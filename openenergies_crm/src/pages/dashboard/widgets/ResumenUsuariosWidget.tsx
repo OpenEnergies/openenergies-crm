@@ -84,7 +84,7 @@ export default function ResumenUsuariosWidget() {
 
       {/* Cuadrícula para las tarjetas KPI */}
       {!isLoading && !isError && counts && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '0.8rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.8rem' }}>
           <KpiCard title="Total Usuarios" value={counts.total} icon={Users} linkTo="/app/usuarios" />
           <KpiCard title="Activos" value={counts.activos} icon={UserCheck} linkTo="/app/usuarios" />
           <KpiCard title="Bloqueados" value={counts.bloqueados} icon={UserX} linkTo="/app/usuarios" />

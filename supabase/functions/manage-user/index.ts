@@ -63,21 +63,38 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
   let newAuthUser = null;
 
   // Se mantiene tu lógica original para crear el usuario en el sistema de autenticación de Supabase.
-  if (creationType === 'invite') {
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
-    if (error) throw error;
-    newAuthUser = data.user;
-  } else if (creationType === 'create_with_password') {
-    if (!password) {
-      throw new Error('La contraseña es obligatoria para este método de creación');
+  try {
+    // --- 👇 Envuelve la creación/invitación en try...catch ---
+    if (creationType === 'invite') {
+      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+      if (error) throw error; // Lanza el error para ser capturado abajo
+      newAuthUser = data.user;
+    } else if (creationType === 'create_with_password') {
+      if (!password) {
+        throw new Error('La contraseña es obligatoria para este método de creación');
+      }
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true // Asume confirmado ya que lo crea un admin
+      });
+      if (error) throw error; // Lanza el error para ser capturado abajo
+      newAuthUser = data.user;
     }
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
-    if (error) throw error;
-    newAuthUser = data.user;
+  // --- Fin try...catch ---
+  } catch (error) {
+    // --- 👇 Captura y verifica el error específico ---
+    // Supabase a veces usa 'User already registered' o similar, comprobamos ambos
+    const message = error.message.toLowerCase();
+    if (message.includes('user already registered') || message.includes('email address has already been registered')) {
+      // Si el email ya existe, lanza un error específico y claro
+      throw new Error(`Ya existe un usuario registrado con el email ${email}.`);
+    } else {
+      // Si es otro error de Auth, lo relanzamos
+      console.error("Error inesperado en Auth:", error); // Loguea el error completo
+      throw new Error(`Error al crear usuario en Auth: ${error.message}`); // Lanza un error más genérico pero informativo
+    }
+  // --- Fin verificación ---
   }
 
   if (!newAuthUser) {

@@ -56,7 +56,7 @@ export default function ForceChangePassword() {
 
     } catch (e: any) {
       console.error("Error al actualizar contraseña:", e);
-      toast.error(`Error al actualizar la contraseña: ${e.message}`);
+      toast.error(`Error al actualizar la contraseña: La contraseña debe tener al menos 8 caracteres, que incluyan al menos 1 letra mayúscula, 1 minúscula, 1 número y 1 carácter especial.`); // Mensaje genérico
     }
   }
 

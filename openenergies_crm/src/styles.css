@@ -55,6 +55,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  /*background: linear-gradient(to bottom right, var(--primary-light), var(--secondary));*/
 }
 
 .sidebar {
@@ -63,6 +64,7 @@ body {
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color); /* Borde inferior en móvil */
   padding: 1rem;
+  /*background: linear-gradient(to bottom right, var(--primary-light), var(--secondary));*/
 }
 
 .main-content {
@@ -95,7 +97,6 @@ body {
     width: 260px; /* Ancho fijo para la barra lateral */
     height: 100vh; /* Ocupa toda la altura */
     border-bottom: none; /* Quitamos el borde inferior */
-    border-right: 1px solid var(--border-color); /* Ponemos borde derecho */
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-x: hidden;
   }
@@ -329,7 +330,6 @@ button.danger:hover {
 
 .main-nav {
   flex-grow: 1; /* Ocupa el espacio disponible en la barra lateral */
-  
   text-decoration: none;
 }
 
@@ -2091,4 +2091,85 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   height: 100%; /* Si la tarjeta es el contenedor directo del widget */
   display: flex; /* Si quieres que el contenido interno se estire */
   flex-direction: column;
+}
+
+/* ===================================== */
+/* --- Login Page Enhancements --- */
+/* ===================================== */
+
+.login-page-background {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  /* --- Imagen de Fondo (Ajusta la URL) --- 
+  background-image: url('/backgrounds/login-bg.jpg');  ¡CAMBIA ESTA RUTA! */
+  background: linear-gradient(to bottom right, var(--primary-light), var(--secondary)); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative; /* Necesario para el overlay */
+}
+
+/* --- Overlay Opcional (para mejorar contraste texto/fondo) --- */
+/* Descomenta si la imagen de fondo hace difícil leer el texto */
+/*
+.login-page-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3); *//* Overlay oscuro */
+  /* background-color: rgba(255, 255, 255, 0.6); *//* Overlay claro */
+/* z-index: 1;
+}
+*/
+
+.login-card {
+  max-width: 420px;
+  width: 100%;
+  position: relative; /* Para estar por encima del overlay */
+  z-index: 2;
+  padding: 3rem 2rem; /* Más padding vertical */
+  background-color: var(--bg-card); /* Asegura fondo blanco */
+  border: 1px solid var(--border-color); /* Borde sutil */
+  border-radius: 0.75rem; /* Bordes redondeados */
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1); /* Sombra */
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem; /* Espacio entre icono y texto */
+  color: var(--primary); /* Color del logo (verde) */
+  margin-bottom: 1.5rem; /* Espacio debajo del logo */
+  font-size: 1.5rem; /* Tamaño del texto del logo */
+  font-weight: 600; /* Peso del texto */
+}
+
+.login-form .grid {
+  gap: 1.25rem; /* Espacio entre campos del formulario */
+}
+
+.login-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: -0.5rem; /* Ajuste para acercar al título */
+  margin-bottom: 1.5rem; /* Espacio antes del formulario */
+  text-align: center;
+  line-height: 1.4;
+}
+
+.login-submit-button {
+  width: 100%; /* Botón a todo lo ancho */
+  padding: 0.8rem 1rem; /* Botón un poco más grande */
+  margin-top: 0.5rem; /* Espacio encima del botón */
+}
+
+/* Hereda el estilo de error-text global si ya existe */
+.error-text {
+  color: #DC2626; /* Rojo */
+  font-size: 0.8rem;
+  margin-top: 0.25rem; /* Espacio sobre el mensaje de error */
 }

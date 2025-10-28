@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { Leaf, Lock } from 'lucide-react';
+
 
 const schema = z.object({
   password: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
@@ -20,8 +22,7 @@ type FormData = z.infer<typeof schema>;
 export default function ForceChangePassword() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema), mode: 'onTouched' });
   async function onSubmit({ password }: FormData) {
     try {
       // 1. Actualizar la contraseña en Supabase Auth
@@ -60,26 +61,70 @@ export default function ForceChangePassword() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: 'var(--bg)' }}>
-      <div className="card" style={{ maxWidth: 420, width: '100%' }}>
-        <h1 style={{ marginTop: 0 }}>Actualiza tu contraseña</h1>
-        <p style={{ color: 'var(--muted)' }}>Por seguridad, debes establecer una nueva contraseña personal para poder acceder al sistema.</p>
-        <form onSubmit={handleSubmit(onSubmit)} className="grid" style={{ gap: '1rem' }}>
+    // --- 👇 Aplicamos la misma clase de fondo que el Login ---
+    <main className="login-page-background">
+      {/* --- 👇 Usamos la misma clase de tarjeta que el Login --- */}
+      <div className="card login-card" aria-labelledby="change-password-title">
+
+        {/* --- Logo (igual que en Login) --- */}
+        <div className="login-logo">
+          <Leaf size={30} />
+          <span>Open Energies CRM</span>
+        </div>
+
+        <h1 id="change-password-title" style={{ marginTop: 0, textAlign: 'center', fontSize: '1.8rem' }}>Actualiza tu contraseña</h1>
+        <p className="login-hint">
+          Por seguridad, necesitas establecer una nueva contraseña personal para acceder.
+        </p>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="grid login-form" aria-describedby="change-password-hint">
           <div>
             <label htmlFor="password">Nueva Contraseña</label>
-            <input id="password" type="password" {...register('password')} />
-            {errors.password && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.password.message}</p>}
+            {/* --- Input con icono --- */}
+            <div className="input-icon-wrapper">
+              <Lock size={18} className="input-icon" />
+              <input
+                 id="password"
+                 type="password"
+                 {...register('password')}
+                 aria-invalid={!!errors.password}
+                 placeholder="Introduce 8+ caracteres" // Placeholder
+               />
+            </div>
+            {errors.password && <p className="error-text">{errors.password.message}</p>}
           </div>
+
           <div>
             <label htmlFor="confirmPassword">Confirmar Nueva Contraseña</label>
-            <input id="confirmPassword" type="password" {...register('confirmPassword')} />
-            {errors.confirmPassword && <p style={{ color: 'red', fontSize: '0.8rem' }}>{errors.confirmPassword.message}</p>}
+             {/* --- Input con icono --- */}
+            <div className="input-icon-wrapper">
+              <Lock size={18} className="input-icon" />
+              <input
+                 id="confirmPassword"
+                 type="password"
+                 {...register('confirmPassword')}
+                 aria-invalid={!!errors.confirmPassword}
+                 placeholder="Repite la contraseña" // Placeholder
+               />
+            </div>
+            {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
           </div>
+
+          {/* Hint para lectores de pantalla */}
+          <div id="change-password-hint" className="sr-only">Introduce y confirma tu nueva contraseña. Mínimo 8 caracteres.</div>
+
           <div>
-            <button disabled={isSubmitting}>{isSubmitting ? 'Actualizando...' : 'Actualizar y Entrar'}</button>
+            {/* --- Botón mejorado (misma clase que Login) --- */}
+            <button
+               type="submit"
+               disabled={isSubmitting}
+               className="login-submit-button"
+            >
+              {isSubmitting ? 'Actualizando...' : 'Actualizar y Entrar'}
+            </button>
           </div>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

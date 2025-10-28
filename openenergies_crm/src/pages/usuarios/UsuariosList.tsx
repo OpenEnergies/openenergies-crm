@@ -11,9 +11,12 @@ import { toast } from 'react-hot-toast';
 import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil, UserRoundPlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal'; // Ajusta la ruta si es necesario
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
+import { useSortableTable } from '@hooks/useSortableTable';
 
 // Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
+// Usamos keyof UsuarioConEmpresa para las claves reales y añadimos las virtuales
+type SortableUserKey = keyof UsuarioConEmpresa | 'nombre_completo' | 'empresa_nombre';
 
 const initialColumnFilters = {
   rol: [] as string[],
@@ -104,7 +107,8 @@ export default function UsuariosList() {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  const displayedData = useMemo(() => {
+  // --- 👇 2. Filtra primero los datos ---
+  const filteredData = useMemo(() => {
     if (!fetchedData) return [];
     return fetchedData.filter(item => {
       return (
@@ -112,6 +116,22 @@ export default function UsuariosList() {
       );
     });
   }, [fetchedData, columnFilters]);
+
+  // --- 👇 3. Usa el hook useSortableTable con los datos filtrados ---
+  const {
+    sortedData: displayedData,
+    handleSort,
+    renderSortIcon
+    // --- 👇 Tipamos el hook explícitamente con las claves posibles ---
+  } = useSortableTable<UsuarioConEmpresa>(filteredData, {
+    // ---------------------------------------------------------------
+    sortValueAccessors: {
+      // --- 👇 2. TIPOS EXPLÍCITOS para 'item' ---
+      nombre_completo: (item: UsuarioConEmpresa) => `${item.nombre ?? ''} ${item.apellidos ?? ''}`.trim(),
+      empresa_nombre: (item: UsuarioConEmpresa) => item.empresas?.nombre,
+      // -------------------------------------------
+    } as unknown as Partial<Record<string, (item: UsuarioConEmpresa) => any>>
+  });
 
   const isFiltered = columnFilters.rol.length > 0;
 
@@ -138,10 +158,18 @@ export default function UsuariosList() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Email</th>
+                  <th>{/* Usa la clave 'nombre_completo' definida en los accessors */}
+                    <button onClick={() => handleSort('nombre_completo' as unknown as any)} className="sortable-header">
+                      Nombre {renderSortIcon('nombre_completo' as unknown as any)}
+                    </button></th>
                   <th>
-                    Rol
+                    <button onClick={() => handleSort('email' as unknown as any)} className="sortable-header">
+                      Email {renderSortIcon('email' as unknown as any)}
+                    </button></th>
+                  <th>
+                    <button onClick={() => handleSort('rol' as unknown as any)} className="sortable-header">
+                       Rol {renderSortIcon('rol' as unknown as any)}
+                     </button>
                     <ColumnFilterDropdown
                       columnName="Rol"
                       options={filterOptions.rol}
@@ -149,8 +177,16 @@ export default function UsuariosList() {
                       onChange={(selected) => handleColumnFilterChange('rol', selected as string[])}
                     />
                   </th>
-                  <th>Empresa</th>
-                  <th>Estado</th>
+                  <th>
+                    <button onClick={() => handleSort('empresa_nombre' as unknown as any)} className="sortable-header">
+                       Empresa {renderSortIcon('empresa_nombre' as unknown as any)}
+                     </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('activo')} className="sortable-header">
+                       Estado {renderSortIcon('activo')}
+                     </button>
+                  </th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>

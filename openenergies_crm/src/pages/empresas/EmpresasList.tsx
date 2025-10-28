@@ -6,6 +6,10 @@ import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { Pencil, HousePlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useSortableTable } from '@hooks/useSortableTable';
+
+//    En este caso, coinciden con las claves del tipo Empresa
+type SortableEmpresaKey = keyof Empresa;
 
 async function fetchEmpresas() {
   const { data, error } = await supabase
@@ -18,7 +22,18 @@ async function fetchEmpresas() {
 }
 
 export default function EmpresasList() {
-  const { data, isLoading, isError } = useQuery({ queryKey: ['empresas'], queryFn: fetchEmpresas });
+  const { data: fetchedData, isLoading, isError } = useQuery({ queryKey: ['empresas'], queryFn: fetchEmpresas });
+
+  // --- 👇 3. Usa el hook ---
+  const {
+    sortedData: displayedData,
+    handleSort,
+    renderSortIcon
+    // Podemos pasar una configuración inicial si queremos
+  } = useSortableTable<Empresa>(fetchedData, {
+      initialSortKey: 'nombre', // Ordenar por nombre por defecto
+      initialSortDirection: 'asc'
+  });
 
   return (
     <div className="grid">
@@ -34,7 +49,7 @@ export default function EmpresasList() {
         {isLoading && <div>Cargando...</div>}
         {isError && <div role="alert">Error al cargar las empresas.</div>}
 
-        {data && data.length === 0 && !isLoading && (
+        {fetchedData && fetchedData.length === 0 && !isLoading && (
           <EmptyState 
             title="Sin empresas" 
             description="Aún no hay empresas colaboradoras registradas."
@@ -42,20 +57,36 @@ export default function EmpresasList() {
           />
         )}
 
-        {data && data.length > 0 && (
+        {fetchedData && fetchedData.length > 0 && (
           <div className="table-wrapper">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>CIF</th>
-                  <th>Tipo</th>
-                  <th>Creada en</th>
+                  <th>
+                    <button onClick={() => handleSort('nombre')} className="sortable-header">
+                      Nombre {renderSortIcon('nombre')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('cif')} className="sortable-header">
+                      CIF {renderSortIcon('cif')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('tipo')} className="sortable-header">
+                      Tipo {renderSortIcon('tipo')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('creada_en')} className="sortable-header">
+                      Creada en {renderSortIcon('creada_en')}
+                    </button>
+                  </th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map(e => (
+                {displayedData.map(e => (
                   <tr key={e.id}>
                     <td>{e.nombre}</td>
                     <td>{e.cif ?? '—'}</td>

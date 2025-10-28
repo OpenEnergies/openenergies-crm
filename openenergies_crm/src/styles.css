@@ -2175,3 +2175,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 0.8rem;
   margin-top: 0.25rem; /* Espacio sobre el mensaje de error */
 }
+
+.sortable-header {
+  background: transparent;
+  border: none;
+  padding: 0; /* Quita padding del botón */
+  margin: 0;
+  font: inherit; /* Hereda fuente del th */
+  color: inherit; /* Hereda color del th */
+  cursor: pointer;
+  display: inline-flex; /* Alinea texto e icono */
+  align-items: center;
+  gap: 0.25rem; /* Espacio entre texto e icono */
+  text-transform: inherit; /* Hereda mayúsculas/minúsculas */
+  white-space: nowrap; /* Evita que el texto se rompa */
+}
+
+.sortable-header:hover {
+  background-color: transparent; /* Color verde al pasar ratón */
+}

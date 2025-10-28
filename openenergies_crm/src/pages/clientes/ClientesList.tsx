@@ -10,6 +10,7 @@ import { useSession } from '@hooks/useSession';
 import { Pencil, MapPin, Building2, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
+import { useSortableTable } from '@hooks/useSortableTable';
 
 type ClienteConEmpresa = Cliente & {
   empresas: {
@@ -17,6 +18,8 @@ type ClienteConEmpresa = Cliente & {
   } | null;
   estado: EstadoCliente;
 };
+
+type SortableClienteKey = keyof ClienteConEmpresa | 'empresa_nombre' | 'dni_cif';
 
 const initialColumnFilters = {
   estado: [] as string[],
@@ -57,7 +60,11 @@ export default function ClientesList(){
   const [clienteToDelete, setClienteToDelete] = useState<ClienteConEmpresa | null>(null);
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
 
-  const { data, isLoading, isError } = useQuery({ queryKey:['clientes', filter], queryFn:()=>fetchClientes(filter) });
+  // --- Query original (fetchClientes) ---
+  const { data: fetchedData, isLoading, isError } = useQuery({
+      queryKey:['clientes', filter],
+      queryFn:()=>fetchClientes(filter)
+  });
   
   const deleteMutation = useMutation({
     mutationFn: deleteCliente,
@@ -82,15 +89,52 @@ export default function ClientesList(){
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  const displayedData = useMemo(() => {
-    if (!data) return [];
-    return data.filter(item => {
-      const estadoItem = item.estado || 'stand by'; // Fallback
+  // --- 👇 3. Filtra primero por columna (Estado) y por texto ---
+  const filteredData = useMemo(() => {
+    if (!fetchedData) return [];
+    // Filtro de texto general
+    let items = fetchedData;
+    if (filter) {
+        // La función RPC 'search_clientes' ya filtra por texto si 'filter' tiene valor,
+        // pero si quisiéramos filtrar en cliente además:
+        // items = items.filter(item =>
+        //    item.nombre.toLowerCase().includes(filter.toLowerCase()) ||
+        //    (item.dni && item.dni.toLowerCase().includes(filter.toLowerCase())) ||
+        //    (item.cif && item.cif.toLowerCase().includes(filter.toLowerCase())) ||
+        //    (item.empresas?.nombre && item.empresas.nombre.toLowerCase().includes(filter.toLowerCase()))
+        // );
+    }
+
+    // Filtro de columna 'estado'
+    return items.filter(item => {
+      const estadoItem = item.estado || 'stand by';
       return (
         (columnFilters.estado.length === 0 || columnFilters.estado.includes(estadoItem))
       );
     });
-  }, [data, columnFilters]); 
+  // Depende de fetchedData Y de columnFilters
+  }, [fetchedData, columnFilters, filter]); // Añadido filter a dependencias
+  // -----------------------------------------------------------------
+
+  // --- 👇 4. Usa el hook useSortableTable con los datos filtrados ---
+  const {
+      sortedData: displayedData,
+      handleSort,
+      renderSortIcon
+  } = useSortableTable<ClienteConEmpresa, SortableClienteKey>(filteredData, {
+      initialSortKey: 'creado_en', // Orden inicial por fecha de creación descendente
+      initialSortDirection: 'desc',
+      sortValueAccessors: {
+          // Clave virtual para ordenar por nombre de empresa
+          empresa_nombre: (item) => item.empresas?.nombre,
+          // Clave virtual para DNI/CIF (considera nulls)
+          dni_cif: (item) => item.dni || item.cif,
+          // Accesor explícito para nombre (ya maneja toLowerCase el hook)
+          nombre: (item) => item.nombre,
+          // Accesor para email (maneja nulls)
+          email_facturacion: (item) => item.email_facturacion,
+      }
+  }); 
 
   const canDelete = rol === 'administrador';
   const canEdit = rol === 'administrador' || rol === 'comercial';
@@ -115,7 +159,7 @@ export default function ClientesList(){
         {isLoading && <div>Cargando...</div>}
         {isError && <div role="alert">Error al cargar clientes.</div>}
 
-        {!isLoading && !isError && data && data.length === 0 && !isFiltered && (
+        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && (
           <EmptyState 
             title="Sin clientes" 
             description="Aún no hay clientes registrados."
@@ -123,18 +167,40 @@ export default function ClientesList(){
           />
         )}
 
-        {!isLoading && !isError && data && data.length > 0 && (
+        {!isLoading && !isError && fetchedData && fetchedData.length > 0 && (
           <div className="table-wrapper" role="table" aria-label="Listado de clientes">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Empresa</th>
-                  <th>DNI/CIF</th>
-                  <th>Email facturación</th>
-                  <th>Creado</th>
                   <th>
-                    Estado
+                    <button onClick={() => handleSort('nombre')} className="sortable-header">
+                      Nombre {renderSortIcon('nombre')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('empresa_nombre')} className="sortable-header">
+                      Empresa {renderSortIcon('empresa_nombre')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('dni_cif')} className="sortable-header">
+                      DNI/CIF {renderSortIcon('dni_cif')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
+                      Email facturación {renderSortIcon('email_facturacion')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('creado_en')} className="sortable-header">
+                      Creado {renderSortIcon('creado_en')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('estado')} className="sortable-header">
+                      Estado {renderSortIcon('estado')}
+                    </button>
                     <ColumnFilterDropdown
                       columnName="Estado"
                       options={filterOptions.estado}

@@ -11,11 +11,15 @@ import { toast } from 'react-hot-toast';
 import { fmtDate } from '@lib/utils';
 import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
+import { useSortableTable } from '@hooks/useSortableTable';
 
 type ContratoExtendido = Contrato & {
   puntos_suministro: { cups: string; direccion: string; clientes: { nombre: string } | null; } | null;
   empresas: { nombre: string } | null;
 };
+
+// Incluye claves reales y virtuales para datos anidados
+type SortableContratoKey = keyof ContratoExtendido | 'cups' | 'comercializadora_nombre';
 
 const initialColumnFilters = {
   fecha_inicio: { year: null, month: null, day: null } as DateParts,
@@ -61,12 +65,22 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
     };
   }, [fetchedData]);
   
-  const displayedData = useMemo(() => {
+  
+  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[] | DateParts) => {
+    setColumnFilters(prev => ({ ...prev, [column]: selected }));
+  };
+
+  // --- 👇 3. Filtra primero (por texto RPC y columnas) ---
+  const filteredData = useMemo(() => {
     if (!fetchedData) return [];
+    // El filtro de texto ya se aplica en la RPC 'fetchContratos' si 'filter' tiene valor.
+    // Aplicamos solo los filtros de columna aquí.
     return fetchedData.filter(item => {
       const inicio = item.fecha_inicio ? new Date(item.fecha_inicio) : null;
       const fin = item.fecha_fin ? new Date(item.fecha_fin) : null;
+      // Convertimos el booleano a 'Sí'/'No' para coincidir con las opciones del dropdown
       const formattedAviso = item.aviso_renovacion ? 'Sí' : 'No';
+
       const checkDate = (date: Date | null, filter: DateParts) => {
           if (!date) return !filter.year && !filter.month && !filter.day;
           if (filter.year && date.getFullYear().toString() !== filter.year) return false;
@@ -77,14 +91,12 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
       return (
         checkDate(inicio, columnFilters.fecha_inicio) &&
         checkDate(fin, columnFilters.fecha_fin) &&
+        // Comparamos el valor formateado con las opciones seleccionadas
         (columnFilters.aviso_renovacion.length === 0 || columnFilters.aviso_renovacion.includes(formattedAviso))
       );
     });
+  // Depende de fetchedData Y columnFilters
   }, [fetchedData, columnFilters]);
-  
-  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[] | DateParts) => {
-    setColumnFilters(prev => ({ ...prev, [column]: selected }));
-  };
   
   const [contratoToDelete, setContratoToDelete] = useState<ContratoExtendido | null>(null);
   const deleteContratoMutation = useMutation({
@@ -102,6 +114,26 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
       setContratoToDelete(null);
     },
   });
+
+  // --- 👇 4. Usa el hook useSortableTable ---
+    const {
+        sortedData: displayedData,
+        handleSort,
+        renderSortIcon
+    } = useSortableTable<ContratoExtendido>(filteredData, {
+        initialSortKey: 'fecha_inicio', // Orden inicial por fecha de inicio descendente
+        initialSortDirection: 'desc',
+        sortValueAccessors: {
+            // Usamos las claves de propiedad permitidas y devolvemos los valores anidados necesarios
+            puntos_suministro: (item) => item.puntos_suministro?.cups,
+            empresas: (item) => item.empresas?.nombre,
+            // Accessors explícitos para manejar nulls/tipos
+            oferta: (item) => item.oferta,
+            fecha_inicio: (item) => item.fecha_inicio ? new Date(item.fecha_inicio) : null, // Convertir a Date para ordenar
+            fecha_fin: (item) => item.fecha_fin ? new Date(item.fecha_fin) : null,     // Convertir a Date para ordenar
+            aviso_renovacion: (item) => item.aviso_renovacion, // Ordenar por booleano
+        }
+    });
 
   const isFiltered = filter.length > 0 ||
                      columnFilters.fecha_inicio.year !== null ||
@@ -147,11 +179,25 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
             <table className="table">
               <thead>
                 <tr>
-                  <th>CUPS</th>
-                  <th>Comercializadora</th>
-                  <th>Oferta</th>
                   <th>
-                    Inicio
+                    <button onClick={() => handleSort('puntos_suministro')} className="sortable-header">
+                      CUPS {renderSortIcon('puntos_suministro')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('empresas')} className="sortable-header">
+                      Comercializadora {renderSortIcon('empresas')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('oferta')} className="sortable-header">
+                      Oferta {renderSortIcon('oferta')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">
+                      Inicio {renderSortIcon('fecha_inicio')}
+                    </button>
                     <DateFilterDropdown
                       columnName="Fecha Inicio"
                       options={filterOptions.fecha_inicio}
@@ -160,7 +206,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
                     />
                   </th>
                   <th>
-                    Fin
+                    <button onClick={() => handleSort('fecha_fin')} className="sortable-header">
+                      Fin {renderSortIcon('fecha_fin')}
+                    </button>
                     <DateFilterDropdown
                       columnName="Fecha Fin"
                       options={filterOptions.fecha_fin}
@@ -169,7 +217,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
                     />
                   </th>
                   <th>
-                    Aviso
+                    <button onClick={() => handleSort('aviso_renovacion')} className="sortable-header">
+                      Aviso {renderSortIcon('aviso_renovacion')}
+                    </button>
                     <ColumnFilterDropdown
                       columnName="Aviso"
                       options={filterOptions.aviso_renovacion}

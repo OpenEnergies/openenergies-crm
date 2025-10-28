@@ -7,6 +7,7 @@ import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { fmtDate } from '@lib/utils';
 import { CalendarCheck } from 'lucide-react'; // Icono para el botón de reiniciar
+import { useSortableTable } from '@hooks/useSortableTable';
 
 // Tipos (igual que en ContratosList)
 type ContratoExtendido = Contrato & {
@@ -17,6 +18,9 @@ type ContratoExtendido = Contrato & {
   } | null;
   empresas: { nombre: string } | null;
 };
+
+type SortableRenovacionKey = keyof ContratoExtendido | 'cups' | 'comercializadora_nombre';
+
 const initialColumnFilters = {
   fecha_inicio: { year: null, month: null, day: null } as DateParts,
   fecha_fin: { year: null, month: null, day: null } as DateParts,
@@ -80,8 +84,6 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
   const { data: fetchedData, isLoading, isError } = useQuery({
       queryKey: ['renovaciones', filter, daysToExpiry],
       queryFn: () => fetchRenovaciones(filter, daysToExpiry),
-      // Deshabilitamos re-fetch en foco para que no pida los datos de nuevo
-      // si el usuario solo cambia de pestaña.
       refetchOnWindowFocus: false,
   });
 
@@ -98,18 +100,29 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
     };
   }, [fetchedData]);
 
-  const displayedData = useMemo(() => {
+  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[] | DateParts) => {
+    setColumnFilters(prev => ({ ...prev, [column]: selected }));
+  };
+
+  // --- 👇 3. Filtra por columnas (igual que ContratosList) ---
+  const filteredData = useMemo(() => {
     if (!fetchedData) return [];
+    // El filtro de texto ya lo hace la query fetchRenovaciones
+    // Aplicamos filtros de columna
     return fetchedData.filter(item => {
       const inicio = item.fecha_inicio ? new Date(item.fecha_inicio) : null;
       const fin = item.fecha_fin ? new Date(item.fecha_fin) : null;
       const formattedAviso = item.aviso_renovacion ? 'Sí' : 'No';
       const checkDate = (date: Date | null, filter: DateParts) => {
-          if (!date) return !filter.year && !filter.month && !filter.day;
-          if (filter.year && date.getFullYear().toString() !== filter.year) return false;
-          if (filter.month && (date.getMonth() + 1).toString().padStart(2, '0') !== filter.month) return false;
-          if (filter.day && date.getDate().toString().padStart(2, '0') !== filter.day) return false;
-          return true;
+        // Si no hay filtros aplicados, aceptar cualquier fecha
+        if (!filter || (filter.year === null && filter.month === null && filter.day === null)) return true;
+        // Si hay filtro pero el valor es nulo, no coincide
+        if (!date) return false;
+        // Comparaciones por partes (si están definidas)
+        if (filter.year !== null && date.getFullYear() !== Number(filter.year)) return false;
+        if (filter.month !== null && (date.getMonth() + 1) !== Number(filter.month)) return false;
+        if (filter.day !== null && date.getDate() !== Number(filter.day)) return false;
+        return true;
       };
       return (
         checkDate(inicio, columnFilters.fecha_inicio) &&
@@ -118,10 +131,28 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
       );
     });
   }, [fetchedData, columnFilters]);
+  // --------------------------------------------------------
 
-  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[] | DateParts) => {
-    setColumnFilters(prev => ({ ...prev, [column]: selected }));
-  };
+  // --- 👇 4. Usa el hook useSortableTable (igual que ContratosList) ---
+  const {
+      sortedData: displayedData,
+      handleSort,
+      renderSortIcon
+  } = useSortableTable(filteredData, {
+      initialSortKey: 'fecha_fin', // Orden inicial por fecha de fin ASCENDENTE
+      initialSortDirection: 'asc', // <-- Cambiado a 'asc'
+      sortValueAccessors: {
+          // Use the relation keys allowed by the hook's type definitions.
+          // Return the comparable value (CUPS string or null).
+          puntos_suministro: (item) => item.puntos_suministro?.cups ?? null,
+          // Use empresas to access comercializadora nombre.
+          empresas: (item) => item.empresas?.nombre ?? null,
+          oferta: (item) => item.oferta,
+          fecha_inicio: (item) => item.fecha_inicio ? new Date(item.fecha_inicio) : null,
+          fecha_fin: (item) => item.fecha_fin ? new Date(item.fecha_fin) : null,
+          aviso_renovacion: (item) => item.aviso_renovacion,
+      }
+  });
   
   return (
     <div className="grid">
@@ -141,16 +172,30 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
         {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>}
         {isError && <div role="alert" style={{ padding: '2rem', textAlign: 'center' }}>Error al cargar contratos.</div>}
 
-        {displayedData && displayedData.length > 0 && (
+        {fetchedData && fetchedData.length > 0 && (
           <div className="table-wrapper" style={{overflow: 'visible'}}>
             <table className="table">
               <thead>
                 <tr>
-                  <th>CUPS</th>
-                  <th>Comercializadora</th>
-                  <th>Oferta</th>
                   <th>
-                    Inicio
+                    <button onClick={() => handleSort('puntos_suministro')} className="sortable-header">
+                      CUPS {renderSortIcon('puntos_suministro')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('empresas')} className="sortable-header">
+                      Comercializadora {renderSortIcon('empresas')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('oferta')} className="sortable-header">
+                      Oferta {renderSortIcon('oferta')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">
+                      Inicio {renderSortIcon('fecha_inicio')}
+                    </button>
                     <DateFilterDropdown
                       columnName="Fecha Inicio"
                       options={filterOptions.fecha_inicio}
@@ -159,7 +204,9 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
                     />
                   </th>
                   <th>
-                    Fin
+                    <button onClick={() => handleSort('fecha_fin')} className="sortable-header">
+                      Fin {renderSortIcon('fecha_fin')}
+                    </button>
                     <DateFilterDropdown
                       columnName="Fecha Fin"
                       options={filterOptions.fecha_fin}
@@ -168,7 +215,9 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
                     />
                   </th>
                   <th>
-                    Aviso
+                    <button onClick={() => handleSort('aviso_renovacion')} className="sortable-header">
+                      Aviso {renderSortIcon('aviso_renovacion')}
+                    </button>
                     <ColumnFilterDropdown
                       columnName="Aviso"
                       options={filterOptions.aviso_renovacion}

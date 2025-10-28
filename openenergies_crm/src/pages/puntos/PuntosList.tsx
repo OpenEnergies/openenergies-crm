@@ -2,19 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useState, useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
-import type { PuntoSuministro } from '@lib/types';
+import type { PuntoSuministro, TipoFactura } from '@lib/types';
 import { Pencil, Trash2, MapPinPlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { toast } from 'react-hot-toast';
 import { EmptyState } from '@components/EmptyState';
+import { useSortableTable } from '@hooks/useSortableTable';
 
-type PuntoConCliente = PuntoSuministro & {
+
+type PuntoConCliente = Omit<PuntoSuministro, 'localidad' | 'provincia' | 'tipo_factura'> & {
   localidad?: string | null;
   provincia?: string | null;
-  tipo_factura?: 'Luz' | 'Gas' | null;
-  clientes: { nombre: string } | null
+  tipo_factura?: TipoFactura | null; // Usar el tipo importado
+  clientes: { nombre: string } | null;
 };
+
+// Incluimos claves reales y 'cliente_nombre' como virtual
+type SortablePuntoKey = keyof PuntoConCliente | 'cliente_nombre';
 
 const initialColumnFilters = {
   localidad: [] as string[],
@@ -40,9 +45,9 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const queryClient = useQueryClient();
-  const { data: fetchedData, isLoading, isError } = useQuery({ 
-    queryKey: ['puntos', filter, clienteId], 
-    queryFn: () => fetchPuntos(filter, clienteId) 
+  const { data: fetchedData, isLoading, isError } = useQuery({
+    queryKey: ['puntos', filter, clienteId],
+    queryFn: () => fetchPuntos(filter, clienteId)
   });
 
   const filterOptions = useMemo(() => {
@@ -56,18 +61,34 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
       tarifa_acceso: getUnique('tarifa_acceso'),
     };
   }, [fetchedData]);
-  
-  const displayedData = useMemo(() => {
+
+  // --- 👇 3. Filtra primero por columna ---
+  const filteredData = useMemo(() => {
     if (!fetchedData) return [];
-    return fetchedData.filter(item => {
+    // Aplicamos también el filtro de texto general si existe
+    let items = fetchedData;
+    if (filter && !clienteId) { // Solo filtramos texto si no estamos en la vista de un cliente específico
+        // La función RPC ya filtra si 'filter' tiene valor, esto sería redundante
+        // a menos que la RPC no funcione como esperamos.
+    }
+
+    // Aplicamos filtros de columna
+    return items.filter(item => {
+      // Usamos '?? null' para asegurar que comparamos null si el valor no existe
+      const localidad = item.localidad ?? null;
+      const provincia = item.provincia ?? null;
+      const tipoFactura = item.tipo_factura ?? null;
+      const tarifaAcceso = item.tarifa_acceso ?? null;
+
       return (
-        (columnFilters.localidad.length === 0 || columnFilters.localidad.includes(item.localidad!)) &&
-        (columnFilters.provincia.length === 0 || columnFilters.provincia.includes(item.provincia!)) &&
-        (columnFilters.tipo_factura.length === 0 || columnFilters.tipo_factura.includes(item.tipo_factura!)) &&
-        (columnFilters.tarifa_acceso.length === 0 || columnFilters.tarifa_acceso.includes(item.tarifa_acceso))
+        (columnFilters.localidad.length === 0 || columnFilters.localidad.includes(localidad!)) &&
+        (columnFilters.provincia.length === 0 || columnFilters.provincia.includes(provincia!)) &&
+        (columnFilters.tipo_factura.length === 0 || columnFilters.tipo_factura.includes(tipoFactura!)) &&
+        (columnFilters.tarifa_acceso.length === 0 || columnFilters.tarifa_acceso.includes(tarifaAcceso!))
       );
     });
-  }, [fetchedData, columnFilters]);
+  // Añadimos 'filter' a las dependencias
+  }, [fetchedData, columnFilters, filter, clienteId]);
   
   const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
@@ -96,12 +117,35 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
         setPuntoToDelete(null);
     },
   });
+
+  const {
+      sortedData: displayedData,
+      handleSort,
+      renderSortIcon
+  } = useSortableTable<PuntoConCliente & { cliente_nombre?: string | null }>(filteredData, {
+      initialSortKey: 'cups', // Orden inicial por CUPS
+      initialSortDirection: 'asc',
+      // Cast to any because the hook expects a single generic parameter;
+      // this preserves the custom virtual key 'cliente_nombre'.
+      sortValueAccessors: {
+          // Clave virtual para nombre de cliente
+          cliente_nombre: (item: PuntoConCliente) => item.clientes?.nombre,
+          // Accessors explícitos para manejar posibles nulls
+          titular: (item: PuntoConCliente) => item.titular,
+          cups: (item: PuntoConCliente) => item.cups,
+          direccion: (item: PuntoConCliente) => item.direccion,
+          localidad: (item: PuntoConCliente) => item.localidad,
+          provincia: (item: PuntoConCliente) => item.provincia,
+          tipo_factura: (item: PuntoConCliente) => item.tipo_factura,
+          tarifa_acceso: (item: PuntoConCliente) => item.tarifa_acceso,
+      } as any
+  });
   
   const isFiltered = filter.length > 0 || 
-                     columnFilters.localidad.length > 0 ||
-                     columnFilters.provincia.length > 0 ||
-                     columnFilters.tipo_factura.length > 0 ||
-                     columnFilters.tarifa_acceso.length > 0;
+    columnFilters.localidad.length > 0 ||
+    columnFilters.provincia.length > 0 ||
+    columnFilters.tipo_factura.length > 0 ||
+    columnFilters.tarifa_acceso.length > 0;
 
   return (
     <div className="grid">
@@ -143,12 +187,30 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
             <table className="table">
               <thead>
                 <tr>
-                  <th>Titular</th>
-                  <th>Cliente</th>
-                  <th>CUPS</th>
-                  <th>Dirección</th>
                   <th>
-                    Localidad
+                    <button onClick={() => handleSort('titular')} className="sortable-header">
+                      Titular {renderSortIcon('titular')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('cliente_nombre')} className="sortable-header">
+                      Cliente {renderSortIcon('cliente_nombre')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('cups')} className="sortable-header">
+                      CUPS {renderSortIcon('cups')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('direccion')} className="sortable-header">
+                      Dirección {renderSortIcon('direccion')}
+                    </button>
+                  </th>
+                  <th>
+                    <button onClick={() => handleSort('localidad')} className="sortable-header">
+                      Localidad {renderSortIcon('localidad')}
+                    </button>
                     <ColumnFilterDropdown
                       columnName="Localidad"
                       options={filterOptions.localidad}
@@ -157,7 +219,9 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                     />
                   </th>
                   <th>
-                    Provincia
+                    <button onClick={() => handleSort('provincia')} className="sortable-header">
+                      Provincia {renderSortIcon('provincia')}
+                    </button>
                     <ColumnFilterDropdown
                       columnName="Provincia"
                       options={filterOptions.provincia}
@@ -166,7 +230,9 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                     />
                   </th>
                   <th>
-                    Tipo Factura
+                    <button onClick={() => handleSort('tipo_factura')} className="sortable-header">
+                      Tipo Factura {renderSortIcon('tipo_factura')}
+                    </button>
                      <ColumnFilterDropdown
                       columnName="Tipo Factura"
                       options={filterOptions.tipo_factura}
@@ -175,7 +241,9 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                     />
                   </th>
                   <th>
-                    Tarifa
+                    <button onClick={() => handleSort('tarifa_acceso')} className="sortable-header">
+                      Tarifa {renderSortIcon('tarifa_acceso')}
+                    </button>
                      <ColumnFilterDropdown
                       columnName="Tarifa"
                       options={filterOptions.tarifa_acceso}

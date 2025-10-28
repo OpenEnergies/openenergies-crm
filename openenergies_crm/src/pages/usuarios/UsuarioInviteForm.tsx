@@ -1,9 +1,11 @@
 // @ts-nocheck
+// src/pages/usuarios/UsuarioInviteForm.tsx
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useNavigate } from '@tanstack/react-router';
+// Importamos useState
 import { useEffect, useState } from 'react';
 import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
@@ -16,7 +18,8 @@ const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: bo
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
-  rol: z.enum(['comercial', 'administrador']),
+  // Hacemos el rol opcional en el schema base para poder deshabilitarlo
+  rol: z.enum(['comercial', 'administrador', 'cliente']).optional(),
   empresa_id: z.string().uuid('Debes seleccionar una empresa').optional().or(z.literal('')),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').optional().or(z.literal('')),
   confirmPassword: z.string().optional().or(z.literal('')),
@@ -43,9 +46,10 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const { rol: currentUserRol } = useSession();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
+  // --- (1) Añadir estado para el rol original ---
+  const [originalRol, setOriginalRol] = useState<RolUsuario | null>(null);
 
-  // --- CORRECCIÓN CLAVE: 'editing' se define aquí, en el ámbito superior ---
-  const editing = Boolean(userId); 
+  const editing = Boolean(userId);
 
   const isAdmin = currentUserRol === 'administrador';
   const [createWithPassword, setCreateWithPassword] = useState(!isAdmin);
@@ -53,13 +57,14 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, control, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { rol: 'administrador' }
+    // Cambiamos el default a comercial si es admin, si no, no ponemos default aquí
+    defaultValues: isAdmin ? { rol: 'comercial' } : {},
   });
 
   const selectedRol = useWatch({ control, name: 'rol' });
   const isInternalRol = selectedRol === 'comercial' || selectedRol === 'administrador';
 
-// Efecto para cargar datos en modo edición
+  // Efecto para cargar datos en modo edición
   useEffect(() => {
     if (editing) {
       async function fetchUsuario() {
@@ -68,44 +73,52 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           .select('*')
           .eq('user_id', userId)
           .single();
-        
+
         if (error) {
           setServerError('No se pudo cargar el usuario para editar.');
           console.error(error);
         } else if (data) {
+          // --- (2) Guardar el rol original ---
+          setOriginalRol(data.rol as RolUsuario);
           reset(data);
         }
       }
       fetchUsuario();
     }
   }, [editing, userId, reset]);
-// Tu efecto para cargar empresas
+
+  // Tu efecto para cargar empresas
   useEffect(() => {
     if (isAdmin) {
       supabase.from('empresas').select('*').order('nombre').then(({ data }) => setEmpresas(data ?? []));
     }
   }, [isAdmin]);
 
-  // --- CAMBIO #4: Roles disponibles corregidos ---
-  const rolesDisponibles: RolUsuario[] = isAdmin ? ['administrador', 'comercial'] : [];
+  // Roles disponibles para administradores (excluye cliente)
+  const rolesDisponiblesAdmin: RolUsuario[] = ['administrador', 'comercial'];
+
+  // Determinar si el campo de rol debe estar deshabilitado
+  const isRolDisabled = editing && originalRol === 'cliente';
 
   async function onSubmit(values: FormData) {
     setServerError(null);
     try {
       if (editing) {
         // --- MODO EDICIÓN ---
-        const { error } = await supabase
-          .from('usuarios_app')
-          .update({
+        const updatePayload: Partial<FormData> = {
             nombre: values.nombre,
             apellidos: values.apellidos,
             telefono: values.telefono,
-            rol: values.rol,
-            // (La empresa de roles internos se fuerza en el backend)
+            // Solo incluimos el rol si NO está deshabilitado
+            ...( !isRolDisabled && { rol: values.rol }),
             empresa_id: isInternalRol ? undefined : values.empresa_id,
-          })
+        };
+
+        const { error } = await supabase
+          .from('usuarios_app')
+          .update(updatePayload) // Usamos el payload condicional
           .eq('user_id', userId!);
-        
+
         if (error) throw error;
         toast.success('¡Usuario actualizado con éxito!');
 
@@ -118,6 +131,8 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
             creationType: creationType,
             userData: {
               ...values,
+              // Asegurarse de que el rol se envía correctamente al crear
+              rol: values.rol,
               empresa_id: values.empresa_id || undefined,
             }
           }
@@ -132,8 +147,10 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
       setServerError(`Error: ${e.message}`);
     }
   }
-const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';  
-return (
+
+  const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
+
+  return (
     <div className="grid">
       <div className="page-header">
         <h2 style={{ margin: 0 }}>{editing ? 'Editar Usuario' : 'Nuevo Colaborador'}</h2>
@@ -142,7 +159,7 @@ return (
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
           {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
-          
+
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre</label>
@@ -181,19 +198,41 @@ return (
               </div>
             </div>
             <div>
-              <label htmlFor="rol">Rol del Colaborador</label>
+              {/* --- (3) Modificar Campo Rol --- */}
+              <label htmlFor="rol">Rol del Usuario</label>
               <div className="input-icon-wrapper">
                 <Shield size={18} className="input-icon" />
-                <select id="rol" {...register('rol')}>
-                  {rolesDisponibles.map(r => <option key={r} value={r}>{r}</option>)}
+                <select
+                  id="rol"
+                  {...register('rol')}
+                  disabled={isRolDisabled} // Deshabilitar condicionalmente
+                  style={isRolDisabled ? { cursor: 'not-allowed', backgroundColor: 'var(--bg-muted)' } : {}} // Estilo visual
+                >
+                  {/* Si está deshabilitado, solo mostramos la opción 'cliente' */}
+                  {isRolDisabled ? (
+                    <option value="cliente">cliente</option>
+                  ) : (
+                    // Si es admin, mostramos admin y comercial
+                    isAdmin ? (
+                      rolesDisponiblesAdmin.map(r => <option key={r} value={r}>{r}</option>)
+                    ) : (
+                      // Si no es admin (y no es cliente), debería ser comercial (aunque este caso no debería darse en edición)
+                      <option value="comercial">comercial</option>
+                    )
+                  )}
                 </select>
               </div>
+              {/* --- (4) Añadir Mensaje Informativo --- */}
+              {isRolDisabled && (
+                <p className="info-text" style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+                  El rol de un usuario 'cliente' no se puede modificar.
+                </p>
+              )}
               {errors.rol && <p className="error-text">{errors.rol.message}</p>}
             </div>
           </div>
           {!editing && (
           <>
-            {/* SECCIÓN DE MÉTODO DE CREACIÓN MEJORADA */}
             {isAdmin && (
               <div style={{ padding: '1rem', borderRadius: '0.5rem' }}>
                 <label style={{marginBottom: '0.5rem'}}>Método de creación</label>
@@ -229,11 +268,11 @@ return (
             )}
           </>
           )}
-          
+
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem'}}>
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/usuarios' })}>Cancelar</button>
             <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Invitar Usuario')}
+              {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : (creationType === 'invite' ? 'Invitar Usuario' : 'Crear Usuario'))}
             </button>
           </div>
         </div>

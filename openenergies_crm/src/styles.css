@@ -501,6 +501,7 @@ button.danger:hover {
 
 /* Botón Secundario (Azul - Bloquear/Activar) */
 .icon-button.secondary {
+  background-color: transparent;
   color: #191dff;
 }
 .icon-button.secondary:hover {
@@ -519,6 +520,7 @@ button.danger:hover {
 
 /* Botón de Peligro (Rojo - Eliminar) */
 .icon-button.danger {
+  background-color: transparent;
   color: #ff6a6a; /* Rojo */
 }
 .icon-button.danger:hover {

@@ -1,4 +1,5 @@
 // src/pages/clientes/ClienteForm.tsx
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,151 +7,280 @@ import { supabase } from '@lib/supabase';
 import { useEmpresaId } from '@hooks/useEmpresaId';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-// --- Importa los nuevos tipos ---
-import type { Cliente, TipoCliente, EstadoCliente } from '@lib/types';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Cliente, TipoCliente, EstadoCliente, UsuarioApp } from '@lib/types';
 import { useSession } from '@hooks/useSession';
 import { useEmpresas } from '@hooks/useEmpresas';
-// --- Importa el icono Activity ---
-import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity } from 'lucide-react';
+import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-// Usamos el tipo específico para mayor seguridad
+// Tipado para los comerciales en el selector
+type ComercialOption = Pick<UsuarioApp, 'user_id' | 'nombre' | 'apellidos'>;
+
+// Schema (sin cambios)
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
   empresa_id: z.string().uuid('Debes seleccionar la empresa propietaria'),
-  // --- CAMPO ESTADO AÑADIDO AL SCHEMA ---
   estado: z.enum(['desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
   email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
-  // Campos del usuario (solo si se crea el acceso)
   email: createAccess ? z.string().email('El email de acceso es obligatorio') : z.string().optional(),
   password: createAccess ? z.string().min(8, 'La contraseña debe tener al menos 8 caracteres') : z.string().optional(),
 });
 
 type FormData = z.infer<ReturnType<typeof createClienteSchema>>;
 
-// Hacemos que el componente acepte 'id' como prop
+// Función para obtener comerciales (sin cambios)
+async function fetchComerciales(): Promise<ComercialOption[]> {
+    const { data, error } = await supabase
+        .from('usuarios_app')
+        .select('user_id, nombre, apellidos')
+        .eq('rol', 'comercial')
+        .eq('activo', true)
+        .order('nombre', { ascending: true });
+    if (error) {
+        console.error("Error fetching comerciales:", error);
+        throw error;
+    }
+    return data || [];
+}
+
+// Función para obtener asignaciones actuales (sin cambios)
+async function fetchCurrentAssignments(clienteId: string): Promise<string[]> {
+    if (!clienteId) return [];
+    const { data, error } = await supabase
+        .from('asignaciones_comercial')
+        .select('comercial_user_id')
+        .eq('cliente_id', clienteId);
+    if (error) {
+        console.error("Error fetching current assignments:", error);
+        // Devolvemos array vacío en caso de error para no romper, pero logueamos
+        return [];
+        // Alternativa: throw error; // Para que React Query maneje el error
+    }
+    return data?.map(a => a.comercial_user_id) ?? [];
+}
+
+
 export default function ClienteForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const { rol: currentUserRol, userId } = useSession();
   const editing = Boolean(id);
   const { empresaId, loading: loadingEmpresa } = useEmpresaId();
   const [serverError, setServerError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Nuevo estado para controlar si se crea el acceso al portal
   const [createPortalAccess, setCreatePortalAccess] = useState(false);
+  const [selectedComerciales, setSelectedComerciales] = useState<string[]>([]);
+  const [initialAssignments, setInitialAssignments] = useState<string[]>([]);
 
   const { empresas, loading: loadingEmpresas } = useEmpresas();
+
+  // Query para comerciales
+  const { data: comerciales = [], isLoading: loadingComerciales } = useQuery({
+      queryKey: ['comercialesList'],
+      queryFn: fetchComerciales,
+      enabled: currentUserRol === 'administrador',
+  });
+
+  // Query para obtener asignaciones actuales en modo edición
+  const { data: currentAssignmentsData, isLoading: loadingAssignments } = useQuery({
+      queryKey: ['clienteAssignments', id],
+      queryFn: () => fetchCurrentAssignments(id!),
+      enabled: editing && !!id && currentUserRol === 'administrador',
+      // Añadir staleTime y gcTime puede ser útil si no cambian frecuentemente durante la edición
+      // staleTime: 5 * 60 * 1000, // 5 minutos
+      // gcTime: 10 * 60 * 1000, // 10 minutos
+  });
+
 
   const schema = createClienteSchema(createPortalAccess);
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    // --- VALOR POR DEFECTO PARA ESTADO ---
     defaultValues: {
       estado: 'stand by',
     }
   });
 
-  // --- *** CORRECCIÓN DEL BUG *** ---
+  // useEffect para cargar cliente en modo edición
   useEffect(() => {
-    // (1) GUARD CLAUSE:
-    // No hacer nada si no estamos editando O si la lista de empresas aún está cargando.
+    // No cargar datos del cliente hasta que las empresas estén listas (evita reset prematuro)
     if (!editing || !id || loadingEmpresas) return;
-    
+    let isMounted = true; // Flag para evitar seteo si el componente se desmonta
     const fetchCliente = async () => {
-      // Al pedir los datos, también pedimos los de la empresa para asegurar consistencia
       const { data, error } = await supabase.from('clientes').select('*, empresas(*)').eq('id', id!).maybeSingle();
+      if (!isMounted) return; // Salir si ya no está montado
       if (error) {
         toast.error(`Error al cargar el cliente: ${error.message}`);
         return;
       }
       if (data) {
-        // (2) AHORA SÍ:
-        // El reset se ejecuta DESPUÉS de que loadingEmpresas es false,
-        // por lo que el <select> ya tiene sus <option> y puede ser preseleccionado.
-        const clienteData = { 
-          ...data, 
+        const clienteData = {
+          ...data,
           tipo: data.tipo as TipoCliente,
-          estado: data.estado as EstadoCliente, // <-- CAMPO AÑADIDO
+          estado: data.estado as EstadoCliente,
         };
-        reset(clienteData);
+        reset(clienteData); // Resetea el formulario con los datos
       }
     };
     fetchCliente();
-  // (3) AÑADIR loadingEmpresas a la lista de dependencias.
-  }, [editing, id, reset, loadingEmpresas]);
-  // --- *** FIN DE LA CORRECCIÓN *** ---
+    return () => { isMounted = false; }; // Cleanup al desmontar
+  }, [editing, id, reset, loadingEmpresas]); // Depende de loadingEmpresas
 
+  // --- useEffect para inicializar selección en modo edición (AJUSTADO) ---
+  useEffect(() => {
+      // Solo actuar si estamos editando, somos admin, Y LOS DATOS HAN LLEGADO (no undefined)
+      // Usamos una comprobación explícita `!== undefined` para asegurarnos de que la query ha finalizado
+      if (editing && currentUserRol === 'administrador' && typeof currentAssignmentsData !== 'undefined') {
+          // Aseguramos que sea un array, incluso si la query devuelve null o algo inesperado
+          const initialSelection = Array.isArray(currentAssignmentsData) ? currentAssignmentsData : [];
+          console.log("Setting initial commercial selection:", initialSelection); // Log para depuración
+          // Establecer ambos estados con los datos cargados
+          setSelectedComerciales(initialSelection);
+          setInitialAssignments(initialSelection);
+      }
+  // Ejecutar SOLO cuando cambie `currentAssignmentsData` (además de las condiciones iniciales)
+  }, [editing, currentUserRol, currentAssignmentsData]);
+
+
+  // Handler para selección de comerciales
+  const handleComercialSelection = (comercialId: string) => {
+    setSelectedComerciales(prevSelected =>
+      prevSelected.includes(comercialId)
+        ? prevSelected.filter(id => id !== comercialId)
+        : [...prevSelected, comercialId]
+    );
+    // No actualizamos initialAssignments aquí, solo al guardar
+  };
+
+  // onSubmit (sin cambios respecto a la versión anterior con la corrección del ID)
   async function onSubmit(values: FormData) {
     setServerError(null);
-    if (loadingEmpresa || !empresaId) {
-      toast.error('No se pudo determinar tu empresa. Recarga la página.');
-      return;
-    }
 
     try {
+      let clientIdToUse: string | null = editing ? id! : null;
+
       if (editing) {
-        // --- CAMPO ESTADO AÑADIDO AL UPDATE ---
-        const { error } = await supabase.from('clientes').update({
+        // Modo Edición: Actualizar datos del cliente
+        const { error: updateError } = await supabase.from('clientes').update({
           nombre: values.nombre,
           tipo: values.tipo,
           empresa_id: values.empresa_id,
           dni: values.dni,
           cif: values.cif,
           email_facturacion: values.email_facturacion,
-          estado: values.estado // <-- CAMPO AÑADIDO
+          estado: values.estado
         }).eq('id', id!);
-        if (error) throw error;
-      } else {
-        // La creación ahora llama a la Edge Function
-        const payload = {
-          action: 'onboard-client',
-          payload: {
-            creatingUser: {
-                rol: currentUserRol,
-                id: userId,
-            },
-            clientData: {
-              nombre: values.nombre,
-              tipo: values.tipo,
-              empresa_id: values.empresa_id,
-              dni: values.dni,
-              cif: values.cif,
-              email_facturacion: values.email_facturacion,
-              estado: values.estado, // <-- CAMPO AÑADIDO
-            },
-            createPortalAccess: createPortalAccess,
-            userData: createPortalAccess ? {
-              email: values.email,
-              password: values.password,
-              nombre: values.nombre.split(' ')[0], // Usamos el primer nombre
-              apellidos: values.nombre.split(' ').slice(1).join(' '), // y el resto como apellidos
-            } : null
-          }
-        };
-        const { data, error } = await supabase.functions.invoke('manage-user', { body: payload });
-        if (error) throw error;
-        // ¡CAMBIO 2: Lógica de auto-asignación!
-        // Si el usuario es un 'comercial', lo auto-asignamos al nuevo cliente.
-        if (currentUserRol === 'comercial' && userId && data.newClientId) {
-            const { error: assignError } = await supabase
-                .from('asignaciones_comercial')
-                .insert({ cliente_id: data.newClientId, comercial_user_id: userId });
+        if (updateError) throw updateError;
+        toast.success('Cliente actualizado correctamente');
 
-            if (assignError) throw assignError;
+        // Lógica para actualizar asignaciones (solo admin)
+        if (currentUserRol === 'administrador') {
+            const assignmentsToAdd = selectedComerciales.filter(cid => !initialAssignments.includes(cid));
+            const assignmentsToRemove = initialAssignments.filter(cid => !selectedComerciales.includes(cid));
+            let hadErrors = false;
+
+            if (assignmentsToAdd.length > 0) {
+                const inserts = assignmentsToAdd.map(comercialUserId => ({
+                    cliente_id: clientIdToUse,
+                    comercial_user_id: comercialUserId,
+                }));
+                const { error: insertAssignError } = await supabase.from('asignaciones_comercial').insert(inserts);
+                if (insertAssignError) {
+                    console.error("Error al añadir asignaciones:", insertAssignError);
+                    toast.error('Error al añadir nuevas asignaciones de comerciales.');
+                    hadErrors = true;
+                }
+            }
+            if (assignmentsToRemove.length > 0) {
+                const { error: deleteAssignError } = await supabase
+                    .from('asignaciones_comercial')
+                    .delete()
+                    .eq('cliente_id', clientIdToUse!)
+                    .in('comercial_user_id', assignmentsToRemove);
+                if (deleteAssignError) {
+                    console.error("Error al eliminar asignaciones:", deleteAssignError);
+                    toast.error('Error al quitar asignaciones de comerciales.');
+                    hadErrors = true;
+                }
+            }
+             if (!hadErrors) {
+                setInitialAssignments([...selectedComerciales]); // Actualizar base para la próxima comparación
+             }
+        }
+
+      } else {
+        // Modo Creación
+        const payload = {
+            action: 'onboard-client',
+            payload: { /* ... payload existente ... */
+              creatingUser: { rol: currentUserRol, id: userId },
+              clientData: { /* ... datos cliente ... */
+                nombre: values.nombre,
+                tipo: values.tipo,
+                empresa_id: values.empresa_id,
+                dni: values.dni,
+                cif: values.cif,
+                email_facturacion: values.email_facturacion,
+                estado: values.estado,
+              },
+              createPortalAccess: createPortalAccess,
+              userData: createPortalAccess ? { /* ... datos usuario ... */
+                email: values.email,
+                password: values.password,
+                nombre: values.nombre.split(' ')[0],
+                apellidos: values.nombre.split(' ').slice(1).join(' '),
+              } : null
+            }
+          };
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('manage-user', { body: payload });
+        console.log('Respuesta de la función manage-user:', functionData);
+        if (functionError) throw functionError;
+        if (functionData && functionData.data && typeof functionData.data.newClientId === 'string') {
+            clientIdToUse = functionData.data.newClientId;
+        } else {
+            console.error('La respuesta de la función no contenía data.newClientId esperado:', functionData);
+            throw new Error("La función no devolvió el ID del nuevo cliente en la estructura esperada.");
+        }
+        toast.success('Cliente creado correctamente');
+
+        // Insertar asignaciones para admin
+        if (currentUserRol === 'administrador' && selectedComerciales.length > 0 && clientIdToUse) {
+          const asignaciones = selectedComerciales.map(comercialUserId => ({
+            cliente_id: clientIdToUse,
+            comercial_user_id: comercialUserId,
+          }));
+          const { error: assignError } = await supabase.from('asignaciones_comercial').insert(asignaciones);
+          if (assignError) {
+            console.error("Error al asignar comerciales:", assignError);
+            toast.error('Cliente creado, pero hubo un error al asignar los comerciales seleccionados.');
+          }
+        }
+        // Auto-asignación comercial
+        if (currentUserRol === 'comercial' && userId && clientIdToUse && !selectedComerciales.includes(userId)) {
+            const { error: selfAssignError } = await supabase.from('asignaciones_comercial').insert({ cliente_id: clientIdToUse, comercial_user_id: userId });
+            if (selfAssignError) console.warn("Error en auto-asignación del comercial creador:", selfAssignError.message);
         }
       }
-      toast.success(editing ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente');
+
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      queryClient.invalidateQueries({ queryKey: ['clienteAssignments', id] });
       navigate({ to: '/app/clientes' });
+
     } catch (e: any) {
       console.error("Error al guardar cliente:", e);
-      toast.error(`Error al guardar: ${e.message}.`);
+      const message = e.details || e.message || 'Ocurrió un error inesperado.';
+      toast.error(`Error al guardar: ${message}.`);
+      setServerError(`Error al guardar: ${message}.`);
     }
   }
 
+  const showComercialSelector = currentUserRol === 'administrador';
+
+  // JSX del return (sin cambios estructurales, solo usa los estados actualizados)
   return (
     <div className="grid">
       <div className="page-header">
@@ -159,7 +289,9 @@ export default function ClienteForm({ id }: { id?: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
-            <div>
+            {/* Campos existentes: Empresa, Nombre, Tipo, Estado, DNI, CIF, Email Facturación */}
+            {/* ... (código JSX de estos campos sin cambios) ... */}
+             <div>
               <label htmlFor="empresa_id">Empresa Propietaria</label>
               <div className="input-icon-wrapper">
                 <Building2 size={18} className="input-icon" />
@@ -170,7 +302,7 @@ export default function ClienteForm({ id }: { id?: string }) {
               </div>
               {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
             </div>
-            
+
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre o Razón Social</label>
@@ -194,7 +326,6 @@ export default function ClienteForm({ id }: { id?: string }) {
             </div>
           </div>
 
-          {/* --- NUEVO CAMPO "ESTADO" AÑADIDO --- */}
           <div>
             <label htmlFor="estado">Estado</label>
             <div className="input-icon-wrapper">
@@ -208,7 +339,6 @@ export default function ClienteForm({ id }: { id?: string }) {
             </div>
             {errors.estado && <p className="error-text">{errors.estado.message}</p>}
           </div>
-          {/* ---------------------------------- */}
 
 
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
@@ -237,51 +367,88 @@ export default function ClienteForm({ id }: { id?: string }) {
             {errors.email_facturacion && <p className="error-text">{errors.email_facturacion.message}</p>}
           </div>
 
+
+            {/* --- SECCIÓN ASIGNAR COMERCIALES --- */}
+            {showComercialSelector && (
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                    <h3 style={{ marginTop: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Users size={20} /> Asignar Comerciales {editing ? '' : '(Opcional)'}
+                    </h3>
+                    {/* Mostrar carga si CUALQUIERA de las queries relevantes está cargando */}
+                    {(loadingComerciales || (editing && loadingAssignments)) ? (
+                        <p>Cargando información de comerciales...</p>
+                    ) : comerciales.length === 0 ? (
+                        <p style={{ color: 'var(--muted)'}}>No hay comerciales activos para asignar.</p>
+                    ) : (
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.5rem' }}>
+                            {comerciales.map(comercial => (
+                                <label key={comercial.user_id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} className="comercial-select-label">
+                                    <input
+                                        type="checkbox"
+                                        // El checked ahora SÍ debería funcionar porque el estado se inicializa correctamente
+                                        checked={selectedComerciales.includes(comercial.user_id)}
+                                        onChange={() => handleComercialSelection(comercial.user_id)}
+                                        style={{ width: 'auto' }}
+                                    />
+                                    <span>{comercial.nombre} {comercial.apellidos}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+            {/* --- FIN SECCIÓN ASIGNAR COMERCIALES --- */}
+
+
+          {/* Sección Crear Acceso Portal (solo visible al crear) */}
           {!editing && (
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+              {/* ... (código existente para crear acceso portal) ... */}
               <h3 style={{ marginTop: 0, fontSize: '1.1rem' }}>Acceso al Portal de Cliente</h3>
               <label className="switch-wrapper">
-                <input 
-                  type="checkbox" 
-                  checked={createPortalAccess} 
+                <input
+                  type="checkbox"
+                  checked={createPortalAccess}
                   onChange={(e) => setCreatePortalAccess(e.target.checked)}
                 />
                 <span className="switch-slider"></span>
                 <span className="switch-label">Crear un usuario para que este cliente pueda acceder a su portal</span>
               </label>
-
               {createPortalAccess && (
-                <div className="grid" style={{ gap: '1rem', marginTop: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg)', borderRadius: '0.5rem' }}>
-                  <p style={{color: 'var(--muted)', fontSize: '0.9rem', margin: 0}}>
-                    Se creará un usuario con rol 'cliente'. Deberás comunicarle sus credenciales de acceso.
-                  </p>
-                  <div>
-                    <label htmlFor="email">Email de acceso</label>
-                    <div className="input-icon-wrapper">
-                      <Mail size={18} className="input-icon" />
-                      <input id="email" type="email" {...register('email')} />
-                    </div>
-                    {errors.email && <p className="error-text">{errors.email.message}</p>}
+                  <div className="grid" style={{ gap: '1rem', marginTop: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg)', borderRadius: '0.5rem' }}>
+                      {/* ... inputs email/password ... */}
+                       <p style={{color: 'var(--muted)', fontSize: '0.9rem', margin: 0}}>
+                        Se creará un usuario con rol 'cliente'. Deberás comunicarle sus credenciales de acceso.
+                      </p>
+                      <div>
+                        <label htmlFor="email">Email de acceso</label>
+                        <div className="input-icon-wrapper">
+                          <Mail size={18} className="input-icon" />
+                          <input id="email" type="email" {...register('email')} />
+                        </div>
+                        {errors.email && <p className="error-text">{errors.email.message}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor="password">Contraseña inicial</label>
+                        <div className="input-icon-wrapper">
+                          <Lock size={18} className="input-icon" />
+                          <input id="password" type="password" {...register('password')} />
+                        </div>
+                        {errors.password && <p className="error-text">{errors.password.message}</p>}
+                      </div>
                   </div>
-                  <div>
-                    <label htmlFor="password">Contraseña inicial</label>
-                    <div className="input-icon-wrapper">
-                      <Lock size={18} className="input-icon" />
-                      <input id="password" type="password" {...register('password')} />
-                    </div>
-                    {errors.password && <p className="error-text">{errors.password.message}</p>}
-                  </div>
-                </div>
               )}
             </div>
           )}
 
+          {/* Botones */}
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/clientes' })}>
               Cancelar
             </button>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            {/* Deshabilitar botón si alguna query relevante está cargando */}
+            <button type="submit" disabled={isSubmitting || loadingComerciales || (editing && loadingAssignments)}>
+              {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Cliente')}
             </button>
           </div>
         </div>

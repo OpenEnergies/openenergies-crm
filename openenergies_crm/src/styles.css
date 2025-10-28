@@ -2194,3 +2194,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .sortable-header:hover {
   background-color: transparent; /* Color verde al pasar ratón */
 }
+
+/* Añade esto a tu archivo styles.css */
+.comercial-select-label:hover {
+  background-color: var(--bg-hover); /* Aplica el fondo al pasar el ratón */
+}

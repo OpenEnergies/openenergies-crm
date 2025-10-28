@@ -9,7 +9,7 @@ import RenovacionesList from './RenovacionesList';
 export default function RenovacionesPage() {
   const [daysToQuery, setDaysToQuery] = useState<number | null>(null);
   
-  const locationKey = useRouterState({ select: (s) => s.location.key });
+  const locationKey = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     setDaysToQuery(null);

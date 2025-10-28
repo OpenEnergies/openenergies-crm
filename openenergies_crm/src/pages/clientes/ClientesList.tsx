@@ -1,4 +1,5 @@
 // @ts-nocheck
+// src/pages/clientes/ClientesList.tsx
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
@@ -7,7 +8,8 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
-import { Pencil, MapPin, Building2, Trash2 } from 'lucide-react';
+// --- Importar Users icon ---
+import { Pencil, MapPin, Building2, Trash2, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { useSortableTable } from '@hooks/useSortableTable';
@@ -17,33 +19,64 @@ type ClienteConEmpresa = Cliente & {
     nombre: string;
   } | null;
   estado: EstadoCliente;
+  // --- Propiedad para comerciales ---
+  comerciales_asignados?: { nombre: string | null, apellidos: string | null }[] | null;
 };
 
-type SortableClienteKey = keyof ClienteConEmpresa | 'empresa_nombre' | 'dni_cif';
+// --- Añadir clave para ordenar por comerciales ---
+type SortableClienteKey = keyof ClienteConEmpresa | 'empresa_nombre' | 'dni_cif' | 'comerciales_nombres';
 
 const initialColumnFilters = {
   estado: [] as string[],
 };
 
-async function fetchClientes(filter: string) {
+// --- Ajustar la query para seleccionar los comerciales ---
+// ASUMIMOS que la RPC 'search_clientes' ya devuelve 'comerciales_asignados'
+async function fetchClientes(filter: string): Promise<ClienteConEmpresa[]> {
+  const selectQuery = `
+    *,
+    empresas ( nombre ),
+    estado,
+    comerciales_asignados:asignaciones_comercial (
+        usuarios_app ( nombre, apellidos )
+    )
+  `;
+
   if (!filter) {
+    // Si no hay filtro, hacemos un select normal con join implícito
     const { data, error } = await supabase
       .from('clientes')
-      .select('*, empresas ( nombre ), estado')
+      .select(selectQuery)
       .limit(100)
       .order('creado_en', { ascending: false });
     if (error) throw error;
-    return data as ClienteConEmpresa[];
+    // Mapear para ajustar la estructura de comerciales_asignados
+    return (data || []).map(c => ({
+        ...c,
+        comerciales_asignados: c.comerciales_asignados?.map((a: any) => a.usuarios_app) ?? []
+    })) as ClienteConEmpresa[];
   }
+
+  // Si hay filtro, usamos la RPC (ASEGÚRATE QUE LA RPC DEVUELVA LOS COMERCIALES)
+  // Si la RPC no devuelve 'comerciales_asignados' directamente con el formato deseado,
+  // necesitarás ajustar la RPC o hacer una segunda query aquí.
+  // Asumiendo que la RPC SÍ los devuelve en un formato similar al SELECT:
   const { data, error } = await supabase
     .rpc('search_clientes', { search_text: filter })
-    .select('*, empresas ( nombre ), estado')
+     // Intenta seleccionar los datos relacionados si la RPC devuelve IDs de cliente
+    .select(selectQuery) // Ajusta este select si la RPC devuelve toda la data
     .limit(100)
     .order('creado_en', { ascending: false });
-  
+
   if (error) throw error;
-  return data as ClienteConEmpresa[];
+  // Mapear para ajustar la estructura si es necesario (depende de la RPC)
+   return (data || []).map((c: any) => ({
+        ...c,
+        // Ajusta esto según cómo la RPC devuelva los comerciales
+        comerciales_asignados: c.comerciales_asignados?.map((a: any) => a.usuarios_app ?? a) ?? []
+    })) as ClienteConEmpresa[];
 }
+
 
 async function deleteCliente({ clienteId }: { clienteId: string }) {
     const { error } = await supabase.functions.invoke('manage-client', {
@@ -53,19 +86,18 @@ async function deleteCliente({ clienteId }: { clienteId: string }) {
 }
 
 export default function ClientesList(){
-  const { rol } = useSession();
+  const { rol } = useSession(); // Obtenemos el rol actual
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('');
-  
+
   const [clienteToDelete, setClienteToDelete] = useState<ClienteConEmpresa | null>(null);
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
 
-  // --- Query original (fetchClientes) ---
   const { data: fetchedData, isLoading, isError } = useQuery({
       queryKey:['clientes', filter],
       queryFn:()=>fetchClientes(filter)
   });
-  
+
   const deleteMutation = useMutation({
     mutationFn: deleteCliente,
     onSuccess: () => {
@@ -89,22 +121,9 @@ export default function ClientesList(){
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  // --- 👇 3. Filtra primero por columna (Estado) y por texto ---
   const filteredData = useMemo(() => {
     if (!fetchedData) return [];
-    // Filtro de texto general
     let items = fetchedData;
-    if (filter) {
-        // La función RPC 'search_clientes' ya filtra por texto si 'filter' tiene valor,
-        // pero si quisiéramos filtrar en cliente además:
-        // items = items.filter(item =>
-        //    item.nombre.toLowerCase().includes(filter.toLowerCase()) ||
-        //    (item.dni && item.dni.toLowerCase().includes(filter.toLowerCase())) ||
-        //    (item.cif && item.cif.toLowerCase().includes(filter.toLowerCase())) ||
-        //    (item.empresas?.nombre && item.empresas.nombre.toLowerCase().includes(filter.toLowerCase()))
-        // );
-    }
-
     // Filtro de columna 'estado'
     return items.filter(item => {
       const estadoItem = item.estado || 'stand by';
@@ -112,47 +131,62 @@ export default function ClientesList(){
         (columnFilters.estado.length === 0 || columnFilters.estado.includes(estadoItem))
       );
     });
-  // Depende de fetchedData Y de columnFilters
-  }, [fetchedData, columnFilters, filter]); // Añadido filter a dependencias
-  // -----------------------------------------------------------------
+  }, [fetchedData, columnFilters]);
 
-  // --- 👇 4. Usa el hook useSortableTable con los datos filtrados ---
+  // --- Actualizar useSortableTable ---
   const {
       sortedData: displayedData,
       handleSort,
       renderSortIcon
+      // Añadimos la nueva clave al tipo genérico
   } = useSortableTable<ClienteConEmpresa, SortableClienteKey>(filteredData, {
-      initialSortKey: 'creado_en', // Orden inicial por fecha de creación descendente
+      initialSortKey: 'creado_en',
       initialSortDirection: 'desc',
       sortValueAccessors: {
-          // Clave virtual para ordenar por nombre de empresa
           empresa_nombre: (item) => item.empresas?.nombre,
-          // Clave virtual para DNI/CIF (considera nulls)
           dni_cif: (item) => item.dni || item.cif,
-          // Accesor explícito para nombre (ya maneja toLowerCase el hook)
           nombre: (item) => item.nombre,
-          // Accesor para email (maneja nulls)
-          email_facturacion: (item) => item.email_facturacion,
+          // Accesor para comerciales: une nombres o devuelve null
+          comerciales_nombres: (item) =>
+              item.comerciales_asignados && item.comerciales_asignados.length > 0
+              ? item.comerciales_asignados
+                  .map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim())
+                  .filter(Boolean)
+                  .join(', ')
+              : null, // Devolver null si no hay comerciales para ordenar correctamente
+          email_facturacion: (item) => item.email_facturacion, // Mantener este accesor
+          // Añadir otros accesores si es necesario
       }
-  }); 
+  });
 
   const canDelete = rol === 'administrador';
   const canEdit = rol === 'administrador' || rol === 'comercial';
+  const isAdmin = rol === 'administrador'; // Variable para comprobar si es admin
   const isFiltered = filter.length > 0 || columnFilters.estado.length > 0;
+
+  // --- Función helper para mostrar nombres de comerciales ---
+  const formatComerciales = (comerciales: { nombre: string | null, apellidos: string | null }[] | null | undefined): string => {
+      if (!comerciales || comerciales.length === 0) return '—';
+      return comerciales
+          .map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim()) // Une nombre y apellidos
+          .filter(Boolean) // Quita nombres vacíos si los hubiera
+          .join(', '); // Une con coma y espacio
+  };
 
   return (
     <div className="grid">
       <div className="page-header">
         <h2 style={{ margin: '0' }}>Clientes</h2>
+        {/* El botón Nuevo Cliente no cambia */}
         <Link to="/app/clientes/nuevo"><button>Nuevo Cliente</button></Link>
       </div>
 
       <div className="card">
         <div style={{ marginBottom: '1rem', maxWidth: '400px' }}>
-          <input 
-            placeholder="Buscar por nombre, DNI/CIF o comercializadora" 
-            value={filter} 
-            onChange={e => setFilter(e.target.value)} 
+          <input
+            placeholder="Buscar por nombre, DNI/CIF o comercializadora"
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
           />
         </div>
 
@@ -160,8 +194,8 @@ export default function ClientesList(){
         {isError && <div role="alert">Error al cargar clientes.</div>}
 
         {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && (
-          <EmptyState 
-            title="Sin clientes" 
+          <EmptyState
+            title="Sin clientes"
             description="Aún no hay clientes registrados."
             cta={<Link to="/app/clientes/nuevo"><button>Crear el primero</button></Link>}
           />
@@ -187,11 +221,22 @@ export default function ClientesList(){
                       DNI/CIF {renderSortIcon('dni_cif')}
                     </button>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
-                      Email facturación {renderSortIcon('email_facturacion')}
-                    </button>
-                  </th>
+                  {/* --- Ocultar cabecera de Email si es admin --- */}
+                  {!isAdmin && (
+                    <th>
+                      <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
+                        Email facturación {renderSortIcon('email_facturacion')}
+                      </button>
+                    </th>
+                  )}
+                   {/* --- Nueva cabecera para Comerciales (solo admin) --- */}
+                   {isAdmin && (
+                      <th>
+                        <button onClick={() => handleSort('comerciales_nombres')} className="sortable-header">
+                          Comerciales Asignados {renderSortIcon('comerciales_nombres')}
+                        </button>
+                      </th>
+                   )}
                   <th>
                     <button onClick={() => handleSort('creado_en')} className="sortable-header">
                       Creado {renderSortIcon('creado_en')}
@@ -211,10 +256,9 @@ export default function ClientesList(){
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
-              {/* --- CUERPO CORREGIDO --- */}
               <tbody>
                 {displayedData.length > 0 ? (
-                  displayedData.map(c => ( // Mapea si hay datos filtrados
+                  displayedData.map(c => (
                     <tr key={c.id}>
                       <td>
                         <Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">
@@ -228,10 +272,23 @@ export default function ClientesList(){
                           </div>
                       </td>
                       <td>{c.dni || c.cif || '—'}</td>
-                      <td>{c.email_facturacion ?? '—'}</td>
+                      {/* --- Ocultar celda de Email si es admin --- */}
+                      {!isAdmin && (
+                        <td>{c.email_facturacion ?? '—'}</td>
+                      )}
+                      {/* --- Nueva celda para Comerciales (solo admin) --- */}
+                      {isAdmin && (
+                          <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <Users size={16} style={{ color: 'var(--muted)'}} />
+                                  {/* Usar la función helper */}
+                                  {formatComerciales(c.comerciales_asignados)}
+                              </div>
+                          </td>
+                      )}
                       <td>{fmtDate(c.creado_en)}</td>
                       <td>
-                        <span 
+                        <span
                           className={`status-dot ${
                             c.estado === 'activo' ? 'status-activo' :
                             c.estado === 'desistido' ? 'status-desistido' :
@@ -244,18 +301,18 @@ export default function ClientesList(){
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="table-actions" style={{ justifyContent: 'flex-end' }}>
-                          <Link 
-                              to="/app/puntos" 
-                              search={{ cliente_id: c.id }} 
+                          <Link
+                              to="/app/puntos"
+                              search={{ cliente_id: c.id }}
                               className="icon-button secondary"
                               title="Ver Puntos de Suministro"
                           >
                             <MapPin size={18} />
                           </Link>
                           {canEdit && (
-                            <Link 
-                              to="/app/clientes/$id/editar" 
-                              params={{ id: c.id }} 
+                            <Link
+                              to="/app/clientes/$id/editar"
+                              params={{ id: c.id }}
                               className="icon-button secondary"
                               title="Editar Cliente"
                             >
@@ -267,6 +324,7 @@ export default function ClientesList(){
                                   className="icon-button danger"
                                   title="Eliminar Cliente"
                                   onClick={() => setClienteToDelete(c)}
+                                  disabled={deleteMutation.isPending}
                               >
                                   <Trash2 size={18} />
                               </button>
@@ -275,24 +333,24 @@ export default function ClientesList(){
                       </td>
                     </tr>
                   ))
-                ) : ( // Muestra mensaje si NO hay datos filtrados
+                ) : (
                   <tr>
-                    <td colSpan={7} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
+                    {/* --- Ajustar colSpan según si se muestra email o comerciales --- */}
+                    <td colSpan={isAdmin ? 8 : 7} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
                       Sin resultados que coincidan con los filtros.
                     </td>
                   </tr>
                 )}
               </tbody>
-              {/* --- FIN CUERPO CORREGIDO --- */}
             </table>
           </div>
         )}
       </div>
-      
+
+      {/* Modal de confirmación (sin cambios) */}
       {clienteToDelete && (
         <div className="modal-overlay">
             <div className="modal-content card">
-                {/* Corregido: Usar clienteToDelete?.nombre */}
                 <h3 style={{marginTop: 0}}>Confirmar Eliminación</h3>
                 <p>
                     ¿Estás seguro de que quieres eliminar al cliente <strong>{clienteToDelete?.nombre}</strong> de <strong>{clienteToDelete?.empresas?.nombre ?? 'N/A'}</strong>?
@@ -305,9 +363,8 @@ export default function ClientesList(){
                     <button className="secondary" onClick={() => setClienteToDelete(null)}>
                         Cancelar
                     </button>
-                    <button 
-                        className="danger" 
-                        // Corregido: Asegurar que clienteToDelete existe antes de acceder a id
+                    <button
+                        className="danger"
                         onClick={() => clienteToDelete && deleteMutation.mutate({ clienteId: clienteToDelete.id })}
                         disabled={deleteMutation.isPending}
                     >

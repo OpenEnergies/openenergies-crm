@@ -1756,8 +1756,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .status-activo { background-color: #2BB673; } /* Verde (primary) */
 .status-standby { background-color: #f39b03; } /* Naranja (aviso) */
-.status-procesando { background-color: #FCD34D; } /* Amarillo */
-.status-desistido { background-color: #DC2626; } /* Rojo (danger) */
+.status-procesando { background-color: #f6ff00; } /* Amarillo */
+.status-rechazado { background-color: #DC2626; } /* Rojo (danger) */
+.status-desistido { background-color: #000000; } /* Negro (danger) */
 
 .status-text {
   vertical-align: middle;
@@ -2198,4 +2199,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Añade esto a tu archivo styles.css */
 .comercial-select-label:hover {
   background-color: var(--bg-hover); /* Aplica el fondo al pasar el ratón */
+}
+/* Add this to src/styles.css */
+.selected-row {
+  background-color: rgba(46, 135, 229, 0.1); /* Light blue tint, adjust as needed */
+}
+
+.selected-row:hover {
+    background-color: rgba(46, 135, 229, 0.15); /* Slightly darker on hover */
+}
+
+/* Style for the container holding the contextual buttons */
+.contextual-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--bg-hover);
+}
+
+.contextual-actions span {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted-dark);
 }

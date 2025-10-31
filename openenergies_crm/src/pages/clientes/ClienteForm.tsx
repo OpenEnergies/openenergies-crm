@@ -22,7 +22,7 @@ const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
   empresa_id: z.string().uuid('Debes seleccionar la empresa propietaria'),
-  estado: z.enum(['desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
+  estado: z.enum(['rechazado', 'desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
   email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
@@ -334,7 +334,8 @@ export default function ClienteForm({ id }: { id?: string }) {
                 <option value="stand by">🟠 Stand By</option>
                 <option value="procesando">🟡 Procesando</option>
                 <option value="activo">🟢 Activo</option>
-                <option value="desistido">🔴 Desistido</option>
+                <option value="rechazado">🔴 Rechazado</option>
+                <option value="desistido">⚫ Desistido</option>
               </select>
             </div>
             {errors.estado && <p className="error-text">{errors.estado.message}</p>}

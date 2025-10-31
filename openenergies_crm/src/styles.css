@@ -625,6 +625,7 @@ button.danger:hover {
 /* Hacemos que todos los inputs de tipo fecha tengan el cursor de puntero para indicar que son clicables */
 input[type="date"] {
   cursor: pointer;
+  position: relative;
 }
 
 /* El truco principal: seleccionamos el icono del calendario nativo del navegador */

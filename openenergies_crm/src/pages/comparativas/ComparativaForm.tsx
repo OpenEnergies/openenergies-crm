@@ -10,11 +10,16 @@ interface DatosSuministro {
   observaciones: string;
 }
 
-interface DatosAutocompletados {
-  tarifa: Tarifa;
-  consumoMensual?: Record<string, any>;
-  potenciaConsumida?: Record<string, any>;
+// --- (NUEVO) Definir la nueva estructura de datos de SIPS ---
+interface SipsData {
+  CUPS: string;
+  Tarifa: Tarifa;
+  PotContratada: Record<string, number>;
+  ConsumoAnual: Record<string, number>;
+  ConsumoMensual: Record<string, Record<string, number>>;
+  PotenciaConsumida: Record<string, Record<string, number>>;
 }
+// --- (FIN NUEVO) ---
 
 const ComparativaForm: React.FC = () => {
   const [datosSuministro, setDatosSuministro] = useState<DatosSuministro>({
@@ -26,7 +31,11 @@ const ComparativaForm: React.FC = () => {
 
   const [modo, setModo] = useState<"idle" | "auto" | "manual">("idle");
   const [tarifa, setTarifa] = useState<Tarifa>("");
-  const [datosAuto, setDatosAuto] = useState<DatosAutocompletados | null>(null);
+  
+  // --- (MODIFICADO) El estado ahora almacena la nueva estructura ---
+  const [datosAuto, setDatosAuto] = useState<SipsData | null>(null);
+  // --- (FIN MODIFICADO) ---
+  
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,15 +53,22 @@ const ComparativaForm: React.FC = () => {
     }));
   };
 
+  // --- (MODIFICADO) handleAutocompletar ahora rellena las tablas ---
   const handleAutocompletar = async () => {
     try {
+      setModo("auto"); // Activar modo auto
+      setCargando(true);
+      setError(null);
+      setValoresTabla({}); // Limpiar tablas anteriores
+
       const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const cups = datosSuministro.cups; // o de donde lo estés guardando
+      const cups = datosSuministro.cups;
 
       if (!functionsUrl) {
         console.error('Falta VITE_SUPABASE_FUNCTIONS_URL');
         alert('No está configurada la URL de las funciones');
+        setCargando(false);
         return;
       }
 
@@ -68,21 +84,87 @@ const ComparativaForm: React.FC = () => {
       if (!res.ok) {
         const text = await res.text();
         console.error('Error en función:', res.status, text);
-        alert('No se han podido obtener los datos del CUPS');
+        setError('No se han podido obtener los datos del CUPS.');
+        setCargando(false);
         return;
       }
 
       const data = await res.json();
+      
+      // La respuesta ahora es un array
+      if (!Array.isArray(data) || data.length === 0) {
+        setError('Respuesta inválida del servidor de SIPS.');
+        setCargando(false);
+        return;
+      }
 
-      // aquí ya haces lo que tenías: setDatosAuto(data), mostrar tablas, etc.
-      console.log('datos CRM', data);
-      // ...
+      const sipsData: SipsData = data[0]; // Obtenemos el primer (y único) objeto
+      console.log('Datos SIPS transformados:', sipsData);
+
+      // 1. Actualizar estado y tarifa
+      setDatosAuto(sipsData);
+      setTarifa(sipsData.Tarifa || "");
+
+      // --- 2. Rellenar 'valoresTabla' con los datos ---
+      const newValoresTabla: Record<string, string> = {};
+
+      // 2a. Rellenar "Potencias contratadas"
+      const potencias = sipsData.PotContratada;
+      const esTarifa61 = sipsData.Tarifa === '6.1TD';
+      const periodosPotencia = esTarifa61 ? 6 : 2; // El formulario 2.0/3.0 solo tiene P1, P2
+      const tablaPotencias = esTarifa61 ? "Potencias contratadas (P1-P6)" : "Potencias contratadas (P1-P2)";
+      
+      for (let i = 1; i <= periodosPotencia; i++) {
+          const key = `${tablaPotencias}__0__${i-1}`; // fila 0, col i-1
+          newValoresTabla[key] = String(potencias[`P${i}`] || '0');
+      }
+
+      // 2b. Rellenar "Energía consumida"
+      const tablaEnergia = "Energía consumida (kWh) por mes y periodo";
+      const consumoMensual = sipsData.ConsumoMensual;
+      const periodosEnergia = esTarifa61 ? 6 : 3; // El formulario 2.0/3.0 tiene P1, P2, P3
+      
+      // Helper para mapear fechas "DD/MM/YYYY" a índice de mes [0-11]
+      const dateToMonthIndex = (dateStr: string) => {
+          const parts = dateStr.split('/');
+          return parts.length === 3 ? parseInt(parts[1], 10) - 1 : -1;
+      };
+
+      for (const [dateStr, consumos] of Object.entries(consumoMensual)) {
+          const monthIndex = dateToMonthIndex(dateStr);
+          if (monthIndex === -1) continue; // Saltar fecha inválida
+
+          for (let i = 1; i <= periodosEnergia; i++) {
+              const key = `${tablaEnergia}__${i-1}__${monthIndex}`; // fila (P1=0...), col (Ene=0...)
+              newValoresTabla[key] = String(consumos[`P${i}`] || '0');
+          }
+      }
+      
+      // 2c. Rellenar "Potencia consumida" (Maxímetro)
+      const tablaPotenciaConsumida = "Potencia consumida (kW) por mes y periodo";
+      const potenciaConsumida = sipsData.PotenciaConsumida;
+      
+      for (const [dateStr, potencias] of Object.entries(potenciaConsumida)) {
+          const monthIndex = dateToMonthIndex(dateStr);
+          if (monthIndex === -1) continue;
+
+          for (let i = 1; i <= periodosEnergia; i++) {
+              const key = `${tablaPotenciaConsumida}__${i-1}__${monthIndex}`;
+              newValoresTabla[key] = String(potencias[`P${i}`] || '0');
+          }
+      }
+
+      setValoresTabla(newValoresTabla);
+      // --- Fin relleno de tablas ---
+
     } catch (err) {
       console.error(err);
-      alert('Error llamando al backend');
+      setError('Error al conectar con el backend.');
+    } finally {
+      setCargando(false);
     }
   };
-
+  // --- (FIN MODIFICADO) ---
 
 
   const handleRellenarManual = () => {
@@ -90,7 +172,8 @@ const ComparativaForm: React.FC = () => {
     setError(null);
     setTarifa("");
     // si quieres limpiar lo que había antes:
-    // setValoresTabla({});
+    setDatosAuto(null);
+    setValoresTabla({});
   };
 
   // se llama desde las tablas cuando el usuario escribe
@@ -100,6 +183,9 @@ const ComparativaForm: React.FC = () => {
     col: number,
     valor: string
   ) => {
+    // Solo permite editar si está en modo manual
+    if (modo !== 'manual') return;
+
     const key = `${tabla}__${fila}__${col}`;
     setValoresTabla((prev) => ({
       ...prev,
@@ -108,7 +194,9 @@ const ComparativaForm: React.FC = () => {
   };
 
   const renderTablasTarifa_20_30 = () => {
+    // --- (MODIFICADO) Es editable solo en modo manual ---
     const esEditable = modo === "manual";
+    // --- (FIN MODIFICADO) ---
 
     return (
       <>
@@ -190,7 +278,9 @@ const ComparativaForm: React.FC = () => {
   };
 
   const renderTablasTarifa_61 = () => {
+    // --- (MODIFICADO) Es editable solo en modo manual ---
     const esEditable = modo === "manual";
+    // --- (FIN MODIFICADO) ---
 
     return (
       <>
@@ -270,6 +360,17 @@ const ComparativaForm: React.FC = () => {
   };
 
   const renderZonaTablas = () => {
+    // --- (MODIFICADO) Mostrar un spinner si está cargando ---
+    if (cargando && modo === "auto") {
+        return (
+            <div className="text-center p-8">
+                <p>Consultando SIPS...</p>
+                {/* Aquí podrías poner un spinner real */}
+            </div>
+        )
+    }
+    // --- (FIN MODIFICADO) ---
+    
     if (!tarifa) {
       return (
         <p className="text-sm text-gray-500 mt-4">
@@ -357,15 +458,17 @@ const ComparativaForm: React.FC = () => {
         <button
           type="button"
           onClick={handleAutocompletar}
-          disabled={cargando}
+          disabled={cargando || !datosSuministro.cups}
           className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
+          title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
         >
           {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
         </button>
         <button
           type="button"
           onClick={handleRellenarManual}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md"
+          disabled={cargando}
+          className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
         >
           Rellenar manualmente
         </button>
@@ -475,7 +578,10 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                     const realColIndex =
                       colIndex + (mostrarPrimeraColumnaComoFila ? 1 : 0);
                     const key = `${titulo}__${filaIndex}__${realColIndex}`;
-                    const value = valores[key] ?? (celda as string);
+                    
+                    // --- (MODIFICADO) Prioriza 'valores' si existe ---
+                    const value = valores[key] !== undefined ? valores[key] : (celda as string);
+                    // --- (FIN MODIFICADO) ---
 
                     return (
                       <td key={colIndex} className="px-2 py-1">
@@ -494,7 +600,9 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                             className="w-full border rounded-sm px-1 py-0.5 text-xs"
                           />
                         ) : (
+                          // --- (MODIFICADO) Muestra el valor incluso si no es editable ---
                           value
+                          // --- (FIN MODIFICADO) ---
                         )}
                       </td>
                     );

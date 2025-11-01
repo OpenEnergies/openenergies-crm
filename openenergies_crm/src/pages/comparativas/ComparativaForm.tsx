@@ -3,13 +3,13 @@ import React, { useState, useEffect } from "react";
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
 
+// --- MODIFICADO: 'observaciones' eliminado ---
 interface DatosSuministro {
   cups: string;
   titular: string;
   dniCif: string; 
   fechaEstudio: string; 
   direccion: string;
-  observaciones: string;
 }
 
 interface SipsData {
@@ -70,13 +70,14 @@ const generateManualHeaders = (lastMonth: string, lastYear: string): string[] =>
 const ComparativaForm: React.FC = () => {
   
   const todayISO = new Date().toISOString().split('T')[0]!;
+  
+  // --- MODIFICADO: 'observaciones' eliminado ---
   const [datosSuministro, setDatosSuministro] = useState<DatosSuministro>({
     cups: "",
     titular: "",
     dniCif: "", 
     fechaEstudio: todayISO, 
     direccion: "",
-    observaciones: "",
   });
 
   const [modo, setModo] = useState<"idle" | "auto" | "manual">("idle");
@@ -88,6 +89,7 @@ const ComparativaForm: React.FC = () => {
 
   const [valoresTabla, setValoresTabla] = useState<Record<string, string>>({});
   const [dynamicMonthHeaders, setDynamicMonthHeaders] = useState<string[]>(defaultMesesDelAño);
+  const [sipsFirstMonth, setSipsFirstMonth] = useState<string | null>(null);
 
   const [manualLastMonth, setManualLastMonth] = useState<string>("");
   const [manualLastYear, setManualLastYear] = useState<string>("");
@@ -169,7 +171,8 @@ const ComparativaForm: React.FC = () => {
       };
       
       const sortedHeaders = uniqueMonthKeys.sort(sortMMYY);
-      const newHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(1) : sortedHeaders;
+      // --- CORRECCIÓN: Usar los últimos 12 meses si hay más de 12 ---
+      const newHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(-12) : sortedHeaders;
 
       const headerToIndexMap = new Map(newHeaders.map((h, i) => [h, i]));
 
@@ -192,11 +195,12 @@ const ComparativaForm: React.FC = () => {
       const periodosEnergia = esTarifa61 ? 6 : 3;
       
       for (const [monthKey, consumos] of Object.entries(consumoMensual)) {
-          const colIndex = headerToIndexMap.get(monthKey); 
-          if (colIndex === undefined) continue; 
+          // const colIndex = headerToIndexMap.get(monthKey); // Ya no necesitamos el índice aquí
+          if (!headerToIndexMap.has(monthKey)) continue; // Solo comprobamos si está en las cabeceras visibles
 
           for (let i = 1; i <= periodosEnergia; i++) {
-              const key = `${tablaEnergia}__${i-1}__${colIndex}`;
+              // --- CAMBIO CLAVE: Usar monthKey en lugar de colIndex ---
+              const key = `${tablaEnergia}__${i-1}__${monthKey}`; 
               newValoresTabla[key] = String(consumos[`P${i}`] || '0');
           }
       }
@@ -206,15 +210,17 @@ const ComparativaForm: React.FC = () => {
       const potenciaConsumida = sipsData.PotenciaConsumida;
       
       for (const [monthKey, potencias] of Object.entries(potenciaConsumida)) {
-          const colIndex = headerToIndexMap.get(monthKey);
-          if (colIndex === undefined) continue; 
+          // const colIndex = headerToIndexMap.get(monthKey); // Ya no necesitamos el índice aquí
+          if (!headerToIndexMap.has(monthKey)) continue; // Solo comprobamos si está en las cabeceras visibles
 
           for (let i = 1; i <= periodosEnergia; i++) {
-              const key = `${tablaPotenciaConsumida}__${i-1}__${colIndex}`;
+              // --- CAMBIO CLAVE: Usar monthKey en lugar de colIndex ---
+              const key = `${tablaPotenciaConsumida}__${i-1}__${monthKey}`;
               newValoresTabla[key] = String(potencias[`P${i}`] || '0');
           }
       }
 
+      setSipsFirstMonth(newHeaders[0] || null); // <-- AÑADIR: Guardar primer mes
       setValoresTabla(newValoresTabla);
 
     } catch (err) {
@@ -234,7 +240,56 @@ const ComparativaForm: React.FC = () => {
     setDynamicMonthHeaders(defaultMesesDelAño);
     setManualLastMonth("");
     setManualLastYear("");
+    setSipsFirstMonth(null); // <-- AÑADIR
   };
+
+  const handleAvanzarMes = () => {
+    // 1. Calcular el nuevo mes
+    const lastHeader = dynamicMonthHeaders[dynamicMonthHeaders.length - 1];
+    // No hacer nada si las cabeceras no son "MM/YY" (modo SIPS sin datos o modo manual inicial)
+    if (!lastHeader || !lastHeader.includes('/')) return; 
+
+    const [lastMonth, lastYear] = lastHeader.split('/');
+    let m = parseInt(lastMonth!, 10);
+    let y = parseInt(lastYear!, 10);
+
+    m++; // Avanzar un mes
+    if (m > 12) {
+        m = 1;
+        y++; // Avanzar un año
+    }
+
+    // Formatear el nuevo header
+    const newHeader = `${m.toString().padStart(2, '0')}/${y.toString().padStart(2, '0')}`;
+
+    // 2. Actualizar headers (quitar primero, añadir nuevo al final)
+    const newHeaders = [...dynamicMonthHeaders.slice(1), newHeader];
+    setDynamicMonthHeaders(newHeaders);
+  };
+
+  // --- (1) AÑADIR NUEVA FUNCIÓN 'handleRetrocederMes' ---
+  const handleRetrocederMes = () => {
+    // 1. Calcular el nuevo mes (anterior)
+    const firstHeader = dynamicMonthHeaders[0];
+    if (!firstHeader || !firstHeader.includes('/')) return;
+
+    const [firstMonth, firstYear] = firstHeader.split('/');
+    let m = parseInt(firstMonth!, 10);
+    let y = parseInt(firstYear!, 10);
+
+    m--; // Retroceder un mes
+    if (m < 1) {
+        m = 12;
+        y--; // Retroceder un año
+    }
+
+    const newHeader = `${m.toString().padStart(2, '0')}/${y.toString().padStart(2, '0')}`;
+
+    // 2. Actualizar headers (quitar último, añadir nuevo al principio)
+    const newHeaders = [newHeader, ...dynamicMonthHeaders.slice(0, -1)];
+    setDynamicMonthHeaders(newHeaders);
+  };
+  // --- FIN (1) ---
 
   useEffect(() => {
       if (modo === "manual" && tarifa && manualLastMonth && manualLastYear) {
@@ -250,10 +305,14 @@ const ComparativaForm: React.FC = () => {
   const handleChangeCelda = (
     tabla: string,
     fila: number,
-    col: number,
+    col: number, // Esto sigue siendo el ÍNDICE (0-11)
     valor: string
   ) => {
-    const key = `${tabla}__${fila}__${col}`;
+    // --- CAMBIO: Traducir índice a cabecera ---
+    const colHeader = dynamicMonthHeaders[col];
+    if (!colHeader) return; // Seguridad
+    
+    const key = `${tabla}__${fila}__${colHeader}`; // <-- Usar cabecera
     setValoresTabla((prev) => ({
       ...prev,
       [key]: valor,
@@ -262,6 +321,14 @@ const ComparativaForm: React.FC = () => {
 
   const renderTablasTarifa_20_30 = () => {
     const esEditable = modo === "manual" || modo === "auto";
+    const puedeAvanzar = modo === "auto" || (modo === "manual" && tarifa && manualLastMonth && manualLastYear);
+
+    // --- AÑADIR: Lógica para desactivar el botón "retroceder" ---
+    const canRetroceder = puedeAvanzar && (
+        modo === 'manual' || // Siempre se puede en modo manual
+        !sipsFirstMonth || // Si no hay SIPS data
+        (dynamicMonthHeaders[0] !== sipsFirstMonth) // O si el mes visible NO es el primer mes de SIPS
+    );
 
     return (
       <>
@@ -287,6 +354,10 @@ const ComparativaForm: React.FC = () => {
             editable={esEditable}
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
+            onAddColumn={puedeAvanzar ? handleAvanzarMes : undefined}
+            // --- (4) PASAR LA FUNCIÓN DE RETROCESO ---
+            onRemoveColumn={canRetroceder ? handleRetrocederMes : undefined}
+            // --- FIN (4) ---
           />
 
           <TablaGenerica
@@ -306,7 +377,7 @@ const ComparativaForm: React.FC = () => {
 
         <div className="grid gap-4 md:grid-cols-2 mt-6">
           <TablaGenerica
-            titulo="Término potencia"
+            titulo="Precio Potencia (€/kW)"
             columnas={["P1", "P2", "P3"]}
             filas={[["", "", ""]]}
             editable={esEditable}
@@ -314,7 +385,7 @@ const ComparativaForm: React.FC = () => {
             valores={valoresTabla}
           />
           <TablaGenerica
-            titulo="Término energía"
+            titulo="Precio Energía (€/kWh)"
             columnas={["P1", "P2", "P3"]}
             filas={[["", "", ""]]}
             editable={esEditable}
@@ -328,6 +399,14 @@ const ComparativaForm: React.FC = () => {
 
   const renderTablasTarifa_61 = () => {
     const esEditable = modo === "manual" || modo === "auto";
+    const puedeAvanzar = modo === "auto" || (modo === "manual" && tarifa && manualLastMonth && manualLastYear);
+
+    // --- AÑADIR: Lógica para desactivar el botón "retroceder" ---
+    const canRetroceder = puedeAvanzar && (
+        modo === 'manual' || 
+        !sipsFirstMonth || 
+        (dynamicMonthHeaders[0] !== sipsFirstMonth)
+    );
 
     return (
       <>
@@ -352,6 +431,10 @@ const ComparativaForm: React.FC = () => {
             editable={esEditable}
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
+            onAddColumn={puedeAvanzar ? handleAvanzarMes : undefined}
+            // --- (4) PASAR LA FUNCIÓN DE RETROCESO ---
+            onRemoveColumn={canRetroceder ? handleRetrocederMes : undefined}
+            // --- FIN (4) ---
           />
 
           <TablaGenerica
@@ -422,73 +505,65 @@ const ComparativaForm: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* DATOS DEL SUMINISTRO (ACTUALIZADO) */}
-      <div className="bg-white rounded-md shadow-sm p-4 space-y-4">
-        <h1 className="text-lg font-semibold">Datos del suministro</h1>
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Row 1 */}
-          <div>
-            {/* --- CORRECCIÓN ANTERIOR (YA ESTABA) --- */}
-            <label className="block text-sm font-medium text-gray-700" htmlFor="cups">CUPS</label>
-            <input
-              type="text"
-              id="cups"
-              name="cups"
-              value={datosSuministro.cups}
-              onChange={handleChangeSuministro}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              placeholder="ES00XXXXXXXXXXXXXX"
-            />
-          </div>
-          {/* Nuevo Fecha Estudio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="fechaEstudio">
-              Fecha de estudio
-            </label>
-            <input
-              type="date"
-              id="fechaEstudio"
-              name="fechaEstudio"
-              value={datosSuministro.fechaEstudio}
-              onChange={handleChangeSuministro}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+    <div className="grid p-6 space-y-6"> 
+
+      {/* 2. Añade el título estándar de la página */}
+      <div className="page-header">
+        <h2 style={{ margin: 0 }}>Comparativas</h2>
+         <div className="page-actions"></div>
+      </div>
+
+      {/* 3. Envuelve los datos del suministro en su propia tarjeta 'card' */}
+      <div className="card">
+        
+        {/* 4. Usa un título de sección (h3) para "Datos del suministro" */}
+        <h3 className="section-title" style={{ 
+            marginTop: 0, 
+            borderBottom: 'none', // Quitamos la línea si no la quieres
+            paddingBottom: 0,     // Quitamos padding
+            marginBottom: '1.5rem' // Añadimos espacio antes del formulario
+          }}>
+          Datos del suministro
+        </h3>
+        
+        {/* --- INICIO: SECCIÓN MODIFICADA (SIN TAILWIND) --- */}
+        {/* Usamos un grid CSS simple (gap) para apilar las filas */}
+        <div style={{ display: 'grid', gap: '1rem' }}> {/* Ajusta '1rem' si usas otra variable */}
+          
+          {/* Fila 1: Titular y DNI/CIF */}
+          <div className="form-row" style={{ gap: '1rem' }}> {/* Reutilizamos form-row para las 2 columnas */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="titular">
+                Titular
+              </label>
+              <input
+                id="titular"
+                name="titular"
+                value={datosSuministro.titular}
+                onChange={handleChangeSuministro}
+                className="w-full border rounded-md px-3 py-2 text-sm" // Estas clases parecen ser custom
+                placeholder="Nombre del titular"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="dniCif">
+                DNI/CIF
+              </label>
+              <input
+                id="dniCif"
+                name="dniCif"
+                value={datosSuministro.dniCif}
+                onChange={handleChangeSuministro}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="DNI o CIF del titular"
+              />
+            </div>
           </div>
 
-          {/* Row 2 */}
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="titular">
-              Titular
-            </label>
-            <input
-              id="titular"
-              name="titular"
-              value={datosSuministro.titular}
-              onChange={handleChangeSuministro}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder="Nombre del titular"
-            />
-          </div>
-          {/* Nuevo DNI/CIF */}
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="dniCif">
-              DNI/CIF
-            </label>
-            <input
-              id="dniCif"
-              name="dniCif"
-              value={datosSuministro.dniCif}
-              onChange={handleChangeSuministro}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder="DNI o CIF del titular"
-            />
-          </div>
-
-          {/* Row 3 (Dirección) */}
-          <div className="md:col-span-2">
+          {/* Fila 2: Dirección (Ocupa todo el ancho) */}
+          <div> {/* Un div simple, sin 'form-row' */}
             <label className="block text-sm font-medium mb-1" htmlFor="direccion">
-              Dirección
+              Dirección de Suministro
             </label>
             <input
               id="direccion"
@@ -499,30 +574,51 @@ const ComparativaForm: React.FC = () => {
               placeholder="Calle, número, CP, municipio"
             />
           </div>
-          {/* Row 4 (Observaciones) */}
-          <div className="md:col-span-2">
-            <label
-              className="block text-sm font-medium mb-1"
-              htmlFor="observaciones"
-            >
-              Observaciones
-            </label>
-            <textarea
-              id="observaciones"
-              name="observaciones"
-              value={datosSuministro.observaciones}
-              onChange={handleChangeSuministro}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              rows={2}
-              placeholder="Cualquier dato adicional..."
-            />
+
+          {/* Fila 3: CUPS y Fecha de Estudio */}
+          <div className="form-row" style={{ gap: '1rem' }}> {/* Reutilizamos form-row */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="cups">CUPS</label>
+              <input
+                type="text"
+                id="cups"
+                name="cups"
+                value={datosSuministro.cups}
+                onChange={handleChangeSuministro}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="ES00XXXXXXXXXXXXXX"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="fechaEstudio">
+                Fecha de estudio
+              </label>
+              <input
+                type="date"
+                id="fechaEstudio"
+                name="fechaEstudio"
+                value={datosSuministro.fechaEstudio}
+                onChange={handleChangeSuministro}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
           </div>
+            
         </div>
+        {/* --- FIN: SECCIÓN MODIFICADA --- */}
+        
       </div>
 
 
       {/* BOTONES */}
-      <div className="flex gap-3">
+      {/* --- DIV MODIFICADO CON ESTILOS EN LÍNEA --- */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          gap: '1rem',     // Más espacio entre botones
+          marginTop: '1rem'  // Más espacio arriba de los botones
+        }}
+      >
         <button
           type="button"
           onClick={handleAutocompletar}
@@ -618,13 +714,6 @@ const ComparativaForm: React.FC = () => {
           Generar PDF
         </button>
       </div>
-
-      {/* DEBUG */}
-      {datosAuto ? (
-        <pre className="text-xs bg-slate-900 text-slate-100 p-3 rounded-md overflow-auto">
-{JSON.stringify(datosAuto, null, 2)}
-        </pre>
-      ) : null}
     </div>
   );
 };
@@ -645,6 +734,10 @@ interface TablaGenericaProps {
     col: number,
     valor: string
   ) => void;
+  onAddColumn?: () => void;
+  // --- (2) AÑADIR NUEVA PROP 'onRemoveColumn' ---
+  onRemoveColumn?: () => void;
+  // --- FIN (2) ---
 }
 
 const TablaGenerica: React.FC<TablaGenericaProps> = ({
@@ -655,10 +748,79 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
   editable = false,
   valores = {},
   onChangeCell,
+  onAddColumn,
+  // --- (2) AÑADIR NUEVA PROP 'onRemoveColumn' ---
+  onRemoveColumn,
+  // --- FIN (2) ---
 }) => {
+  const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Potencia consumida")) && columnas[0]?.includes('/');
+  
+  // --- (3) ESTILOS PARA LOS BOTONES (para evitar repetición) ---
+  const buttonStyle: React.CSSProperties = {
+    background: 'none', 
+    border: 'none', 
+    cursor: 'pointer', 
+    color: 'var(--primary, #10B981)',
+    lineHeight: 1,
+    padding: '2px'
+  };
+
+  const svgIconStyle: React.CSSProperties = {
+    width: 18,
+    height: 18,
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
+  // --- FIN (3) ---
+
   return (
     <div className="border rounded-md overflow-hidden">
-      <div className="bg-slate-50 px-3 py-2 text-sm font-medium">{titulo}</div>
+      {/* --- (3) MODIFICAR DIV DEL TÍTULO --- */}
+      <div 
+        className="bg-slate-50 px-3 py-2 text-sm font-medium" 
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <span>{titulo}</span>
+        {/* Mostrar botones si es tabla mensual y alguna función existe */}
+        {esTablaMensual && (onAddColumn || onRemoveColumn) && (
+          <div style={{ display: 'flex', gap: '4px' }}>
+            
+            {/* Botón MENOS (NUEVO) */}
+            {onRemoveColumn && (
+              <button
+                type="button"
+                onClick={onRemoveColumn}
+                title="Retroceder un mes"
+                className="p-1 rounded-full hover:bg-slate-200"
+                style={buttonStyle}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            )}
+
+            {/* Botón MÁS (Existente, ahora usa estilos) */}
+            {onAddColumn && (
+              <button
+                type="button"
+                onClick={onAddColumn}
+                title="Avanzar un mes"
+                className="p-1 rounded-full hover:bg-slate-200"
+                style={buttonStyle}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {/* --- FIN (3) --- */}
       <div className="overflow-auto">
         <table className="min-w-full divide-y divide-slate-200 text-xs">
           <thead className="bg-slate-100">
@@ -681,12 +843,15 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                     {String(fila[0])}
                   </td>
                 ) : null}
-                {columnas.map((_, colIndex) => {
-                  const realColIndex = colIndex;
-                  const key = `${titulo}__${filaIndex}__${realColIndex}`;
+                {/* --- MODIFICACIÓN EN EL MAP DE COLUMNAS --- */}
+                {columnas.map((colHeader, colIndex) => { // <-- Obtener colHeader y colIndex
+                  
+                  // --- CAMBIO CLAVE: Construir la clave con colHeader ---
+                  const key = `${titulo}__${filaIndex}__${colHeader}`;
                   
                   const originalCeldaValue = (fila[colIndex + (mostrarPrimeraColumnaComoFila ? 1 : 0)] as string) || "";
                   
+                  // Leer el valor del estado usando la clave con cabecera
                   const value = valores[key] !== undefined ? valores[key] : originalCeldaValue;
 
                     return (
@@ -699,7 +864,7 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                               onChangeCell(
                                 titulo,
                                 filaIndex,
-                                realColIndex,
+                                colIndex, // <-- Pasamos el ÍNDICE (0-11) al handler
                                 e.target.value
                               )
                             }

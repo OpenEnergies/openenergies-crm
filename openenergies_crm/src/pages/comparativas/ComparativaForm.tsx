@@ -1,7 +1,9 @@
 // openenergies_crm/src/pages/comparativas/ComparativaForm.tsx
 import React, { useState, useEffect } from "react";
-// --- (1) Importar iconos ---
-import { Zap, Cog, Euro, Pencil, Loader2 } from 'lucide-react';
+// --- (1) Importar iconos y toast ---
+import { Zap, Cog, Euro, Pencil, Loader2, FileDown } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { saveAs } from 'file-saver';
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
 
@@ -84,7 +86,7 @@ const ComparativaForm: React.FC = () => {
   // Opciones de año (ej: 8 años atrás hasta hoy)
   const yearOptions = React.useMemo(() => 
     // Genera 8 años empezando por el actual (2025) y yendo hacia atrás (2025, 2024, ...)
-    Array.from({ length: 8 }, (_, i) => (currentYearFull - 7 + i)) 
+    Array.from({ length: 8 }, (_, i) => (currentYearFull - i)) 
         .map(year => year.toString().slice(-2)), // Convierte a "YY" -> ["25", "24", ...]
   [currentYearFull]);
   
@@ -106,6 +108,7 @@ const ComparativaForm: React.FC = () => {
   const [datosAuto, setDatosAuto] = useState<SipsData | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false); // --- (2) Estado para el PDF ---
 
   const [valoresTabla, setValoresTabla] = useState<Record<string, string>>({});
   const [dynamicMonthHeaders, setDynamicMonthHeaders] = useState<string[]>(defaultMesesDelAño);
@@ -218,9 +221,12 @@ const ComparativaForm: React.FC = () => {
 
       // 2b. Rellenar "Potencias contratadas"
       const potencias = sipsData.PotContratada;
-      const esTarifa61 = sipsData.Tarifa === '6.1TD';
-      const periodosPotencia = esTarifa61 ? 6 : 2;
-      const tablaPotencias = esTarifa61 ? "Potencias contratadas (P1-P6)" : "Potencias contratadas (P1-P2)";
+      
+      // --- (INICIO) MODIFICACIÓN LÓGICA TARIFAS 3.0/6.1 ---
+      const esTarifaAlta = sipsData.Tarifa === '6.1TD' || sipsData.Tarifa === '3.0TD';
+      const periodosPotencia = esTarifaAlta ? 6 : 2;
+      const tablaPotencias = esTarifaAlta ? "Potencias contratadas (P1-P6)" : "Potencias contratadas (P1-P2)";
+      // --- (FIN) MODIFICACIÓN LÓGICA TARIFAS ---
       
       // --- (FIX 1) CORRECCIÓN LÓGICA DE CLAVE ---
       for (let i = 1; i <= periodosPotencia; i++) {
@@ -235,13 +241,16 @@ const ComparativaForm: React.FC = () => {
       // 2c. Rellenar "Energía consumida"
       const tablaEnergia = "Energía consumida (kWh)";
       const consumoMensual = sipsData.ConsumoMensual;
-      const periodosEnergia = esTarifa61 ? 6 : 3;
+      
+      // --- (INICIO) MODIFICACIÓN LÓGICA TARIFAS 3.0/6.1 ---
+      const periodosEnergiaConsumo = esTarifaAlta ? 6 : 3;
+      // --- (FIN) MODIFICACIÓN LÓGICA TARIFAS ---
       
       for (const [monthKey, consumos] of Object.entries(consumoMensual)) {
           // const colIndex = headerToIndexMap.get(monthKey); // Ya no necesitamos el índice aquí
           if (!headerToIndexMap.has(monthKey)) continue; // Solo comprobamos si está en las cabeceras visibles
 
-          for (let i = 1; i <= periodosEnergia; i++) {
+          for (let i = 1; i <= periodosEnergiaConsumo; i++) { // <-- Usar variable corregida
               // --- CAMBIO CLAVE: Usar monthKey en lugar de colIndex ---
               const key = `${tablaEnergia}__${i-1}__${monthKey}`; 
               newValoresTabla[key] = String(consumos[`P${i}`] || '0');
@@ -251,12 +260,16 @@ const ComparativaForm: React.FC = () => {
       // 2d. Rellenar "Potencia consumida" (Maxímetro)
       const tablaPotenciaConsumida = "Lectura Maxímetro (kW) - Opcional";
       const potenciaConsumida = sipsData.PotenciaConsumida;
+
+      // --- (INICIO) MODIFICACIÓN LÓGICA TARIFAS 3.0/6.1 ---
+      const periodosEnergiaPotencia = esTarifaAlta ? 6 : 3;
+      // --- (FIN) MODIFICACIÓN LÓGICA TARIFAS ---
       
       for (const [monthKey, potencias] of Object.entries(potenciaConsumida)) {
           // const colIndex = headerToIndexMap.get(monthKey); // Ya no necesitamos el índice aquí
           if (!headerToIndexMap.has(monthKey)) continue; // Solo comprobamos si está en las cabeceras visibles
 
-          for (let i = 1; i <= periodosEnergia; i++) {
+          for (let i = 1; i <= periodosEnergiaPotencia; i++) { // <-- Usar variable corregida
               // --- CAMBIO CLAVE: Usar monthKey en lugar de colIndex ---
               const key = `${tablaPotenciaConsumida}__${i-1}__${monthKey}`;
               newValoresTabla[key] = String(potencias[`P${i}`] || '0');
@@ -360,6 +373,158 @@ const ComparativaForm: React.FC = () => {
     }));
   };
   // --- FIN FIX 2 ---
+  
+  // --- (3) INICIO: LÓGICA DE GENERACIÓN DE PDF ---
+
+  /** Helper para parsear números de forma segura desde el estado */
+  const z = (val: string | undefined | null) => Number(val || '0') || 0;
+
+  /** Helper para obtener las claves de periodo correctas según la tarifa */
+  const getPeriodKeys = (t: Tarifa) => {
+    const esTarifaAlta = t === '6.1TD' || t === '3.0TD';
+    // Claves de Potencia ("P1", "P2", ...)
+    const potPeriodKeys = esTarifaAlta ? ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P2'];
+    // Claves de Energía para el JSON ("E1", "E2", ...)
+    const engPeriodKeys = esTarifaAlta ? ['E1', 'E2', 'E3', 'E4', 'E5', 'E6'] : ['E1', 'E2', 'E3'];
+    // Claves de Energía como se usan en las tablas ("P1", "P2", ...)
+    const engTableKeys = engPeriodKeys.map((_, i) => `P${i + 1}`); // [P1, P2, P3...]
+    
+    return { potPeriodKeys, engPeriodKeys, engTableKeys };
+  };
+  
+  /** Construye el objeto JSON para la API del PDF */
+  const buildPdfJson = () => {
+    if (!tarifa) {
+      toast.error("Selecciona una tarifa antes de generar el PDF.");
+      return null;
+    }
+    
+    const { potPeriodKeys, engPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
+    
+    // 1. energia_kwh_mes
+    const tablaEnergiaKey = "Energía consumida (kWh)";
+    const energia_kwh_mes: Record<string, number[]> = {};
+    
+    engPeriodKeys.forEach((jsonKey, idx) => {
+      const filaIndex = idx; // P1 es fila 0, P2 es fila 1...
+      // Mapea sobre las 12 cabeceras de meses (dynamicMonthHeaders)
+      energia_kwh_mes[jsonKey] = dynamicMonthHeaders.map(header => {
+        const val = valoresTabla[`${tablaEnergiaKey}__${filaIndex}__${header}`];
+        return z(val);
+      });
+    });
+
+    // 2. potencia_contratada_kw
+    const tablaPotKey = tarifa === '2.0TD' ? "Potencias contratadas (P1-P2)" : "Potencias contratadas (P1-P6)";
+    const potencia_contratada_kw: Record<string, number> = {};
+    
+    potPeriodKeys.forEach(periodKey => {
+      const val = valoresTabla[`${tablaPotKey}__0__${periodKey}`];
+      potencia_contratada_kw[periodKey] = z(val);
+    });
+
+    // 3. actual y propuesta (con helper)
+    const getPriceData = (type: '(Actual)' | '(Ofrecido)') => {
+      const potTablaKey = `Término potencia ${type}`;
+      const engTablaKey = `Término energía ${type}`;
+      
+      const precio_potencia: Record<string, number> = {};
+      potPeriodKeys.forEach(periodKey => {
+         const val = valoresTabla[`${potTablaKey}__0__${periodKey}`];
+         precio_potencia[periodKey] = z(val);
+      });
+      
+      const precio_energia: Record<string, number> = {};
+      engPeriodKeys.forEach((jsonKey, idx) => {
+        const colKey = engTableKeys[idx]; // P1, P2...
+        const val = valoresTabla[`${engTablaKey}__0__${colKey}`];
+        precio_energia[jsonKey] = z(val);
+      });
+      
+      // El cargo fijo es el mismo para ambos, viene de datosSuministro
+      const cargos_fijos_anual_eur = z(datosSuministro.otrosConceptos);
+
+      return { nombre: "", precio_potencia, precio_energia, cargos_fijos_anual_eur };
+    };
+
+    // 4. Impuestos
+    const iva_pct = z(datosSuministro.iva) / 100;
+    const impuesto_electricidad_pct = z(datosSuministro.impuestoElectrico) / 100;
+    
+    // 5. Suministro
+    const suministro = {
+      direccion: datosSuministro.direccion,
+      cif: datosSuministro.dniCif, // Mapeado desde dniCif
+      fecha_estudio: datosSuministro.fechaEstudio,
+      cups: datosSuministro.cups,
+      nombre_cliente: datosSuministro.titular, // Mapeado desde titular
+      // 'poblacion' no está en datosSuministro, se omite
+    };
+
+    // 6. Ensamblar JSON final
+    return {
+      tarifa,
+      energia_kwh_mes,
+      potencia_contratada_kw,
+      actual: getPriceData('(Actual)'),
+      propuesta: getPriceData('(Ofrecido)'),
+      iva_pct: isNaN(iva_pct) ? 0.21 : iva_pct, // Default
+      impuesto_electricidad_pct: isNaN(impuesto_electricidad_pct) ? 0.051127 : impuesto_electricidad_pct, // Default
+      suministro,
+    };
+  };
+
+  /** Manejador del clic en el botón "Generar PDF" */
+  const handleGeneratePdf = async () => {
+    const payload = buildPdfJson();
+    
+    if (!payload) {
+      return; // buildPdfJson ya mostró un toast de error
+    }
+    
+    setIsGeneratingPdf(true);
+    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/generate-report";
+    const authToken = "tyXk7pM355t2yYmeqEOc0hIMMJYYZ5dPL0SXwpVdVHo=";
+
+    try {
+      // console.log("Enviando JSON para PDF:", JSON.stringify(payload, null, 2));
+
+      const response = await fetch(pdfUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Auth-Token': authToken,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        // Intentar leer el error del cuerpo si es posible
+        const errorText = await response.text();
+        console.error("Error del servidor PDF:", errorText);
+        throw new Error(`Error ${response.status}: ${errorText || response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      
+      if (blob.type !== 'application/pdf') {
+        throw new Error("La respuesta del servidor no fue un archivo PDF.");
+      }
+
+      // Usar file-saver para descargar el PDF
+      saveAs(blob, `comparativa_${datosSuministro.cups || 'report'}.pdf`);
+      toast.success("PDF generado con éxito.");
+
+    } catch (err: any) {
+      console.error("Error al generar PDF:", err);
+      toast.error(`Error al generar PDF: ${err.message}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+  // --- (3) FIN: LÓGICA DE GENERACIÓN DE PDF ---
+
+
   // --- (INICIO) MODIFICACIÓN renderTablasTarifa_20_30 ---
   const renderTablasTarifa_20_30 = () => {
     const esEditable = modo === "manual" || modo === "auto";
@@ -370,7 +535,7 @@ const ComparativaForm: React.FC = () => {
         (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
     const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
-    const warningColor = "#d6c102ff"; // Color amarillo
+    const warningColor = "#f39b03"; // Color amarillo/ámbar
 
     return (
       <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -389,6 +554,9 @@ const ComparativaForm: React.FC = () => {
         </div>        
         {/* Fila 1 (Bloque Consumos, Vertical) */}
         <div style={{ display: 'grid', gap: '1.5rem' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', marginTop: 0, marginBottom: '0.5rem' }}>
+            Detalle mensual según la tarifa. {modo === 'manual' ? 'Valores editables.' : 'Valores autocompletados.'}
+          </p>
           <TablaGenerica
             titulo="Energía consumida (kWh)"
             icon={<Zap size={18} />}
@@ -494,7 +662,7 @@ const ComparativaForm: React.FC = () => {
         (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
     const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
-    const warningColor = "#d6c102ff";
+    const warningColor = "#f39b03"; // Color amarillo/ámbar
 
     return (
       <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -513,6 +681,9 @@ const ComparativaForm: React.FC = () => {
         
         {/* Fila 1 (Bloque Consumos, Vertical) */}
         <div style={{ display: 'grid', gap: '1.5rem' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', marginTop: 0, marginBottom: '0.5rem' }}>
+            Detalle mensual según la tarifa. {modo === 'manual' ? 'Valores editables.' : 'Valores autocompletados.'}
+          </p>
           <TablaGenerica
             titulo="Energía consumida (kWh)"
             icon={<Zap size={18} />}
@@ -640,13 +811,15 @@ const ComparativaForm: React.FC = () => {
       );
     }
 
-    if (tarifa === "2.0TD" || tarifa === "3.0TD") {
+    // --- (INICIO) MODIFICACIÓN LÓGICA DE RENDERIZADO ---
+    if (tarifa === "2.0TD") {
       return renderTablasTarifa_20_30();
     }
 
-    if (tarifa === "6.1TD") {
+    if (tarifa === "3.0TD" || tarifa === "6.1TD") {
       return renderTablasTarifa_61();
     }
+    // --- (FIN) MODIFICACIÓN LÓGICA DE RENDERIZADO ---
 
     return null;
   };
@@ -999,12 +1172,22 @@ const ComparativaForm: React.FC = () => {
 
       {/* BOTÓN PDF */}
       <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        {/* --- (4) BOTÓN PDF MODIFICADO --- */}
         <button
           type="button"
+          onClick={handleGeneratePdf}
+          disabled={isGeneratingPdf || !tarifa}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          Generar PDF
+          {isGeneratingPdf ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <FileDown size={18} />
+          )}
+          {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}
         </button>
+        {/* --- FIN BOTÓN PDF --- */}
       </div>
     </div>
   );
@@ -1061,7 +1244,7 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
   tituloActual, // Recibir título actual
   tituloOfrecido, // Recibir título ofrecido
 }) => {
-  const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Potencia consumida")) && columnas[0]?.includes('/');
+  const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Lectura Maxímetro")) && columnas[0]?.includes('/');
   
   const buttonStyle: React.CSSProperties = {
     background: 'none', 
@@ -1155,14 +1338,14 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
       
       {/* Contenedor de la tabla con overflow */}
       <div className="overflow-auto" style={{ padding: '0 0.5rem 0.5rem 0.5rem' }}>
-        <table className="min-w-full divide-y divide-slate-200 text-xs" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="min-w-full text-xs" style={{ borderCollapse: 'collapse' }}>
           <thead style={{ backgroundColor: 'transparent' }}>
             <tr>
               {mostrarPrimeraColumnaComoFila ? (
-                <th className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem' }}>Periodo</th>
+                <th className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)' }}>Periodo</th>
               ) : null}
               {columnas.map((col, index) => (
-                <th key={`${col}-${index}`} className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem' }}>
+                <th key={`${col}-${index}`} className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)' }}>
                   {col}
                 </th>
               ))}
@@ -1178,7 +1361,7 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                 } : {}}
               >
                 {mostrarPrimeraColumnaComoFila ? (
-                  <td className="px-2 py-1 font-semibold" style={{ padding: '0.5rem', fontWeight: 600 }}>
+                  <td className="px-2 py-1 font-semibold" style={{ padding: '0.5rem', fontWeight: 600, border: '1px solid var(--border-color)' }}>
                     {String(fila[0])}
                   </td>
                 ) : null}
@@ -1204,7 +1387,7 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                   const value = valores[key] !== undefined ? valores[key] : originalCeldaValue;
 
                     return (
-                      <td key={colIndex} className="px-2 py-1" style={{ padding: '0.25rem' }}>
+                      <td key={colIndex} className="px-2 py-1" style={{ padding: '0', border: '1px solid var(--border-color)' }}>
                         {editable ? (
                           <input
                             value={value}
@@ -1222,10 +1405,14 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                             className="w-full border rounded-sm px-1 py-0.5 text-xs" // Mantenemos clases base
                             style={{ 
                               fontSize: '0.8rem', 
-                              padding: '0.3rem 0.5rem', // Ajustamos padding vertical
+                              padding: '0.4rem 0.5rem', // Ajustamos padding vertical
                               textAlign: 'right',
-                              backgroundColor: 'var(--bg-card)', // Fondo transparente
-                              borderColor: '#D1D5DB' // Borde gris claro
+                              backgroundColor: 'transparent', // Fondo transparente
+                              border: 'none', // Quitamos el borde del input
+                              boxShadow: 'none', // Quitamos cualquier sombra
+                              borderRadius: '0', // Quitamos el redondeo del input
+                              width: '100%',
+                              height: '100%' // Hacemos que ocupe toda la celda
                             }}
                           />
                         ) : (

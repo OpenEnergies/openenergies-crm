@@ -1,5 +1,7 @@
 // openenergies_crm/src/pages/comparativas/ComparativaForm.tsx
 import React, { useState, useEffect } from "react";
+// --- (1) Importar iconos ---
+import { Zap, Cog, Euro, Pencil, Loader2 } from 'lucide-react';
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
 
@@ -10,6 +12,9 @@ interface DatosSuministro {
   dniCif: string; 
   fechaEstudio: string; 
   direccion: string;
+  iva: string;
+  impuestoElectrico: string;
+  otrosConceptos: string;
 }
 
 interface SipsData {
@@ -37,10 +42,6 @@ const defaultMesesDelAño = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
-
-const monthOptions = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-const currentYearYY = new Date().getFullYear();
-const yearOptions = Array.from({ length: 8 }, (_, i) => (currentYearYY - 3 + i).toString().slice(-2));
 
 /**
  * Genera un array de 12 cabeceras "MM/YY" terminando en el mes/año dado.
@@ -70,6 +71,22 @@ const generateManualHeaders = (lastMonth: string, lastYear: string): string[] =>
 const ComparativaForm: React.FC = () => {
   
   const todayISO = new Date().toISOString().split('T')[0]!;
+  const today = new Date(); // 2025-11-01
+  const currentYearFull = today.getFullYear(); // 2025
+  const currentYearYY_Str = currentYearFull.toString().slice(-2); // "25"
+  const currentMonthMM_Str = (today.getMonth() + 1).toString().padStart(2, '0'); // "11"
+
+  // Opciones estáticas para todos los meses
+  const allMonthOptions = React.useMemo(() => 
+    Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0')), 
+  []);
+  
+  // Opciones de año (ej: 8 años atrás hasta hoy)
+  const yearOptions = React.useMemo(() => 
+    // Genera 8 años empezando por el actual (2025) y yendo hacia atrás (2025, 2024, ...)
+    Array.from({ length: 8 }, (_, i) => (currentYearFull - 7 + i)) 
+        .map(year => year.toString().slice(-2)), // Convierte a "YY" -> ["25", "24", ...]
+  [currentYearFull]);
   
   // --- MODIFICADO: 'observaciones' eliminado ---
   const [datosSuministro, setDatosSuministro] = useState<DatosSuministro>({
@@ -78,6 +95,9 @@ const ComparativaForm: React.FC = () => {
     dniCif: "", 
     fechaEstudio: todayISO, 
     direccion: "",
+    iva: "21",
+    impuestoElectrico: "5.1127",
+    otrosConceptos: "",
   });
 
   const [modo, setModo] = useState<"idle" | "auto" | "manual">("idle");
@@ -94,6 +114,23 @@ const ComparativaForm: React.FC = () => {
   const [manualLastMonth, setManualLastMonth] = useState<string>("");
   const [manualLastYear, setManualLastYear] = useState<string>("");
 
+  const dynamicMonthOptions = React.useMemo(() => {
+    if (manualLastYear === currentYearYY_Str) {
+      // Si es el año actual, filtrar meses hasta el actual
+      return allMonthOptions.filter(m => m <= currentMonthMM_Str);
+    }
+    // Si es un año pasado (o no hay año seleccionado), mostrar todos
+    return allMonthOptions;
+  }, [manualLastYear, currentYearYY_Str, currentMonthMM_Str, allMonthOptions]);
+
+  // Efecto para resetear el mes si se vuelve inválido
+  // (Ej: si el usuario selecciona "12/24" y luego cambia el año a "25", el mes "12" es inválido)
+  useEffect(() => {
+    if (manualLastYear === currentYearYY_Str && manualLastMonth > currentMonthMM_Str) {
+      setManualLastMonth(""); // Resetea el mes
+    }
+  }, [manualLastYear, manualLastMonth, currentYearYY_Str, currentMonthMM_Str]);
+
   const handleChangeSuministro = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -109,7 +146,8 @@ const ComparativaForm: React.FC = () => {
       setModo("auto");
       setCargando(true);
       setError(null);
-      setValoresTabla({}); 
+      setValoresTabla({});
+      setTarifa(""); 
 
       const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -184,13 +222,18 @@ const ComparativaForm: React.FC = () => {
       const periodosPotencia = esTarifa61 ? 6 : 2;
       const tablaPotencias = esTarifa61 ? "Potencias contratadas (P1-P6)" : "Potencias contratadas (P1-P2)";
       
+      // --- (FIX 1) CORRECCIÓN LÓGICA DE CLAVE ---
       for (let i = 1; i <= periodosPotencia; i++) {
-          const key = `${tablaPotencias}__0__${i-1}`;
-          newValoresTabla[key] = String(potencias[`P${i}`] || '0');
+          const periodName = `P${i}`; // "P1", "P2", etc.
+          // La clave debe coincidir con la que espera TablaGenerica: ${titulo}__${filaIndex}__${colHeader}
+          // Título = tablaPotencias, filaIndex = 0, colHeader = periodName ("P1", "P2"...)
+          const key = `${tablaPotencias}__0__${periodName}`; // Usar el nombre del periodo
+          newValoresTabla[key] = String(potencias[periodName] || '0');
       }
+      // --- FIN FIX 1 ---
 
       // 2c. Rellenar "Energía consumida"
-      const tablaEnergia = "Energía consumida (kWh) por mes y periodo";
+      const tablaEnergia = "Energía consumida (kWh)";
       const consumoMensual = sipsData.ConsumoMensual;
       const periodosEnergia = esTarifa61 ? 6 : 3;
       
@@ -206,7 +249,7 @@ const ComparativaForm: React.FC = () => {
       }
       
       // 2d. Rellenar "Potencia consumida" (Maxímetro)
-      const tablaPotenciaConsumida = "Potencia consumida (kW) por mes y periodo";
+      const tablaPotenciaConsumida = "Lectura Maxímetro (kW) - Opcional";
       const potenciaConsumida = sipsData.PotenciaConsumida;
       
       for (const [monthKey, potencias] of Object.entries(potenciaConsumida)) {
@@ -302,48 +345,54 @@ const ComparativaForm: React.FC = () => {
   }, [modo, tarifa, manualLastMonth, manualLastYear]);
 
 
+  // --- (FIX 2) CORRECCIÓN LÓGICA DE CLAVE (recibe colHeader) ---
   const handleChangeCelda = (
     tabla: string,
     fila: number,
-    col: number, // Esto sigue siendo el ÍNDICE (0-11)
+    colHeader: string, // <-- (FIX 2) Ahora recibimos el string del header
     valor: string
   ) => {
-    // --- CAMBIO: Traducir índice a cabecera ---
-    const colHeader = dynamicMonthHeaders[col];
-    if (!colHeader) return; // Seguridad
-    
-    const key = `${tabla}__${fila}__${colHeader}`; // <-- Usar cabecera
+    // Ya no se necesita traducción de índice
+    const key = `${tabla}__${fila}__${colHeader}`; // <-- Usar cabecera directamente
     setValoresTabla((prev) => ({
       ...prev,
       [key]: valor,
     }));
   };
-
+  // --- FIN FIX 2 ---
+  // --- (INICIO) MODIFICACIÓN renderTablasTarifa_20_30 ---
   const renderTablasTarifa_20_30 = () => {
     const esEditable = modo === "manual" || modo === "auto";
     const puedeAvanzar = modo === "auto" || (modo === "manual" && tarifa && manualLastMonth && manualLastYear);
-
-    // --- AÑADIR: Lógica para desactivar el botón "retroceder" ---
     const canRetroceder = puedeAvanzar && (
-        modo === 'manual' || // Siempre se puede en modo manual
-        !sipsFirstMonth || // Si no hay SIPS data
-        (dynamicMonthHeaders[0] !== sipsFirstMonth) // O si el mes visible NO es el primer mes de SIPS
+        modo === 'manual' || 
+        !sipsFirstMonth || 
+        (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
+    const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
+    const warningColor = "#d6c102ff"; // Color amarillo
 
     return (
-      <>
-        <div className="grid gap-4 md:grid-cols-3">
-          <TablaGenerica
+      <div style={{ display: 'grid', gap: '1.5rem' }}>
+
+        <div style={{ marginTop: '1rem' }}>
+           <TablaGenerica
             titulo="Potencias contratadas (P1-P2)"
+            icon={<Cog size={18} />}
+            accentColor="var(--muted)"
             columnas={["P1", "P2"]}
             filas={[["", ""]]}
             editable={esEditable}
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
           />
-
+        </div>        
+        {/* Fila 1 (Bloque Consumos, Vertical) */}
+        <div style={{ display: 'grid', gap: '1.5rem' }}>
           <TablaGenerica
-            titulo="Energía consumida (kWh) por mes y periodo"
+            titulo="Energía consumida (kWh)"
+            icon={<Zap size={18} />}
+            accentColor="var(--primary)"
             columnas={dynamicMonthHeaders}
             filas={[
               ["P1", ...Array(dynamicMonthHeaders.length).fill("")],
@@ -355,13 +404,12 @@ const ComparativaForm: React.FC = () => {
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
             onAddColumn={puedeAvanzar ? handleAvanzarMes : undefined}
-            // --- (4) PASAR LA FUNCIÓN DE RETROCESO ---
             onRemoveColumn={canRetroceder ? handleRetrocederMes : undefined}
-            // --- FIN (4) ---
           />
-
           <TablaGenerica
-            titulo="Potencia consumida (kW) por mes y periodo"
+            titulo="Lectura Maxímetro (kW) - Opcional"
+            icon={<Zap size={18} />}
+            accentColor="var(--primary)"
             columnas={dynamicMonthHeaders}
             filas={[
               ["P1", ...Array(dynamicMonthHeaders.length).fill("")],
@@ -375,74 +423,118 @@ const ComparativaForm: React.FC = () => {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 mt-6">
-          <TablaGenerica
-            titulo="Precio Potencia (€/kW)"
-            columnas={["P1", "P2", "P3"]}
-            filas={[["", "", ""]]}
-            editable={esEditable}
-            onChangeCell={handleChangeCelda}
-            valores={valoresTabla}
-          />
-          <TablaGenerica
-            titulo="Precio Energía (€/kWh)"
-            columnas={["P1", "P2", "P3"]}
-            filas={[["", "", ""]]}
-            editable={esEditable}
-            onChangeCell={handleChangeCelda}
-            valores={valoresTabla}
-          />
+        {/* Fila 2 (Bloque Precios, 2x2 Grid) */}
+        {/* Usamos form-row que es un grid de 2 columnas (1fr 1fr) */}
+        <div className="form-row">
+          
+          {/* Columna Izquierda: Precios (Actual) */}
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <TablaGenerica
+              titulo="Término potencia"
+              tituloActual="(Actual)"
+              icon={<Euro size={18} />}
+              accentColor={dangerColor} // Color Rojo
+              columnas={["P1", "P2"]} // <-- 2 CAMPOS
+              filas={[["", ""]]}
+              editable={esEditable}
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+            <TablaGenerica
+              titulo="Término energía"
+              tituloActual="(Actual)"
+              icon={<Euro size={18} />}
+              accentColor={dangerColor} // Color Rojo
+              columnas={["P1", "P2", "P3"]} // <-- 3 CAMPOS
+              filas={[["", "", ""]]}
+              editable={esEditable}
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+          </div>
+          
+          {/* Columna Derecha: Precios (Ofrecido) */}
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <TablaGenerica
+              titulo="Término potencia"
+              tituloOfrecido="(Ofrecido)" // Título rojo
+              icon={<Euro size={18} />}
+              accentColor={warningColor} // Color Amarillo
+              columnas={["P1", "P2"]} // <-- 2 CAMPOS
+              filas={[["", ""]]}
+              editable={true} // El ofrecido siempre es editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+            <TablaGenerica
+              titulo="Término energía"
+              tituloOfrecido="(Ofrecido)" // Título rojo
+              icon={<Euro size={18} />}
+              accentColor={warningColor} // Color Amarillo
+              columnas={["P1", "P2", "P3"]} // <-- 3 CAMPOS
+              filas={[["", "", ""]]}
+              editable={true} // El ofrecido siempre es editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+          </div>
         </div>
-      </>
+      </div>
     );
   };
+  // --- (FIN) MODIFICACIÓN renderTablasTarifa_20_30 ---
 
+  // --- (INICIO) MODIFICACIÓN renderTablasTarifa_61 ---
   const renderTablasTarifa_61 = () => {
     const esEditable = modo === "manual" || modo === "auto";
     const puedeAvanzar = modo === "auto" || (modo === "manual" && tarifa && manualLastMonth && manualLastYear);
-
-    // --- AÑADIR: Lógica para desactivar el botón "retroceder" ---
     const canRetroceder = puedeAvanzar && (
         modo === 'manual' || 
         !sipsFirstMonth || 
         (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
+    const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
+    const warningColor = "#d6c102ff";
 
     return (
-      <>
-        <div className="grid gap-4 md:grid-cols-3">
+      <div style={{ display: 'grid', gap: '1.5rem' }}>
+        <div style={{ marginTop: '1rem' }}>
           <TablaGenerica
             titulo="Potencias contratadas (P1-P6)"
+            icon={<Cog size={18} />}
+            accentColor="var(--muted)"
             columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
             filas={[["", "", "", "", "", ""]]}
             editable={esEditable}
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
           />
-
+        </div>
+        
+        {/* Fila 1 (Bloque Consumos, Vertical) */}
+        <div style={{ display: 'grid', gap: '1.5rem' }}>
           <TablaGenerica
-            titulo="Energía consumida (kWh) por mes y periodo"
+            titulo="Energía consumida (kWh)"
+            icon={<Zap size={18} />}
+            accentColor="var(--primary)"
             columnas={dynamicMonthHeaders}
             filas={["P1", "P2", "P3", "P4", "P5", "P6"].map((p) => [
-              p,
-              ...Array(dynamicMonthHeaders.length).fill(""),
+              p, ...Array(dynamicMonthHeaders.length).fill(""),
             ])}
             mostrarPrimeraColumnaComoFila
             editable={esEditable}
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
             onAddColumn={puedeAvanzar ? handleAvanzarMes : undefined}
-            // --- (4) PASAR LA FUNCIÓN DE RETROCESO ---
             onRemoveColumn={canRetroceder ? handleRetrocederMes : undefined}
-            // --- FIN (4) ---
           />
-
           <TablaGenerica
-            titulo="Potencia consumida (kW) por mes y periodo"
+            titulo="Lectura Maxímetro (kW) - Opcional"
+            icon={<Zap size={18} />}
+            accentColor="var(--primary)"
             columnas={dynamicMonthHeaders}
             filas={["P1", "P2", "P3", "P4", "P5", "P6"].map((p) => [
-              p,
-              ...Array(dynamicMonthHeaders.length).fill(""),
+              p, ...Array(dynamicMonthHeaders.length).fill(""),
             ])}
             mostrarPrimeraColumnaComoFila
             editable={esEditable}
@@ -450,44 +542,99 @@ const ComparativaForm: React.FC = () => {
             valores={valoresTabla}
           />
         </div>
-
-        <div className="grid gap-4 md:grid-cols-2 mt-6">
-          <TablaGenerica
-            titulo="Término potencia"
-            columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
-            filas={[Array(6).fill("")]}
-            editable={esEditable}
-            onChangeCell={handleChangeCelda}
-            valores={valoresTabla}
-          />
-          <TablaGenerica
-            titulo="Término energía"
-            columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
-            filas={[Array(6).fill("")]}
-            editable={esEditable}
-            onChangeCell={handleChangeCelda}
-            valores={valoresTabla}
-          />
+        
+        {/* Fila 2 (Bloque Precios, 2x2 Grid) */}
+        <div className="form-row"> {/* 2 columnas (Actual | Ofrecido) */}
+          
+          {/* Columna Izquierda: Precios (Actual) */}
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <TablaGenerica
+              titulo="Término potencia"
+              tituloActual="(Actual)"
+              icon={<Euro size={18} />}
+              accentColor={dangerColor} // Rojo
+              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
+              filas={[Array(6).fill("")]}
+              editable={esEditable}
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+            <TablaGenerica
+              titulo="Término energía"
+              tituloActual="(Actual)"
+              icon={<Euro size={18} />}
+              accentColor={dangerColor} // Rojo
+              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
+              filas={[Array(6).fill("")]}
+              editable={esEditable}
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+          </div>
+          
+          {/* Columna Derecha: Precios (Ofrecido) */}
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <TablaGenerica
+              titulo="Término potencia"
+              tituloOfrecido="(Ofrecido)"
+              icon={<Euro size={18} />}
+              accentColor={warningColor} // Amarillo
+              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
+              filas={[Array(6).fill("")]}
+              editable={true} // Siempre editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+            <TablaGenerica
+              titulo="Término energía"
+              tituloOfrecido="(Ofrecido)"
+              icon={<Euro size={18} />}
+              accentColor={warningColor} // Amarillo
+              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
+              filas={[Array(6).fill("")]}
+              editable={true} // Siempre editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+          </div>
         </div>
-      </>
+      </div>
     );
   };
+  // --- (FIN) MODIFICACIÓN renderTablasTarifa_61 ---
 
   const renderZonaTablas = () => {
     if (cargando && modo === "auto") {
-        return (
-            <div className="text-center p-8">
-                <p>Consultando SIPS...</p>
-            </div>
-        )
+            return (
+                <div 
+                  className="text-center p-8"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column', // Apila el icono y el texto
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem', // Espacio entre el icono y el texto
+                    color: 'var(--muted)', // Usa el color de texto silenciado
+                    padding: '2rem' // Asegura un buen padding
+                  }}
+                >
+                    {/* 1. Añade el icono Loader2 con la animación de giro */}
+                    <Loader2 className="animate-spin" size={32} />
+                    
+                    {/* 2. Añade la clase 'pulsing-text' al párrafo */}
+                    <p className="pulsing-text" style={{ margin: 0, fontWeight: 500, fontSize: '1.1rem' }}>
+                      Consultando SIPS...
+                    </p>
+                </div>
+            )
     }
     
     if (!tarifa || (modo === "manual" && (!manualLastMonth || !manualLastYear))) {
       return (
-        <p className="text-sm text-gray-500 mt-4">
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>
           {modo === "manual"
             ? "Selecciona tarifa y último mes para ver las tablas."
-            : "Autocompleta para ver las tablas."
+            : "Autocompleta o rellena manually para ver las tablas."
           }
         </p>
       );
@@ -502,6 +649,45 @@ const ComparativaForm: React.FC = () => {
     }
 
     return null;
+  };
+
+  // --- (REQ 1) Estilo para los chips de modo ---
+  const chipStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '999px',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    lineHeight: 1.4
+  };
+
+  const inputGroupStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    border: '1px solid var(--border-color)', // Borde estándar
+    borderRadius: '0.5rem', // Borde redondeado estándar
+    backgroundColor: 'white', // Fondo blanco estándar
+    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)', // Sombra interna sutil
+  };
+
+  const inputInGroupStyle: React.CSSProperties = {
+    border: 'none',
+    background: 'transparent',
+    padding: '0.65rem 0.8rem', // Padding estándar
+    width: '100%',
+    flex: 1,
+    boxShadow: 'none',
+    outline: 'none',
+    fontSize: '0.95rem', // Tamaño de fuente estándar
+  };
+
+  const suffixStyle: React.CSSProperties = {
+    paddingRight: '0.8rem',
+    color: 'var(--muted)',
+    fontWeight: 500,
+    fontSize: '0.9rem',
   };
 
   return (
@@ -603,6 +789,68 @@ const ComparativaForm: React.FC = () => {
               />
             </div>
           </div>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr 1fr', // 3 columnas
+            gap: '1rem' 
+          }}>
+            
+            {/* 1. IVA */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="iva">IVA</label>
+              <div style={inputGroupStyle}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="iva"
+                  name="iva"
+                  value={datosSuministro.iva}
+                  onChange={handleChangeSuministro}
+                  placeholder="21.00"
+                  style={inputInGroupStyle}
+                />
+                <span style={suffixStyle}>%</span>
+              </div>
+            </div>
+
+            {/* 2. IMPUESTO ELÉCTRICO */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="impuestoElectrico">Impuesto eléctrico</label>
+              <div style={inputGroupStyle}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="impuestoElectrico"
+                  name="impuestoElectrico"
+                  value={datosSuministro.impuestoElectrico}
+                  onChange={handleChangeSuministro}
+                  placeholder="5.1127"
+                  style={inputInGroupStyle}
+                />
+                <span style={suffixStyle}>%</span>
+              </div>
+            </div>
+
+            {/* 3. OTROS CONCEPTOS */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="otrosConceptos">Otros conceptos</label>
+              <div style={inputGroupStyle}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  id="otrosConceptos"
+                  name="otrosConceptos"
+                  value={datosSuministro.otrosConceptos}
+                  onChange={handleChangeSuministro}
+                  placeholder="0.00"
+                  style={inputInGroupStyle}
+                />
+                <span style={suffixStyle}>€</span>
+              </div>
+            </div>
+
+          </div>
             
         </div>
         {/* --- FIN: SECCIÓN MODIFICADA --- */}
@@ -611,40 +859,72 @@ const ComparativaForm: React.FC = () => {
 
 
       {/* BOTONES */}
-      {/* --- DIV MODIFICADO CON ESTILOS EN LÍNEA --- */}
+      {/* --- (REQ 1) DIV MODIFICADO CON CHIPS DE MODO --- */}
       <div 
         style={{ 
-          display: 'flex', 
-          gap: '1rem',     // Más espacio entre botones
-          marginTop: '1rem'  // Más espacio arriba de los botones
+          display: 'flex',
+          flexWrap: 'wrap', // Para que los chips se ajusten en móvil
+          gap: '1rem',
+          marginTop: '1rem', 
+          marginBottom: '1.5rem', // <-- AÑADIDO MÁRGEN
+          justifyContent: 'space-between', // Separa botones y chips
+          alignItems: 'center'
         }}
       >
-        <button
-          type="button"
-          onClick={handleAutocompletar}
-          disabled={cargando || !datosSuministro.cups}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
-          title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
-        >
-          {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
-        </button>
-        <button
-          type="button"
-          onClick={handleRellenarManual}
-          disabled={cargando}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
-        >
-          Rellenar manualmente
-        </button>
+        {/* Grupo de botones a la izquierda */}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            type="button"
+            onClick={handleAutocompletar}
+            disabled={cargando || !datosSuministro.cups}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
+            title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
+          >
+            {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
+          </button>
+          <button
+            type="button"
+            onClick={handleRellenarManual}
+            disabled={cargando}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
+          >
+            Rellenar manualmente
+          </button>
+        </div>
+
+        {/* Grupo de chips a la derecha (visible solo si hay un modo) */}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {modo === 'auto' && (
+            <span style={{...chipStyle, backgroundColor: 'var(--primary-light)', color: 'var(--primary-600)'}}>
+              <Zap size={14} /> Autocompletado
+            </span>
+          )}
+          {modo === 'manual' && (
+            <span style={{...chipStyle, backgroundColor: '#FFFBEB', color: '#B45309'}}>
+              <Pencil size={14} /> Manual
+            </span>
+          )}
+        </div>
       </div>
+      {/* --- FIN DIV MODIFICADO --- */}
+
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      {/* --- (INICIO) CORRECCIÓN BUG LABEL --- */}
       {/* Interfaz de selección MODO MANUAL */}
       {modo === "manual" ? (
-        <div className="bg-white rounded-md shadow-sm p-4 space-y-3">
-          <div className="flex flex-wrap gap-4 items-end">
+        <div className="card"> {/* Usamos card para consistencia */}
+          
+          {/* --- (INICIO) BLOQUE MODIFICADO --- */}
+          {/* Usamos un grid de 3 columnas (1fr 1fr 1fr) con 1rem de gap */}
+          <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr 1fr', // Tres columnas de igual ancho
+              gap: '1rem',                         // Separación de 1rem
+              alignItems: 'flex-end'             // Alinea elementos al final (como antes)
+          }}>
+            
+            {/* Columna 1: Tarifa */}
             <div>
               <label className="block text-sm font-medium" htmlFor="manual-tarifa">1. Selecciona la tarifa</label>
               <select
@@ -652,6 +932,7 @@ const ComparativaForm: React.FC = () => {
                 value={tarifa}
                 onChange={(e) => setTarifa(e.target.value as Tarifa)}
                 className="border rounded-md px-3 py-2 text-sm mt-1"
+                style={{ width: '100%' }} // Asegura que ocupe el 1fr
               >
                 <option value="">-- Selecciona --</option>
                 <option value="2.0TD">2.0TD</option>
@@ -659,54 +940,65 @@ const ComparativaForm: React.FC = () => {
                 <option value="6.1TD">6.1TD</option>
               </select>
             </div>
+            
+            {/* Columna 2: Último Mes */}
             <div>
-              <label className="block text-sm font-medium" htmlFor="manual-mes">2. Último mes (MM/YY)</label>
-              <div className="flex gap-2 mt-1">
-                <select
-                  id="manual-mes"
-                  value={manualLastMonth}
-                  onChange={(e) => setManualLastMonth(e.target.value)}
-                  className="border rounded-md px-3 py-2 text-sm"
-                  disabled={!tarifa}
-                  title={!tarifa ? "Selecciona una tarifa primero" : "Mes"}
-                >
-                  <option value="">Mes</option>
-                  {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <select
-                  id="manual-ano"
-                  value={manualLastYear}
-                  onChange={(e) => setManualLastYear(e.target.value)}
-                  className="border rounded-md px-3 py-2 text-sm"
-                  disabled={!tarifa}
-                  title={!tarifa ? "Selecciona una tarifa primero" : "Año"}
-                >
-                  <option value="">Año</option>
-                  {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+              <label className="block text-sm font-medium" htmlFor="manual-mes">2. Último mes (MM)</label>
+              <select
+                id="manual-mes"
+                value={manualLastMonth}
+                onChange={(e) => setManualLastMonth(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm mt-1"
+                disabled={!tarifa}
+                title={!tarifa ? "Selecciona una tarifa primero" : "Mes"}
+                style={{ width: '100%' }} // Asegura que ocupe el 1fr
+              >
+                <option value="">Mes</option>
+                {dynamicMonthOptions.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
             </div>
+            
+            {/* Columna 3: Último Año */}
+            <div>
+              <label className="block text-sm font-medium" htmlFor="manual-ano">3. Último año (YY)</label>
+              <select
+                id="manual-ano"
+                value={manualLastYear}
+                onChange={(e) => setManualLastYear(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm mt-1"
+                disabled={!tarifa}
+                title={!tarifa ? "Selecciona una tarifa primero" : "Año"}
+                style={{ width: '100%' }} // Asegura que ocupe el 1fr
+              >
+                <option value="">Año</option>
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          {/* --- (FIN) BLOQUE MODIFICADO --- */}
+
+          <p className="text-xs text-gray-500 mt-2" style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
             En función de la tarifa y el mes se mostrarán las tablas.
           </p>
         </div>
       // --- (FIN) CORRECCIÓN BUG LABEL ---
       // Mostrar tarifa en MODO AUTO
       ) : (modo === "auto" && tarifa) ? (
-        <div className="bg-white rounded-md shadow-sm p-4">
-            <p className="text-sm font-medium text-gray-700">
-                Tarifa detectada (SIPS): <span className="font-bold text-emerald-600 text-base">{tarifa}</span>
+        <div className="card" style={{ padding: '1rem' }}>
+            <p className="text-sm font-medium text-gray-700" style={{ margin: 0, fontSize: '0.9rem' }}>
+                Tarifa detectada (SIPS): <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>{tarifa}</span>
             </p>
         </div>
       ) : null}
 
 
       {/* TABLAS */}
-      <div className="bg-white rounded-md shadow-sm p-4">{renderZonaTablas()}</div>
+      {/* (REQ 2 y 3) El layout se aplica en las funciones renderTablas... */}
+      <div className="comparativa-tablas-layout">{renderZonaTablas()}</div>
 
       {/* BOTÓN PDF */}
-      <div className="flex justify-end">
+      <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
         <button
           type="button"
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
@@ -719,7 +1011,7 @@ const ComparativaForm: React.FC = () => {
 };
 
 // -----------------------------------------------------------------------------
-// Tabla genérica
+// Tabla genérica - MODIFICADA
 // -----------------------------------------------------------------------------
 interface TablaGenericaProps {
   titulo: string;
@@ -731,14 +1023,27 @@ interface TablaGenericaProps {
   onChangeCell?: (
     tabla: string,
     fila: number,
-    col: number,
+    colHeader: string, // <-- (FIX 2) Cambiado de col (number) a colHeader (string)
     valor: string
   ) => void;
   onAddColumn?: () => void;
-  // --- (2) AÑADIR NUEVA PROP 'onRemoveColumn' ---
   onRemoveColumn?: () => void;
-  // --- FIN (2) ---
+  // --- (REQ 4) Nuevas props de estilo ---
+  icon: React.ReactNode;
+  accentColor: string;
+  tituloActual?: string; // Prop opcional para el texto "(Actual)"
+  tituloOfrecido?: string; // Prop opcional para el texto "(Ofrecido)"
 }
+
+// --- (REQ 6) Mapa de colores para los periodos ---
+const periodColors = [
+  '#2BB673', // P1 (Verde)
+  '#2E87E5', // P2 (Azul)
+  '#f39b03', // P3 (Ámbar)
+  '#DC2626', // P4 (Rojo)
+  '#8B5CF6', // P5 (Morado)
+  '#64748b', // P6 (Gris)
+];
 
 const TablaGenerica: React.FC<TablaGenericaProps> = ({
   titulo,
@@ -749,13 +1054,15 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
   valores = {},
   onChangeCell,
   onAddColumn,
-  // --- (2) AÑADIR NUEVA PROP 'onRemoveColumn' ---
   onRemoveColumn,
-  // --- FIN (2) ---
+  // --- (REQ 4) Recibir nuevas props ---
+  icon,
+  accentColor,
+  tituloActual, // Recibir título actual
+  tituloOfrecido, // Recibir título ofrecido
 }) => {
   const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Potencia consumida")) && columnas[0]?.includes('/');
   
-  // --- (3) ESTILOS PARA LOS BOTONES (para evitar repetición) ---
   const buttonStyle: React.CSSProperties = {
     background: 'none', 
     border: 'none', 
@@ -773,43 +1080,68 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
     strokeLinecap: "round",
     strokeLinejoin: "round",
   };
-  // --- FIN (3) ---
+  
+  // Estilo para el texto "(Ofrecido)"
+  const suffixStyle: React.CSSProperties = {
+    color: accentColor,
+    fontSize: '0.9em',
+    fontWeight: 500,
+    marginLeft: '0.4rem'
+  };
 
   return (
-    <div className="border rounded-md overflow-hidden">
-      {/* --- (3) MODIFICAR DIV DEL TÍTULO --- */}
+    // --- (REQ 4 y 8) Estilo de Tarjeta/Bloque ---
+    <div style={{
+      backgroundColor: 'var(--bg-muted)', // Fondo gris muy pálido
+      borderRadius: '12px',
+      overflow: 'hidden',
+      borderTop: `4px solid ${accentColor}`,
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+    }}>
+      
+      {/* --- (REQ 4) Título con icono --- */}
       <div 
-        className="bg-slate-50 px-3 py-2 text-sm font-medium" 
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          padding: '1rem', // Más padding
+          color: 'var(--fg)',
+        }}
       >
-        <span>{titulo}</span>
-        {/* Mostrar botones si es tabla mensual y alguna función existe */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span style={{ color: accentColor }}>{icon}</span>
+          <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+            {titulo}
+            {/* Añadir el span (Actual) si existe */}
+            {tituloActual && <span style={suffixStyle}>{tituloActual}</span>}
+            {/* Añadir el span (Ofrecido) si existe */}
+            {tituloOfrecido && <span style={suffixStyle}>{tituloOfrecido}</span>}
+          </span>
+        </div>
+        
         {esTablaMensual && (onAddColumn || onRemoveColumn) && (
           <div style={{ display: 'flex', gap: '4px' }}>
-            
-            {/* Botón MENOS (NUEVO) */}
             {onRemoveColumn && (
               <button
                 type="button"
                 onClick={onRemoveColumn}
                 title="Retroceder un mes"
                 className="p-1 rounded-full hover:bg-slate-200"
-                style={buttonStyle}
+                style={{...buttonStyle, color: 'var(--muted)'}}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
               </button>
             )}
-
-            {/* Botón MÁS (Existente, ahora usa estilos) */}
             {onAddColumn && (
               <button
                 type="button"
                 onClick={onAddColumn}
                 title="Avanzar un mes"
                 className="p-1 rounded-full hover:bg-slate-200"
-                style={buttonStyle}
+                style={{...buttonStyle, color: 'var(--muted)'}}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
                   <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -820,34 +1152,51 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
           </div>
         )}
       </div>
-      {/* --- FIN (3) --- */}
-      <div className="overflow-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-xs">
-          <thead className="bg-slate-100">
+      
+      {/* Contenedor de la tabla con overflow */}
+      <div className="overflow-auto" style={{ padding: '0 0.5rem 0.5rem 0.5rem' }}>
+        <table className="min-w-full divide-y divide-slate-200 text-xs" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead style={{ backgroundColor: 'transparent' }}>
             <tr>
               {mostrarPrimeraColumnaComoFila ? (
-                <th className="px-2 py-1 text-left">Periodo</th>
+                <th className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem' }}>Periodo</th>
               ) : null}
               {columnas.map((col, index) => (
-                <th key={`${col}-${index}`} className="px-2 py-1 text-left">
+                <th key={`${col}-${index}`} className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem' }}>
                   {col}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-slate-100">
+          <tbody className="bg-white" style={{ backgroundColor: 'var(--bg-card)' }}>
             {filas.map((fila, filaIndex) => (
-              <tr key={filaIndex}>
+              <tr 
+                key={filaIndex}
+                // --- (REQ 6) Borde de color por periodo ---
+                style={mostrarPrimeraColumnaComoFila ? {
+                  borderLeft: `4px solid ${periodColors[filaIndex % periodColors.length]}`
+                } : {}}
+              >
                 {mostrarPrimeraColumnaComoFila ? (
-                  <td className="px-2 py-1 font-semibold">
+                  <td className="px-2 py-1 font-semibold" style={{ padding: '0.5rem', fontWeight: 600 }}>
                     {String(fila[0])}
                   </td>
                 ) : null}
-                {/* --- MODIFICACIÓN EN EL MAP DE COLUMNAS --- */}
+                
                 {columnas.map((colHeader, colIndex) => { // <-- Obtener colHeader y colIndex
                   
-                  // --- CAMBIO CLAVE: Construir la clave con colHeader ---
-                  const key = `${titulo}__${filaIndex}__${colHeader}`;
+                  // --- (FIX 1) CORRECCIÓN LÓGICA DE CLAVE ---
+                  // La clave se construye con el Título, el índice de Fila y el String de la Cabecera de Columna
+                  
+                  // --- (INICIO) MODIFICACIÓN NOMBRE DE CLAVE ---
+                  // Si el título tiene (Ofrecido), usamos el título base para la clave,
+                  // para que ambas tablas (Actual y Ofrecido) escriban en campos diferentes.
+                  const baseTitulo = tituloActual ? `${titulo} ${tituloActual}` :
+                                     tituloOfrecido ? `${titulo} ${tituloOfrecido}` : 
+                                     titulo;
+                  const key = `${baseTitulo}__${filaIndex}__${colHeader}`;
+                  // --- (FIN) MODIFICACIÓN NOMBRE DE CLAVE ---
+                  
                   
                   const originalCeldaValue = (fila[colIndex + (mostrarPrimeraColumnaComoFila ? 1 : 0)] as string) || "";
                   
@@ -855,20 +1204,29 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                   const value = valores[key] !== undefined ? valores[key] : originalCeldaValue;
 
                     return (
-                      <td key={colIndex} className="px-2 py-1">
+                      <td key={colIndex} className="px-2 py-1" style={{ padding: '0.25rem' }}>
                         {editable ? (
                           <input
                             value={value}
                             onChange={(e) =>
                               onChangeCell &&
+                              // --- (FIX 2) CORRECCIÓN HANDLER ---
                               onChangeCell(
-                                titulo,
+                                baseTitulo, // <-- (INICIO) MODIFICACIÓN NOMBRE DE CLAVE
                                 filaIndex,
-                                colIndex, // <-- Pasamos el ÍNDICE (0-11) al handler
+                                colHeader, // <-- (FIX 2) Pasamos el string del header
                                 e.target.value
                               )
                             }
-                            className="w-full border rounded-sm px-1 py-0.5 text-xs"
+                            // --- (REQ 4) Estilo de celda ---
+                            className="w-full border rounded-sm px-1 py-0.5 text-xs" // Mantenemos clases base
+                            style={{ 
+                              fontSize: '0.8rem', 
+                              padding: '0.3rem 0.5rem', // Ajustamos padding vertical
+                              textAlign: 'right',
+                              backgroundColor: 'var(--bg-card)', // Fondo transparente
+                              borderColor: '#D1D5DB' // Borde gris claro
+                            }}
                           />
                         ) : (
                           value

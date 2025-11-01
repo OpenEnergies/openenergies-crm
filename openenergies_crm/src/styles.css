@@ -2226,3 +2226,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-weight: 500;
     color: var(--muted-dark);
 }
+
+/* --- Animación para el texto "Consultando SIPS..." --- */
+
+/* 1. Define la animación de opacidad (pulsing) */
+@keyframes pulseOpacity {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 2. Aplica la animación a la clase */
+.pulsing-text {
+  animation: pulseOpacity 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 3. (OPCIONAL) Si 'animate-spin' no funciona, añade esto */
+/* (Es probable que ya lo tengas si usas Tailwind/Vite) */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

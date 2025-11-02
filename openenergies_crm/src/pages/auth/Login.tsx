@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { toast } from 'react-hot-toast';
 import { Leaf, Mail, Lock, ShieldCheck } from 'lucide-react';
+import PasswordInput from '@components/PasswordInput';
 
 // Esquema de validación
 const schema = z.object({
@@ -162,17 +163,14 @@ export default function Login() {
           {!isMfaStep && (
             <div>
               <label htmlFor="password">Contraseña (opcional)</label>
-              <div className="input-icon-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register('password')}
-                  placeholder="********"
-                />
-              </div>
-              {errors.password && <div className="error-text" role="alert">{errors.password.message}</div>}
+              {/* Reemplaza div.input-icon-wrapper + input por PasswordInput */}
+              <PasswordInput
+                 id="password"
+                 autoComplete="current-password"
+                 {...register('password')}
+                 placeholder="********"
+               />
+              {errors.password && <div role="alert" className="error-text">{errors.password.message}</div>}
             </div>
           )}
 

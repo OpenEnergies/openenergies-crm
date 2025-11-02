@@ -10,6 +10,7 @@ import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
 import { User, Phone, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import PasswordInput from '@components/PasswordInput';
 
 // Schema de validación para el formulario de perfil
 const profileSchema = z.object({
@@ -208,22 +209,26 @@ export default function PerfilPage() {
           <h3 style={{ marginTop: 0 }}>Cambiar Contraseña</h3>
           <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="grid" style={{ gap: '1.5rem' }}>
             <div className="form-row">
+              {/* --- 👇 2. Campo Nueva Contraseña MODIFICADO --- */}
               <div>
                 <label htmlFor="password">Nueva Contraseña</label>
-                <div className="input-icon-wrapper">
-                  <Lock size={18} className="input-icon" />
-                  <input id="password" type="password" {...passwordForm.register('password')} />
-                </div>
+                <PasswordInput
+                  id="password"
+                  {...passwordForm.register('password')}
+                />
                 {passwordForm.formState.errors.password && <p className="error-text">{passwordForm.formState.errors.password.message}</p>}
               </div>
+              
+              {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
               <div>
                 <label htmlFor="confirmPassword">Confirmar Nueva Contraseña</label>
-                <div className="input-icon-wrapper">
-                  <Lock size={18} className="input-icon" />
-                  <input id="confirmPassword" type="password" {...passwordForm.register('confirmPassword')} />
-                </div>
+                <PasswordInput
+                  id="confirmPassword"
+                  {...passwordForm.register('confirmPassword')}
+                />
                 {passwordForm.formState.errors.confirmPassword && <p className="error-text">{passwordForm.formState.errors.confirmPassword.message}</p>}
               </div>
+              {/* --- Fin Modificaciones --- */}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="submit" disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}>

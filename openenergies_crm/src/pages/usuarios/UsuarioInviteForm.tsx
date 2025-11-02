@@ -11,6 +11,7 @@ import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
 import { User, Mail, Phone, Shield, Building2, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import PasswordInput from '@components/PasswordInput';
 
 // El Schema ahora recibe 'editing' para saber si la contraseña es opcional
 const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: boolean) => z.object({
@@ -244,28 +245,31 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
             )}
 
             {(!isAdmin || createWithPassword) && (
-              <>
-                <p style={{color: 'var(--muted)', fontSize: '0.9rem', paddingTop: '1.5rem', marginTop: 0}}>Define una contraseña inicial para el usuario.</p>
-                <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                  <div>
-                    <label htmlFor="password">Contraseña</label>
-                    <div className="input-icon-wrapper">
-                      <Lock size={18} className="input-icon" />
-                      <input id="password" type="password" {...register('password')} />
-                    </div>
-                    {errors.password && <p className="error-text">{errors.password.message}</p>}
-                  </div>
-                  <div>
-                    <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                    <div className="input-icon-wrapper">
-                      <Lock size={18} className="input-icon" />
-                      <input id="confirmPassword" type="password" {...register('confirmPassword')} />
-                    </div>
-                    {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
-                  </div>
+            <>
+              <p style={{color: 'var(--muted)', /* ... */}}>Define una contraseña inicial...</p>
+              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                {/* --- 👇 2. Campo Contraseña MODIFICADO --- */}
+                <div>
+                  <label htmlFor="password">Contraseña</label>
+                  <PasswordInput
+                    id="password"
+                    {...register('password')}
+                  />
+                  {errors.password && <p className="error-text">{errors.password.message}</p>}
                 </div>
-              </>
-            )}
+                {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
+                <div>
+                  <label htmlFor="confirmPassword">Confirmar Contraseña</label>
+                  <PasswordInput
+                    id="confirmPassword"
+                    {...register('confirmPassword')}
+                  />
+                  {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
+                </div>
+                {/* --- Fin Modificaciones --- */}
+              </div>
+            </>
+          )}
           </>
           )}
 

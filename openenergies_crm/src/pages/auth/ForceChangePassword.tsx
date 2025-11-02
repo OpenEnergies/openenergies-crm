@@ -7,6 +7,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Leaf, Lock } from 'lucide-react';
+import PasswordInput from '@components/PasswordInput';
 
 
 const schema = z.object({
@@ -80,33 +81,25 @@ export default function ForceChangePassword() {
         <form onSubmit={handleSubmit(onSubmit)} className="grid login-form" aria-describedby="change-password-hint">
           <div>
             <label htmlFor="password">Nueva Contraseña</label>
-            {/* --- Input con icono --- */}
-            <div className="input-icon-wrapper">
-              <Lock size={18} className="input-icon" />
-              <input
-                 id="password"
-                 type="password"
-                 {...register('password')}
-                 aria-invalid={!!errors.password}
-                 placeholder="Introduce 8+ caracteres" // Placeholder
-               />
-            </div>
+            <PasswordInput
+               id="password"
+               {...register('password')}
+               aria-invalid={!!errors.password}
+               placeholder="Introduce 8+ caracteres"
+             />
             {errors.password && <p className="error-text">{errors.password.message}</p>}
           </div>
 
+          {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
           <div>
             <label htmlFor="confirmPassword">Confirmar Nueva Contraseña</label>
-             {/* --- Input con icono --- */}
-            <div className="input-icon-wrapper">
-              <Lock size={18} className="input-icon" />
-              <input
-                 id="confirmPassword"
-                 type="password"
-                 {...register('confirmPassword')}
-                 aria-invalid={!!errors.confirmPassword}
-                 placeholder="Repite la contraseña" // Placeholder
-               />
-            </div>
+            <PasswordInput
+               id="confirmPassword"
+               type="password"
+               {...register('confirmPassword')}
+               aria-invalid={!!errors.confirmPassword}
+               placeholder="Repite la contraseña"
+             />
             {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
           </div>
 

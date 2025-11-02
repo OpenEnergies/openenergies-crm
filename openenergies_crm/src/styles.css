@@ -2404,3 +2404,40 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 0;
   width: 0;
 }
+
+/* ===================================== */
+/* --- Estilos Password Toggle (Añadir) --- */
+/* ===================================== */
+
+/* Asegura que el input de contraseña deje espacio para el botón del ojo */
+.password-input-with-toggle {
+  /* Usamos !important para asegurar que sobreescribe el padding-left: 2.5rem */
+  /* de .input-icon-wrapper input */
+  padding-right: 3rem !important; 
+}
+
+/* Estilos para el botón del ojo */
+.password-toggle-button {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  
+  /* Reutiliza estilos de icon-button pero sin padding extra */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px; /* Coincide con .icon-button */
+  height: 46px; /* Coincide con .icon-button */
+  
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.password-toggle-button:hover {
+  color: var(--fg); /* Oscurecer al pasar el ratón */
+  background-color: transparent;
+}

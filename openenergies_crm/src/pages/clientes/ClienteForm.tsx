@@ -13,6 +13,7 @@ import { useSession } from '@hooks/useSession';
 import { useEmpresas } from '@hooks/useEmpresas';
 import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import PasswordInput from '@components/PasswordInput';
 
 // Tipado para los comerciales en el selector
 type ComercialOption = Pick<UsuarioApp, 'user_id' | 'nombre' | 'apellidos'>;
@@ -431,10 +432,10 @@ export default function ClienteForm({ id }: { id?: string }) {
                       </div>
                       <div>
                         <label htmlFor="password">Contraseña inicial</label>
-                        <div className="input-icon-wrapper">
-                          <Lock size={18} className="input-icon" />
-                          <input id="password" type="password" {...register('password')} />
-                        </div>
+                        <PasswordInput
+                          id="password"
+                          {...register('password')}
+                        />
                         {errors.password && <p className="error-text">{errors.password.message}</p>}
                       </div>
                   </div>

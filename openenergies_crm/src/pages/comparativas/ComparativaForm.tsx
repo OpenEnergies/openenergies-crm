@@ -492,7 +492,7 @@ const ComparativaForm: React.FC = () => {
     }
     
     setIsGeneratingPdf(true);
-    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/compare-report";
+    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/generate-report";
     const authToken = "tyXk7pM355t2yYmeqEOc0hIMMJYYZ5dPL0SXwpVdVHo=";
 
     try {

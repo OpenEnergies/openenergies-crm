@@ -2258,3 +2258,95 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* Badge en la campanita del Layout */
+.notification-button {
+  position: relative; /* Necesario para posicionar el badge */
+}
+
+.notification-badge {
+  position: absolute;
+  top: 0px; /* Ajusta la posición vertical */
+  right: 0px; /* Ajusta la posición horizontal */
+  background-color: #DC2626; /* Rojo */
+  color: white;
+  font-size: 0.65rem; /* Tamaño de fuente pequeño */
+  font-weight: 700;
+  border-radius: 50%; /* Círculo */
+  width: 18px; /* Ancho fijo */
+  height: 18px; /* Alto fijo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; /* Centra el texto */
+  border: 2px solid var(--bg-card); /* Borde para separarlo del icono */
+  pointer-events: none; /* Evita que el badge bloquee el clic */
+}
+
+/* Sidebar colapsado: ajusta el badge */
+.sidebar.collapsed .notification-badge {
+  top: -2px;
+  right: -4px;
+}
+
+
+/* Lista en la página de Notificaciones */
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-item {
+  display: flex;
+  align-items: stretch; /* Estira el contenido y el botón */
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color-light);
+  transition: background-color 0.2s;
+}
+.notification-item:last-child {
+  border-bottom: none;
+}
+.notification-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.notification-link {
+  flex-grow: 1; /* Ocupa el espacio disponible */
+  text-decoration: none;
+  color: var(--fg);
+  padding: 1rem;
+  display: block;
+}
+.notification-link:hover {
+  text-decoration: none;
+}
+
+.notification-content strong {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.notification-content p {
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.notification-content small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Botón de Marcar como Leído */
+.notification-read-button {
+  flex-shrink: 0; /* Evita que se encoja */
+  align-self: center; /* Centra verticalmente */
+  margin-right: 1rem;
+  color: var(--primary); /* Verde */
+}
+.notification-read-button:hover {
+  background-color: #D1FAE5; /* Verde claro */
+  color: var(--primary-600);
+}

@@ -14,6 +14,7 @@ interface DatosSuministro {
   dniCif: string; 
   fechaEstudio: string; 
   direccion: string;
+  poblacion: string;
   iva: string;
   impuestoElectrico: string;
   otrosConceptos: string;
@@ -97,6 +98,7 @@ const ComparativaForm: React.FC = () => {
     dniCif: "", 
     fechaEstudio: todayISO, 
     direccion: "",
+    poblacion: "",
     iva: "21",
     impuestoElectrico: "5.1127",
     otrosConceptos: "",
@@ -414,6 +416,11 @@ const ComparativaForm: React.FC = () => {
       });
     });
 
+    const energia_kwh: Record<string, number> = {};
+    for (const periodo in energia_kwh_mes) {
+      energia_kwh[periodo] = (energia_kwh_mes[periodo] || []).reduce((acc, val) => acc + val, 0);
+    }
+
     // 2. potencia_contratada_kw
     const tablaPotKey = tarifa === '2.0TD' ? "Potencias contratadas (P1-P2)" : "Potencias contratadas (P1-P6)";
     const potencia_contratada_kw: Record<string, number> = {};
@@ -454,6 +461,7 @@ const ComparativaForm: React.FC = () => {
     // 5. Suministro
     const suministro = {
       direccion: datosSuministro.direccion,
+      poblacion: datosSuministro.poblacion,
       cif: datosSuministro.dniCif, // Mapeado desde dniCif
       fecha_estudio: datosSuministro.fechaEstudio,
       cups: datosSuministro.cups,
@@ -465,6 +473,7 @@ const ComparativaForm: React.FC = () => {
     return {
       tarifa,
       energia_kwh_mes,
+      energia_kwh,
       potencia_contratada_kw,
       actual: getPriceData('(Actual)'),
       propuesta: getPriceData('(Ofrecido)'),
@@ -483,7 +492,7 @@ const ComparativaForm: React.FC = () => {
     }
     
     setIsGeneratingPdf(true);
-    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/generate-report";
+    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/compare-report";
     const authToken = "tyXk7pM355t2yYmeqEOc0hIMMJYYZ5dPL0SXwpVdVHo=";
 
     try {
@@ -920,18 +929,35 @@ const ComparativaForm: React.FC = () => {
           </div>
 
           {/* Fila 2: Dirección (Ocupa todo el ancho) */}
-          <div> {/* Un div simple, sin 'form-row' */}
-            <label className="block text-sm font-medium mb-1" htmlFor="direccion">
-              Dirección de Suministro
-            </label>
-            <input
-              id="direccion"
-              name="direccion"
-              value={datosSuministro.direccion}
-              onChange={handleChangeSuministro}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder="Calle, número, CP, municipio"
-            />
+          <div className="form-row" style={{ gap: '1rem' }}>
+            {/* Campo Dirección (sin CP/municipio) */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="direccion">
+                Dirección (Calle y Número)
+              </label>
+              <input
+                id="direccion"
+                name="direccion"
+                value={datosSuministro.direccion}
+                onChange={handleChangeSuministro}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="Calle, número, piso..."
+              />
+            </div>
+            {/* Campo Población (NUEVO) */}
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="poblacion">
+                Población (CP y Municipio)
+              </label>
+              <input
+                id="poblacion"
+                name="poblacion"
+                value={datosSuministro.poblacion}
+                onChange={handleChangeSuministro}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="Ej: 28001 Madrid"
+              />
+            </div>
           </div>
 
           {/* Fila 3: CUPS y Fecha de Estudio */}

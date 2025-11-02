@@ -2114,6 +2114,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-position: center;
   background-repeat: no-repeat;
   position: relative; /* Necesario para el overlay */
+  flex-direction: column;
 }
 
 /* --- Overlay Opcional (para mejorar contraste texto/fondo) --- */
@@ -2349,4 +2350,57 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .notification-read-button:hover {
   background-color: #D1FAE5; /* Verde claro */
   color: var(--primary-600);
+}
+
+.auth-footer {
+  padding: 1.5rem;
+  /* Color blanco semitransparente que funciona sobre el gradiente */
+  color: black; 
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  z-index: 2; /* Por si acaso */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem; /* Espacio entre el icono y el texto */
+  margin-top: auto; /* Empuja el footer al fondo si el contenido es corto */
+  font-style: italic;
+}
+
+/* --- Footer para el Sidebar del Layout --- */
+.sidebar-app-footer {
+  /* Usamos la misma base que un nav-link para alineación y colapso */
+  display: flex;
+  align-items: center;
+  padding: 0.65rem 0;
+  margin-top: 0.5rem; /* Espacio sobre él */
+  padding-bottom: 1rem; /* Más espacio abajo */
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.8rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-app-footer svg {
+  /* Misma lógica de icono que los nav-link */
+  flex-shrink: 0;
+  width: 80px;
+  padding: 0 36px 0 3px; /* Centrado */
+  box-sizing: border-box;
+}
+
+.sidebar-app-footer .nav-label {
+  /* Reutiliza la clase .nav-label para el texto */
+  color: black; /* Asegura el color */
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-style: italic;
+}
+
+/* Oculta el texto del footer cuando el sidebar está colapsado */
+.sidebar.collapsed .sidebar-app-footer .nav-label {
+  opacity: 0;
+  width: 0;
 }

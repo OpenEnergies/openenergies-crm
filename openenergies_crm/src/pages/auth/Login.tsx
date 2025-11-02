@@ -216,7 +216,14 @@ export default function Login() {
             </div>
           )}
         </form>
+        <footer className="auth-footer">
+          <span>
+            © {new Date().getFullYear()} Powered by Converly Solutions
+          </span>
+        </footer>
       </div>
+      {/* --- 👇 Pie de Página de Marca Añadido --- */}
+      
     </main>
   );
 }

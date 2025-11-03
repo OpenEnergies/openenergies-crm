@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 // --- (1) Importar iconos y toast ---
 import { Zap, Cog, Euro, Pencil, Loader2, FileDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from "@lib/supabase";
 import { saveAs } from 'file-saver';
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
@@ -486,43 +487,50 @@ const ComparativaForm: React.FC = () => {
   /** Manejador del clic en el botón "Generar PDF" */
   const handleGeneratePdf = async () => {
     const payload = buildPdfJson();
-    
+
     if (!payload) {
       return; // buildPdfJson ya mostró un toast de error
     }
-    
+
     setIsGeneratingPdf(true);
-    const pdfUrl = "https://pdf-generator-service-481260464317.europe-west1.run.app/generate-report";
-    const authToken = "tyXk7pM355t2yYmeqEOc0hIMMJYYZ5dPL0SXwpVdVHo=";
 
     try {
-      // console.log("Enviando JSON para PDF:", JSON.stringify(payload, null, 2));
+      // 1. Obtener la sesión actual para conseguir el Token de Autorización
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('No se pudo obtener la sesión de usuario. Por favor, inicia sesión de nuevo.');
+      }
 
-      const response = await fetch(pdfUrl, {
+      // 2. Definir la URL de tu Edge Function
+      // Usamos la variable de entorno VITE_SUPABASE_URL
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-comparison-pdf`;
+
+      // 3. Llamar a la Edge Function usando fetch()
+      const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Internal-Auth-Token': authToken,
+          // Adjuntamos el token del usuario para que la Edge Function pueda autenticarlo
+          'Authorization': `Bearer ${session.access_token}`,
+          // ¡Ya NO enviamos el X-Internal-Auth-Token desde aquí!
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        // Intentar leer el error del cuerpo si es posible
-        const errorText = await response.text();
-        console.error("Error del servidor PDF:", errorText);
-        throw new Error(`Error ${response.status}: ${errorText || response.statusText}`);
+        // Si la Edge Function falla (error 500) o deniega el acceso (403)
+        throw new Error(`Error del servidor (${response.status}): ${await response.text()}`);
       }
 
-      const blob = await response.blob();
-      
-      if (blob.type !== 'application/pdf') {
-        throw new Error("La respuesta del servidor no fue un archivo PDF.");
-      }
+      // 4. La respuesta es el PDF binario (blob)
+      const pdfBlob = await response.blob();
 
-      // Usar file-saver para descargar el PDF
-      saveAs(blob, `comparativa_${datosSuministro.cups || 'report'}.pdf`);
-      toast.success("PDF generado con éxito.");
+      // 5. Usar file-saver para iniciar la descarga
+      // (Esta era tu lógica original, que ahora funciona de forma segura)
+      saveAs(pdfBlob, `comparativa_${datosSuministro.cups || 'cliente'}.pdf`);
+
+      // 6. Mostrar un toast de éxito genérico
+      toast.success('PDF generado y descargado.');
 
     } catch (err: any) {
       console.error("Error al generar PDF:", err);

@@ -215,12 +215,30 @@ const ComparativaForm: React.FC = () => {
       };
       
       const sortedHeaders = uniqueMonthKeys.sort(sortMMYY);
-      // --- CORRECCIÓN: Usar los últimos 12 meses si hay más de 12 ---
-      const newHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(-12) : sortedHeaders;
+      // 1. Obtén los encabezados de SIPS, máximo 12
+      let sipsHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(-12) : sortedHeaders;
 
-      const headerToIndexMap = new Map(newHeaders.map((h, i) => [h, i]));
+      // 2. Comprueba cuántos meses faltan para llegar a 12
+      const mesesFaltantes = 12 - sipsHeaders.length;
 
+      let newHeaders: string[] = [];
+
+      if (mesesFaltantes > 0) {
+          // 3. Crea meses "dummy" (relleno) con un prefijo único
+          const paddingHeaders = Array.from({ length: mesesFaltantes }, (_, i) => `__relleno_${i}`);
+
+          // 4. Añade el relleno AL PRINCIPIO
+          newHeaders = [...paddingHeaders, ...sipsHeaders];
+      } else {
+          // 5. Si SIPS devolvió 12 o más, usa los últimos 12
+          newHeaders = sipsHeaders;
+      }
+
+      // 6. Setea los encabezados (ahora siempre tendrá 12)
       setDynamicMonthHeaders(newHeaders); 
+
+      // 7. El mapa de índices debe crearse DESPUÉS de definir newHeaders
+      const headerToIndexMap = new Map(newHeaders.map((h, i) => [h, i]));
 
       // 2b. Rellenar "Potencias contratadas"
       const potencias = sipsData.PotContratada;
@@ -470,6 +488,16 @@ const ComparativaForm: React.FC = () => {
       // 'poblacion' no está en datosSuministro, se omite
     };
 
+    // Obtenemos la primera cabecera de la tabla (la primera barra del gráfico)
+    const first_month_label = dynamicMonthHeaders[0];
+    
+    // Comprobamos si es un formato de fecha real (MM/YY)
+    // (Ignorará "ENE", "FEB" o "__relleno_0")
+    const isRealDate = first_month_label && /^\d{2}\/\d{2}$/.test(first_month_label);
+    
+    // Si es una fecha real, la usamos; si no, enviamos null.
+    const first_month = isRealDate ? first_month_label : null;
+
     // 6. Ensamblar JSON final
     return {
       tarifa,
@@ -481,6 +509,7 @@ const ComparativaForm: React.FC = () => {
       iva_pct: isNaN(iva_pct) ? 0.21 : iva_pct, // Default
       impuesto_electricidad_pct: isNaN(impuesto_electricidad_pct) ? 0.051127 : impuesto_electricidad_pct, // Default
       suministro,
+      first_month,
     };
   };
 

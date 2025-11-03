@@ -64,6 +64,8 @@ body {
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color); /* Borde inferior en móvil */
   padding: 1rem;
+  position: relative;
+  z-index: 1000;
   /*background: linear-gradient(to bottom right, var(--primary-light), var(--secondary));*/
 }
 
@@ -2440,4 +2442,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .password-toggle-button:hover {
   color: var(--fg); /* Oscurecer al pasar el ratón */
   background-color: transparent;
+}
+
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: var(--muted);
+  border-radius: 3px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-dark);
 }

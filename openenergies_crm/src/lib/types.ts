@@ -16,6 +16,28 @@ export type RootDocumentItem = {
   visible_para_cliente: boolean; // <-- AÑADIR ESTA LÍNEA
 };
 
+export type TarifaElectrica = '2.0TD' | '3.0TD' | '6.1TD';
+
+export interface PreciosEmpresa {
+  id: UUID;
+  empresa_id: UUID;
+  tarifa: TarifaElectrica;
+  fecha_mes: string; // 'YYYY-MM-DD'
+  precio_potencia_p1: number | null;
+  precio_potencia_p2: number | null;
+  precio_potencia_p3: number | null;
+  precio_potencia_p4: number | null;
+  precio_potencia_p5: number | null;
+  precio_potencia_p6: number | null;
+  precio_energia_p1: number | null;
+  precio_energia_p2: number | null;
+  precio_energia_p3: number | null;
+  precio_energia_p4: number | null;
+  precio_energia_p5: number | null;
+  precio_energia_p6: number | null;
+  creado_en?: string;
+}
+
 export interface UsuarioApp {
   user_id: UUID;
   empresa_id: UUID;

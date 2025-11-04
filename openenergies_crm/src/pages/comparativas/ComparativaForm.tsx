@@ -1,10 +1,12 @@
 // openenergies_crm/src/pages/comparativas/ComparativaForm.tsx
 import React, { useState, useEffect } from "react";
 // --- (1) Importar iconos y toast ---
-import { Zap, Cog, Euro, Pencil, Loader2, FileDown } from 'lucide-react';
+import { Zap, Cog, Euro, Pencil, Loader2, FileDown, Database, ListChecks, TextCursorInput, Building2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from "@lib/supabase";
 import { saveAs } from 'file-saver';
+import { useQuery } from '@tanstack/react-query';
+import { PreciosEmpresa } from '@lib/types'; 
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
 
@@ -40,6 +42,18 @@ const formatMMYY = (date: Date): string => {
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear().toString().slice(-2);
   return `${m}/${y}`;
+};
+
+const getPeriodKeys = (t: Tarifa) => {
+  const esTarifaAlta = t === '6.1TD' || t === '3.0TD';
+  // Claves de Potencia ("P1", "P2", ...)
+  const potPeriodKeys = esTarifaAlta ? ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P2'];
+  // Claves de Energía (BBDD usa P1-P6)
+  const engTableKeys = esTarifaAlta ? ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P2', 'P3'];
+  // Claves para el JSON del PDF (E1, E2...)
+  const engPeriodKeys = engTableKeys.map((_, i) => `E${i + 1}`);
+  
+  return { potPeriodKeys, engPeriodKeys, engTableKeys };
 };
 
 const defaultMesesDelAño = [
@@ -80,6 +94,14 @@ const ComparativaForm: React.FC = () => {
   const currentYearYY_Str = currentYearFull.toString().slice(-2); // "25"
   const currentMonthMM_Str = (today.getMonth() + 1).toString().padStart(2, '0'); // "11"
 
+  const [pricingMode, setPricingMode] = 
+    useState<'manual_unico' | 'manual_mensual' | 'historico'>('manual_unico');
+  
+  const [selectedEmpresaPrecios, setSelectedEmpresaPrecios] = useState<string>('');
+
+  const [preciosHistoricos, setPreciosHistoricos] = useState<Record<string, PreciosEmpresa>>({}); // Cache: {"09/25": {...}, "10/25": {...}}
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+
   // Opciones estáticas para todos los meses
   const allMonthOptions = React.useMemo(() => 
     Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0')), 
@@ -119,6 +141,37 @@ const ComparativaForm: React.FC = () => {
 
   const [manualLastMonth, setManualLastMonth] = useState<string>("");
   const [manualLastYear, setManualLastYear] = useState<string>("");
+
+  const { data: empresasConPrecios = [], isLoading: loadingEmpresasPrecios } = useQuery({
+    queryKey: ['empresasConPrecios'],
+    queryFn: async () => {
+      // 1. Obtener todas las tuplas (empresa_id, nombre) de la tabla de precios
+      const { data, error } = await supabase
+        .from('precios_empresa')
+        .select('empresa_id, empresas ( id, nombre )'); // Join con empresas
+
+      if (error) {
+        console.error("Error fetching empresas con precios:", error);
+        return [];
+      }
+
+      // 2. Deduplicar la lista
+      const uniqueEmpresas = new Map<string, { id: string, nombre: string }>();
+      data.forEach(item => {
+        // Cast item to any because Supabase return shape can be ambiguous in TS
+        const empresa = (item as any).empresas as { id?: string; nombre?: string } | null | undefined;
+        // Aseguramos que el join funcionó y no es un array y que id/nombre existen y son strings
+        if (empresa && !Array.isArray(empresa) && typeof empresa.id === 'string' && typeof empresa.nombre === 'string') {
+          if (!uniqueEmpresas.has(empresa.id)) {
+            uniqueEmpresas.set(empresa.id, { id: empresa.id, nombre: empresa.nombre });
+          }
+        }
+      });
+      // Devolvemos un array ordenado por nombre
+      return Array.from(uniqueEmpresas.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    },
+    staleTime: 60 * 60 * 1000, // Cachear 1 hora
+  });
 
   const dynamicMonthOptions = React.useMemo(() => {
     if (manualLastYear === currentYearYY_Str) {
@@ -216,27 +269,30 @@ const ComparativaForm: React.FC = () => {
       
       const sortedHeaders = uniqueMonthKeys.sort(sortMMYY);
       // 1. Obtén los encabezados de SIPS, máximo 12
-      let sipsHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(-12) : sortedHeaders;
-
-      // 2. Comprueba cuántos meses faltan para llegar a 12
-      const mesesFaltantes = 12 - sipsHeaders.length;
-
       let newHeaders: string[] = [];
 
-      if (mesesFaltantes > 0) {
-          // 3. Crea meses "dummy" (relleno) con un prefijo único
-          const paddingHeaders = Array.from({ length: mesesFaltantes }, (_, i) => `__relleno_${i}`);
+      if (sortedHeaders.length > 0) {
+        // 1. Obtenemos el mes MÁS RECIENTE devuelto por SIPS
+        const lastHeader = sortedHeaders[sortedHeaders.length - 1]; // Ej: "09/25"
+        const [lastMonth, lastYear] = lastHeader!.split('/'); // ["09", "25"]
 
-          // 4. Añade el relleno AL PRINCIPIO
-          newHeaders = [...paddingHeaders, ...sipsHeaders];
+        if (lastMonth && lastYear) {
+          // 2. Usamos la función existente para generar una parrilla de 12 meses
+          //    basada en ese último mes.
+          //    Esto genera ["10/24", "11/24", ..., "05/25", ..., "09/25"]
+          newHeaders = generateManualHeaders(lastMonth, lastYear); 
+        } else {
+          // Fallback por si el header no tiene el formato esperado
+          // (Toma los últimos 12 si SIPS devolvió más)
+          newHeaders = sortedHeaders.length > 12 ? sortedHeaders.slice(-12) : sortedHeaders;
+        }
       } else {
-          // 5. Si SIPS devolvió 12 o más, usa los últimos 12
-          newHeaders = sipsHeaders;
+        // Fallback si SIPS no devuelve ningún mes (ej: sin consumos)
+         newHeaders = defaultMesesDelAño;
       }
 
-      // 6. Setea los encabezados (ahora siempre tendrá 12)
-      setDynamicMonthHeaders(newHeaders); 
-
+      // 3. Setea los encabezados (ahora siempre serán 12 y cronológicos)
+      setDynamicMonthHeaders(newHeaders);
       // 7. El mapa de índices debe crearse DESPUÉS de definir newHeaders
       const headerToIndexMap = new Map(newHeaders.map((h, i) => [h, i]));
 
@@ -378,6 +434,90 @@ const ComparativaForm: React.FC = () => {
       }
   }, [modo, tarifa, manualLastMonth, manualLastYear]);
 
+  useEffect(() => {
+    // Solo actuar si el modo es 'historico' y tenemos los datos necesarios
+    if (pricingMode !== 'historico' || !selectedEmpresaPrecios || !tarifa || dynamicMonthHeaders.length === 0) {
+      setLoadingPrecios(false);
+      return;
+    }
+
+    const fetchAndFillPrices = async () => {
+      setLoadingPrecios(true);
+      setPreciosHistoricos({}); // Limpiar caché de precios
+      
+      // 1. Convertir cabeceras (MM/YY) a fechas de BBDD (YYYY-MM-01)
+      const fechasMes = dynamicMonthHeaders
+        .map(h => {
+          const [m, y] = h.split('/');
+          if (!m || !y || isNaN(parseInt(m)) || isNaN(parseInt(y))) return null;
+          return `20${y}-${m}-01`;
+        })
+        .filter(Boolean) as string[];
+
+      if (fechasMes.length === 0) {
+        setLoadingPrecios(false);
+        return; // No hay fechas válidas para consultar
+      }
+
+      // 2. Fetch precios para esa empresa, tarifa y esos 12 meses
+      const { data, error } = await supabase
+        .from('precios_empresa')
+        .select('*')
+        .eq('empresa_id', selectedEmpresaPrecios)
+        .eq('tarifa', tarifa)
+        .in('fecha_mes', fechasMes);
+
+      if (error) {
+        toast.error(`Error al cargar precios: ${error.message}`);
+        setLoadingPrecios(false);
+        return;
+      }
+
+      // 3. Mapear resultados a [MonthKey: Data] para acceso rápido
+      const newPreciosCache: Record<string, PreciosEmpresa> = {};
+      data.forEach(precio => {
+        const [y, m] = precio.fecha_mes.split('-');
+        const monthKey = `${m}/${y.slice(-2)}`; // "10/25"
+        newPreciosCache[monthKey] = precio;
+      });
+      setPreciosHistoricos(newPreciosCache); // Guardar en caché
+
+      // 4. Rellenar 'valoresTabla' con los datos (o con vacío si no hay datos)
+      const newValoresTabla = { ...valoresTabla }; // Copiar estado existente
+      const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
+      const potTablaKey = `Término potencia (Propuesta Mensual)`; // Clave para la nueva tabla
+      const engTablaKey = `Término energía (Propuesta Mensual)`; // Clave para la nueva tabla
+      
+      dynamicMonthHeaders.forEach(header => {
+        const precioDelMes = newPreciosCache[header]; // Puede ser undefined
+        
+        // Rellenar Potencia Mensual
+        potPeriodKeys.forEach((pKey, filaIndex) => {
+          const tablaKey = `${potTablaKey}__${filaIndex}__${header}`; // Clave: Tabla__Fila(P1=0)__Col(P1,P2)
+          const dbValue = precioDelMes ? precioDelMes[`precio_potencia_${pKey.toLowerCase()}` as keyof PreciosEmpresa] : null;
+          newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
+        });
+        
+        // Rellenar Energía Mensual
+        engTableKeys.forEach((pKey, filaIndex) => {
+          const tablaKey = `${engTablaKey}__${filaIndex}__${header}`; // Clave: Tabla__Fila(P1=0)__Col(P1,P2)
+          const dbValue = precioDelMes ? precioDelMes[`precio_energia_${pKey.toLowerCase()}` as keyof PreciosEmpresa] : null;
+          newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
+        });
+      });
+
+      setValoresTabla(newValoresTabla); // Actualizar la UI
+      setLoadingPrecios(false);
+      if (data.length > 0) {
+        toast.success(`Histórico de precios de ${empresasConPrecios.find(e => e.id === selectedEmpresaPrecios)?.nombre} cargado.`);
+      } else {
+        toast.error(`No se encontraron precios para ${empresasConPrecios.find(e => e.id === selectedEmpresaPrecios)?.nombre} en estos meses.`);
+      }
+    };
+
+    fetchAndFillPrices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingMode, selectedEmpresaPrecios, tarifa, dynamicMonthHeaders]); // No incluir supabase/valoresTabla
 
   // --- (FIX 2) CORRECCIÓN LÓGICA DE CLAVE (recibe colHeader) ---
   const handleChangeCelda = (
@@ -572,6 +712,7 @@ const ComparativaForm: React.FC = () => {
 
 
   // --- (INICIO) MODIFICACIÓN renderTablasTarifa_20_30 ---
+
   const renderTablasTarifa_20_30 = () => {
     const esEditable = modo === "manual" || modo === "auto";
     const puedeAvanzar = modo === "auto" || (modo === "manual" && tarifa && manualLastMonth && manualLastYear);
@@ -581,11 +722,10 @@ const ComparativaForm: React.FC = () => {
         (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
     const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
-    const warningColor = "#f39b03"; // Color amarillo/ámbar
 
     return (
       <div style={{ display: 'grid', gap: '1.5rem' }}>
-
+        {/* --- Potencias Contratadas (Actual) --- */}
         <div style={{ marginTop: '1rem' }}>
            <TablaGenerica
             titulo="Potencias contratadas (P1-P2)"
@@ -597,8 +737,9 @@ const ComparativaForm: React.FC = () => {
             onChangeCell={handleChangeCelda}
             valores={valoresTabla}
           />
-        </div>        
-        {/* Fila 1 (Bloque Consumos, Vertical) */}
+        </div>
+
+        {/* --- Energía y Maxímetro (Actual) --- */}
         <div style={{ display: 'grid', gap: '1.5rem' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', marginTop: 0, marginBottom: '0.5rem' }}>
             Detalle mensual según la tarifa. {modo === 'manual' ? 'Valores editables.' : 'Valores autocompletados.'}
@@ -637,65 +778,43 @@ const ComparativaForm: React.FC = () => {
           />
         </div>
 
-        {/* Fila 2 (Bloque Precios, 2x2 Grid) */}
-        {/* Usamos form-row que es un grid de 2 columnas (1fr 1fr) */}
+        {/* --- Precios (Actual) --- */}
         <div className="form-row">
-          
-          {/* Columna Izquierda: Precios (Actual) */}
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             <TablaGenerica
               titulo="Término potencia"
               tituloActual="(Actual)"
               icon={<Euro size={18} />}
               accentColor={dangerColor} // Color Rojo
-              columnas={["P1", "P2"]} // <-- 2 CAMPOS
+              columnas={["P1", "P2"]}
               filas={[["", ""]]}
-              editable={esEditable}
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
-            <TablaGenerica
-              titulo="Término energía"
-              tituloActual="(Actual)"
-              icon={<Euro size={18} />}
-              accentColor={dangerColor} // Color Rojo
-              columnas={["P1", "P2", "P3"]} // <-- 3 CAMPOS
-              filas={[["", "", ""]]}
               editable={esEditable}
               onChangeCell={handleChangeCelda}
               valores={valoresTabla}
             />
           </div>
-          
-          {/* Columna Derecha: Precios (Ofrecido) */}
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             <TablaGenerica
-              titulo="Término potencia"
-              tituloOfrecido="(Ofrecido)" // Título rojo
-              icon={<Euro size={18} />}
-              accentColor={warningColor} // Color Amarillo
-              columnas={["P1", "P2"]} // <-- 2 CAMPOS
-              filas={[["", ""]]}
-              editable={true} // El ofrecido siempre es editable
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
-            <TablaGenerica
               titulo="Término energía"
-              tituloOfrecido="(Ofrecido)" // Título rojo
+              tituloActual="(Actual)"
               icon={<Euro size={18} />}
-              accentColor={warningColor} // Color Amarillo
-              columnas={["P1", "P2", "P3"]} // <-- 3 CAMPOS
+              accentColor={dangerColor} // Color Rojo
+              columnas={["P1", "P2", "P3"]}
               filas={[["", "", ""]]}
-              editable={true} // El ofrecido siempre es editable
+              editable={esEditable}
               onChangeCell={handleChangeCelda}
               valores={valoresTabla}
             />
           </div>
         </div>
+        
+        {/* --- (NUEVO) Sección Opciones de Propuesta --- */}
+        <RenderPropuestaOptions tarifa={tarifa} />
+
       </div>
     );
   };
+
   // --- (FIN) MODIFICACIÓN renderTablasTarifa_20_30 ---
 
   // --- (INICIO) MODIFICACIÓN renderTablasTarifa_61 ---
@@ -708,10 +827,10 @@ const ComparativaForm: React.FC = () => {
         (dynamicMonthHeaders[0] !== sipsFirstMonth)
     );
     const dangerColor = "var(--danger-color, #DC2626)"; // Color rojo
-    const warningColor = "#f39b03"; // Color amarillo/ámbar
 
     return (
       <div style={{ display: 'grid', gap: '1.5rem' }}>
+        {/* --- Potencias Contratadas (Actual) --- */}
         <div style={{ marginTop: '1rem' }}>
           <TablaGenerica
             titulo="Potencias contratadas (P1-P6)"
@@ -725,7 +844,7 @@ const ComparativaForm: React.FC = () => {
           />
         </div>
         
-        {/* Fila 1 (Bloque Consumos, Vertical) */}
+        {/* --- Energía y Maxímetro (Actual) --- */}
         <div style={{ display: 'grid', gap: '1.5rem' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', marginTop: 0, marginBottom: '0.5rem' }}>
             Detalle mensual según la tarifa. {modo === 'manual' ? 'Valores editables.' : 'Valores autocompletados.'}
@@ -760,24 +879,11 @@ const ComparativaForm: React.FC = () => {
           />
         </div>
         
-        {/* Fila 2 (Bloque Precios, 2x2 Grid) */}
-        <div className="form-row"> {/* 2 columnas (Actual | Ofrecido) */}
-          
-          {/* Columna Izquierda: Precios (Actual) */}
+        {/* --- Precios (Actual) --- */}
+        <div className="form-row">
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             <TablaGenerica
               titulo="Término potencia"
-              tituloActual="(Actual)"
-              icon={<Euro size={18} />}
-              accentColor={dangerColor} // Rojo
-              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
-              filas={[Array(6).fill("")]}
-              editable={esEditable}
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
-            <TablaGenerica
-              titulo="Término energía"
               tituloActual="(Actual)"
               icon={<Euro size={18} />}
               accentColor={dangerColor} // Rojo
@@ -788,37 +894,213 @@ const ComparativaForm: React.FC = () => {
               valores={valoresTabla}
             />
           </div>
-          
-          {/* Columna Derecha: Precios (Ofrecido) */}
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             <TablaGenerica
-              titulo="Término potencia"
-              tituloOfrecido="(Ofrecido)"
-              icon={<Euro size={18} />}
-              accentColor={warningColor} // Amarillo
-              columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
-              filas={[Array(6).fill("")]}
-              editable={true} // Siempre editable
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
-            <TablaGenerica
               titulo="Término energía"
-              tituloOfrecido="(Ofrecido)"
+              tituloActual="(Actual)"
               icon={<Euro size={18} />}
-              accentColor={warningColor} // Amarillo
+              accentColor={dangerColor} // Rojo
               columnas={["P1", "P2", "P3", "P4", "P5", "P6"]}
               filas={[Array(6).fill("")]}
-              editable={true} // Siempre editable
+              editable={esEditable}
               onChangeCell={handleChangeCelda}
               valores={valoresTabla}
             />
           </div>
         </div>
+
+        {/* --- (NUEVO) Sección Opciones de Propuesta --- */}
+        <RenderPropuestaOptions tarifa={tarifa} />
+
       </div>
     );
   };
   // --- (FIN) MODIFICACIÓN renderTablasTarifa_61 ---
+
+  const RenderPropuestaOptions: React.FC<{ tarifa: Tarifa }> = ({ tarifa }) => {
+    const warningColor = "#f39b03"; // Color amarillo/ámbar
+    const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
+
+    // Claves de tabla para las nuevas tablas mensuales
+    const potTablaKeyMensual = "Término potencia (Propuesta Mensual)";
+    const engTablaKeyMensual = "Término energía (Propuesta Mensual)";
+
+    return (
+      <div style={{ display: 'grid', gap: '1.5rem', borderTop: '2px dashed var(--border-color)', paddingTop: '1.5rem' }}>
+        
+        {/* --- Título y Selectores de Modo --- */}
+        <h3 className="section-title" style={{ marginTop: 0, borderBottom: 'none', paddingBottom: 0, color: warningColor }}>
+          Precios de Propuesta
+        </h3>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', paddingLeft: '0.5rem' }}>
+          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
+            <input 
+              type="radio" 
+              name="pricing_mode" 
+              value="manual_unico" 
+              checked={pricingMode === 'manual_unico'} 
+              onChange={(e) => setPricingMode(e.target.value as any)} 
+            />
+            Precios manuales únicos
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
+            <input 
+              type="radio" 
+              name="pricing_mode" 
+              value="manual_mensual" 
+              checked={pricingMode === 'manual_mensual'} 
+              onChange={(e) => setPricingMode(e.target.value as any)} 
+            />
+            Precios manuales mensualmente
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
+            <input 
+              type="radio" 
+              name="pricing_mode" 
+              value="historico" 
+              checked={pricingMode === 'historico'} 
+              onChange={(e) => setPricingMode(e.target.value as any)} 
+            />
+            Precios según histórico
+          </label>
+        </div>
+
+        {/* --- Renderizado Condicional de Opciones --- */}
+
+        {/* Opción 3: Precios Manuales Únicos (Las tablas antiguas) */}
+        {pricingMode === 'manual_unico' && (
+          <div className="form-row">
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              <TablaGenerica
+                titulo="Término potencia"
+                tituloOfrecido="(Ofrecido)"
+                icon={<Euro size={18} />}
+                accentColor={warningColor}
+                columnas={potPeriodKeys}
+                filas={[Array(potPeriodKeys.length).fill("")]}
+                editable={true}
+                onChangeCell={handleChangeCelda}
+                valores={valoresTabla}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              <TablaGenerica
+                titulo="Término energía"
+                tituloOfrecido="(Ofrecido)"
+                icon={<Euro size={18} />}
+                accentColor={warningColor}
+                columnas={engTableKeys}
+                filas={[Array(engTableKeys.length).fill("")]}
+                editable={true}
+                onChangeCell={handleChangeCelda}
+                valores={valoresTabla}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Opción 1: Histórico de Empresa */}
+        {pricingMode === 'historico' && (
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            {/* Selector de Empresa */}
+            <div>
+              <label htmlFor="empresa_precios">Selecciona Empresa</label>
+              <div className="input-icon-wrapper">
+                <Building2 size={18} className="input-icon" />
+                <select
+                  id="empresa_precios"
+                  value={selectedEmpresaPrecios}
+                  onChange={(e) => setSelectedEmpresaPrecios(e.target.value)}
+                  disabled={loadingEmpresasPrecios || loadingPrecios}
+                >
+                  <option value="">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Selecciona...'}</option>
+                  {empresasConPrecios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
+              </div>
+            </div>
+            
+            {/* Tablas Mensuales (Modo Histórico: NO editables) */}
+            {selectedEmpresaPrecios && (
+              loadingPrecios ? (
+                <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 className="animate-spin" /> Cargando precios...</div>
+              ) : (
+                <>
+                  <TablaGenerica
+                    titulo="Término potencia (Propuesta Mensual)"
+                    icon={<Euro size={18} />}
+                    accentColor={warningColor}
+                    columnas={dynamicMonthHeaders}
+                    filas={potPeriodKeys.map((pKey) => [ // <--- CORREGIDO: Filas son P1, P2...
+                      pKey,
+                      ...Array(dynamicMonthHeaders.length).fill("")
+                  ])}
+                    mostrarPrimeraColumnaComoFila={true}
+                    editable={true} // No editable en modo histórico
+                    onChangeCell={handleChangeCelda}
+                    valores={valoresTabla}
+                    // Re-mapeamos filas y columnas para la vista mensual de potencia
+                    />
+                    <TablaGenerica
+                    titulo="Término energía (Propuesta Mensual)"
+                    icon={<Euro size={18} />}
+                    accentColor={warningColor}
+                    columnas={dynamicMonthHeaders}
+                    filas={engTableKeys.map((pKey) => [
+                      pKey,
+                      ...Array(dynamicMonthHeaders.length).fill("")
+                    ])}
+                    mostrarPrimeraColumnaComoFila={true}
+                    editable={true} // No editable en modo histórico
+                    onChangeCell={handleChangeCelda}
+                    valores={valoresTabla}
+                  />
+                </>
+              )
+            )}
+          </div>
+        )}
+
+        {/* Opción 2: Manual Mensual */}
+        {pricingMode === 'manual_mensual' && (
+          <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', margin: 0 }}>
+              Introduce los precios ofrecidos para cada mes.
+            </p>
+            <TablaGenerica
+              titulo="Término potencia (Propuesta Mensual)"
+              icon={<Euro size={18} />}
+              accentColor={warningColor}
+              columnas={dynamicMonthHeaders}
+              filas={potPeriodKeys.map((pKey) => [
+                  pKey, 
+                  ...Array(dynamicMonthHeaders.length).fill("")
+              ])}
+              mostrarPrimeraColumnaComoFila={true}
+              editable={true} // Editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+            <TablaGenerica
+              titulo="Término energía (Propuesta Mensual)"
+              icon={<Euro size={18} />}
+              accentColor={warningColor}
+              columnas={dynamicMonthHeaders}
+              filas={engTableKeys.map((pKey) => [
+                  pKey, 
+                  ...Array(dynamicMonthHeaders.length).fill("")
+              ])}
+              mostrarPrimeraColumnaComoFila={true}
+              editable={true} // Editable
+              onChangeCell={handleChangeCelda}
+              valores={valoresTabla}
+            />
+          </div>
+        )}
+
+      </div>
+    );
+  };
 
   const renderZonaTablas = () => {
     if (cargando && modo === "auto") {
@@ -1430,7 +1712,6 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                 ) : null}
                 
                 {columnas.map((colHeader, colIndex) => { // <-- Obtener colHeader y colIndex
-                  
                   // --- (FIX 1) CORRECCIÓN LÓGICA DE CLAVE ---
                   // La clave se construye con el Título, el índice de Fila y el String de la Cabecera de Columna
                   
@@ -1440,7 +1721,16 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                   const baseTitulo = tituloActual ? `${titulo} ${tituloActual}` :
                                      tituloOfrecido ? `${titulo} ${tituloOfrecido}` : 
                                      titulo;
-                  const key = `${baseTitulo}__${filaIndex}__${colHeader}`;
+                  let key = '';
+                  if (mostrarPrimeraColumnaComoFila) {
+                    // Tablas mensuales: Clave = Tabla__Fila(P1=0)__Col(Header)
+                    const pKey = String(fila[0]); // P1, P2...
+                    key = `${baseTitulo}__${filaIndex}__${colHeader}`;
+                  } else {
+                    // Tablas únicas: Clave = Tabla__Fila(0)__Col(P1, P2...)
+                    const pKey = colHeader; // P1, P2...
+                    key = `${baseTitulo}__${filaIndex}__${pKey}`;
+                  }                   
                   // --- (FIN) MODIFICACIÓN NOMBRE DE CLAVE ---
                   
                   
@@ -1458,9 +1748,10 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                               onChangeCell &&
                               // --- (FIX 2) CORRECCIÓN HANDLER ---
                               onChangeCell(
-                                baseTitulo, // <-- (INICIO) MODIFICACIÓN NOMBRE DE CLAVE
+                                baseTitulo,
                                 filaIndex,
-                                colHeader, // <-- (FIX 2) Pasamos el string del header
+                                // Pasamos la clave de la columna correcta
+                                mostrarPrimeraColumnaComoFila ? colHeader : colHeader, // En ambos casos es colHeader
                                 e.target.value
                               )
                             }
@@ -1488,6 +1779,29 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Componente mínimo para las opciones de propuesta.
+ * Se deja simple: muestra nada si no hay tarifa y un bloque informativo si la hay.
+ * Puedes ampliar este componente para incluir selects/inputs según necesites.
+ */
+const RenderPropuestaOptions: React.FC<{ tarifa: Tarifa }> = ({ tarifa }) => {
+  if (!tarifa) return null;
+
+  return (
+    <div style={{ background: 'var(--bg-muted)', padding: '0.75rem', borderRadius: 8 }}>
+      <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+        Opciones de propuesta
+      </div>
+      <div style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+        Tarifa seleccionada: <span style={{ fontWeight: 700 }}>{tarifa}</span>
+        <div style={{ marginTop: '0.5rem' }}>
+          Aquí puedes añadir controles para configurar la propuesta (precios, cargos fijos, etc.).
+        </div>
       </div>
     </div>
   );

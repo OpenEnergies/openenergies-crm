@@ -4,9 +4,11 @@ import { Link } from '@tanstack/react-router';
 import type { Empresa } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
-import { Pencil, HousePlus } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, HousePlus, DollarSign } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSortableTable } from '@hooks/useSortableTable';
+import PreciosEmpresaModal from './PreciosEmpresaModal';
 
 //    En este caso, coinciden con las claves del tipo Empresa
 type SortableEmpresaKey = keyof Empresa;
@@ -24,6 +26,8 @@ async function fetchEmpresas() {
 export default function EmpresasList() {
   const { data: fetchedData, isLoading, isError } = useQuery({ queryKey: ['empresas'], queryFn: fetchEmpresas });
 
+  const [modalState, setModalState] = useState<{ id: string; nombre: string } | null>(null);
+  
   // --- 👇 3. Usa el hook ---
   const {
     sortedData: displayedData,
@@ -93,6 +97,16 @@ export default function EmpresasList() {
                     <td><span className="kbd">{e.tipo}</span></td>
                     <td>{fmtDate(e.creada_en)}</td>
                     <td style={{ textAlign: 'right' }}>
+                      {e.tipo === 'comercializadora' && (
+                        <button
+                          className="icon-button secondary"
+                          title={`Actualizar precios de ${e.nombre}`}
+                          onClick={() => setModalState({ id: e.id, nombre: e.nombre })}
+                          style={{ marginRight: '0.5rem' }} // Espacio entre botones
+                        >
+                          <DollarSign size={18} />
+                        </button>
+                      )}
                       {/* --- ENLACE DE EDITAR CON ICONO --- */}
                       <Link 
                         to="/app/empresas/$id" 
@@ -110,6 +124,13 @@ export default function EmpresasList() {
           </div>
         )}
       </div>
+      {modalState && (
+        <PreciosEmpresaModal
+          empresaId={modalState.id}
+          empresaNombre={modalState.nombre}
+          onClose={() => setModalState(null)}
+        />
+      )}
     </div>
   );
 }

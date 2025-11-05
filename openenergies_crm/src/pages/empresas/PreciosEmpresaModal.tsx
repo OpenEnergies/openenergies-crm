@@ -82,7 +82,7 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
     defaultValues: {},
   });
 
-  // --- Lógica de Carga de Datos (Refactorizada) ---
+  // --- Lógica de Carga de Datos (CORREGIDA) ---
   useEffect(() => {
     // Resetear si cambian las selecciones principales
     if (!priceType || !selectedTarifa) {
@@ -90,11 +90,23 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
       setExistingPrecioId(null);
       return;
     }
+    // No hacer nada si falta la fecha/año específico
+    if (priceType === 'energia' && !selectedDate) {
+      reset(); 
+      setExistingPrecioId(null);
+      return;
+    }
+    if (priceType === 'potencia' && !selectedYear) {
+      reset(); 
+      setExistingPrecioId(null);
+      return;
+    }
+
 
     const fetchPrecios = async () => {
       setIsLoading(true);
       setExistingPrecioId(null);
-      reset(); // Limpia el formulario antes de cargar nuevos datos
+      // reset(); // <--- ¡¡¡ERROR ELIMINADO DE AQUÍ!!!
 
       try {
         let data = null;
@@ -102,10 +114,6 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
 
         if (priceType === 'energia') {
           // --- ENERGÍA (MENSUAL) ---
-          if (!selectedDate) { // Necesita 'YYYY-MM'
-            setIsLoading(false);
-            return; 
-          }
           const fechaMes = `${selectedDate}-01`;
           
           const { data: d, error: e } = await supabase
@@ -120,10 +128,6 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
 
         } else if (priceType === 'potencia') {
           // --- POTENCIA (ANUAL) ---
-          if (!selectedYear) { // Necesita 'YYYY'
-            setIsLoading(false);
-            return; 
-          }
           const { data: d, error: e } = await supabase
             .from('precios_potencia') // <-- Tabla Potencia
             .select('*')
@@ -138,16 +142,18 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
         if (error) throw error;
 
         if (data) {
+          // --- DATOS ENCONTRADOS ---
           toast.success('Precios existentes cargados.');
-          reset(data as FormValues); 
+          reset(data as FormValues); // <-- Se rellenan los datos
           setExistingPrecioId(data.id);
         } else {
+          // --- NO SE ENCONTRARON DATOS ---
           toast.success('No existen precios. Puedes rellenarlos.');
-          // reset() ya se llamó arriba
+          reset(); // <-- ¡RESET AÑADIDO AQUÍ! (para limpiar el form si no hay datos)
         }
       } catch (e: any) {
         toast.error(`Error al consultar precios: ${e.message}`);
-        reset();
+        reset(); // <-- Resetear también en caso de error
       } finally {
         setIsLoading(false);
       }
@@ -321,7 +327,7 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
                     >
                       <Zap size={24} />
                       <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Precios Potencia</span>
-                      <span style={{ fontSize: '0.9rem', color: '#d1d0d0ff' }}>(€/kW/Año)</span>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>(€/kW/Año)</span>
                     </button>
                     <button
                       type="button"
@@ -331,7 +337,7 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
                     >
                       <Flame size={24} />
                       <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Precios Energía</span>
-                      <span style={{ fontSize: '0.9rem', color: '#d1d0d0ff' }}>(€/kWh)</span>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>(€/kWh)</span>
                     </button>
                   </div>
                 )}

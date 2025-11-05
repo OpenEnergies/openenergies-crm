@@ -6,7 +6,8 @@ import { toast } from 'react-hot-toast';
 import { supabase } from "@lib/supabase";
 import { saveAs } from 'file-saver';
 import { useQuery } from '@tanstack/react-query';
-import { PreciosEmpresa } from '@lib/types'; 
+// --- (AHORA IMPORTA PreciosPotencia TAMBIÉN) ---
+import { PreciosEnergia, PreciosPotencia } from '@lib/types'; 
 
 type Tarifa = "2.0TD" | "3.0TD" | "6.1TD" | "";
 
@@ -121,7 +122,6 @@ interface TablaGenericaProps {
   icon: React.ReactNode;
   accentColor: string;
   tituloActual?: string; // Prop opcional para el texto "(Actual)"
-  tituloOfrecido?: string; // Prop opcional para el texto "(Ofrecido)"
 }
 
 const TablaGenerica: React.FC<TablaGenericaProps> = ({
@@ -138,9 +138,8 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
   icon,
   accentColor,
   tituloActual, // Recibir título actual
-  tituloOfrecido, // Recibir título ofrecido
 }) => {
-  const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Lectura Maxímetro") || titulo.startsWith("Término potencia (Propuesta Mensual)") || titulo.startsWith("Término energía (Propuesta Mensual)")) && columnas[0]?.includes('/');
+  const esTablaMensual = (titulo.startsWith("Energía consumida") || titulo.startsWith("Lectura Maxímetro") || titulo.startsWith("Potencia €/kW/año (Propuesta Mensual)") || titulo.startsWith("Energía €/kWh (Propuesta Mensual)")) && columnas[0]?.includes('/');
   
   const buttonStyle: React.CSSProperties = {
     background: 'none', 
@@ -194,8 +193,6 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
             {titulo}
             {/* Añadir el span (Actual) si existe */}
             {tituloActual && <span style={suffixStyle}>{tituloActual}</span>}
-            {/* Añadir el span (Ofrecido) si existe */}
-            {tituloOfrecido && <span style={suffixStyle}>{tituloOfrecido}</span>}
           </span>
         </div>
         
@@ -270,7 +267,6 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                   // Si el título tiene (Ofrecido), usamos el título base para la clave,
                   // para que ambas tablas (Actual y Ofrecido) escriban en campos diferentes.
                   const baseTitulo = tituloActual ? `${titulo} ${tituloActual}` :
-                                     tituloOfrecido ? `${titulo} ${tituloOfrecido}` : 
                                      titulo;
                   let key = '';
                   if (mostrarPrimeraColumnaComoFila) {
@@ -337,8 +333,121 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
 
 
 // -----------------------------------------------------------------------------
-// Componente Opciones de Propuesta - (MOVIDO FUERA)
+// --- (FIN) COMPONENTES MOVIDOS FUERA ---
 // -----------------------------------------------------------------------------
+
+interface PotenciaAnualInputBoxProps {
+  tarifa: Tarifa;
+  valores: Record<string, string>;
+  onChangeCell: (tabla: string, fila: number, colHeader: string, valor: string) => void;
+  accentColor: string;
+}
+
+const PotenciaAnualInputBox: React.FC<PotenciaAnualInputBoxProps> = ({
+  tarifa,
+  valores,
+  onChangeCell,
+  accentColor,
+}) => {
+  const { potPeriodKeys } = getPeriodKeys(tarifa);
+  // --- (MODIFICACIÓN) Título base para la clave del estado ---
+  const baseTitulo = "Potencia €/kW/año";
+  
+  return (
+    <div style={{
+      backgroundColor: 'var(--bg-muted)',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      borderTop: `4px solid ${accentColor}`,
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      height: '100%' // Para que alinee con la tabla de energía
+    }}>
+      {/* Titulo */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        gap: '0.6rem',
+        padding: '1rem', 
+        color: 'var(--fg)',
+      }}>
+        <span style={{ color: accentColor }}><Euro size={18} /></span>
+        <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+          {baseTitulo} {/* Usamos el título base */}
+          <span style={{
+            color: accentColor,
+            fontSize: '0.9em',
+            fontWeight: 500,
+            marginLeft: '0.4rem'
+          }}></span>
+        </span>
+      </div>
+      
+      {/* --- (INICIO) SECCIÓN MODIFICADA: Usar <table> en lugar de <div> grid --- */}
+      <div className="overflow-auto" style={{ padding: '0 0.5rem 0.5rem 0.5rem' }}>
+        <table className="min-w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+          {/* Cabecera de la tabla (Peaje | Valor) */}
+          <thead style={{ backgroundColor: 'transparent' }}>
+            <tr>
+              <th style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)', textAlign: 'left' }}>Periodo</th>
+              <th style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)', textAlign: 'left' }}>Valor</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white" style={{ backgroundColor: 'var(--bg-card)' }}>
+            {potPeriodKeys.map((pKey, index) => {
+              // Clave del estado (fila siempre 0 para tabla anual)
+              const key = `${baseTitulo}__0__${pKey}`; 
+              const value = valores[key] !== undefined ? valores[key] : "";
+              
+              return (
+                <tr 
+                  key={pKey}
+                  // Borde de color lateral, igual que la tabla de energía
+                  style={{ borderLeft: `4px solid ${periodColors[index % periodColors.length]}` }}
+                >
+                  {/* Celda del Peaje (P1, P2...) */}
+                  <td style={{ padding: '0.5rem', fontWeight: 600, border: '1px solid var(--border-color)' }}>
+                    {pKey}
+                  </td>
+                  {/* Celda del Input */}
+                  <td style={{ padding: '0', border: '1px solid var(--border-color)' }}>
+                    <input
+                      id={key}
+                      value={value}
+                      onChange={(e) =>
+                        onChangeCell(
+                          baseTitulo,
+                          0, // Fila siempre es 0
+                          pKey, // colHeader es el peaje (P1, P2...)
+                          e.target.value
+                        )
+                      }
+                      type="number"
+                      step="0.000001" // Alta precisión
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '0.4rem 0.5rem',
+                        textAlign: 'right',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        boxShadow: 'none',
+                        borderRadius: '0',
+                        width: '100%',
+                        height: '100%'
+                      }}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* --- (FIN) SECCIÓN MODIFICADA --- */}
+    </div>
+  );
+};
+
+
 interface RenderPropuestaOptionsProps {
   tarifa: Tarifa;
   pricingMode: 'manual_unico' | 'manual_mensual' | 'historico';
@@ -370,8 +479,12 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
     const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
 
     // Claves de tabla para las nuevas tablas mensuales
-    const potTablaKeyMensual = "Término potencia (Propuesta Mensual)";
-    const engTablaKeyMensual = "Término energía (Propuesta Mensual)";
+    const engTablaKeyMensual = "Energía €/kWh (Propuesta Mensual)";
+    
+    // Claves de tabla para las tablas anuales
+    const potTablaKeyAnual = "Potencia €/kW/año (Ofrecido)";
+    const engTablaKeyAnual = "Energía €/kWh (Ofrecido)";
+
 
     return (
       <div style={{ display: 'grid', gap: '1.5rem', borderTop: '2px dashed var(--border-color)', paddingTop: '1.5rem' }}>
@@ -416,13 +529,12 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
 
         {/* --- Renderizado Condicional de Opciones --- */}
 
-        {/* Opción 3: Precios Manuales Únicos (Las tablas antiguas) */}
+        {/* Opción 1: Precios Manuales Únicos (Layout 50/50) */}
         {pricingMode === 'manual_unico' && (
           <div className="form-row">
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               <TablaGenerica
-                titulo="Término potencia"
-                tituloOfrecido="(Ofrecido)"
+                titulo="Potencia €/kW/año"
                 icon={<Euro size={18} />}
                 accentColor={warningColor}
                 columnas={potPeriodKeys}
@@ -434,8 +546,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
             </div>
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               <TablaGenerica
-                titulo="Término energía"
-                tituloOfrecido="(Ofrecido)"
+                titulo="Energía €/kWh"
                 icon={<Euro size={18} />}
                 accentColor={warningColor}
                 columnas={engTableKeys}
@@ -448,7 +559,41 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
           </div>
         )}
 
-        {/* Opción 1: Histórico de Empresa */}
+        {/* Opción 2: Manual Mensual (Layout 33/66) */}
+        {pricingMode === 'manual_mensual' && (
+          // --- (LAYOUT MODIFICADO) Grid 1fr 4fr ---
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 4fr', gap: '1.5rem', alignItems: 'start' }}>
+            {/* Columna 1: Potencia (ANUAL) */}
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              <PotenciaAnualInputBox
+                tarifa={tarifa}
+                valores={valoresTabla}
+                onChangeCell={handleChangeCelda}
+                accentColor={warningColor}
+              />
+            </div>
+            {/* Columna 2: Energía (MENSUAL) */}
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+               <TablaGenerica
+                titulo="Energía €/kWh"
+                icon={<Euro size={18} />}
+                accentColor={warningColor}
+                columnas={dynamicMonthHeaders}
+                filas={engTableKeys.map((pKey) => [
+                    pKey, 
+                    ...Array(dynamicMonthHeaders.length).fill("")
+                ])}
+                mostrarPrimeraColumnaComoFila={true}
+                editable={true} // Editable
+                onChangeCell={handleChangeCelda}
+                valores={valoresTabla}
+              />
+            </div>
+          </div>
+          // --- (FIN) Layout Grid ---
+        )}
+
+        {/* Opción 3: Histórico de Empresa (Layout 33/66) */}
         {pricingMode === 'historico' && (
           <div style={{ display: 'grid', gap: '1.5rem' }}>
             {/* Selector de Empresa */}
@@ -468,90 +613,50 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
               </div>
             </div>
             
-            {/* Tablas Mensuales (Modo Histórico: NO editables) */}
+            {/* Tablas (Spinner o Tablas) */}
             {selectedEmpresaPrecios && (
               loadingPrecios ? (
                 <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 className="animate-spin" /> Cargando precios...</div>
               ) : (
-                <>
-                  <TablaGenerica
-                    titulo={potTablaKeyMensual} // Clave correcta
-                    icon={<Euro size={18} />}
-                    accentColor={warningColor}
-                    columnas={dynamicMonthHeaders}
-                    filas={potPeriodKeys.map((pKey) => [ // <--- CORREGIDO: Filas son P1, P2...
-                      pKey,
-                      ...Array(dynamicMonthHeaders.length).fill("")
-                  ])}
-                    mostrarPrimeraColumnaComoFila={true}
-                    editable={true} // Permitir edición
-                    onChangeCell={handleChangeCelda}
-                    valores={valoresTabla}
-                    // Re-mapeamos filas y columnas para la vista mensual de potencia
+                // --- (LAYOUT MODIFICADO) Grid 1fr 4fr ---
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 4fr', gap: '1.5rem', alignItems: 'start' }}>
+                  {/* Columna 1: Potencia (ANUAL) */}
+                  <div style={{ display: 'grid', gap: '1.5rem' }}>
+                    <PotenciaAnualInputBox
+                      tarifa={tarifa}
+                      valores={valoresTabla}
+                      onChangeCell={handleChangeCelda}
+                      accentColor={warningColor}
                     />
+                  </div>
+                  {/* Columna 2: Energía (MENSUAL) */}
+                  <div style={{ display: 'grid', gap: '1.5rem' }}>
                     <TablaGenerica
-                    titulo={engTablaKeyMensual} // Clave correcta
-                    icon={<Euro size={18} />}
-                    accentColor={warningColor}
-                    columnas={dynamicMonthHeaders}
-                    filas={engTableKeys.map((pKey) => [
-                      pKey,
-                      ...Array(dynamicMonthHeaders.length).fill("")
-                    ])}
-                    mostrarPrimeraColumnaComoFila={true}
-                    editable={true} // Permitir edición
-                    onChangeCell={handleChangeCelda}
-                    valores={valoresTabla}
-                  />
-                </>
+                      titulo="Energía €/kWh"
+                      icon={<Euro size={18} />}
+                      accentColor={warningColor}
+                      columnas={dynamicMonthHeaders}
+                      filas={engTableKeys.map((pKey) => [
+                        pKey,
+                        ...Array(dynamicMonthHeaders.length).fill("")
+                      ])}
+                      mostrarPrimeraColumnaComoFila={true}
+                      editable={true} // Editable
+                      onChangeCell={handleChangeCelda}
+                      valores={valoresTabla}
+                    />
+                  </div>
+                </div>
+                // --- (FIN) Layout Grid ---
               )
             )}
-          </div>
-        )}
-
-        {/* Opción 2: Manual Mensual */}
-        {pricingMode === 'manual_mensual' && (
-          <div style={{ display: 'grid', gap: '1.5rem' }}>
-            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingLeft: '0.5rem', margin: 0 }}>
-              Introduce los precios ofrecidos para cada mes.
-            </p>
-            <TablaGenerica
-              titulo={potTablaKeyMensual} // Clave correcta
-              icon={<Euro size={18} />}
-              accentColor={warningColor}
-              columnas={dynamicMonthHeaders}
-              filas={potPeriodKeys.map((pKey) => [
-                  pKey, 
-                  ...Array(dynamicMonthHeaders.length).fill("")
-              ])}
-              mostrarPrimeraColumnaComoFila={true}
-              editable={true} // Editable
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
-            <TablaGenerica
-              titulo={engTablaKeyMensual} // Clave correcta
-              icon={<Euro size={18} />}
-              accentColor={warningColor}
-              columnas={dynamicMonthHeaders}
-              filas={engTableKeys.map((pKey) => [
-                  pKey, 
-                  ...Array(dynamicMonthHeaders.length).fill("")
-              ])}
-              mostrarPrimeraColumnaComoFila={true}
-              editable={true} // Editable
-              onChangeCell={handleChangeCelda}
-              valores={valoresTabla}
-            />
           </div>
         )}
 
       </div>
     );
   };
-// -----------------------------------------------------------------------------
-// --- (FIN) COMPONENTES MOVIDOS FUERA ---
-// -----------------------------------------------------------------------------
+// --- (FIN) SECCIÓN MODIFICADA ---
 
 
 const ComparativaForm: React.FC = () => {
@@ -567,7 +672,13 @@ const ComparativaForm: React.FC = () => {
   
   const [selectedEmpresaPrecios, setSelectedEmpresaPrecios] = useState<string>('');
 
-  const [preciosHistoricos, setPreciosHistoricos] = useState<Record<string, PreciosEmpresa>>({}); // Cache: {"09/25": {...}, "10/25": {...}}
+  // --- (MODIFICADO) Cache ahora es un objeto con dos claves ---
+  const [preciosHistoricos, setPreciosHistoricos] = useState<{
+    potencia: Record<string, PreciosPotencia>, // Cache Potencia: {"2025": {...}}
+    energia: Record<string, PreciosEnergia>    // Cache Energía: {"10/25": {...}}
+  }>({ potencia: {}, energia: {} });
+  // ---
+  
   const [loadingPrecios, setLoadingPrecios] = useState(false);
 
   // Opciones estáticas para todos los meses
@@ -614,18 +725,21 @@ const ComparativaForm: React.FC = () => {
     queryKey: ['empresasConPrecios'],
     queryFn: async () => {
       // 1. Obtener todas las tuplas (empresa_id, nombre) de la tabla de precios
-      const { data, error } = await supabase
-        .from('precios_empresa')
-        .select('empresa_id, empresas ( id, nombre )'); // Join con empresas
+      // --- (MODIFICADO) Buscamos en ambas tablas para encontrar empresas ---
+      const [energiaData, potenciaData] = await Promise.all([
+         supabase.from('precios_energia').select('empresa_id, empresas ( id, nombre )'),
+         supabase.from('precios_potencia').select('empresa_id, empresas ( id, nombre )')
+      ]);
 
-      if (error) {
-        console.error("Error fetching empresas con precios:", error);
-        return [];
-      }
+      if (energiaData.error) console.error("Error fetching empresas (energia):", energiaData.error);
+      if (potenciaData.error) console.error("Error fetching empresas (potencia):", potenciaData.error);
+      
+      const allData = [...(energiaData.data || []), ...(potenciaData.data || [])];
+      // --- (FIN MODIFICADO) ---
 
       // 2. Deduplicar la lista
       const uniqueEmpresas = new Map<string, { id: string, nombre: string }>();
-      data.forEach(item => {
+      allData.forEach(item => {
         // Cast item to any because Supabase return shape can be ambiguous in TS
         const empresa = (item as any).empresas as { id?: string; nombre?: string } | null | undefined;
         // Aseguramos que el join funcionó y no es un array y que id/nombre existen y son strings
@@ -902,6 +1016,7 @@ const ComparativaForm: React.FC = () => {
       }
   }, [modo, tarifa, manualLastMonth, manualLastYear]);
 
+  // --- (INICIO) useEffect MODIFICADO PARA 'historico' ---
   useEffect(() => {
     // Solo actuar si el modo es 'historico' y tenemos los datos necesarios
     if (pricingMode !== 'historico' || !selectedEmpresaPrecios || !tarifa || dynamicMonthHeaders.length === 0) {
@@ -911,81 +1026,128 @@ const ComparativaForm: React.FC = () => {
 
     const fetchAndFillPrices = async () => {
       setLoadingPrecios(true);
-      setPreciosHistoricos({}); // Limpiar caché de precios
+      // Limpiamos solo los valores de la tabla, no el modo ni SIPS
+      setValoresTabla(prev => {
+        // Mantenemos los valores de SIPS (pot contratada, consumo, maxímetro)
+        const newVals: Record<string, string> = {};
+        Object.keys(prev).forEach(key => {
+          if (key.startsWith("Potencias contratadas") || key.startsWith("Energía consumida") || key.startsWith("Lectura Maxímetro")) {
+            // Aseguramos que siempre asignamos un string (evitar undefined)
+            newVals[key] = prev[key] ?? '';
+          }
+        });
+        return newVals;
+      });
       
-      // 1. Convertir cabeceras (MM/YY) a fechas de BBDD (YYYY-MM-01)
-      const fechasMes = dynamicMonthHeaders
-        .map(h => {
-          const [m, y] = h.split('/');
-          if (!m || !y || isNaN(parseInt(m)) || isNaN(parseInt(y))) return null;
-          return `20${y}-${m}-01`;
-        })
-        .filter(Boolean) as string[];
+      setPreciosHistoricos({ potencia: {}, energia: {} }); // Limpiar caché de precios
 
-      if (fechasMes.length === 0) {
+      // 1. Extraer Años (para Potencia) y Fechas (para Energía)
+      const yearsSet = new Set<number>();
+      const fechasMesSet = new Set<string>();
+      
+      dynamicMonthHeaders.forEach(h => {
+        const [m, y] = h.split('/');
+        if (m && y && !isNaN(parseInt(m)) && !isNaN(parseInt(y))) {
+          const fullYear = parseInt(`20${y}`, 10);
+          yearsSet.add(fullYear);
+          fechasMesSet.add(`${fullYear}-${m}-01`);
+        }
+      });
+      
+      const years = Array.from(yearsSet);
+      const fechasMes = Array.from(fechasMesSet);
+
+      if (fechasMes.length === 0 || years.length === 0) {
         setLoadingPrecios(false);
         return; // No hay fechas válidas para consultar
       }
 
-      // 2. Fetch precios para esa empresa, tarifa y esos 12 meses
-      const { data, error } = await supabase
-        .from('precios_empresa')
-        .select('*')
-        .eq('empresa_id', selectedEmpresaPrecios)
-        .eq('tarifa', tarifa)
-        .in('fecha_mes', fechasMes);
+      // 2. Fetch precios (Potencia y Energía en paralelo)
+      const [potenciaResult, energiaResult] = await Promise.all([
+        supabase
+          .from('precios_potencia')
+          .select('*')
+          .eq('empresa_id', selectedEmpresaPrecios)
+          .eq('tarifa', tarifa)
+          .in('año', years),
+        supabase
+          .from('precios_energia')
+          .select('*')
+          .eq('empresa_id', selectedEmpresaPrecios)
+          .eq('tarifa', tarifa)
+          .in('fecha_mes', fechasMes)
+      ]);
 
-      if (error) {
-        toast.error(`Error al cargar precios: ${error.message}`);
-        setLoadingPrecios(false);
-        return;
+      if (potenciaResult.error) {
+        toast.error(`Error al cargar precios de potencia: ${potenciaResult.error.message}`);
       }
+      if (energiaResult.error) {
+        toast.error(`Error al cargar precios de energía: ${energiaResult.error.message}`);
+      }
+      setLoadingPrecios(false);
 
-      // 3. Mapear resultados a [MonthKey: Data] para acceso rápido
-      const newPreciosCache: Record<string, PreciosEmpresa> = {};
-      data.forEach(precio => {
-        const [y, m] = precio.fecha_mes.split('-');
-        const monthKey = `${m}/${y.slice(-2)}`; // "10/25"
-        newPreciosCache[monthKey] = precio;
+      // 3. Mapear resultados a cachés
+      const newPotenciaCache: Record<string, PreciosPotencia> = {};
+      (potenciaResult.data || []).forEach(p => {
+        newPotenciaCache[p.año.toString()] = p;
       });
-      setPreciosHistoricos(newPreciosCache); // Guardar en caché
+      
+      const newEnergiaCache: Record<string, PreciosEnergia> = {};
+      (energiaResult.data || []).forEach(p => {
+        const [y, m] = p.fecha_mes.split('-');
+        const monthKey = `${m}/${y.slice(-2)}`; // "10/25"
+        newEnergiaCache[monthKey] = p;
+      });
+      
+      setPreciosHistoricos({ potencia: newPotenciaCache, energia: newEnergiaCache });
 
       // 4. Rellenar 'valoresTabla' con los datos (o con vacío si no hay datos)
       const newValoresTabla = { ...valoresTabla }; // Copiar estado existente
       const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
-      const potTablaKey = `Término potencia (Propuesta Mensual)`; // Clave para la nueva tabla
-      const engTablaKey = `Término energía (Propuesta Mensual)`; // Clave para la nueva tabla
       
+      // --- Claves de las tablas de PROPUESTA ---
+      const potTablaKey = "Potencia €/kW/año";
+      const engTablaKey = "Energía €/kWh";
+
+      // 4a. Rellenar Potencia (Anual)
+      // Usamos el año del ÚLTIMO mes en la cabecera como referencia
+      const lastHeader = dynamicMonthHeaders[dynamicMonthHeaders.length - 1] || "01/00";
+      const lastYear = `20${lastHeader.split('/')[1]}`;
+      const precioPotenciaDelAño = newPotenciaCache[lastYear];
+      
+      potPeriodKeys.forEach((pKey, filaIndex) => {
+        // Clave para la tabla ANUAL: Tabla__Fila(0)__Col(P1, P2...)
+        const tablaKey = `${potTablaKey}__${filaIndex}__${pKey}`; 
+        const dbValue = precioPotenciaDelAño ? precioPotenciaDelAño[`precio_potencia_${pKey.toLowerCase()}` as keyof PreciosPotencia] : null;
+        newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
+      });
+      
+      // 4b. Rellenar Energía (Mensual)
       dynamicMonthHeaders.forEach(header => {
-        const precioDelMes = newPreciosCache[header]; // Puede ser undefined
+        const precioEnergiaDelMes = newEnergiaCache[header]; // Puede ser undefined
         
-        // Rellenar Potencia Mensual
-        potPeriodKeys.forEach((pKey, filaIndex) => {
-          const tablaKey = `${potTablaKey}__${filaIndex}__${header}`; // Clave: Tabla__Fila(P1=0)__Col(P1,P2)
-          const dbValue = precioDelMes ? precioDelMes[`precio_potencia_${pKey.toLowerCase()}` as keyof PreciosEmpresa] : null;
-          newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
-        });
-        
-        // Rellenar Energía Mensual
         engTableKeys.forEach((pKey, filaIndex) => {
-          const tablaKey = `${engTablaKey}__${filaIndex}__${header}`; // Clave: Tabla__Fila(P1=0)__Col(P1,P2)
-          const dbValue = precioDelMes ? precioDelMes[`precio_energia_${pKey.toLowerCase()}` as keyof PreciosEmpresa] : null;
+          // Clave para la tabla MENSUAL: Tabla__Fila(P1=0)__Col(Header)
+          const tablaKey = `${engTablaKey}__${filaIndex}__${header}`;
+          const dbValue = precioEnergiaDelMes ? precioEnergiaDelMes[`precio_energia_${pKey.toLowerCase()}` as keyof PreciosEnergia] : null;
           newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
         });
       });
 
       setValoresTabla(newValoresTabla); // Actualizar la UI
-      setLoadingPrecios(false);
-      if (data.length > 0) {
+      
+      if ((potenciaResult.data?.length || 0) > 0 || (energiaResult.data?.length || 0) > 0) {
         toast.success(`Histórico de precios de ${empresasConPrecios.find(e => e.id === selectedEmpresaPrecios)?.nombre} cargado.`);
       } else {
-        toast.error(`No se encontraron precios para ${empresasConPrecios.find(e => e.id === selectedEmpresaPrecios)?.nombre} en estos meses.`);
+        toast.error(`No se encontraron precios para ${empresasConPrecios.find(e => e.id === selectedEmpresaPrecios)?.nombre} en este período.`);
       }
     };
 
     fetchAndFillPrices();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pricingMode, selectedEmpresaPrecios, tarifa, dynamicMonthHeaders]); // No incluir supabase/valoresTabla
+  // --- (FIN) useEffect MODIFICADO ---
+
 
   // --- (FIX 2) CORRECCIÓN LÓGICA DE CLAVE (recibe colHeader) ---
   const handleChangeCelda = (
@@ -1003,14 +1165,14 @@ const ComparativaForm: React.FC = () => {
   };
   // --- FIN FIX 2 ---
   
-  // --- (3) INICIO: LÓGICA DE GENERACIÓN DE PDF ---
+  // --- (3) INICIO: LÓGICA DE GENERACIÓN DE PDF (MODIFICADA) ---
 
   /** Helper para parsear números de forma segura desde el estado */
   const z = (val: string | undefined | null) => Number(val || '0') || 0;
 
   /**
    * Construye el objeto JSON para la API del PDF
-   * --- AHORA CON EL NUEVO FORMATO DE PRECIOS ---
+   * --- AHORA CON EL NUEVO FORMATO DE PRECIOS Y LÓGICA ---
    */
   const buildPdfJson = () => {
     if (!tarifa) {
@@ -1020,26 +1182,26 @@ const ComparativaForm: React.FC = () => {
     
     const { potPeriodKeys, engPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
     
-    // 1. energia_kwh_mes (Sin cambios)
+    // 1. energia_kwh_mes
     const tablaEnergiaKey = "Energía consumida (kWh)";
     const energia_kwh_mes: Record<string, number[]> = {};
     
     engPeriodKeys.forEach((jsonKey, idx) => {
-      const filaIndex = idx; // P1 es fila 0, P2 es fila 1...
+      const filaIndex = idx; // E1 (json) -> P1 (tabla) -> fila 0
       energia_kwh_mes[jsonKey] = dynamicMonthHeaders.map(header => {
         const val = valoresTabla[`${tablaEnergiaKey}__${filaIndex}__${header}`];
         return z(val);
       });
     });
 
-    // 1b. energia_kwh (total anual, sin cambios)
+    // 1b. energia_kwh (total anual)
     const energia_kwh: Record<string, number> = {};
     for (const periodo in energia_kwh_mes) {
       energia_kwh[periodo] = (energia_kwh_mes[periodo] || []).reduce((acc, val) => acc + val, 0);
     }
 
-    // 2. potencia_contratada_kw (Sin cambios)
-    const tablaPotKey = tarifa === '2.0TD' ? "Potencias contratadas (P1-P2)" : "Potencias contratadas (P1-P6)";
+    // 2. potencia_contratada_kw
+    const tablaPotKey = (tarifa === '6.1TD' || tarifa === '3.0TD') ? "Potencias contratadas (P1-P6)" : "Potencias contratadas (P1-P2)";
     const potencia_contratada_kw: Record<string, number> = {};
     
     potPeriodKeys.forEach(periodKey => {
@@ -1051,119 +1213,123 @@ const ComparativaForm: React.FC = () => {
     /**
      * Helper para construir los objetos de precios (MODIFICADO)
      * @param type - '(Actual)' o '(Ofrecido)'
-     * @param mode - 'unico' (lee tabla de 1 fila) o 'mensual' (lee tabla de 12 columnas)
+     * @param potMode - 'unico' (lee tabla anual)
+     * @param engMode - 'unico' (lee tabla anual) o 'mensual' (lee tabla mensual)
      */
-    const getPriceData = (type: '(Actual)' | '(Ofrecido)', mode: 'unico' | 'mensual') => {
-      // Determinar las claves de tabla correctas
-      const potTablaKey = (mode === 'unico') 
-        ? `Término potencia ${type}`
-        : `Término potencia (Propuesta Mensual)`; // 'mensual' siempre usa esta tabla
+    const getPriceData = (
+      type: '(Actual)' | '(Ofrecido)', 
+      potMode: 'unico', // Potencia siempre es 'unico' (anual)
+      engMode: 'unico' | 'mensual'
+    ) => {
 
-      const engTablaKey = (mode === 'unico')
-        ? `Término energía ${type}`
-        : `Término energía (Propuesta Mensual)`; // 'mensual' siempre usa esta tabla
+      // --- (INICIO) CORRECCIÓN DE CLAVES ---
+      // Las claves deben coincidir con las generadas por TablaGenerica
+      let potTablaKeyAnual = '';
+      let engTablaKeyAnual = '';
+      let engTablaKeyMensual = ''; // Clave para energía MENSUAL
 
-      // El payload de salida debe ser { P1: [num, num...], ... }
-      const precio_potencia: Record<string, number[]> = {};
-      // El payload de salida debe ser { E1: [num, num...], ... }
+      if (type === '(Actual)') {
+          // Estas claves las generan las tablas rojas (renderTablasTarifa_...)
+          potTablaKeyAnual = "Término potencia (Actual)";
+          engTablaKeyAnual = "Término energía (Actual)";
+          // (engTablaKeyMensual no se usa para 'Actual')
+      } else { 
+          // type === '(Ofrecido)'
+          // Estas claves las generan las tablas amarillas (RenderPropuestaOptions)
+          // que *no* tienen el sufijo "(Ofrecido)"
+          potTablaKeyAnual = "Potencia €/kW/año"; 
+          engTablaKeyAnual = "Energía €/kWh";
+          engTablaKeyMensual = "Energía €/kWh"; // Es la misma tabla en modo mensual
+      }
+      // --- (FIN) CORRECCIÓN DE CLAVES ---
+
+
+      // --- (INICIO) MODIFICACIÓN: 'precio_potencia' ahora es Record<string, number> ---
+      const precio_potencia: Record<string, number> = {};
       const precio_energia: Record<string, number[]> = {};
 
-      if (mode === 'unico') {
-        // --- LÓGICA MODO ÚNICO (Repetir 12 veces) ---
+      // --- Potencia (Siempre modo 'unico' / ANUAL) ---
+      // (Esta lógica ahora es correcta con las claves fijadas)
+      potPeriodKeys.forEach((pKey) => { // pKey = "P1"
+        const val = z(valoresTabla[`${potTablaKeyAnual}__0__${pKey}`]);
+        precio_potencia[pKey] = val; 
+      });
+      // --- (FIN) MODIFICACIÓN ---
         
-        // Potencia
-        potPeriodKeys.forEach(pKey => { // pKey = "P1", "P2"...
-          const val = z(valoresTabla[`${potTablaKey}__0__${pKey}`]);
-          precio_potencia[pKey] = Array(12).fill(val); // [val, val, val, ...]
-        });
-        
-        // Energía
-        engPeriodKeys.forEach((eKey, idx) => { // eKey = "E1", "E2"...
-          const tKey = engTableKeys[idx]; // tKey = "P1", "P2"...
-          const val = z(valoresTabla[`${engTablaKey}__0__${tKey}`]);
+      // --- Energía (Modo 'unico' o 'mensual') ---
+      if (engMode === 'unico') {
+        // MODO ÚNICO: Leer de la tabla anual de energía
+        engPeriodKeys.forEach((eKey, idx) => { // eKey = "E1"
+          const tKey = engTableKeys[idx]; // tKey = "P1"
+          const val = z(valoresTabla[`${engTablaKeyAnual}__0__${tKey}`]);
           precio_energia[eKey] = Array(12).fill(val); // [val, val, val, ...]
         });
-
       } else {
-        // --- LÓGICA MODO MENSUAL (Leer 12 valores) ---
-        
-        // Potencia
-        potPeriodKeys.forEach((pKey, filaIndex) => { // pKey = "P1", filaIndex = 0
+        // MODO MENSUAL: Leer de la tabla mensual de energía
+        engPeriodKeys.forEach((eKey, filaIndex) => { // eKey = "E1", filaIndex = 0
           const monthlyValues: number[] = [];
-          dynamicMonthHeaders.forEach(header => { // header = "09/24", "10/24"...
-            const val = z(valoresTabla[`${potTablaKey}__${filaIndex}__${header}`]);
+          dynamicMonthHeaders.forEach(header => { // header = "09/24"...
+            // Usamos la clave mensual correcta
+            const val = z(valoresTabla[`${engTablaKeyMensual}__${filaIndex}__${header}`]);
             monthlyValues.push(val);
           });
-          precio_potencia[pKey] = monthlyValues; // [val1, val2, val3, ...]
-        });
-
-        // Energía
-        // Iteramos por las filas de la tabla (engTableKeys) y mapeamos al JSON (engPeriodKeys)
-        engTableKeys.forEach((tKey, filaIndex) => { // tKey = "P1", filaIndex = 0
-          const monthlyValues: number[] = [];
-          dynamicMonthHeaders.forEach(header => { // header = "09/24", "10/24"...
-            const val = z(valoresTabla[`${engTablaKey}__${filaIndex}__${header}`]);
-            monthlyValues.push(val);
-          });
-          // Mapeamos la clave de tabla (P1) a la clave JSON (E1)
-          const eKey = engPeriodKeys[filaIndex]; // eKey = "E1"
-          if (eKey) { // Comprobación de seguridad
-            precio_energia[eKey] = monthlyValues; // [val1, val2, val3, ...]
-          }
+          precio_energia[eKey] = monthlyValues; // [val1, val2, val3, ...]
         });
       }
       
       const cargos_fijos_anual_eur = z(datosSuministro.otrosConceptos);
 
-      // El formato de retorno ahora coincide con el nuevo requisito
       return { nombre: "", precio_potencia, precio_energia, cargos_fijos_anual_eur };
     };
-    // --- Fin del helper getPriceData ---
 
+    // --- (INICIO) LÓGICA FALTANTE ---
+    // Esta es la parte que faltaba en tu función.
+    // Aquí decidimos qué modos usar y llamamos a getPriceData.
 
-    // 4. Impuestos (Sin cambios)
-    const iva_pct = z(datosSuministro.iva) / 100;
-    const impuesto_electricidad_pct = z(datosSuministro.impuestoElectrico) / 100;
+    // 4. Determinar los modos de precios de la propuesta
+    let propuestaEngMode: 'unico' | 'mensual' = 'unico';
+
+    if (pricingMode === 'manual_mensual' || pricingMode === 'historico') {
+        propuestaEngMode = 'mensual';
+    }
+
+    // 5. Construir los objetos 'actual' y 'propuesta'
+    // 'Actual' siempre usa modo 'unico' para ambos
+    const actual = getPriceData('(Actual)', 'unico', 'unico');
     
-    // 5. Suministro (Sin cambios)
-    const suministro = {
-      direccion: datosSuministro.direccion,
-      poblacion: datosSuministro.poblacion,
-      cif: datosSuministro.dniCif, // Mapeado desde dniCif
-      fecha_estudio: datosSuministro.fechaEstudio,
-      cups: datosSuministro.cups,
-      nombre_cliente: datosSuministro.titular, // Mapeado desde titular
+    // 'Propuesta' usa los modos dinámicos
+    const propuesta = getPriceData('(Ofrecido)', 'unico', propuestaEngMode);
+
+    // 6. Construir y devolver el payload final
+    const payload = {
+        // Datos Suministro
+        cups: datosSuministro.cups,
+        titular: datosSuministro.titular,
+        dni_cif: datosSuministro.dniCif,
+        direccion: datosSuministro.direccion,
+        poblacion: datosSuministro.poblacion,
+        fecha_estudio: datosSuministro.fechaEstudio,
+        tarifa, // "2.0TD", "6.1TD", etc.
+
+        // Impuestos
+        iva_porciento: z(datosSuministro.iva),
+        impuesto_electrico_porciento: z(datosSuministro.impuestoElectrico),
+        
+        // Periodos (Cabeceras de meses)
+        periodos: dynamicMonthHeaders, // ["09/24", "10/24", ...]
+
+        // Datos actuales
+        potencia_contratada_kw,
+        energia_kwh,
+        energia_kwh_mes,
+
+        // Comparativa
+        actual,
+        propuesta,
     };
 
-    // 5b. First_month (Sin cambios)
-    const first_month_label = dynamicMonthHeaders[0];
-    const isRealDate = first_month_label && /^\d{2}\/\d{2}$/.test(first_month_label);
-    const first_month = isRealDate ? first_month_label : null;
-
-    // 6. Ensamblar JSON final (MODIFICADO)
-    return {
-      tarifa,
-      energia_kwh_mes,
-      energia_kwh,
-      potencia_contratada_kw,
-      
-      // --- (INICIO) MODIFICACIÓN DE LLAMADAS ---
-      actual: getPriceData('(Actual)', 'unico'),
-      propuesta: getPriceData(
-        '(Ofrecido)', // 'type' no se usa en modo 'mensual', pero lo pasamos
-        pricingMode === 'manual_unico' ? 'unico' : 'mensual'
-      ),
-      // --- (FIN) MODIFICACIÓN DE LLAMADAS ---
-      
-      iva_pct: isNaN(iva_pct) ? 0.21 : iva_pct, // Default
-      impuesto_electricidad_pct: isNaN(impuesto_electricidad_pct) ? 0.051127 : impuesto_electricidad_pct, // Default
-      suministro,
-      first_month,
-      
-      // --- CAMPOS ADICIONALES PARA LA EDGE FUNCTION ---
-      cliente_id: null, // Aún no se envían
-      punto_id: null,
-    };
+    return payload; // <-- La sentencia 'return' que faltaba
+    // --- (FIN) LÓGICA FALTANTE ---
   };
 
   /** Manejador del clic en el botón "Generar PDF" */
@@ -1174,7 +1340,7 @@ const ComparativaForm: React.FC = () => {
       return; // buildPdfJson ya mostró un toast de error
     }
 
-    // --- (INICIO) MODIFICACIÓN REQUERIDA ---
+    // --- (INICIO) MODIFICACIÓN REQUERIDA (MODO PRUEBA) ---
     // 1. Imprimir el payload en la consola
     console.log("--- INICIO PAYLOAD PDF (PRUEBA) ---");
     // Usamos JSON.stringify con 'null, 2' para una impresión bonita (pretty-print)
@@ -1887,7 +2053,7 @@ const ComparativaForm: React.FC = () => {
         <button
           type="button"
           onClick={handleGeneratePdf}
-          disabled={isGeneratingPdf || !tarifa}
+          disabled={isGeneratingPdf}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >

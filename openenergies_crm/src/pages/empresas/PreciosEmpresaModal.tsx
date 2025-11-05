@@ -4,12 +4,11 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { TarifaElectrica, PreciosEmpresa } from '@lib/types';
+import { TarifaElectrica } from '@lib/types';
 import { toast } from 'react-hot-toast';
-import { Loader2, Calendar, Tags, Euro } from 'lucide-react';
+import { Loader2, Calendar, Tags, Euro, Zap, Flame, ArrowLeft } from 'lucide-react'; // Nuevos iconos
 
-// --- Esquema de Validación con Zod ---
-// Define todos los campos de precio como números opcionales
+// --- Esquema de Validación (sigue siendo un superset) ---
 const preciosSchema = z.object({
   precio_potencia_p1: z.number().nullable().optional(),
   precio_potencia_p2: z.number().nullable().optional(),
@@ -57,32 +56,37 @@ const getPeajesActivos = (tarifa: TarifaElectrica) => {
 // --- Componente Principal del Modal ---
 export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose }: Props) {
   // --- Estados ---
+  const [priceType, setPriceType] = useState<'potencia' | 'energia' | null>(null);
   const [selectedTarifa, setSelectedTarifa] = useState<TarifaElectrica | ''>('');
-  const [selectedDate, setSelectedDate] = useState(''); // Formato 'YYYY-MM'
+  const [selectedDate, setSelectedDate] = useState(''); // Formato 'YYYY-MM' (para Energía)
+  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString()); // (para Potencia)
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Guarda el ID del registro de precios existente (si se encuentra)
   const [existingPrecioId, setExistingPrecioId] = useState<string | null>(null);
 
   const tarifasDisponibles: TarifaElectrica[] = ['2.0TD', '3.0TD', '6.1TD'];
+  
+  // Opciones de año (ej: 5 años alrededor del actual)
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    // Genera 5 años (ej: 2027, 2026, 2025(actual), 2024, 2023)
+    return Array.from({ length: 5 }, (_, i) => (current + 2 - i).toString());
+  }, []);
+
 
   // --- React Hook Form ---
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(preciosSchema),
-    defaultValues: {
-      precio_potencia_p1: null,
-      precio_potencia_p2: null,
-      // ... (todos los demás en null)
-    },
+    defaultValues: {},
   });
 
-  // --- Lógica de Carga de Datos ---
+  // --- Lógica de Carga de Datos (Refactorizada) ---
   useEffect(() => {
-    // Solo busca si tenemos los 3 datos
-    if (!empresaId || !selectedTarifa || !selectedDate) {
-      reset(); // Limpia el formulario si cambian los selectores
+    // Resetear si cambian las selecciones principales
+    if (!priceType || !selectedTarifa) {
+      reset(); 
       setExistingPrecioId(null);
       return;
     }
@@ -90,31 +94,56 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
     const fetchPrecios = async () => {
       setIsLoading(true);
       setExistingPrecioId(null);
-      
-      // Convierte 'YYYY-MM' a 'YYYY-MM-01'
-      const fechaMes = `${selectedDate}-01`;
+      reset(); // Limpia el formulario antes de cargar nuevos datos
 
       try {
-        const { data, error } = await supabase
-          .from('precios_empresa')
-          .select('*')
-          .eq('empresa_id', empresaId)
-          .eq('tarifa', selectedTarifa)
-          .eq('fecha_mes', fechaMes)
-          .maybeSingle();
+        let data = null;
+        let error = null;
+
+        if (priceType === 'energia') {
+          // --- ENERGÍA (MENSUAL) ---
+          if (!selectedDate) { // Necesita 'YYYY-MM'
+            setIsLoading(false);
+            return; 
+          }
+          const fechaMes = `${selectedDate}-01`;
+          
+          const { data: d, error: e } = await supabase
+            .from('precios_energia') // <-- Tabla Energía
+            .select('*')
+            .eq('empresa_id', empresaId)
+            .eq('tarifa', selectedTarifa)
+            .eq('fecha_mes', fechaMes)
+            .maybeSingle();
+          data = d;
+          error = e;
+
+        } else if (priceType === 'potencia') {
+          // --- POTENCIA (ANUAL) ---
+          if (!selectedYear) { // Necesita 'YYYY'
+            setIsLoading(false);
+            return; 
+          }
+          const { data: d, error: e } = await supabase
+            .from('precios_potencia') // <-- Tabla Potencia
+            .select('*')
+            .eq('empresa_id', empresaId)
+            .eq('tarifa', selectedTarifa)
+            .eq('año', parseInt(selectedYear, 10))
+            .maybeSingle();
+          data = d;
+          error = e;
+        }
 
         if (error) throw error;
 
         if (data) {
-          // --- DATOS ENCONTRADOS ---
           toast.success('Precios existentes cargados.');
-          // Casteamos data a FormValues (los tipos coinciden)
           reset(data as FormValues); 
           setExistingPrecioId(data.id);
         } else {
-          // --- NO SE ENCONTRARON DATOS ---
           toast.success('No existen precios. Puedes rellenarlos.');
-          reset(); // Limpia el formulario a los defaultValues (null)
+          // reset() ya se llamó arriba
         }
       } catch (e: any) {
         toast.error(`Error al consultar precios: ${e.message}`);
@@ -125,53 +154,81 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
     };
 
     fetchPrecios();
-  }, [empresaId, selectedTarifa, selectedDate, reset]);
+  // Depende de todos los selectores
+  }, [empresaId, priceType, selectedTarifa, selectedDate, selectedYear, reset]);
 
-  // --- Lógica de Guardado (Submit) ---
+  // --- Lógica de Guardado (Submit) (Refactorizada) ---
   const onSubmit: SubmitHandler<FormValues> = async (formData) => {
-    if (!empresaId || !selectedTarifa || !selectedDate) {
-      toast.error('Faltan Empresa, Tarifa o Fecha.');
+    if (!priceType || !empresaId || !selectedTarifa) {
+      toast.error('Faltan datos clave (Tipo, Empresa o Tarifa).');
       return;
     }
     
     setIsSubmitting(true);
-    const fechaMes = `${selectedDate}-01`;
-
-    const payload: Omit<PreciosEmpresa, 'id' | 'creado_en'> = {
-      empresa_id: empresaId,
-      tarifa: selectedTarifa,
-      fecha_mes: fechaMes,
-      precio_potencia_p1: formData.precio_potencia_p1 ?? null,
-      precio_potencia_p2: formData.precio_potencia_p2 ?? null,
-      precio_potencia_p3: formData.precio_potencia_p3 ?? null,
-      precio_potencia_p4: formData.precio_potencia_p4 ?? null,
-      precio_potencia_p5: formData.precio_potencia_p5 ?? null,
-      precio_potencia_p6: formData.precio_potencia_p6 ?? null,
-      precio_energia_p1: formData.precio_energia_p1 ?? null,
-      precio_energia_p2: formData.precio_energia_p2 ?? null,
-      precio_energia_p3: formData.precio_energia_p3 ?? null,
-      precio_energia_p4: formData.precio_energia_p4 ?? null,
-      precio_energia_p5: formData.precio_energia_p5 ?? null,
-      precio_energia_p6: formData.precio_energia_p6 ?? null,
-    };
 
     try {
-      if (existingPrecioId) {
-        // --- ACTUALIZAR (UPDATE) ---
+      if (priceType === 'energia') {
+        // --- GUARDAR ENERGÍA ---
+        if (!selectedDate) {
+          toast.error('Debes seleccionar un Mes/Año para precios de energía.');
+          setIsSubmitting(false);
+          return;
+        }
+        const fechaMes = `${selectedDate}-01`;
+        
+        // Payload solo con campos de energía
+        const payload = {
+          empresa_id: empresaId,
+          tarifa: selectedTarifa,
+          fecha_mes: fechaMes,
+          precio_energia_p1: formData.precio_energia_p1 ?? null,
+          precio_energia_p2: formData.precio_energia_p2 ?? null,
+          precio_energia_p3: formData.precio_energia_p3 ?? null,
+          precio_energia_p4: formData.precio_energia_p4 ?? null,
+          precio_energia_p5: formData.precio_energia_p5 ?? null,
+          precio_energia_p6: formData.precio_energia_p6 ?? null,
+        };
+        
         const { error } = await supabase
-          .from('precios_empresa')
-          .update(payload)
-          .eq('id', existingPrecioId);
+          .from('precios_energia') // <-- Tabla Energía
+          .upsert(
+            existingPrecioId ? { ...payload, id: existingPrecioId } : payload,
+            { onConflict: 'empresa_id, tarifa, fecha_mes' } // Upsert
+          );
         if (error) throw error;
-        toast.success('Precios actualizados correctamente.');
-      } else {
-        // --- CREAR (INSERT) ---
+        toast.success('Precios de energía guardados.');
+
+      } else if (priceType === 'potencia') {
+        // --- GUARDAR POTENCIA ---
+         if (!selectedYear) {
+          toast.error('Debes seleccionar un Año para precios de potencia.');
+          setIsSubmitting(false);
+          return;
+        }
+        
+        // Payload solo con campos de potencia
+        const payload = {
+          empresa_id: empresaId,
+          tarifa: selectedTarifa,
+          año: parseInt(selectedYear, 10),
+          precio_potencia_p1: formData.precio_potencia_p1 ?? null,
+          precio_potencia_p2: formData.precio_potencia_p2 ?? null,
+          precio_potencia_p3: formData.precio_potencia_p3 ?? null,
+          precio_potencia_p4: formData.precio_potencia_p4 ?? null,
+          precio_potencia_p5: formData.precio_potencia_p5 ?? null,
+          precio_potencia_p6: formData.precio_potencia_p6 ?? null,
+        };
+
         const { error } = await supabase
-          .from('precios_empresa')
-          .insert(payload);
+          .from('precios_potencia') // <-- Tabla Potencia
+          .upsert(
+            existingPrecioId ? { ...payload, id: existingPrecioId } : payload,
+            { onConflict: 'empresa_id, tarifa, año' } // Upsert
+          );
         if (error) throw error;
-        toast.success('Nuevos precios guardados.');
+        toast.success('Precios de potencia guardados.');
       }
+      
       onClose(); // Cierra el modal al tener éxito
     } catch (e: any) {
       toast.error(`Error al guardar: ${e.message}`);
@@ -208,83 +265,169 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
     );
   };
 
+  // Determina si los selectores de fecha/año deben mostrarse
+  const showSelectors = priceType && selectedTarifa;
+  // Determina si el formulario de precios debe mostrarse
+  const showPriceForm = showSelectors && !isLoading && (
+    (priceType === 'energia' && !!selectedDate) ||
+    (priceType === 'potencia' && !!selectedYear)
+  );
+  
+  // Determina si el botón de guardar debe estar activo
+  const canSubmit = !isLoading && !isSubmitting && priceType && selectedTarifa && (
+    (priceType === 'energia' && !!selectedDate) ||
+    (priceType === 'potencia' && !!selectedYear)
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="card" style={{ padding: 0 }}>
             {/* --- Cabecera --- */}
-            <div className="page-header" style={{ padding: '1.5rem', marginBottom: 0, borderBottom: '1px solid var(--border-color)' }}>
-              <div>
+            <div className="page-header" style={{ padding: '1.5rem', marginBottom: 0, borderBottom: '1px solid var(--border-color)', position: 'relative' }}>
+              
+              {/* Botón de Volver (si no estamos en el paso 1) */}
+              {priceType !== null && (
+                <button
+                  type="button"
+                  onClick={() => setPriceType(null)}
+                  className="icon-button secondary"
+                  title="Volver"
+                  style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }}
+                >
+                  <ArrowLeft size={20} />
+                </button>
+              )}
+              
+              <div style={{ textAlign: 'center', width: '100%' }}>
                 <h2 style={{ margin: 0 }}>Actualizar Precios</h2>
                 <p style={{ margin: '0.25rem 0 0', color: 'var(--muted)' }}>{empresaNombre}</p>
               </div>
             </div>
 
-            {/* --- Selectores y Formulario --- */}
+            {/* --- Contenido del Modal --- */}
             <div style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
               <div className="grid" style={{ gap: '1.5rem' }}>
                 
-                {/* --- Fila de Selectores --- */}
-                <div className="form-row" style={{ alignItems: 'flex-end' }}>
-                  <div>
-                    <label htmlFor="tarifa">Tarifa</label>
-                    <div className="input-icon-wrapper">
-                      <Tags size={18} className="input-icon" />
-                      <select
-                        id="tarifa"
-                        value={selectedTarifa}
-                        onChange={(e) => setSelectedTarifa(e.target.value as TarifaElectrica | '')}
-                      >
-                        <option value="">Selecciona tarifa...</option>
-                        {tarifasDisponibles.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
+                {/* --- PASO 1: Selección de Tipo --- */}
+                {priceType === null && (
+                  <div className="form-row" style={{ gap: '1rem' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => setPriceType('potencia')}
+                      style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', height: '100%' }}
+                    >
+                      <Zap size={24} />
+                      <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Precios Potencia</span>
+                      <span style={{ fontSize: '0.9rem', color: '#d1d0d0ff' }}>(€/kW/Año)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => setPriceType('energia')}
+                      style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', height: '100%' }}
+                    >
+                      <Flame size={24} />
+                      <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Precios Energía</span>
+                      <span style={{ fontSize: '0.9rem', color: '#d1d0d0ff' }}>(€/kWh)</span>
+                    </button>
                   </div>
-                  <div>
-                    <label htmlFor="fecha_mes">Mes y Año</label>
-                    <div className="input-icon-wrapper">
-                      <Calendar size={18} className="input-icon" />
-                      <input
-                        id="fecha_mes"
-                        type="month" // Input nativo de mes/año
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        disabled={!selectedTarifa}
-                      />
-                    </div>
-                  </div>
-                </div>
+                )}
 
-                {/* --- Separador --- */}
-                {(selectedTarifa && selectedDate) && <hr style={{ margin: '0.5rem 0' }} />}
-
-                {/* --- Contenedor de Carga o Inputs --- */}
-                {isLoading ? (
-                  <div style={{ padding: '2rem', textAlign: 'center' }}>
-                    <Loader2 className="animate-spin" /> Consultando...
-                  </div>
-                ) : (selectedTarifa && selectedDate) && (
-                  <div className="grid" style={{ gap: '1.5rem' }}>
-                    {/* --- Precios Potencia --- */}
-                    {peajesActivos.potencia.length > 0 && (
+                {/* --- PASO 2: Formulario --- */}
+                {priceType !== null && (
+                  <>
+                    {/* --- Fila de Selectores (Tarifa y Fecha/Año) --- */}
+                    <div className="form-row" style={{ alignItems: 'flex-end' }}>
+                      {/* Selector de Tarifa */}
                       <div>
-                        <h4 style={{ margin: '0 0 1rem' }}>Término de Potencia</h4>
-                        <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-                          {peajesActivos.potencia.map(p => renderPriceInput('potencia', p))}
+                        <label htmlFor="tarifa">Tarifa</label>
+                        <div className="input-icon-wrapper">
+                          <Tags size={18} className="input-icon" />
+                          <select
+                            id="tarifa"
+                            value={selectedTarifa}
+                            onChange={(e) => setSelectedTarifa(e.target.value as TarifaElectrica | '')}
+                          >
+                            <option value="">Selecciona tarifa...</option>
+                            {tarifasDisponibles.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
                         </div>
                       </div>
-                    )}
-                    {/* --- Precios Energía --- */}
-                    {peajesActivos.energia.length > 0 && (
-                      <div>
-                        <h4 style={{ margin: '0 0 1rem' }}>Término de Energía</h4>
-                        <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-                          {peajesActivos.energia.map(p => renderPriceInput('energia', p))}
+                      
+                      {/* Selector de Mes (Energía) o Año (Potencia) */}
+                      {priceType === 'energia' && (
+                        <div>
+                          <label htmlFor="fecha_mes">Mes y Año</label>
+                          <div className="input-icon-wrapper">
+                            <Calendar size={18} className="input-icon" />
+                            <input
+                              id="fecha_mes"
+                              type="month"
+                              value={selectedDate}
+                              onChange={(e) => setSelectedDate(e.target.value)}
+                              disabled={!selectedTarifa}
+                            />
+                          </div>
                         </div>
+                      )}
+                      
+                      {priceType === 'potencia' && (
+                         <div>
+                          <label htmlFor="año">Año</label>
+                          <div className="input-icon-wrapper">
+                            <Calendar size={18} className="input-icon" />
+                            <select
+                              id="año"
+                              value={selectedYear}
+                              onChange={(e) => setSelectedYear(e.target.value)}
+                              disabled={!selectedTarifa}
+                            >
+                              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* --- Separador --- */}
+                    {showSelectors && <hr style={{ margin: '0.5rem 0' }} />}
+
+                    {/* --- Contenedor de Carga --- */}
+                    {isLoading && (
+                      <div style={{ padding: '2rem', textAlign: 'center' }}>
+                        <Loader2 className="animate-spin" /> Consultando...
                       </div>
                     )}
-                  </div>
+                    
+                    {/* --- Inputs de Precios --- */}
+                    {showPriceForm && (
+                      <div className="grid" style={{ gap: '1.5rem' }}>
+                        
+                        {/* --- Precios Potencia (Solo si priceType es 'potencia') --- */}
+                        {priceType === 'potencia' && peajesActivos.potencia.length > 0 && (
+                          <div>
+                            <h4 style={{ margin: '0 0 1rem' }}>Término de Potencia (€/kW/Año)</h4>
+                            <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                              {peajesActivos.potencia.map(p => renderPriceInput('potencia', p))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* --- Precios Energía (Solo si priceType es 'energia') --- */}
+                        {priceType === 'energia' && peajesActivos.energia.length > 0 && (
+                          <div>
+                            <h4 style={{ margin: '0 0 1rem' }}>Término de Energía (€/kWh)</h4>
+                            <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                              {peajesActivos.energia.map(p => renderPriceInput('energia', p))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -294,12 +437,16 @@ export default function PreciosEmpresaModal({ empresaId, empresaNombre, onClose 
               <button type="button" className="secondary" onClick={onClose} disabled={isSubmitting}>
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={isLoading || isSubmitting || !selectedTarifa || !selectedDate}
-              >
-                {isSubmitting ? <Loader2 className="animate-spin" /> : (existingPrecioId ? 'Actualizar Precios' : 'Guardar Precios')}
-              </button>
+              
+              {/* Solo mostrar botón de Guardar si estamos en el paso 2 */}
+              {priceType !== null && (
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : (existingPrecioId ? 'Actualizar Precios' : 'Guardar Precios')}
+                </button>
+              )}
             </div>
 
           </div>

@@ -666,6 +666,8 @@ const ComparativaForm: React.FC = () => {
   const currentYearFull = today.getFullYear(); // 2025
   const currentYearYY_Str = currentYearFull.toString().slice(-2); // "25"
   const currentMonthMM_Str = (today.getMonth() + 1).toString().padStart(2, '0'); // "11"
+  const [optimizacion, setOptimizacion] = useState(false);
+
 
   const [pricingMode, setPricingMode] = 
     useState<'manual_unico' | 'manual_mensual' | 'historico'>('manual_unico');
@@ -720,7 +722,9 @@ const ComparativaForm: React.FC = () => {
 
   const [manualLastMonth, setManualLastMonth] = useState<string>("");
   const [manualLastYear, setManualLastYear] = useState<string>("");
-
+  useEffect(() => {
+    if (tarifa === '2.0TD') setOptimizacion(false);
+  }, [tarifa]);
   const { data: empresasConPrecios = [], isLoading: loadingEmpresasPrecios } = useQuery({
     queryKey: ['empresasConPrecios'],
     queryFn: async () => {
@@ -1209,6 +1213,15 @@ const ComparativaForm: React.FC = () => {
       potencia_contratada_kw[periodKey] = z(val);
     });
 
+    const tablaMaximetroKey = "Lectura Maxímetro (kW) - Opcional";
+    const potencia_kw_mes: Record<string, number[]> = {};
+    potPeriodKeys.forEach((pKey, filaIndex) => {
+      potencia_kw_mes[pKey] = dynamicMonthHeaders.map((header) => {
+        const val = valoresTabla[`${tablaMaximetroKey}__${filaIndex}__${header}`];
+        return z(val); // mismo helper que usas para números
+      });
+    });
+
     // 3. actual y propuesta (con helper MODIFICADO)
     /**
      * Helper para construir los objetos de precios (MODIFICADO)
@@ -1322,6 +1335,8 @@ const ComparativaForm: React.FC = () => {
         potencia_contratada_kw,
         energia_kwh,
         energia_kwh_mes,
+        optimizacion: tarifa !== '2.0TD' ? optimizacion : false,
+        potencia_kw_mes,
 
         // Comparativa
         actual,
@@ -1351,7 +1366,6 @@ const ComparativaForm: React.FC = () => {
     toast.success('Payload generado. Revisa la consola (F12) para ver el JSON.');
 
     // 3. Comentar el bloque original de 'fetch' y 'saveAs'
-    /*
     setIsGeneratingPdf(true);
 
     try {
@@ -1398,7 +1412,6 @@ const ComparativaForm: React.FC = () => {
     } finally {
       setIsGeneratingPdf(false);
     }
-    */
     // --- (FIN) MODIFICACIÓN REQUERIDA ---
   };
   // --- (3) FIN: LÓGICA DE GENERACIÓN DE PDF ---
@@ -2048,8 +2061,18 @@ const ComparativaForm: React.FC = () => {
       <div className="comparativa-tablas-layout">{renderZonaTablas()}</div>
 
       {/* BOTÓN PDF */}
-      <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-        {/* --- (4) BOTÓN PDF MODIFICADO --- */}
+      <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
+        {tarifa && tarifa !== '2.0TD' && (
+          <label className="text-sm" style={{ display:'inline-flex', alignItems:'center', gap:'0.5rem' }}>
+            <input
+              type="checkbox"
+              checked={optimizacion}
+              onChange={(e) => setOptimizacion(e.target.checked)}
+            />
+            Optimización de potencia (3.0TD/6.1TD)
+          </label>
+        )}
+
         <button
           type="button"
           onClick={handleGeneratePdf}
@@ -2057,14 +2080,9 @@ const ComparativaForm: React.FC = () => {
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          {isGeneratingPdf ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <FileDown size={18} />
-          )}
+          {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
           {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}
         </button>
-        {/* --- FIN BOTÓN PDF --- */}
       </div>
     </div>
   );

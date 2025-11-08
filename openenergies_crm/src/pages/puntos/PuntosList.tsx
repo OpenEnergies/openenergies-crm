@@ -176,11 +176,17 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
 
   return (
     <div className="grid">
-
-      {/* --- (1) CONTENEDOR ACCIONES CONTEXTUALES (ARRIBA-IZQUIERDA) --- */}
-      {selectedIds.length > 0 && (
-        <div className="top-contextual-actions" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-start' }}> {/* Cambiado a flex-start */}
-            <div className="contextual-actions"> {/* Reutilizamos la clase interna */}
+      <div className="page-header">
+        {/* El título se mantiene visible SIEMPRE */}
+        {!clienteId && <h2 style={{margin:'0'}}>Puntos de suministro</h2>}
+        
+        {/* El contenedor de acciones siempre está presente */}
+        <div className="page-actions" style={{ marginLeft: clienteId ? 'auto' : undefined }}>
+          
+          {/* El contenido INTERNO de las acciones cambia según la selección */}
+          {selectedIds.length > 0 ? (
+            // 1. Acciones contextuales (si hay selección)
+            <div className="contextual-actions">
                <span>{selectedIds.length} seleccionado(s)</span>
                {selectedIds.length === 1 && (
                  <Link
@@ -208,32 +214,25 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                  <XCircle size={18} />
                </button>
             </div>
+          ) : (
+            // 2. Acciones por defecto (si NO hay selección)
+            <>
+              {!clienteId && (
+                <>
+                  <input
+                    placeholder="CUPS, dirección o titular"
+                    value={filter}
+                    onChange={e=>setFilter(e.target.value)}
+                    aria-label="Filtro"
+                    style={{ minWidth: '300px' }}
+                  />
+                  <Link to="/app/puntos/nuevo"><button><MapPinPlus /></button></Link>
+                </>
+              )}
+            </>
+          )}
         </div>
-      )}
-      {/* --- FIN CONTENEDOR --- */}
-
-
-      {/* --- (2) ENCABEZADO ORIGINAL (CONDICIONAL) --- */}
-      {/* Solo mostrar si NO hay selección */}
-      {selectedIds.length === 0 && (
-        <div className="page-header">
-          {!clienteId && <h2 style={{margin:'0'}}>Puntos de suministro</h2>}
-          <div className="page-actions" style={{ marginLeft: clienteId ? 'auto' : undefined }}>
-            {!clienteId && (
-              <>
-                <input
-                  placeholder="CUPS, dirección o titular"
-                  value={filter}
-                  onChange={e=>setFilter(e.target.value)}
-                  aria-label="Filtro"
-                  style={{ minWidth: '300px' }}
-                />
-                <Link to="/app/puntos/nuevo"><button><MapPinPlus /></button></Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      </div>
       {/* --- FIN ENCABEZADO --- */}
 
       {/* El resto (card, tabla, modal) permanece igual */}

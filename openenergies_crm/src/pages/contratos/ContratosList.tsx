@@ -148,13 +148,32 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
       setIdsToDelete([...selectedIds]);
     }
   };
+  const pageActionsStyle: React.CSSProperties = {
+    marginLeft: clienteId ? 'auto' : undefined,
+  };
+
+  if (!clienteId) {
+    if (selectedIds.length === 0) {
+      // Si no hay selección, aplicar el max-width para el buscador
+      pageActionsStyle.width = '100%';
+      pageActionsStyle.maxWidth = 500;
+    }
+    // Si HAY selección, no se añade max-width,
+    // permitiendo que .contextual-actions se alinee a la derecha.
+  }
 
   return (
     <div className="grid">
-
-      {/* --- (1) CONTENEDOR ACCIONES CONTEXTUALES (ARRIBA-IZQUIERDA) --- */}
-      {selectedIds.length > 0 && (
-        <div className="top-contextual-actions" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-start' }}> {/* Cambiado a flex-start */}
+      <div className="page-header">
+        {/* El título se mantiene visible SIEMPRE */}
+        {!clienteId && <h2 style={{margin:0}}>Contratos</h2>}
+        
+        {/* El contenedor de acciones siempre está presente */}
+        <div className="page-actions" style={pageActionsStyle}>
+          
+          {/* El contenido INTERNO de las acciones cambia según la selección */}
+          {selectedIds.length > 0 ? (
+            // 1. Acciones contextuales (si hay selección)
             <div className="contextual-actions">
                <span>{selectedIds.length} seleccionado(s)</span>
                {selectedIds.length === 1 && canEdit && (
@@ -185,33 +204,25 @@ export default function ContratosList({ clienteId }: { clienteId?: string }){
                  <XCircle size={18} />
                </button>
             </div>
+          ) : (
+            // 2. Acciones por defecto (si NO hay selección)
+            <>
+              {!clienteId && (
+                  <>
+                    <input
+                      placeholder="Buscar por Comercializadora o CUPS..."
+                      value={filter}
+                      onChange={e => setFilter(e.target.value)}
+                     />
+                    {canCreate && (
+                      <Link to="/app/contratos/nuevo"><button><BadgePlus /></button></Link>
+                    )}
+                  </>
+              )}
+            </>
+          )}
         </div>
-      )}
-      {/* --- FIN CONTENEDOR --- */}
-
-
-      {/* --- (2) ENCABEZADO ORIGINAL (CONDICIONAL) --- */}
-      {/* Solo mostrar si NO hay selección */}
-      {selectedIds.length === 0 && (
-        <div className="page-header">
-          {!clienteId && <h2 style={{margin:0}}>Contratos</h2>}
-          <div className="page-actions" style={{ marginLeft: clienteId ? 'auto' : undefined, width: clienteId ? undefined: '100%', maxWidth: clienteId ? undefined : 500 }}>
-            {!clienteId && (
-                <>
-                  <input
-                    placeholder="Buscar por Comercializadora o CUPS..."
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
-                   />
-                  {canCreate && (
-                    <Link to="/app/contratos/nuevo"><button><BadgePlus /></button></Link>
-                  )}
-                </>
-            )}
-          </div>
-        </div>
-      )}
-      {/* --- FIN ENCABEZADO --- */}
+      </div>
 
       {/* El resto (card, tabla, modal) permanece igual */}
       {isLoading && <div className="card">Cargando…</div>}

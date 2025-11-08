@@ -503,7 +503,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
               checked={pricingMode === 'manual_unico'} 
               onChange={(e) => setPricingMode(e.target.value as any)} 
             />
-            Precios manuales únicos
+            Fijos
           </label>
           <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
             <input 
@@ -513,7 +513,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
               checked={pricingMode === 'manual_mensual'} 
               onChange={(e) => setPricingMode(e.target.value as any)} 
             />
-            Precios manuales mensualmente
+            Variables mensualmente
           </label>
           <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
             <input 
@@ -523,7 +523,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
               checked={pricingMode === 'historico'} 
               onChange={(e) => setPricingMode(e.target.value as any)} 
             />
-            Precios según histórico
+            Según histórico guardado
           </label>
         </div>
 
@@ -2069,7 +2069,7 @@ const ComparativaForm: React.FC = () => {
               checked={optimizacion}
               onChange={(e) => setOptimizacion(e.target.checked)}
             />
-            Optimización de potencia (3.0TD/6.1TD)
+            Optimización de Potencia
           </label>
         )}
 

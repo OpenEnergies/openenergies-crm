@@ -16,6 +16,7 @@ import UsuariosList from '@pages/usuarios/UsuariosList';
 import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
 import EmpresasList from '@pages/empresas/EmpresasList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
+import EmpresasArchivadasPage from '@pages/empresas/EmpresasArchivadasPage'; 
 import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import PerfilPage from '@pages/perfil/PerfilPage';
 import ComparativaForm from '@pages/comparativas/ComparativaForm';
@@ -109,7 +110,11 @@ const perfilRoute = createRoute({ getParentRoute: () => appRoute, path: '/perfil
 export const empresasRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas', component: () => <RequireRole roles={['administrador']}><EmpresasList /></RequireRole>, });
 export const empresasNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/nueva', component: () => <RequireRole roles={['administrador']}><EmpresaForm /></RequireRole>, });
 export const empresasEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/$id', component: function EditEmpresa() { const { id } = useParams({ from: empresasEditRoute.id }) as {id: string}; return <RequireRole roles={['administrador']}><EmpresaForm id={id} /></RequireRole>; } }); 
-
+export const empresasArchivadasRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/empresas/archivadas',
+  component: () => <RequireRole roles={['administrador']}><EmpresasArchivadasPage /></RequireRole>,
+});
 
 // --- 4. RUTA PARA "NO ENCONTRADO" (404) ---
 // ... (sin cambios) ...
@@ -140,6 +145,7 @@ const routeTree = rootRoute.addChildren([
     empresasRoute,
     empresasNewRoute,
     empresasEditRoute,
+    empresasArchivadasRoute,
     usuariosRoute,
     usuarioInviteRoute,
     usuarioEditRoute,

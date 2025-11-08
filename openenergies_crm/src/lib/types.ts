@@ -13,7 +13,7 @@ export type RootDocumentItem = {
   item_name: string;
   is_folder: boolean;
   full_path: string;
-  visible_para_cliente: boolean; // <-- AÑADIR ESTA LÍNEA
+  visible_para_cliente: boolean;
 };
 
 export type TarifaElectrica = '2.0TD' | '3.0TD' | '6.1TD';
@@ -63,8 +63,10 @@ export interface Empresa {
   id: UUID;
   nombre: string;
   cif: string | null;
-  tipo: 'openenergies' | 'comercializadora'; // p.ej. 'openenergies' | 'comercializadora'...
+  tipo: 'openenergies' | 'comercializadora';
   creada_en: string | null;
+  is_archived: boolean;
+  archived_at: string | null;
 }
 
 export interface Cliente {

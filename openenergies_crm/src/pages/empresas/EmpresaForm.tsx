@@ -3,11 +3,14 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef  } from 'react';
 import type { Empresa } from '@lib/types';
 import { empresasEditRoute } from '@router/routes';
-import { Building2, FileText, Tags } from 'lucide-react';
+import { Building2, FileText, Tags, Image as ImageIcon, UploadCloud } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+
+const MAX_LOGO_BYTES = 512 * 1024; // 512 KB
+const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/svg+xml'];
 
 const schema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -20,9 +23,11 @@ type FormData = z.infer<typeof schema>;
 export default function EmpresaForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
-  
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-
+  const [logoDirty, setLogoDirty] = useState(false);
   const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema)
   });
@@ -37,16 +42,97 @@ export default function EmpresaForm({ id }: { id?: string }) {
     fetchEmpresa();
   }, [editing, id, reset]);
 
+  useEffect(() => {
+    if (!editing || !id) return;
+    // Si quieres intentar JPG/SVG como fallback desde aquí (opcional),
+    // puedes quedarse solo con PNG aquí y gestionar fallbacks en <img onError> si lo deseas.
+  }, [editing, id]);
+
+  useEffect(() => {
+    if (!editing || !id) return;
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .storage
+        .from('logos_empresas')
+        .createSignedUrl(`${id}.png`, 60 * 60 * 24 * 7); // 7 días
+
+      if (!error && alive) {
+        setLogoPreview(data?.signedUrl ?? null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [editing, id]);
+
+  function handleLogoPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_MIME.includes(file.type)) {
+      toast.error('Formato no permitido. Usa PNG, JPG o SVG.');
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error(`El logo supera ${Math.round(MAX_LOGO_BYTES/1024)} KB.`);
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+    // Preview
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(reader.result as string);
+      toast.success('Logo cargado correctamente');
+    };
+    reader.readAsDataURL(file);
+    setLogoFile(file);
+    setLogoDirty(true);
+  }
   async function onSubmit(values: FormData) {
     setServerError(null);
     try {
+      let empresaId = id;
+
       if (editing) {
-        const { error } = await supabase.from('empresas').update(values).eq('id', id!);
-        if (error) throw error;
+        if (isDirty) { // solo actualiza la tabla si hay cambios en inputs
+          const { error } = await supabase.from('empresas').update(values).eq('id', id!);
+          if (error) throw error;
+        }
       } else {
-        const { error } = await supabase.from('empresas').insert(values);
+        const { data, error } = await supabase
+          .from('empresas')
+          .insert(values)
+          .select('id')
+          .single();
         if (error) throw error;
+        empresaId = data.id as string;
       }
+
+      // Subir logo si hay
+      if (logoFile && empresaId) {
+        // Determinar extensión por MIME
+        const ext = logoFile.type === 'image/png'
+          ? 'png'
+          : logoFile.type === 'image/jpeg'
+            ? 'jpg'
+            : logoFile.type === 'image/svg+xml'
+              ? 'svg'
+              : null;
+
+        if (!ext) {
+          toast.error('Tipo de logo no soportado.');
+        } else {
+          const path = `${empresaId}.${ext}`;
+          const { error: upErr } = await supabase
+            .storage
+            .from('logos_empresas')
+            .upload(path, logoFile, { upsert: true, contentType: logoFile.type });
+          if (upErr) throw upErr;
+        }
+      }
+      setLogoDirty(false);
       navigate({ to: '/app/empresas' });
     } catch (e: any) {
       setServerError(`Error al guardar: ${e.message}`);
@@ -91,12 +177,46 @@ export default function EmpresaForm({ id }: { id?: string }) {
               {errors.tipo && <p className="error-text">{errors.tipo.message}</p>}
             </div>
           </div>
-          
+          <div>
+            <label>Logo de la empresa</label>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+              <div
+                style={{
+                  width: 96, height: 48, border: '1px dashed #d1d5db',
+                  borderRadius: 8, display:'flex', alignItems:'center', justifyContent:'center',
+                  background:'#fff'
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                title="Subir logo"
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' }} />
+                ) : (
+                  <div style={{ display:'flex', alignItems:'center', gap:6, color:'#6b7280' }}>
+                    <UploadCloud size={16} />
+                    <span style={{ fontSize:12 }}>Subir logo</span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml"
+                style={{ display:'none' }}
+                onChange={handleLogoPick}
+              />
+              <div style={{ fontSize:12, color:'#6b7280' }}>
+                Formatos: PNG, JPG, SVG. Máx {Math.round(MAX_LOGO_BYTES/1024)} KB.
+              </div>
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem' }}>
             <button type="button" className="secondary" onClick={() => navigate({ to: '/app/empresas' })}>
               Cancelar
             </button>
-            <button type="submit" disabled={isSubmitting || !isDirty}>
+            <button type="submit" disabled={isSubmitting || (!isDirty && !logoDirty)}>
               {isSubmitting ? 'Guardando...' : 'Guardar'}
             </button>
           </div>

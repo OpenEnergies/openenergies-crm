@@ -32,7 +32,11 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     <nav className="main-nav">
       <ul>
         {visibleItems.map(item => {
-          const isActive = location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app');
+          const exactMatchRoutes = ['/app', '/app/empresas'];
+          
+          const isActive = exactMatchRoutes.includes(item.to)
+            ? location.pathname === item.to // Coincidencia exacta
+            : location.pathname.startsWith(item.to);
           return (
             <li key={item.to}>
               <Link to={item.to} className={clsx('nav-link', isActive && 'active')}>

@@ -494,38 +494,67 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
           Precios de Propuesta
         </h3>
         
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', paddingLeft: '0.5rem' }}>
-          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
-            <input 
-              type="radio" 
-              name="pricing_mode" 
-              value="manual_unico" 
-              checked={pricingMode === 'manual_unico'} 
-              onChange={(e) => setPricingMode(e.target.value as any)} 
-            />
-            Fijos
-          </label>
-          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
-            <input 
-              type="radio" 
-              name="pricing_mode" 
-              value="manual_mensual" 
-              checked={pricingMode === 'manual_mensual'} 
-              onChange={(e) => setPricingMode(e.target.value as any)} 
-            />
-            Variables mensualmente
-          </label>
-          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem'}}>
-            <input 
-              type="radio" 
-              name="pricing_mode" 
-              value="historico" 
-              checked={pricingMode === 'historico'} 
-              onChange={(e) => setPricingMode(e.target.value as any)} 
-            />
-            Según histórico guardado
-          </label>
+        {/* Encabezado: radios + selector de empresa (siempre visible) */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          gap: '1rem', 
+          paddingLeft: '0.5rem',
+          flexWrap: 'wrap'
+        }}>
+          {/* Izquierda: radios */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+            <label style={{display:'flex',alignItems:'center',gap:'0.5rem',cursor:'pointer',fontWeight:500,padding:'0.5rem'}}>
+              <input 
+                type="radio" 
+                name="pricing_mode" 
+                value="manual_unico" 
+                checked={pricingMode === 'manual_unico'} 
+                onChange={(e) => setPricingMode(e.target.value as any)} 
+              />
+              Fijos
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:'0.5rem',cursor:'pointer',fontWeight:500,padding:'0.5rem'}}>
+              <input 
+                type="radio" 
+                name="pricing_mode" 
+                value="manual_mensual" 
+                checked={pricingMode === 'manual_mensual'} 
+                onChange={(e) => setPricingMode(e.target.value as any)} 
+              />
+              Variables mensualmente
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:'0.5rem',cursor:'pointer',fontWeight:500,padding:'0.5rem'}}>
+              <input 
+                type="radio" 
+                name="pricing_mode" 
+                value="historico" 
+                checked={pricingMode === 'historico'} 
+                onChange={(e) => setPricingMode(e.target.value as any)} 
+              />
+              Según histórico guardado
+            </label>
+          </div>
+
+          {/* Derecha: selector de empresa (siempre visible) */}
+          <div style={{ minWidth: 280 }}>
+            <label htmlFor="empresa_precios" className="block text-sm font-medium">Empresa (opcional)</label>
+            <div className="input-icon-wrapper">
+              <Building2 size={18} className="input-icon" />
+              <select
+                id="empresa_precios"
+                value={selectedEmpresaPrecios}
+                onChange={(e) => setSelectedEmpresaPrecios(e.target.value)}
+                disabled={loadingEmpresasPrecios}
+              >
+                <option value="">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Sin empresa'}</option>
+                {empresasConPrecios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
+
 
         {/* --- Renderizado Condicional de Opciones --- */}
 
@@ -595,24 +624,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
 
         {/* Opción 3: Histórico de Empresa (Layout 33/66) */}
         {pricingMode === 'historico' && (
-          <div style={{ display: 'grid', gap: '1.5rem' }}>
-            {/* Selector de Empresa */}
-            <div>
-              <label htmlFor="empresa_precios">Selecciona Empresa</label>
-              <div className="input-icon-wrapper">
-                <Building2 size={18} className="input-icon" />
-                <select
-                  id="empresa_precios"
-                  value={selectedEmpresaPrecios}
-                  onChange={(e) => setSelectedEmpresaPrecios(e.target.value)}
-                  disabled={loadingEmpresasPrecios || loadingPrecios}
-                >
-                  <option value="">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Selecciona...'}</option>
-                  {empresasConPrecios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
-              </div>
-            </div>
-            
+          <div style={{ display: 'grid', gap: '1.5rem' }}>            
             {/* Tablas (Spinner o Tablas) */}
             {selectedEmpresaPrecios && (
               loadingPrecios ? (
@@ -728,33 +740,16 @@ const ComparativaForm: React.FC = () => {
   const { data: empresasConPrecios = [], isLoading: loadingEmpresasPrecios } = useQuery({
     queryKey: ['empresasConPrecios'],
     queryFn: async () => {
-      // 1. Obtener todas las tuplas (empresa_id, nombre) de la tabla de precios
-      // --- (MODIFICADO) Buscamos en ambas tablas para encontrar empresas ---
-      const [energiaData, potenciaData] = await Promise.all([
-         supabase.from('precios_energia').select('empresa_id, empresas ( id, nombre )'),
-         supabase.from('precios_potencia').select('empresa_id, empresas ( id, nombre )')
-      ]);
-
-      if (energiaData.error) console.error("Error fetching empresas (energia):", energiaData.error);
-      if (potenciaData.error) console.error("Error fetching empresas (potencia):", potenciaData.error);
-      
-      const allData = [...(energiaData.data || []), ...(potenciaData.data || [])];
-      // --- (FIN MODIFICADO) ---
-
-      // 2. Deduplicar la lista
-      const uniqueEmpresas = new Map<string, { id: string, nombre: string }>();
-      allData.forEach(item => {
-        // Cast item to any because Supabase return shape can be ambiguous in TS
-        const empresa = (item as any).empresas as { id?: string; nombre?: string } | null | undefined;
-        // Aseguramos que el join funcionó y no es un array y que id/nombre existen y son strings
-        if (empresa && !Array.isArray(empresa) && typeof empresa.id === 'string' && typeof empresa.nombre === 'string') {
-          if (!uniqueEmpresas.has(empresa.id)) {
-            uniqueEmpresas.set(empresa.id, { id: empresa.id, nombre: empresa.nombre });
-          }
-        }
-      });
-      // Devolvemos un array ordenado por nombre
-      return Array.from(uniqueEmpresas.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+      const { data, error } = await supabase
+        .from('empresas')
+        .select('id, nombre')
+        .eq('is_archived', false) 
+        .order('nombre', { ascending: true });
+      if (error) {
+        console.error('Error fetching empresas:', error);
+        return [];
+      }
+      return data ?? [];
     },
     staleTime: 60 * 60 * 1000, // Cachear 1 hora
   });
@@ -1025,6 +1020,9 @@ const ComparativaForm: React.FC = () => {
     // Solo actuar si el modo es 'historico' y tenemos los datos necesarios
     if (pricingMode !== 'historico' || !selectedEmpresaPrecios || !tarifa || dynamicMonthHeaders.length === 0) {
       setLoadingPrecios(false);
+      if (pricingMode === 'historico' && !selectedEmpresaPrecios) {
+        toast.error('Selecciona una empresa primero.');
+      }
       return;
     }
 
@@ -1342,9 +1340,8 @@ const ComparativaForm: React.FC = () => {
         actual,
         propuesta,
     };
-
-    return payload; // <-- La sentencia 'return' que faltaba
-    // --- (FIN) LÓGICA FALTANTE ---
+    (payload as any).empresa_id = selectedEmpresaPrecios || null;
+    return payload;
   };
 
   /** Manejador del clic en el botón "Generar PDF" */
@@ -1361,14 +1358,13 @@ const ComparativaForm: React.FC = () => {
     // Usamos JSON.stringify con 'null, 2' para una impresión bonita (pretty-print)
     console.log(JSON.stringify(payload, null, 2));
     console.log("--- FIN PAYLOAD PDF (PRUEBA) ---");
-
-    // 2. Mostrar un toast al usuario
-    toast.success('Payload generado. Revisa la consola (F12) para ver el JSON.');
-
-    // 3. Comentar el bloque original de 'fetch' y 'saveAs'
     setIsGeneratingPdf(true);
 
     try {
+      if (!selectedEmpresaPrecios) {
+        const ok = window.confirm('No has seleccionado ninguna empresa. ¿Deseas generar la comparativa sin marca (sin nombre ni logo)?');
+        if (!ok) return;
+      }
       // 1. Obtener la sesión actual para conseguir el Token de Autorización
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session) {

@@ -12,66 +12,33 @@ import PreciosEmpresaModal from './PreciosEmpresaModal';
 import ConfirmationModal from '@components/ConfirmationModal';
 import { clsx } from '@lib/utils';
 
-function EmpresaLogo({ id, size = 20 }: { id: string; size?: number }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [alts, setAlts] = useState<string[]>([]);
-  const [step, setStep] = useState<number>(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      // Preparamos las tres alternativas con URLs firmadas (TTL 7 días)
-      const exts = ['png', 'jpg', 'svg'] as const;
-      const signed: string[] = [];
-
-      for (const ext of exts) {
-        const { data } = await supabase
-          .storage
-          .from('logos_empresas')
-          .createSignedUrl(`${id}.${ext}`, 60 * 60 * 24 * 7);
-
-        signed.push(data?.signedUrl ?? ''); // si no existe, luego fallará y haremos fallback
-      }
-
-      if (!cancelled) {
-        setAlts(signed);
-        setSrc(signed[0] ?? null); // empezamos con PNG (fallback a null)
-        setStep(0);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [id]);
-
+function EmpresaLogo({ url, size = 20 }: { url?: string | null; size?: number }) {
+  // Define el placeholder (puedes usar el mismo que tenías)
   const placeholder =
     'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="12" fill="%239ca3af">?</text></svg>';
 
   return (
     <img
-      src={src ?? placeholder}
+      // Usa la URL del prop. Si es nula o indefinida, usa el placeholder.
+      src={url ?? placeholder}
       alt=""
       width={size}
       height={size}
       style={{ objectFit: 'contain', borderRadius: 4, background: '#fff', border: '1px solid #e5e7eb' }}
-      onError={() => {
-        // Pasamos a la siguiente alternativa firmada
-        if (step < alts.length - 1) {
-          const next = step + 1;
-          setStep(next);
-          // Aseguramos que nunca pasamos 'undefined' a setSrc
-          const nextSrc = alts[next] ?? placeholder;
-          setSrc(nextSrc);
-        } else {
-          setSrc(placeholder);
+      // Si la URL (url) falla por algún motivo (ej. 404),
+      // el onError la reemplazará por el placeholder.
+      onError={(e) => {
+        if (e.currentTarget.src !== placeholder) {
+           e.currentTarget.src = placeholder;
         }
       }}
     />
   );
 }
 
-
 type EmpresaConConteo = Empresa & {
   clientes: { count: number }[];
+  logo_url?: string | null;
 };
 
 //    En este caso, coinciden con las claves del tipo Empresa
@@ -80,12 +47,12 @@ type SortableEmpresaKey = keyof EmpresaConConteo | 'clientes_count';
 async function fetchEmpresas(mode: 'active' | 'archived') {
   const { data, error } = await supabase
     .from('empresas')
-    .select('*, clientes(count)') // <-- ¡CAMBIO AQUÍ!
+    .select('*, clientes(count), logo_url') // <-- ¡CAMBIO AQUÍ!
     .eq('is_archived', mode === 'archived')
     .order('creada_en', { ascending: false });
 
   if (error) throw error;
-  return data as EmpresaConConteo[]; // <-- Tipo de retorno actualizado
+  return data as (EmpresaConConteo & { logo_url: string | null })[]; // <-- Tipo actualizado
 }
 
 interface EmpresasListProps {
@@ -412,7 +379,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                       </td>
                       <td>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <EmpresaLogo id={e.id} size={20} />
+                          <EmpresaLogo url={e.logo_url} size={20} />
                           <span>{e.nombre}</span>
                         </div>
                       </td>

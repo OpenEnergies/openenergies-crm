@@ -48,22 +48,6 @@ export default function EmpresaForm({ id }: { id?: string }) {
     // puedes quedarse solo con PNG aquí y gestionar fallbacks en <img onError> si lo deseas.
   }, [editing, id]);
 
-  useEffect(() => {
-    if (!editing || !id) return;
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase
-        .storage
-        .from('logos_empresas')
-        .createSignedUrl(`${id}.png`, 60 * 60 * 24 * 7); // 7 días
-
-      if (!error && alive) {
-        setLogoPreview(data?.signedUrl ?? null);
-      }
-    })();
-    return () => { alive = false; };
-  }, [editing, id]);
-
   function handleLogoPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -130,12 +114,38 @@ export default function EmpresaForm({ id }: { id?: string }) {
             .from('logos_empresas')
             .upload(path, logoFile, { upsert: true, contentType: logoFile.type });
           if (upErr) throw upErr;
+          const { data: publicUrlData } = supabase
+          .storage
+          .from('logos_empresas')
+          .getPublicUrl(path);
+
+          const newLogoPublicUrl = `${publicUrlData.publicUrl}?t=${new Date().getTime()}`;
+
+          const { error: updateUrlError } = await supabase
+            .from('empresas')
+            .update({ logo_url: newLogoPublicUrl })
+            .eq('id', empresaId);
+
+          if (updateUrlError) {
+            toast.error(`Logo subido, pero error al guardar URL: ${updateUrlError.message}`);
+          }
+          setLogoDirty(false);
         }
       }
-      setLogoDirty(false);
+
+      // Mostrar mensaje de éxito y navegar fuera del bloque de subida de logo
+      if (isDirty || logoFile) {
+        toast.success(editing ? 'Empresa actualizada' : 'Empresa creada');
+      } else {
+        toast.success('No hay cambios que guardar.');
+      }
       navigate({ to: '/app/empresas' });
+
     } catch (e: any) {
-      setServerError(`Error al guardar: ${e.message}`);
+      console.error("Error al guardar:", e);
+      const errorMessage = `Error al guardar: ${e.message}`;
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     }
   }
 

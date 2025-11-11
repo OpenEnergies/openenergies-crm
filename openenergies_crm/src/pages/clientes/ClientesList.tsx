@@ -201,7 +201,6 @@ export default function ClientesList(){
     <div className="grid">
       <div className="page-header">
         <h2 style={{ margin: '0' }}>Clientes</h2>
-        {/* --- (3) Acciones Contextuales y Botón Nuevo --- */}
         <div className="page-actions">
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
@@ -250,12 +249,9 @@ export default function ClientesList(){
              </>
           )}
         </div>
-        {/* --- Fin Acciones --- */}
       </div>
 
       <div className="card">
-        {/* Input de filtro movido al header */}
-        {/* ... isLoading, isError, EmptyState ... (sin cambios) */}
          {isLoading && <div>Cargando...</div>}
         {isError && <div role="alert">Error al cargar clientes.</div>}
 
@@ -272,66 +268,62 @@ export default function ClientesList(){
             <table className="table">
               <thead>
                 <tr>
-                  {/* --- (4) Cabecera Checkbox --- */}
-                  <th style={{ width: '1%', paddingRight: 0 }}> {/* Ajustar ancho y padding */}
+                  <th style={{ width: '1%', paddingRight: 0 }}>
                      <input
                        type="checkbox"
                        checked={isAllSelected}
-                       ref={input => { // Para manejar estado indeterminado
+                       ref={input => {
                          if (input) input.indeterminate = isIndeterminate;
                        }}
                        onChange={handleSelectAll}
                        aria-label="Seleccionar todos los clientes"
                      />
                   </th>
-                  {/* --- Resto de cabeceras --- */}
-                  <th> {/* Nombre */}
+                  <th>
                     <button onClick={() => handleSort('nombre')} className="sortable-header">
                       Nombre {renderSortIcon('nombre')}
                     </button>
                   </th>
-                  <th> {/* Empresa */}
+                  <th>
                     <button onClick={() => handleSort('empresa_nombre')} className="sortable-header">
                       Empresa {renderSortIcon('empresa_nombre')}
                     </button>
                   </th>
-                  <th> {/* DNI/CIF */}
+                  <th>
                     <button onClick={() => handleSort('dni_cif')} className="sortable-header">
                       DNI/CIF {renderSortIcon('dni_cif')}
                     </button>
                   </th>
-                  {!isAdmin && ( /* Email */
+                  {!isAdmin && (
                     <th>
                       <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
                         Email facturación {renderSortIcon('email_facturacion')}
                       </button>
                     </th>
                   )}
-                   {isAdmin && ( /* Comerciales */
+                   {isAdmin && ( 
                       <th>
                         <button onClick={() => handleSort('comerciales_nombres')} className="sortable-header">
                           Comerciales {renderSortIcon('comerciales_nombres')}
                         </button>
                       </th>
                    )}
-                  <th> {/* Creado */}
+                  <th> 
                     <button onClick={() => handleSort('creado_en')} className="sortable-header">
                       Creado {renderSortIcon('creado_en')}
                     </button>
                   </th>
-                  <th> {/* Estado */}
+                  <th> 
                     <button onClick={() => handleSort('estado')} className="sortable-header">
                       Estado {renderSortIcon('estado')}
                     </button>
-                    <ColumnFilterDropdown /* ... props ... */
+                    <ColumnFilterDropdown 
                       columnName="Estado"
                       options={filterOptions.estado}
                       selectedOptions={columnFilters.estado}
                       onChange={(selected) => handleColumnFilterChange('estado', selected)}
                     />
                   </th>
-                  {/* --- (5) Eliminar cabecera Acciones --- */}
-                  {/* <th style={{ textAlign: 'right' }}>Acciones</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -341,7 +333,6 @@ export default function ClientesList(){
                     return (
                     // --- (6) Añadir clase condicional a <tr> ---
                     <tr key={c.id} className={clsx(isSelected && 'selected-row')}>
-                       {/* --- (7) Celda Checkbox --- */}
                        <td style={{ paddingRight: 0 }}>
                          <input
                            type="checkbox"
@@ -350,23 +341,22 @@ export default function ClientesList(){
                            aria-label={`Seleccionar cliente ${c.nombre}`}
                          />
                        </td>
-                       {/* --- Resto de celdas --- */}
-                      <td> {/* Nombre */}
+                      <td> 
                         <Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">
                           {c.nombre}
                         </Link>
                       </td>
-                      <td> {/* Empresa */}
+                      <td> 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <Building2 size={16} style={{ color: 'var(--muted)'}} />
                               {c.empresas?.nombre ?? 'No asignada'}
                           </div>
                       </td>
-                      <td>{c.dni || c.cif || '—'}</td> {/* DNI/CIF */}
-                      {!isAdmin && ( /* Email */
+                      <td>{c.dni || c.cif || '—'}</td> 
+                      {!isAdmin && (
                         <td>{c.email_facturacion ?? '—'}</td>
                       )}
-                      {isAdmin && ( /* Comerciales */
+                      {isAdmin && ( 
                           <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                   <Users size={16} style={{ color: 'var(--muted)'}} />
@@ -374,9 +364,9 @@ export default function ClientesList(){
                               </div>
                           </td>
                       )}
-                      <td>{fmtDate(c.creado_en)}</td> {/* Creado */}
-                      <td> {/* Estado */}
-                        <span className={`status-dot ${ /* ... clases ... */
+                      <td>{fmtDate(c.creado_en)}</td> 
+                      <td> 
+                        <span className={`status-dot ${ 
                             c.estado === 'activo' ? 'status-activo' :
                             c.estado === 'desistido' ? 'status-desistido' :
                             c.estado === 'procesando' ? 'status-procesando' :
@@ -384,11 +374,9 @@ export default function ClientesList(){
                           }`} title={c.estado || 'stand by'}></span>
                         <span className="status-text">{c.estado || 'stand by'}</span>
                       </td>
-                      {/* --- (8) Eliminar celda Acciones --- */}
-                      {/* <td style={{ textAlign: 'right' }}> ... </td> */}
                     </tr>
                   )})
-                ) : ( // Mensaje "Sin resultados" (sin cambios, solo ajustar colSpan)
+                ) : (
                   <tr>
                     <td colSpan={isAdmin ? 9 : 8} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
                       Sin resultados que coincidan con los filtros.
@@ -400,8 +388,6 @@ export default function ClientesList(){
           </div>
         )}
       </div>
-
-      {/* --- Modal de confirmación adaptado --- */}
       <ConfirmationModal
         // Se abre si hay IDs preparados para borrar
         isOpen={idsToDelete.length > 0}

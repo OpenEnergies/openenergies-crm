@@ -20,6 +20,60 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+async function convertToPngBlob(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    // 1. Crear un lector para obtener la URL de datos del archivo
+    const reader = new FileReader();
+    
+    // 2. Crear un elemento <img> para cargar la imagen
+    const img = new Image();
+
+    // 3. Definir qué pasa cuando la imagen se carga en el <img>
+    img.onload = () => {
+      // 4. Crear un canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        return reject(new Error('No se pudo obtener el contexto del canvas.'));
+      }
+
+      // 5. Dibujar la imagen (JPG, SVG, etc.) en el canvas
+      ctx.drawImage(img, 0, 0);
+
+      // 6. Convertir el contenido del canvas a un Blob PNG
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            return reject(new Error('No se pudo convertir la imagen a PNG.'));
+          }
+          resolve(blob);
+        },
+        'image/png', // Forzar el tipo MIME a PNG
+        1.0 // Calidad máxima
+      );
+    };
+
+    // 7. Definir qué pasa si la imagen no se puede cargar
+    img.onerror = () => reject(new Error('No se pudo cargar la imagen para la conversión.'));
+
+    // 8. Definir qué pasa cuando el lector (FileReader) carga el archivo
+    reader.onload = (e) => {
+      if (typeof e.target?.result === 'string') {
+        // 9. Asignar la URL de datos (Base64) al src de la imagen para cargarla
+        img.src = e.target.result;
+      } else {
+        reject(new Error('Error al leer el archivo.'));
+      }
+    };
+    
+    // 10. Iniciar la lectura del archivo
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function EmpresaForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
@@ -79,8 +133,9 @@ export default function EmpresaForm({ id }: { id?: string }) {
     try {
       let empresaId = id;
 
+      // Lógica para crear/editar la entrada en la tabla 'empresas' (sin cambios)
       if (editing) {
-        if (isDirty) { // solo actualiza la tabla si hay cambios en inputs
+        if (isDirty) { 
           const { error } = await supabase.from('empresas').update(values).eq('id', id!);
           if (error) throw error;
         }
@@ -94,46 +149,62 @@ export default function EmpresaForm({ id }: { id?: string }) {
         empresaId = data.id as string;
       }
 
-      // Subir logo si hay
+      // --- INICIO DE LA LÓGICA DE SUBIDA MODIFICADA ---
       if (logoFile && empresaId) {
-        // Determinar extensión por MIME
-        const ext = logoFile.type === 'image/png'
-          ? 'png'
-          : logoFile.type === 'image/jpeg'
-            ? 'jpg'
-            : logoFile.type === 'image/svg+xml'
-              ? 'svg'
-              : null;
+        
+        let fileToUpload: Blob = logoFile;
+        let newMimeType: string = logoFile.type;
+        const newExtension = 'png'; // ¡Forzamos la extensión a PNG!
 
-        if (!ext) {
-          toast.error('Tipo de logo no soportado.');
-        } else {
-          const path = `${empresaId}.${ext}`;
-          const { error: upErr } = await supabase
-            .storage
-            .from('logos_empresas')
-            .upload(path, logoFile, { upsert: true, contentType: logoFile.type });
-          if (upErr) throw upErr;
-          const { data: publicUrlData } = supabase
+        // 1. Comprobar si el archivo YA es PNG
+        if (logoFile.type !== 'image/png') {
+          // 2. Si no es PNG, llamamos a la función de conversión
+          try {
+            toast.success('Convirtiendo logo a .png...');
+            fileToUpload = await convertToPngBlob(logoFile); // fileToUpload es ahora un Blob PNG
+            newMimeType = 'image/png';
+          } catch (convertError: any) {
+            console.error("Error al convertir logo:", convertError);
+            toast.error(`Error al convertir el logo a PNG: ${convertError.message}`);
+            // Detenemos la subida si la conversión falla
+            return; 
+          }
+        }
+
+        // 3. Definir la ruta de subida SIEMPRE con .png
+        const path = `${empresaId}.${newExtension}`; 
+
+        // 4. Subir el archivo (ya sea el original o el Blob convertido)
+        const { error: upErr } = await supabase
           .storage
           .from('logos_empresas')
-          .getPublicUrl(path);
+          .upload(path, fileToUpload, { // <-- Usamos fileToUpload (el Blob/File)
+            upsert: true, 
+            contentType: newMimeType // <-- Usamos el contentType correcto ('image/png')
+          });
+          
+        if (upErr) throw upErr;
+        
+        // 5. El resto de la lógica para guardar la URL pública (sin cambios)
+        const { data: publicUrlData } = supabase
+        .storage
+        .from('logos_empresas')
+        .getPublicUrl(path);
 
-          const newLogoPublicUrl = `${publicUrlData.publicUrl}?t=${new Date().getTime()}`;
+        const newLogoPublicUrl = `${publicUrlData.publicUrl}?t=${new Date().getTime()}`;
 
-          const { error: updateUrlError } = await supabase
-            .from('empresas')
-            .update({ logo_url: newLogoPublicUrl })
-            .eq('id', empresaId);
+        const { error: updateUrlError } = await supabase
+          .from('empresas')
+          .update({ logo_url: newLogoPublicUrl })
+          .eq('id', empresaId);
 
-          if (updateUrlError) {
-            toast.error(`Logo subido, pero error al guardar URL: ${updateUrlError.message}`);
-          }
-          setLogoDirty(false);
+        if (updateUrlError) {
+          toast.error(`Logo subido, pero error al guardar URL: ${updateUrlError.message}`);
         }
+        setLogoDirty(false);
+        
       }
-
-      // Mostrar mensaje de éxito y navegar fuera del bloque de subida de logo
+      // Lógica de feedback y navegación (sin cambios)
       if (isDirty || logoFile) {
         toast.success(editing ? 'Empresa actualizada' : 'Empresa creada');
       } else {

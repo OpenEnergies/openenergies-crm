@@ -1,7 +1,7 @@
 // openenergies_crm/src/pages/comparativas/ComparativaForm.tsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 // --- (1) Importar iconos y toast ---
-import { Zap, Cog, Euro, Pencil, Loader2, FileDown, Database, ListChecks, TextCursorInput, Building2 } from 'lucide-react';
+import { Zap, Cog, Euro, Pencil, Loader2, FileDown, Building2, FileUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from "@lib/supabase";
 import { saveAs } from 'file-saver';
@@ -33,13 +33,32 @@ interface SipsData {
   PotenciaConsumida: Record<string, Record<string, number>>;
 }
 
+interface PrecioPot {
+  periodo: string;
+  precio_eur_kw_ano: number;
+}
+interface PrecioEner {
+  periodo: string;
+  precio_eur_kwh: number;
+}
+interface ParseEdgeResponse {
+  titular: string | null;
+  nif: string | null;
+  direccion: string | null;
+  poblacion: string | null;
+  cups: string | null;
+  otros: number | null;
+  p_pot?: PrecioPot[];
+  p_ener?: PrecioEner[];
+}
+
 /** Parsea una fecha en formato "DD/MM/YYYY" a un objeto Date */
-const parseDMY = (dateStr: string): Date => {
+const _parseDMY = (dateStr: string): Date => {
   const parts = dateStr.split('/');
   return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
 };
 /** Formatea un objeto Date a "MM/YY" */
-const formatMMYY = (date: Date): string => {
+const _formatMMYY = (date: Date): string => {
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const y = date.getFullYear().toString().slice(-2);
   return `${m}/${y}`;
@@ -270,14 +289,10 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                                      titulo;
                   let key = '';
                   if (mostrarPrimeraColumnaComoFila) {
-                    // Tablas mensuales: Clave = Tabla__Fila(P1=0)__Col(Header)
-                    const pKey = String(fila[0]); // P1, P2...
                     key = `${baseTitulo}__${filaIndex}__${colHeader}`;
                   } else {
-                    // Tablas únicas: Clave = Tabla__Fila(0)__Col(P1, P2...)
-                    const pKey = colHeader; // P1, P2...
-                    key = `${baseTitulo}__${filaIndex}__${pKey}`;
-                  }                   
+                    key = `${baseTitulo}__${filaIndex}__${colHeader}`;
+                  }                 
                   // --- (FIN) MODIFICACIÓN NOMBRE DE CLAVE ---
                   
                   
@@ -478,14 +493,6 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
     const warningColor = "#f39b03"; // Color amarillo/ámbar
     const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
 
-    // Claves de tabla para las nuevas tablas mensuales
-    const engTablaKeyMensual = "Energía €/kWh (Propuesta Mensual)";
-    
-    // Claves de tabla para las tablas anuales
-    const potTablaKeyAnual = "Potencia €/kW/año (Ofrecido)";
-    const engTablaKeyAnual = "Energía €/kWh (Ofrecido)";
-
-
     return (
       <div style={{ display: 'grid', gap: '1.5rem', borderTop: '2px dashed var(--border-color)', paddingTop: '1.5rem' }}>
         
@@ -672,7 +679,8 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
 
 
 const ComparativaForm: React.FC = () => {
-  
+  const [formMode, setFormMode] = useState<'initial' | 'form_visible'>('initial');
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const todayISO = new Date().toISOString().split('T')[0]!;
   const today = new Date(); // 2025-11-01
   const currentYearFull = today.getFullYear(); // 2025
@@ -781,7 +789,7 @@ const ComparativaForm: React.FC = () => {
     }));
   };
 
-  const handleAutocompletar = async () => {
+  const handleAutocompletar = async (cupsOverride?: string): Promise<SipsData | null> => {
     try {
       setModo("auto");
       setCargando(true);
@@ -789,32 +797,34 @@ const ComparativaForm: React.FC = () => {
       setValoresTabla({});
       setTarifa(""); 
 
-      const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
+      const cups = cupsOverride ?? datosSuministro.cups;
+      const base = getFunctionsBase();
+      const { data: { session } } = await supabase.auth.getSession();
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const cups = datosSuministro.cups;
+      const authHeader = session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : (anonKey ? { Authorization: `Bearer ${anonKey}` } : {});
 
-      if (!functionsUrl) {
-        console.error('Falta VITE_SUPABASE_FUNCTIONS_URL');
-        alert('No está configurada la URL de las funciones');
-        setCargando(false);
-        return;
+      // Construir Headers de forma segura para TypeScript
+      const fetchHeaders: HeadersInit = new Headers();
+      fetchHeaders.set('Content-Type', 'application/json');
+      if (authHeader && (authHeader as any).Authorization) {
+        fetchHeaders.set('Authorization', (authHeader as any).Authorization);
       }
 
-      const res = await fetch(`${functionsUrl}/logosenergia-sips`, {
+      const res = await fetch(`${base}/logosenergia-sips`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(anonKey ? { Authorization: `Bearer ${anonKey}` } : {}),
-        },
+        headers: fetchHeaders,
         body: JSON.stringify({ cups }),
       });
+
 
       if (!res.ok) {
         const text = await res.text();
         console.error('Error en función:', res.status, text);
         setError('No se han podido obtener los datos del CUPS.');
         setCargando(false);
-        return;
+        return null;
       }
 
       const data = await res.json();
@@ -822,7 +832,7 @@ const ComparativaForm: React.FC = () => {
       if (!Array.isArray(data) || data.length === 0) {
         setError('Respuesta inválida del servidor de SIPS.');
         setCargando(false);
-        return;
+        return null;
       }
 
       const sipsData: SipsData = data[0];
@@ -936,10 +946,12 @@ const ComparativaForm: React.FC = () => {
 
       setSipsFirstMonth(newHeaders[0] || null); // <-- AÑADIR: Guardar primer mes
       setValoresTabla(newValoresTabla);
+      return sipsData;
 
     } catch (err) {
       console.error(err);
       setError('Error al conectar con el backend.');
+      return null;
     } finally {
       setCargando(false);
     }
@@ -1117,9 +1129,8 @@ const ComparativaForm: React.FC = () => {
       const lastYear = `20${lastHeader.split('/')[1]}`;
       const precioPotenciaDelAño = newPotenciaCache[lastYear];
       
-      potPeriodKeys.forEach((pKey, filaIndex) => {
-        // Clave para la tabla ANUAL: Tabla__Fila(0)__Col(P1, P2...)
-        const tablaKey = `${potTablaKey}__${filaIndex}__${pKey}`; 
+      potPeriodKeys.forEach((pKey) => {
+        const tablaKey = `${potTablaKey}__0__${pKey}`;
         const dbValue = precioPotenciaDelAño ? precioPotenciaDelAño[`precio_potencia_${pKey.toLowerCase()}` as keyof PreciosPotencia] : null;
         newValoresTabla[tablaKey] = dbValue !== null ? String(dbValue) : '';
       });
@@ -1177,10 +1188,14 @@ const ComparativaForm: React.FC = () => {
    * --- AHORA CON EL NUEVO FORMATO DE PRECIOS Y LÓGICA ---
    */
   const buildPdfJson = () => {
-    if (!tarifa) {
-      toast.error("Selecciona una tarifa antes de generar el PDF.");
-      return null;
-    }
+      if (modo === "manual" && (!manualLastMonth || !manualLastYear)) {
+        toast.error("En modo manual debes indicar último mes y año antes de generar el PDF.");
+        return null;
+      }
+      if (!tarifa) {
+        toast.error("Selecciona una tarifa antes de generar el PDF.");
+        return null;
+      }
     
     const { potPeriodKeys, engPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
     
@@ -1674,7 +1689,7 @@ const ComparativaForm: React.FC = () => {
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>
           {modo === "manual"
             ? "Selecciona tarifa y último mes para ver las tablas."
-            : "Autocompleta o rellena manually para ver las tablas."
+            : "Autocompleta o rellena manualmente para ver las tablas."
           }
         </p>
       );
@@ -1732,354 +1747,519 @@ const ComparativaForm: React.FC = () => {
     fontSize: '0.9rem',
   };
 
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result)); // data:application/pdf;base64,....
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+  // Base URL para Edge Functions (soporta tus dos formas)
+  const getFunctionsBase = () =>
+    import.meta.env.VITE_SUPABASE_FUNCTIONS_URL
+      ?? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+  const autofillPreciosDesdeParsing = (parsed: ParseEdgeResponse, tarifa: Tarifa) => {
+    if (!tarifa) return;
+
+    const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
+
+    // Extraer solo valores > 0
+    const potVals = (parsed.p_pot ?? [])
+      .map(p => Number(p?.precio_eur_kw_ano) || 0)
+      .filter(v => v > 0);
+
+    const enerVals = (parsed.p_ener ?? [])
+      .map(e => Number(e?.precio_eur_kwh) || 0)
+      .filter(v => v > 0);
+
+    // Toma los primeros N no-cero según número de periodos
+    const take = (arr: number[], n: number) => {
+      const out: number[] = [];
+      for (const v of arr) {
+        if (v > 0) out.push(v);
+        if (out.length === n) break;
+      }
+      return out;
+    };
+
+    const potToFill = take(potVals, potPeriodKeys.length);
+    const enerToFill = take(enerVals, engTableKeys.length);
+
+    setValoresTabla(prev => {
+      const next = { ...prev };
+
+      // Potencia Actual -> "Término potencia (Actual)__0__P1"
+      potPeriodKeys.forEach((pKey, i) => {
+        const v = potToFill[i];
+        if (v !== undefined) {
+          next[`Término potencia (Actual)__0__${pKey}`] = String(v);
+        }
+      });
+
+      // Energía Actual -> "Término energía (Actual)__0__P1|P2|..."
+      engTableKeys.forEach((pKey, i) => {
+        const v = enerToFill[i];
+        if (v !== undefined) {
+          next[`Término energía (Actual)__0__${pKey}`] = String(v);
+        }
+      });
+
+      return next;
+    });
+  };
+
+      
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // 1. Comprobar extensión
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+      if (!isPdf) {
+          toast.error('Error: El archivo debe ser un PDF.');
+          e.target.value = ''; // Resetear input
+          return;
+      }
+
+      setIsUploadingPdf(true);
+      const uploadToast = toast.loading('Leyendo y analizando PDF...');
+      try {
+        // 2) Convertir a base64 (data URL)
+        const dataUrl = await fileToDataUrl(file);
+  
+        // 3) Llamar a parse-invoice-edge
+        const base = getFunctionsBase();
+        const { data: { session } } = await supabase.auth.getSession();
+        const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const fetchHeaders: HeadersInit = new Headers();
+        fetchHeaders.set('Content-Type', 'application/json');
+        if (session?.access_token) {
+          fetchHeaders.set('Authorization', `Bearer ${session.access_token}`);
+        } else if (anon) {
+          fetchHeaders.set('Authorization', `Bearer ${anon}`);
+        }
+
+        const resp = await fetch(`${base}/parse-invoice-edge`, {
+          method: 'POST',
+          headers: fetchHeaders,
+          body: JSON.stringify({ pdf_base64: dataUrl, pretty: false }),
+        });
+
+        if (!resp.ok) {
+           const t = await resp.text();
+           throw new Error(`parse-invoice-edge ${resp.status}: ${t}`);
+        }
+
+        const parsed: ParseEdgeResponse = await resp.json();
+
+        // 4) Rellenar Datos del Suministro
+        setDatosSuministro(prev => ({
+          ...prev,
+          titular: parsed.titular ?? prev.titular,
+          dniCif: parsed.nif ?? prev.dniCif,
+          direccion: parsed.direccion ?? prev.direccion,
+          poblacion: parsed.poblacion ?? prev.poblacion,
+          cups: (parsed.cups ?? prev.cups) || "",
+          otrosConceptos: parsed.otros != null ? String(parsed.otros) : prev.otrosConceptos,
+        }));
+
+        // 5) Mostrar formulario y lanzar SIPS automáticamente con el CUPS parseado
+        const cupsForSips = parsed.cups || '';
+        if (!cupsForSips) {
+          toast.error('No se detectó CUPS en el PDF. Introduce el CUPS para autocompletar.');
+          return;
+        }
+
+        const sips = await handleAutocompletar(cupsForSips); // devuelve SipsData o null
+
+        // 6) Una vez tenemos la tarifa de SIPS, autocompleta precios (Actual) con lo parseado
+        const tarifaDetectada = sips?.Tarifa ?? tarifa;
+        if (tarifaDetectada) {
+          autofillPreciosDesdeParsing(parsed, tarifaDetectada as Tarifa);
+        }
+        toast.success('Factura leída. Datos autocompletados y precios cargados.');
+      } catch (err: any) {
+          // Si hay un error de red
+          console.error('Error de red al enviar PDF:', err);
+          toast.error(`Error de red: ${err.message}`);
+      } finally {
+          // 3. Mostrar el formulario en cualquier caso
+          setIsUploadingPdf(false);
+          setFormMode('form_visible'); // <-- CLAVE: Mostrar el formulario
+          toast.dismiss(uploadToast); // Quitar el loading
+          e.target.value = ''; // Resetear el input
+      }
+  };
+
   return (
     <div className="grid p-6 space-y-6"> 
 
-      {/* 2. Añade el título estándar de la página */}
+      {/* Título estándar de la página */}
       <div className="page-header">
         <h2 style={{ margin: 0 }}>Comparativas</h2>
          <div className="page-actions"></div>
       </div>
 
-      {/* 3. Envuelve los datos del suministro en su propia tarjeta 'card' */}
-      <div className="card">
-        
-        {/* 4. Usa un título de sección (h3) para "Datos del suministro" */}
-        <h3 className="section-title" style={{ 
-            marginTop: 0, 
-            borderBottom: 'none', // Quitamos la línea si no la quieres
-            paddingBottom: 0,     // Quitamos padding
-            marginBottom: '1.5rem' // Añadimos espacio antes del formulario
-          }}>
-          Datos del suministro
-        </h3>
-        
-        {/* --- INICIO: SECCIÓN MODIFICADA (SIN TAILWIND) --- */}
-        {/* Usamos un grid CSS simple (gap) para apilar las filas */}
-        <div style={{ display: 'grid', gap: '1rem' }}> {/* Ajusta '1rem' si usas otra variable */}
-          
-          {/* Fila 1: Titular y DNI/CIF */}
-          <div className="form-row" style={{ gap: '1rem' }}> {/* Reutilizamos form-row para las 2 columnas */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="titular">
-                Titular
-              </label>
-              <input
-                id="titular"
-                name="titular"
-                value={datosSuministro.titular}
-                onChange={handleChangeSuministro}
-                className="w-full border rounded-md px-3 py-2 text-sm" // Estas clases parecen ser custom
-                placeholder="Nombre del titular"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="dniCif">
-                DNI/CIF
-              </label>
-              <input
-                id="dniCif"
-                name="dniCif"
-                value={datosSuministro.dniCif}
-                onChange={handleChangeSuministro}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-                placeholder="DNI o CIF del titular"
-              />
-            </div>
-          </div>
-
-          {/* Fila 2: Dirección (Ocupa todo el ancho) */}
-          <div className="form-row" style={{ gap: '1rem' }}>
-            {/* Campo Dirección (sin CP/municipio) */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="direccion">
-                Dirección (Calle y Número)
-              </label>
-              <input
-                id="direccion"
-                name="direccion"
-                value={datosSuministro.direccion}
-                onChange={handleChangeSuministro}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-                placeholder="Calle, número, piso..."
-              />
-            </div>
-            {/* Campo Población (NUEVO) */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="poblacion">
-                Población (CP y Municipio)
-              </label>
-              <input
-                id="poblacion"
-                name="poblacion"
-                value={datosSuministro.poblacion}
-                onChange={handleChangeSuministro}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-                placeholder="Ej: 28001 Madrid"
-              />
-            </div>
-          </div>
-
-          {/* Fila 3: CUPS y Fecha de Estudio */}
-          <div className="form-row" style={{ gap: '1rem' }}> {/* Reutilizamos form-row */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700" htmlFor="cups">CUPS</label>
-              <input
-                type="text"
-                id="cups"
-                name="cups"
-                value={datosSuministro.cups}
-                onChange={handleChangeSuministro}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="ES00XXXXXXXXXXXXXX"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700" htmlFor="fechaEstudio">
-                Fecha de estudio
-              </label>
-              <input
-                type="date"
-                id="fechaEstudio"
-                name="fechaEstudio"
-                value={datosSuministro.fechaEstudio}
-                onChange={handleChangeSuministro}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr 1fr', // 3 columnas
-            gap: '1rem' 
-          }}>
-            
-            {/* 1. IVA */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="iva">IVA</label>
-              <div style={inputGroupStyle}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  id="iva"
-                  name="iva"
-                  value={datosSuministro.iva}
-                  onChange={handleChangeSuministro}
-                  placeholder="21.00"
-                  style={inputInGroupStyle}
-                />
-                <span style={suffixStyle}>%</span>
-              </div>
-            </div>
-
-            {/* 2. IMPUESTO ELÉCTRICO */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="impuestoElectrico">Impuesto eléctrico</label>
-              <div style={inputGroupStyle}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  id="impuestoElectrico"
-                  name="impuestoElectrico"
-                  value={datosSuministro.impuestoElectrico}
-                  onChange={handleChangeSuministro}
-                  placeholder="5.1127"
-                  style={inputInGroupStyle}
-                />
-                <span style={suffixStyle}>%</span>
-              </div>
-            </div>
-
-            {/* 3. OTROS CONCEPTOS */}
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="otrosConceptos">Otros conceptos</label>
-              <div style={inputGroupStyle}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  id="otrosConceptos"
-                  name="otrosConceptos"
-                  value={datosSuministro.otrosConceptos}
-                  onChange={handleChangeSuministro}
-                  placeholder="0.00"
-                  style={inputInGroupStyle}
-                />
-                <span style={suffixStyle}>€</span>
-              </div>
-            </div>
-
-          </div>
-            
-        </div>
-        {/* --- FIN: SECCIÓN MODIFICADA --- */}
-        
-      </div>
-
-
-      {/* BOTONES */}
-      {/* --- (REQ 1) DIV MODIFICADO CON CHIPS DE MODO --- */}
-      <div 
-        style={{ 
-          display: 'flex',
-          flexWrap: 'wrap', // Para que los chips se ajusten en móvil
-          gap: '1rem',
-          marginTop: '1rem', 
-          marginBottom: '1.5rem', // <-- AÑADIDO MÁRGEN
-          justifyContent: 'space-between', // Separa botones y chips
-          alignItems: 'center'
-        }}
-      >
-        {/* Grupo de botones a la izquierda */}
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button
-            type="button"
-            onClick={handleAutocompletar}
-            disabled={cargando || !datosSuministro.cups}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
-            title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
-          >
-            {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
-          </button>
-          <button
-            type="button"
-            onClick={handleRellenarManual}
-            disabled={cargando}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
-          >
-            Rellenar manualmente
-          </button>
-        </div>
-
-        {/* Grupo de chips a la derecha (visible solo si hay un modo) */}
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          {modo === 'auto' && (
-            <span style={{...chipStyle, backgroundColor: 'var(--primary-light)', color: 'var(--primary-600)'}}>
-              <Zap size={14} /> Autocompletado
-            </span>
-          )}
-          {modo === 'manual' && (
-            <span style={{...chipStyle, backgroundColor: '#FFFBEB', color: '#B45309'}}>
-              <Pencil size={14} /> Manual
-            </span>
-          )}
-        </div>
-      </div>
-      {/* --- FIN DIV MODIFICADO --- */}
-
-
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-
-      {/* Interfaz de selección MODO MANUAL */}
-      {modo === "manual" ? (
-        <div className="card"> {/* Usamos card para consistencia */}
-          
-          {/* --- (INICIO) BLOQUE MODIFICADO --- */}
-          {/* Usamos un grid de 3 columnas (1fr 1fr 1fr) con 1rem de gap */}
-          <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr 1fr', // Tres columnas de igual ancho
-              gap: '1rem',                         // Separación de 1rem
-              alignItems: 'flex-end'             // Alinea elementos al final (como antes)
-          }}>
-            
-            {/* Columna 1: Tarifa */}
-            <div>
-              <label className="block text-sm font-medium" htmlFor="manual-tarifa">1. Selecciona la tarifa</label>
-              <select
-                id="manual-tarifa" 
-                value={tarifa}
-                onChange={(e) => setTarifa(e.target.value as Tarifa)}
-                className="border rounded-md px-3 py-2 text-sm mt-1"
-                style={{ width: '100%' }} // Asegura que ocupe el 1fr
-              >
-                <option value="">-- Selecciona --</option>
-                <option value="2.0TD">2.0TD</option>
-                <option value="3.0TD">3.0TD</option>
-                <option value="6.1TD">6.1TD</option>
-              </select>
-            </div>
-            
-            {/* Columna 2: Último Mes */}
-            <div>
-              <label className="block text-sm font-medium" htmlFor="manual-mes">2. Último mes (MM)</label>
-              <select
-                id="manual-mes"
-                value={manualLastMonth}
-                onChange={(e) => setManualLastMonth(e.target.value)}
-                className="border rounded-md px-3 py-2 text-sm mt-1"
-                disabled={!tarifa}
-                title={!tarifa ? "Selecciona una tarifa primero" : "Mes"}
-                style={{ width: '100%' }} // Asegura que ocupe el 1fr
-              >
-                <option value="">Mes</option>
-                {dynamicMonthOptions.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
-            
-            {/* Columna 3: Último Año */}
-            <div>
-              <label className="block text-sm font-medium" htmlFor="manual-ano">3. Último año (YY)</label>
-              <select
-                id="manual-ano"
-                value={manualLastYear}
-                onChange={(e) => setManualLastYear(e.target.value)}
-                className="border rounded-md px-3 py-2 text-sm mt-1"
-                disabled={!tarifa}
-                title={!tarifa ? "Selecciona una tarifa primero" : "Año"}
-                style={{ width: '100%' }} // Asegura que ocupe el 1fr
-              >
-                <option value="">Año</option>
-                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            
-          </div>
-          {/* --- (FIN) BLOQUE MODIFICADO --- */}
-
-          <p className="text-xs text-gray-500 mt-2" style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-            En función de la tarifa y el mes se mostrarán las tablas.
+      {/* --- (4) INICIO: RENDERIZADO CONDICIONAL INICIAL --- */}
+      {formMode === 'initial' && (
+        <div className="card">
+          <h3 className="section-title" style={{ marginTop: 0, borderBottom: 'none', paddingBottom: 0, marginBottom: '0.5rem' }}>
+            Iniciar Comparativa
+          </h3>
+          <p style={{ color: 'var(--muted)', marginTop: 0, marginBottom: '1.5rem' }}>
+            Importa una factura PDF para intentar autocompletar o rellena los datos manualmente.
           </p>
-        </div>
-      // --- (FIN) CORRECCIÓN BUG LABEL ---
-      // Mostrar tarifa en MODO AUTO
-      ) : (modo === "auto" && tarifa) ? (
-        <div className="card" style={{ padding: '1rem' }}>
-            <p className="text-sm font-medium text-gray-700" style={{ margin: 0, fontSize: '0.9rem' }}>
-                Tarifa detectada (SIPS): <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>{tarifa}</span>
-            </p>
-        </div>
-      ) : null}
-
-
-      {/* TABLAS */}
-      {/* (REQ 2 y 3) El layout se aplica en las funciones renderTablas... */}
-      <div className="comparativa-tablas-layout">{renderZonaTablas()}</div>
-
-      {/* BOTÓN PDF */}
-      <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
-        {tarifa && tarifa !== '2.0TD' && (
-          <label className="text-sm" style={{ display:'inline-flex', alignItems:'center', gap:'0.5rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            
+            {/* Botón para subir archivo (usando label) */}
+            <label 
+              htmlFor="pdf-upload" 
+              // Usamos clases de 'button' para que parezca un botón
+              className={`button secondary ${isUploadingPdf ? 'disabled' : ''}`}
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                cursor: isUploadingPdf ? 'wait' : 'pointer'
+              }}
+            >
+              {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
+              {isUploadingPdf ? 'Importando...' : 'Importar PDF'}
+            </label>
             <input
-              type="checkbox"
-              checked={optimizacion}
-              onChange={(e) => setOptimizacion(e.target.checked)}
+              type="file"
+              id="pdf-upload"
+              accept="application/pdf,.pdf" // Aceptar solo PDF
+              onChange={handleFileImport}
+              disabled={isUploadingPdf}
+              style={{ display: 'none' }} // Ocultamos el input real
             />
-            Optimización de Potencia
-          </label>
-        )}
 
-        <button
-          type="button"
-          onClick={handleGeneratePdf}
-          disabled={isGeneratingPdf}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
-          {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}
-        </button>
-      </div>
+            {/* Botón manual */}
+            <button
+              type="button"
+              onClick={() => setFormMode('form_visible')}
+              disabled={isUploadingPdf}
+            >
+              Rellenar campos manualmente
+            </button>
+          </div>
+        </div>
+      )}
+      {/* --- FIN (4) --- */}
+
+
+      {/* --- (5) INICIO: FORMULARIO EXISTENTE (AHORA CONDICIONAL) --- */}
+      {formMode === 'form_visible' && (
+        <>
+          {/* 3. Envuelve los datos del suministro en su propia tarjeta 'card' */}
+          <div className="card">
+            
+            {/* 4. Usa un título de sección (h3) para "Datos del suministro" */}
+            <h3 className="section-title" style={{ 
+                marginTop: 0, 
+                borderBottom: 'none',
+                paddingBottom: 0,
+                marginBottom: '1.5rem'
+              }}>
+              Datos del suministro
+            </h3>
+            
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {/* Fila 1: Titular y DNI/CIF */}
+              <div className="form-row" style={{ gap: '1rem' }}>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="titular">
+                    Titular
+                  </label>
+                  <input
+                    id="titular"
+                    name="titular"
+                    value={datosSuministro.titular}
+                    onChange={handleChangeSuministro}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Nombre del titular"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="dniCif">
+                    DNI/CIF
+                  </label>
+                  <input
+                    id="dniCif"
+                    name="dniCif"
+                    value={datosSuministro.dniCif}
+                    onChange={handleChangeSuministro}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="DNI o CIF del titular"
+                  />
+                </div>
+              </div>
+
+              {/* Fila 2: Dirección y Población */}
+              <div className="form-row" style={{ gap: '1rem' }}>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="direccion">
+                    Dirección (Calle y Número)
+                  </label>
+                  <input
+                    id="direccion"
+                    name="direccion"
+                    value={datosSuministro.direccion}
+                    onChange={handleChangeSuministro}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Calle, número, piso..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="poblacion">
+                    Población (CP y Municipio)
+                  </label>
+                  <input
+                    id="poblacion"
+                    name="poblacion"
+                    value={datosSuministro.poblacion}
+                    onChange={handleChangeSuministro}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Ej: 28001 Madrid"
+                  />
+                </div>
+              </div>
+
+              {/* Fila 3: CUPS y Fecha de Estudio */}
+              <div className="form-row" style={{ gap: '1rem' }}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="cups">CUPS</label>
+                  <input
+                    type="text"
+                    id="cups"
+                    name="cups"
+                    value={datosSuministro.cups}
+                    onChange={handleChangeSuministro}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    placeholder="ES00XXXXXXXXXXXXXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="fechaEstudio">
+                    Fecha de estudio
+                  </label>
+                  <input
+                    type="date"
+                    id="fechaEstudio"
+                    name="fechaEstudio"
+                    value={datosSuministro.fechaEstudio}
+                    onChange={handleChangeSuministro}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Fila 4: Impuestos y Otros */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: '1rem' 
+              }}>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="iva">IVA</label>
+                  <div style={inputGroupStyle}>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      id="iva"
+                      name="iva"
+                      value={datosSuministro.iva}
+                      onChange={handleChangeSuministro}
+                      placeholder="21.00"
+                      style={inputInGroupStyle}
+                    />
+                    <span style={suffixStyle}>%</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="impuestoElectrico">Impuesto eléctrico</label>
+                  <div style={inputGroupStyle}>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      id="impuestoElectrico"
+                      name="impuestoElectrico"
+                      value={datosSuministro.impuestoElectrico}
+                      onChange={handleChangeSuministro}
+                      placeholder="5.1127"
+                      style={inputInGroupStyle}
+                    />
+                    <span style={suffixStyle}>%</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="otrosConceptos">Otros conceptos</label>
+                  <div style={inputGroupStyle}>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      id="otrosConceptos"
+                      name="otrosConceptos"
+                      value={datosSuministro.otrosConceptos}
+                      onChange={handleChangeSuministro}
+                      placeholder="0.00"
+                      style={inputInGroupStyle}
+                    />
+                    <span style={suffixStyle}>€</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BOTONES SIPS / MANUAL */}
+          <div 
+            style={{ 
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              marginTop: '1rem', 
+              marginBottom: '1.5rem',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => handleAutocompletar()}
+                disabled={cargando || !datosSuministro.cups}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
+                title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
+              >
+                {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
+              </button>
+              <button
+                type="button"
+                onClick={handleRellenarManual}
+                disabled={cargando}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
+              >
+                Rellenar manualmente
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              {modo === 'auto' && (
+                <span style={{...chipStyle, backgroundColor: 'var(--primary-light)', color: 'var(--primary-600)'}}>
+                  <Zap size={14} /> Autocompletado
+                </span>
+              )}
+              {modo === 'manual' && (
+                <span style={{...chipStyle, backgroundColor: '#FFFBEB', color: '#B45309'}}>
+                  <Pencil size={14} /> Manual
+                </span>
+              )}
+            </div>
+          </div>
+
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+          {/* Interfaz de selección MODO MANUAL */}
+          {modo === "manual" ? (
+            <div className="card">
+              <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '1rem',
+                  alignItems: 'flex-end'
+              }}>
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="manual-tarifa">1. Selecciona la tarifa</label>
+                  <select
+                    id="manual-tarifa" 
+                    value={tarifa}
+                    onChange={(e) => setTarifa(e.target.value as Tarifa)}
+                    className="border rounded-md px-3 py-2 text-sm mt-1"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">-- Selecciona --</option>
+                    <option value="2.0TD">2.0TD</option>
+                    <option value="3.0TD">3.0TD</option>
+                    <option value="6.1TD">6.1TD</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="manual-mes">2. Último mes (MM)</label>
+                  <select
+                    id="manual-mes"
+                    value={manualLastMonth}
+                    onChange={(e) => setManualLastMonth(e.target.value)}
+                    className="border rounded-md px-3 py-2 text-sm mt-1"
+                    disabled={!tarifa}
+                    title={!tarifa ? "Selecciona una tarifa primero" : "Mes"}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">Mes</option>
+                    {dynamicMonthOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="manual-ano">3. Último año (YY)</label>
+                  <select
+                    id="manual-ano"
+                    value={manualLastYear}
+                    onChange={(e) => setManualLastYear(e.target.value)}
+                    className="border rounded-md px-3 py-2 text-sm mt-1"
+                    disabled={!tarifa}
+                    title={!tarifa ? "Selecciona una tarifa primero" : "Año"}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">Año</option>
+                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2" style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                En función de la tarifa y el mes se mostrarán las tablas.
+              </p>
+            </div>
+          ) : (modo === "auto" && tarifa) ? (
+            <div className="card" style={{ padding: '1rem' }}>
+                <p className="text-sm font-medium text-gray-700" style={{ margin: 0, fontSize: '0.9rem' }}>
+                    Tarifa detectada (SIPS): <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>{tarifa}</span>
+                </p>
+            </div>
+          ) : null}
+
+          {/* TABLAS */}
+          <div className="comparativa-tablas-layout">{renderZonaTablas()}</div>
+
+          {/* BOTÓN PDF */}
+          <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
+            {tarifa && tarifa !== '2.0TD' && (
+              <label className="text-sm" style={{ display:'inline-flex', alignItems:'center', gap:'0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={optimizacion}
+                  onChange={(e) => setOptimizacion(e.target.checked)}
+                />
+                Optimización de Potencia
+              </label>
+            )}
+
+            <button
+              type="button"
+              onClick={handleGeneratePdf}
+              disabled={isGeneratingPdf}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+              {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}
+            </button>
+          </div>
+        </>
+      )}
+      {/* --- FIN (5) --- */}
     </div>
   );
 };

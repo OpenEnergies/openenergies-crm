@@ -19,8 +19,9 @@ type PuntoConCliente = Omit<PuntoSuministro, 'localidad' | 'provincia' | 'tipo_f
   provincia?: string | null;
   tipo_factura?: TipoFactura | null;
   clientes: { nombre: string } | null;
+  empresas?: { nombre: string } | null;
 };
-type SortablePuntoKey = keyof PuntoConCliente | 'cliente_nombre';
+type SortablePuntoKey = keyof PuntoConCliente | 'cliente_nombre' | 'comercializadora_actual';
 const initialColumnFilters = {
   localidad: [] as string[],
   provincia: [] as string[],
@@ -29,13 +30,13 @@ const initialColumnFilters = {
 };
 async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoConCliente[]> {
     if (!filter) {
-    let q = supabase.from('puntos_suministro').select('*, clientes(nombre)').limit(100);
+    let q = supabase.from('puntos_suministro').select('*, clientes(nombre), empresas:current_comercializadora_id(nombre)').limit(100);
     if (clienteId) q = q.eq('cliente_id', clienteId);
     const { data, error } = await q.order('cups', { ascending: true });
     if (error) throw error;
     return data as PuntoConCliente[];
   }
-  const { data, error } = await supabase.rpc('search_puntos_suministro', { search_text: filter, p_cliente_id: clienteId || null }).select('*, clientes(nombre)').limit(100).order('cups', { ascending: true });
+  const { data, error } = await supabase.rpc('search_puntos_suministro', { search_text: filter, p_cliente_id: clienteId || null }).select('*, clientes(nombre), empresas:current_comercializadora_id(nombre)').limit(100).order('cups', { ascending: true });
   if (error) throw error;
   return data as PuntoConCliente[];
 }
@@ -139,7 +140,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
       initialSortDirection: 'asc',
       sortValueAccessors: {
             cliente_nombre: (item: PuntoConCliente) => item.clientes?.nombre,
-          titular: (item: PuntoConCliente) => item.titular,
+          comercializadora_actual: (item: PuntoConCliente) => item.empresas?.nombre,
           cups: (item: PuntoConCliente) => item.cups,
           direccion: (item: PuntoConCliente) => item.direccion,
           localidad: (item: PuntoConCliente) => item.localidad,
@@ -220,7 +221,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
               {!clienteId && (
                 <>
                   <input
-                    placeholder="CUPS, dirección o titular"
+                    placeholder="CUPS, dirección o comercializadora"
                     value={filter}
                     onChange={e=>setFilter(e.target.value)}
                     aria-label="Filtro"
@@ -258,7 +259,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
               <thead>
                 <tr>
                   <th style={{ width: '1%', paddingRight: 0 }}><input type="checkbox" checked={isAllSelected} ref={input => { if (input) input.indeterminate = isIndeterminate; }} onChange={handleSelectAll} aria-label="Seleccionar todos los puntos"/></th>
-                  <th><button onClick={() => handleSort('titular')} className="sortable-header">Titular {renderSortIcon('titular')}</button></th>
+                  <th><button onClick={() => handleSort('comercializadora_actual')} className="sortable-header">Comercializadora {renderSortIcon('comercializadora_actual')}</button></th>
                   <th><button onClick={() => handleSort('cliente_nombre')} className="sortable-header">Cliente {renderSortIcon('cliente_nombre')}</button></th>
                   <th><button onClick={() => handleSort('cups')} className="sortable-header">CUPS {renderSortIcon('cups')}</button></th>
                   <th><button onClick={() => handleSort('direccion')} className="sortable-header">Dirección {renderSortIcon('direccion')}</button></th>
@@ -276,7 +277,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }){
                      return (
                     <tr key={p.id} className={clsx(isSelected && 'selected-row')}>
                        <td style={{ paddingRight: 0 }}><input type="checkbox" checked={isSelected} onChange={() => handleRowSelect(p.id)} aria-label={`Seleccionar punto ${p.cups}`}/></td>
-                       <td>{p.titular}</td>
+                       <td>{p.empresas?.nombre ?? '—'}</td>
                        <td>{p.clientes?.nombre ?? '—'}</td>
                        <td>{p.cups}</td>
                        <td>{p.direccion}</td>

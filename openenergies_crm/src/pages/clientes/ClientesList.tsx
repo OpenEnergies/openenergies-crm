@@ -37,7 +37,6 @@ async function fetchClientes(filter: string): Promise<ClienteConEmpresa[]> {
     // ... (código existente de fetchClientes) ...
      const selectQuery = `
     *,
-    empresas ( nombre ),
     estado,
     comerciales_asignados:asignaciones_comercial (
         usuarios_app ( nombre, apellidos )
@@ -143,7 +142,6 @@ export default function ClientesList(){
       initialSortKey: 'creado_en',
       initialSortDirection: 'desc',
       sortValueAccessors: { /* ... accesors existentes ... */
-          empresa_nombre: (item) => item.empresas?.nombre,
           dni_cif: (item) => item.dni || item.cif,
           nombre: (item) => item.nombre,
           comerciales_nombres: (item) =>
@@ -240,7 +238,7 @@ export default function ClientesList(){
              // Mostrar buscador y botón de nuevo si no hay selección
              <>
                <input
-                 placeholder="Buscar por nombre, DNI/CIF o comercializadora"
+                 placeholder="Buscar por nombre o DNI/CIF"
                  value={filter}
                  onChange={e => setFilter(e.target.value)}
                  style={{ minWidth: '300px' }} // Un poco más ancho quizás
@@ -282,11 +280,6 @@ export default function ClientesList(){
                   <th>
                     <button onClick={() => handleSort('nombre')} className="sortable-header">
                       Nombre {renderSortIcon('nombre')}
-                    </button>
-                  </th>
-                  <th>
-                    <button onClick={() => handleSort('empresa_nombre')} className="sortable-header">
-                      Empresa {renderSortIcon('empresa_nombre')}
                     </button>
                   </th>
                   <th>
@@ -346,12 +339,6 @@ export default function ClientesList(){
                           {c.nombre}
                         </Link>
                       </td>
-                      <td> 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Building2 size={16} style={{ color: 'var(--muted)'}} />
-                              {c.empresas?.nombre ?? 'No asignada'}
-                          </div>
-                      </td>
                       <td>{c.dni || c.cif || '—'}</td> 
                       {!isAdmin && (
                         <td>{c.email_facturacion ?? '—'}</td>
@@ -378,7 +365,7 @@ export default function ClientesList(){
                   )})
                 ) : (
                   <tr>
-                    <td colSpan={isAdmin ? 9 : 8} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
+                    <td colSpan={isAdmin ? 8 : 7} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
                       Sin resultados que coincidan con los filtros.
                     </td>
                   </tr>

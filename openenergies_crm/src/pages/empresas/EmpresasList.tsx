@@ -37,18 +37,27 @@ function EmpresaLogo({ url, size = 20 }: { url?: string | null; size?: number })
 }
 
 type EmpresaConConteo = Empresa & {
-  clientes: { count: number }[];
+  contratos_activos: { count: number }[];
   logo_url?: string | null;
 };
 
 //    En este caso, coinciden con las claves del tipo Empresa
-type SortableEmpresaKey = keyof EmpresaConConteo | 'clientes_count';
+type SortableEmpresaKey = keyof EmpresaConConteo | 'contratos_activos_count';
 
 async function fetchEmpresas(mode: 'active' | 'archived') {
   const { data, error } = await supabase
     .from('empresas')
-    .select('*, clientes(count), logo_url') // <-- ¡CAMBIO AQUÍ!
+    .select(`
+      *,
+      logo_url,
+      contratos_activos:contratos!comercializadora_id(
+        count
+      )
+    `)
     .eq('is_archived', mode === 'archived')
+    .eq('contratos.estado', 'activo')
+    .lte('contratos.fecha_inicio', new Date().toISOString().split('T')[0])
+    .or(`fecha_fin.is.null,fecha_fin.gte.${new Date().toISOString().split('T')[0]}`, { foreignTable: 'contratos' })
     .order('creada_en', { ascending: false });
 
   if (error) throw error;
@@ -80,9 +89,9 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
     initialSortKey: 'nombre',
     initialSortDirection: 'asc',
     // --- Añadir accesor para la nueva clave de ordenación ---
-    // Se castea a `any` para aceptar la clave personalizada 'clientes_count'
+    // Se castea a `any` para aceptar la clave personalizada 'contratos_activos_count'
     sortValueAccessors: {
-      clientes_count: (item: EmpresaConConteo) => item.clientes[0]?.count ?? 0,
+      contratos_activos_count: (item: EmpresaConConteo) => item.contratos_activos[0]?.count ?? 0,
     } as any,
   });
 
@@ -349,8 +358,8 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                     </button>
                   </th>
                   <th>
-                    <button onClick={() => handleSort('clientes_count' as any)} className="sortable-header">
-                      Clientes {renderSortIcon('clientes_count' as any)}
+                    <button onClick={() => handleSort('contratos_activos_count' as any)} className="sortable-header">
+                      Contratos activos {renderSortIcon('contratos_activos_count' as any)}
                     </button>
                   </th>
                   <th>
@@ -387,7 +396,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                       <td>
                         <span className="kbd">{e.tipo}</span>
                       </td>
-                      <td>{e.clientes[0]?.count ?? 0}</td>
+                      <td>{e.contratos_activos[0]?.count ?? 0}</td>
                       <td>
                         {fmtDate(mode === 'active' ? e.creada_en : e.archived_at)}
                       </td>

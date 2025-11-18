@@ -29,7 +29,7 @@ type FormValues = z.input<typeof schema>;
 
 // --- Tipos para los desplegables ---
 type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
-type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif' | 'empresa_id'>;
+type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif'>;
 type PuntoOpt = Pick<PuntoSuministro, 'id' | 'cups' | 'direccion' | 'cliente_id'>;
 
 // --- Funciones para fetching (sin cambios) ---
@@ -45,7 +45,7 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
 async function fetchAllClientes(): Promise<ClienteOpt[]> {
     const { data, error } = await supabase
         .from('clientes')
-        .select('id, nombre, cif, empresa_id')
+        .select('id, nombre, cif')
         .order('nombre', { ascending: true });
     if (error) throw error;
     return data || [];
@@ -64,8 +64,7 @@ export default function ContratoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
   const queryClient = useQueryClient();
 
-  // --- Estados para las listas filtradas ---
-  const [filteredClientes, setFilteredClientes] = useState<ClienteOpt[]>([]);
+  // --- Estado para filtrar puntos por cliente ---
   const [filteredPuntos, setFilteredPuntos] = useState<PuntoOpt[]>([]);
 
   // --- Fetching de datos (sin cambios) ---
@@ -99,35 +98,14 @@ export default function ContratoForm({ id }: { id?: string }) {
     },
   });
 
-  // Observadores (sin cambios)
-  const watchedComercializadoraId = watch('comercializadora_id');
-  const watchedClienteIdFilter = watch('cliente_id_filter' as any);
+  // Observadores
+  const watchedClienteId = watch('cliente_id' as any); // Campo de filtro para cliente
   const aviso = watch('aviso_renovacion');
 
-  // --- EFECTO FILTRADO CLIENTES (CORREGIDO) ---
+  // --- EFECTO FILTRADO PUNTOS POR CLIENTE ---
   useEffect(() => {
-      if (watchedComercializadoraId) {
-          const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
-          setFilteredClientes(filtered);
-
-          const currentClientIdFilter = getValues('cliente_id_filter' as any);
-          const clientInNewList = filtered.some(c => c.id === currentClientIdFilter);
-          if (!clientInNewList) {
-             setValue('cliente_id_filter' as any, '', { shouldValidate: false });
-             setValue('punto_id', '', { shouldValidate: false });
-          }
-
-      } else {
-          setFilteredClientes([]);
-          setValue('cliente_id_filter' as any, '', { shouldValidate: false });
-          setValue('punto_id', '', { shouldValidate: false });
-      }
-  }, [watchedComercializadoraId, allClientes, setValue, getValues]);
-
-  // --- EFECTO FILTRADO PUNTOS (CORREGIDO) ---
-  useEffect(() => {
-      if (watchedClienteIdFilter) {
-          const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteIdFilter);
+      if (watchedClienteId) {
+          const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteId);
           setFilteredPuntos(filtered);
 
           const currentPuntoId = getValues('punto_id');
@@ -135,20 +113,20 @@ export default function ContratoForm({ id }: { id?: string }) {
           if (!puntoInNewList) {
             setValue('punto_id', '', { shouldValidate: false });
           }
-
       } else {
           setFilteredPuntos([]);
           setValue('punto_id', '', { shouldValidate: false });
       }
-  }, [watchedClienteIdFilter, allPuntos, setValue, getValues]);
+  }, [watchedClienteId, allPuntos, setValue, getValues]);
 
-  // --- EFECTO CARGA EDICIÓN (CORREGIDO - ERROR TYPESCRIPT) ---
+  // --- EFECTO CARGA EDICIÓN ---
   useEffect(() => {
     if (!editing || !id) return;
     if (loadingComercializadoras || loadingClientes || loadingPuntos) return;
 
     let alive = true;
     (async () => {
+      // Cargar contrato
       const { data, error } = await supabase
         .from('contratos')
         .select('id,punto_id,comercializadora_id,oferta,fecha_inicio,fecha_fin,aviso_renovacion,fecha_aviso,estado')
@@ -158,13 +136,11 @@ export default function ContratoForm({ id }: { id?: string }) {
       if (error) {
         toast.error(`Error al cargar el contrato: ${error.message}`);
       } else if (data) {
-        const initialComercializadoraId = data.comercializadora_id;
         const initialPuntoId = data.punto_id;
         const puntoInicial = allPuntos.find(p => p.id === initialPuntoId);
-        const initialClienteIdFilter = puntoInicial?.cliente_id ?? '';
+        const initialClienteId = puntoInicial?.cliente_id ?? '';
 
-        // *** CORRECCIÓN AQUÍ ***
-        // 1. Resetear SOLO los campos del schema
+        // Resetear campos del schema
         reset({
           punto_id: data.punto_id,
           comercializadora_id: data.comercializadora_id,
@@ -176,24 +152,18 @@ export default function ContratoForm({ id }: { id?: string }) {
           fecha_aviso: data.fecha_aviso ?? null,
         });
 
-        // 2. Usar setValue para el campo de filtro DESPUÉS del reset
-        setValue('cliente_id_filter' as any, initialClienteIdFilter, { shouldDirty: false });
-        // *** FIN CORRECCIÓN ***
+        // Usar setValue para el campo de filtro cliente_id
+        setValue('cliente_id' as any, initialClienteId, { shouldDirty: false });
 
-        // Poblar estados locales (sin cambios)
-        if (initialComercializadoraId) {
-            const clientesFiltrados = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
-            setFilteredClientes(clientesFiltrados);
-        }
-        if (initialClienteIdFilter) {
-            const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteIdFilter);
+        // Poblar puntos filtrados
+        if (initialClienteId) {
+            const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteId);
             setFilteredPuntos(puntosFiltrados);
         }
       }
     })();
     return () => { alive = false; };
-  // Añadido setValue a las dependencias porque ahora se usa aquí
-  }, [editing, id, reset, setValue, loadingComercializadoras, loadingClientes, loadingPuntos, allClientes, allPuntos]);
+  }, [editing, id, reset, setValue, loadingComercializadoras, loadingClientes, loadingPuntos, allPuntos]);
 
   // --- FUNCIÓN ONSUBMIT ---
   const onSubmit = async (values: FormValues) => {
@@ -284,7 +254,7 @@ export default function ContratoForm({ id }: { id?: string }) {
 
           <div className="form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
 
-            {/* 1. Comercializadora */}
+            {/* 1. Comercializadora (Independiente) */}
             <div>
               <label htmlFor="comercializadora_id">Comercializadora</label>
               <div className="input-icon-wrapper">
@@ -297,75 +267,58 @@ export default function ContratoForm({ id }: { id?: string }) {
               {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
             </div>
 
-            {/* 2. Cliente (Controlado y deshabilitado) */}
+            {/* 2. Cliente (Siempre habilitado, independiente) */}
             <div>
-              <label htmlFor="cliente_id_filter">Cliente</label>
-              <div
-                  className="input-icon-wrapper"
-                  onMouseDownCapture={(e) => {
-                      if (!watchedComercializadoraId) {
-                          e.preventDefault();
-                          toast.error('Selecciona primero una comercializadora.');
-                      }
-                  }}
-                  title={!watchedComercializadoraId ? 'Selecciona primero una comercializadora' : undefined}
-              >
+              <label htmlFor="cliente_id">Cliente</label>
+              <div className="input-icon-wrapper">
                 <HardHat size={18} className="input-icon" />
                 <Controller
-                    name={"cliente_id_filter" as any} // Campo de control, no del schema
+                    name={"cliente_id" as any} // Campo de control para filtrar puntos
                     control={control}
                     render={({ field }) => (
                         <select
-                            id="cliente_id_filter"
+                            id="cliente_id"
                             {...field}
-                            disabled={!watchedComercializadoraId || loadingClientes}
-                            style={{ cursor: !watchedComercializadoraId ? 'not-allowed' : 'default' }}
+                            disabled={loadingClientes}
                         >
                             <option value="">
-                                {!watchedComercializadoraId
-                                    ? '← Selecciona comercializadora'
-                                    : loadingClientes
-                                    ? 'Cargando...'
-                                    : filteredClientes.length === 0
-                                    ? 'No hay clientes'
-                                    : 'Selecciona cliente...'}
+                                {loadingClientes ? 'Cargando...' : 'Selecciona cliente...'}
                             </option>
-                            {filteredClientes.map((c) => (
+                            {allClientes.map((c) => (
                               <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
                             ))}
                         </select>
                     )}
                 />
               </div>
-              {/* No mostramos error para el campo de filtro */}
             </div>
 
-            {/* 3. Punto de Suministro (Controlado y deshabilitado) */}
+            {/* 3. Punto de Suministro (Filtrado por cliente) */}
             <div>
               <label htmlFor="punto_id">Punto de suministro</label>
               <div
                   className="input-icon-wrapper"
                   onMouseDownCapture={(e) => {
-                      if (!watchedClienteIdFilter) { // Usar campo de filtro
+                      if (!watchedClienteId) {
                           e.preventDefault();
                           toast.error('Selecciona primero un cliente.');
                       }
                   }}
-                  title={!watchedClienteIdFilter ? 'Selecciona primero un cliente' : undefined} // Usar campo de filtro
+                  title={!watchedClienteId ? 'Selecciona primero un cliente' : undefined}
               >
                 <Plug size={18} className="input-icon" />
                 <Controller
-                    name="punto_id" // Este SÍ está en el schema
+                    name="punto_id"
                     control={control}
                     render={({ field }) => (
                         <select
                             id="punto_id"
                             {...field}
-                            disabled={!watchedClienteIdFilter || loadingPuntos} // Usar campo de filtro
-                            style={{ cursor: !watchedClienteIdFilter ? 'not-allowed' : 'default' }} // Usar campo de filtro
+                            disabled={!watchedClienteId || loadingPuntos}
+                            style={{ cursor: !watchedClienteId ? 'not-allowed' : 'default' }}
                         >
                             <option value="">
-                                {!watchedClienteIdFilter // Usar campo de filtro
+                                {!watchedClienteId
                                     ? '← Selecciona un cliente'
                                     : loadingPuntos
                                     ? 'Cargando...'

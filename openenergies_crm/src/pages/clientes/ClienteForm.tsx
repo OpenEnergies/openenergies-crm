@@ -4,13 +4,11 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { useEmpresaId } from '@hooks/useEmpresaId';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, TipoCliente, EstadoCliente, UsuarioApp } from '@lib/types';
 import { useSession } from '@hooks/useSession';
-import { useEmpresas } from '@hooks/useEmpresas';
 import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
@@ -22,7 +20,6 @@ type ComercialOption = Pick<UsuarioApp, 'user_id' | 'nombre' | 'apellidos'>;
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
-  empresa_id: z.string().uuid('Debes seleccionar la empresa propietaria'),
   estado: z.enum(['rechazado', 'desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
@@ -69,15 +66,12 @@ export default function ClienteForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const { rol: currentUserRol, userId } = useSession();
   const editing = Boolean(id);
-  const { empresaId, loading: loadingEmpresa } = useEmpresaId();
   const [serverError, setServerError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const [createPortalAccess, setCreatePortalAccess] = useState(false);
   const [selectedComerciales, setSelectedComerciales] = useState<string[]>([]);
   const [initialAssignments, setInitialAssignments] = useState<string[]>([]);
-
-  const { empresas, loading: loadingEmpresas } = useEmpresas();
 
   // Query para comerciales
   const { data: comerciales = [], isLoading: loadingComerciales } = useQuery({
@@ -108,11 +102,10 @@ export default function ClienteForm({ id }: { id?: string }) {
 
   // useEffect para cargar cliente en modo edición
   useEffect(() => {
-    // No cargar datos del cliente hasta que las empresas estén listas (evita reset prematuro)
-    if (!editing || !id || loadingEmpresas) return;
+    if (!editing || !id) return;
     let isMounted = true; // Flag para evitar seteo si el componente se desmonta
     const fetchCliente = async () => {
-      const { data, error } = await supabase.from('clientes').select('*, empresas(*)').eq('id', id!).maybeSingle();
+      const { data, error } = await supabase.from('clientes').select('*').eq('id', id!).maybeSingle();
       if (!isMounted) return; // Salir si ya no está montado
       if (error) {
         toast.error(`Error al cargar el cliente: ${error.message}`);
@@ -129,7 +122,7 @@ export default function ClienteForm({ id }: { id?: string }) {
     };
     fetchCliente();
     return () => { isMounted = false; }; // Cleanup al desmontar
-  }, [editing, id, reset, loadingEmpresas]); // Depende de loadingEmpresas
+  }, [editing, id, reset]);
 
   // --- useEffect para inicializar selección en modo edición (AJUSTADO) ---
   useEffect(() => {
@@ -169,7 +162,6 @@ export default function ClienteForm({ id }: { id?: string }) {
         const { error: updateError } = await supabase.from('clientes').update({
           nombre: values.nombre,
           tipo: values.tipo,
-          empresa_id: values.empresa_id,
           dni: values.dni,
           cif: values.cif,
           email_facturacion: values.email_facturacion,
@@ -222,7 +214,6 @@ export default function ClienteForm({ id }: { id?: string }) {
               clientData: { /* ... datos cliente ... */
                 nombre: values.nombre,
                 tipo: values.tipo,
-                empresa_id: values.empresa_id,
                 dni: values.dni,
                 cif: values.cif,
                 email_facturacion: values.email_facturacion,
@@ -290,20 +281,6 @@ export default function ClienteForm({ id }: { id?: string }) {
 
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
-            {/* Campos existentes: Empresa, Nombre, Tipo, Estado, DNI, CIF, Email Facturación */}
-            {/* ... (código JSX de estos campos sin cambios) ... */}
-             <div>
-              <label htmlFor="empresa_id">Empresa Propietaria</label>
-              <div className="input-icon-wrapper">
-                <Building2 size={18} className="input-icon" />
-                <select id="empresa_id" {...register('empresa_id')} disabled={loadingEmpresas}>
-                  <option value="">{loadingEmpresas ? 'Cargando empresas...' : 'Selecciona una empresa'}</option>
-                  {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
-              </div>
-              {errors.empresa_id && <p className="error-text">{errors.empresa_id.message}</p>}
-            </div>
-
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre o Razón Social</label>

@@ -10,18 +10,16 @@ type ClienteReciente = {
   id: string;
   nombre: string;
   creado_en: string | null;
-  // Añadimos empresa_id por si necesitamos filtrar por comercial en el futuro
-  empresa_id: string | null;
 };
 
 // Función para obtener los últimos clientes
 async function fetchUltimosClientes(limit: number = 5): Promise<ClienteReciente[]> {
   // Nota: Si en el futuro necesitas filtrar por comercial,
   // necesitarías pasar el userId del comercial y hacer un join
-  // con la tabla 'asignaciones_comercial' o filtrar por 'empresa_id' si aplica.
+  // con la tabla 'asignaciones_comercial'.
   const { data, error } = await supabase
     .from('clientes')
-    .select('id, nombre, creado_en, empresa_id')
+    .select('id, nombre, creado_en')
     .order('creado_en', { ascending: false, nullsFirst: false }) // Los más recientes primero, nulls al final
     .limit(limit);
 

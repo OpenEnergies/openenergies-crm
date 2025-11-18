@@ -7,14 +7,13 @@ import { clsx } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
 
 type ClienteDetallado = Cliente & {
-  empresas: { nombre: string } | null;
   estado: EstadoCliente; 
 };
 
 async function fetchCliente(clienteId: string) {
   const { data, error } = await supabase
     .from('clientes')
-    .select('*, empresas(nombre), estado') 
+    .select('*, estado') 
     .eq('id', clienteId)
     .single();
     
@@ -92,10 +91,6 @@ export default function ClienteDetailLayout() {
               ></span>
               <span className="status-text">{cliente.estado || 'stand by'}</span>
             </p>
-          </div>
-          <div>
-            <label>Empresa Propietaria</label>
-            <p>{cliente.empresas?.nombre ?? 'No asignada'}</p>
           </div>
           <div>
             <label>Email Facturación</label>

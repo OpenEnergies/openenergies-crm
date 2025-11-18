@@ -14,9 +14,8 @@ import type { Cliente, Empresa, TipoFactura } from '@lib/types'; // Asegúrate q
 
 // --- Schema de Zod actualizado ---
 const schema = z.object({
-  comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }), // Nuevo campo
+  comercializadora_id: z.string().uuid({ message: 'Comercializadora debe ser válida' }).optional().nullable().or(z.literal('')),
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
-  // 'titular' se elimina del schema, se obtendrá de la comercializadora
   direccion: z.string().min(1, 'Dirección obligatoria'),
   cups: z.string().min(5, 'CUPS obligatorio'),
   tarifa_acceso: z.string().min(1, 'Tarifa obligatoria'),
@@ -30,7 +29,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 // Tipos para los desplegables
-type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif' | 'empresa_id'>;
+type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif'>;
 type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
 
 // --- Funciones para fetching con React Query ---
@@ -38,7 +37,6 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     const { data, error } = await supabase
         .from('empresas')
         .select('id, nombre')
-        // Filtra por tipo 'externa' (el tipo ENUM que usamos para comercializadoras)
         .eq('tipo', 'comercializadora')
         .order('nombre', { ascending: true });
     if (error) throw error;
@@ -48,7 +46,7 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
 async function fetchAllClientes(): Promise<ClienteOpt[]> {
     const { data, error } = await supabase
         .from('clientes')
-        .select('id, nombre, cif, empresa_id') // Necesitamos empresa_id para filtrar
+        .select('id, nombre, cif')
         .order('nombre', { ascending: true });
     if (error) throw error;
     return data || [];
@@ -56,23 +54,17 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
 // ---------------------------------------------
 
 export default function PuntoForm({ id }: { id?: string }) {
-  // const navigate = useNavigate(); // <-- (2) Ya no se necesita navigate
   const editing = Boolean(id);
-
-  // --- Estados para manejar la lógica de los desplegables ---
-  const [selectedComercializadoraId, setSelectedComercializadoraId] = useState<string | null>(null);
-  const [filteredClientes, setFilteredClientes] = useState<ClienteOpt[]>([]);
-  // -----------------------------------------------------------
 
   // --- Fetching de datos con React Query ---
   const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
-      queryKey: ['comercializadoras'], // Clave para la caché
-      queryFn: fetchComercializadoras, // Función que obtiene los datos
+      queryKey: ['comercializadoras'],
+      queryFn: fetchComercializadoras,
   });
 
   const { data: allClientes = [], isLoading: loadingClientes } = useQuery({
-      queryKey: ['allClientesForPuntoForm'], // Clave distinta para evitar colisiones
-      queryFn: fetchAllClientes, // Obtiene TODOS los clientes una vez
+      queryKey: ['allClientesForPuntoForm'],
+      queryFn: fetchAllClientes,
   });
   // ---------------------------------------
 
@@ -80,63 +72,22 @@ export default function PuntoForm({ id }: { id?: string }) {
     register,
     handleSubmit,
     reset,
-    control, // Necesario para Controller (select de cliente)
-    setValue, // Para limpiar cliente_id
-    watch, // Para observar cambios en comercializadora_id
-    getValues, // <-- (1) OBTENEMOS getValues
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    // Podrías añadir defaultValues si es necesario
   });
-
-  // --- Observa el valor seleccionado en el desplegable de comercializadora ---
-  const watchedComercializadoraId = watch('comercializadora_id');
-  // ----------------------------------------------------------------------
-
-  // --- (2) EFECTO DE FILTRADO CORREGIDO ---
-  useEffect(() => {
-      // Si hay una comercializadora seleccionada en el form...
-      if (watchedComercializadoraId) {
-          setSelectedComercializadoraId(watchedComercializadoraId); // Actualiza estado local
-          // Filtra la lista completa de clientes
-          const filtered = allClientes.filter(c => c.empresa_id === watchedComercializadoraId);
-          setFilteredClientes(filtered);
-          
-          // --- LÓGICA DE RESET INTELIGENTE ---
-          // Obtenemos el cliente_id actual del formulario
-          const currentClientId = getValues('cliente_id');
-          // Comprobamos si ese cliente está en la nueva lista filtrada
-          const currentClientInNewList = filtered.some(c => c.id === currentClientId);
-          
-          // Si el cliente actual NO está en la nueva lista (o no hay cliente), reseteamos.
-          // Esto ocurre en un cambio manual, pero no en la carga de edición.
-          if (!currentClientInNewList) {
-            setValue('cliente_id', '', { shouldValidate: false }); // No validar al resetear
-          }
-          // Si el cliente SÍ está, no hacemos nada y se mantiene seleccionado.
-          
-      } else {
-          // Si no hay comercializadora, vacía la lista y resetea
-          setSelectedComercializadoraId(null);
-          setFilteredClientes([]);
-          setValue('cliente_id', '', { shouldValidate: false });
-      }
-  // Se ejecuta cuando cambia la selección o cuando carga la lista completa de clientes
-  }, [watchedComercializadoraId, allClientes, setValue, getValues]); // <-- (3) AÑADIMOS getValues
-  // -------------------------------------------------------------------
 
   // Carga punto si está en modo edición
   useEffect(() => {
-    if (!editing || !id) return; // Sal si no estamos editando o no hay ID
-    if (comercializadoras.length === 0 || allClientes.length === 0) return; // Espera a que carguen los selects
+    if (!editing || !id) return;
+    if (comercializadoras.length === 0 || allClientes.length === 0) return;
 
     let alive = true;
     (async () => {
       const { data, error } = await supabase
         .from('puntos_suministro')
-        // Selecciona todos los campos necesarios
-        .select('id, cliente_id, titular, direccion, cups, tarifa_acceso, potencia_contratada_kw, consumo_anual_kwh, localidad, provincia, tipo_factura')
+        .select('id, cliente_id, current_comercializadora_id, direccion, cups, tarifa_acceso, potencia_contratada_kw, consumo_anual_kwh, localidad, provincia, tipo_factura')
         .eq('id', id)
         .maybeSingle();
 
@@ -145,15 +96,13 @@ export default function PuntoForm({ id }: { id?: string }) {
       if (error) {
         toast.error(`Error al cargar datos para editar: ${error.message}`);
       } else if (data) {
-        // Busca el ID de la comercializadora basándose en el nombre guardado en 'titular'
-        const matchingComercializadora = comercializadoras.find(c => c.nombre === data.titular);
-        const initialComercializadoraId = matchingComercializadora?.id ?? '';
+        // Usar current_comercializadora_id directamente
+        const initialComercializadoraId = data.current_comercializadora_id ?? '';
 
         // Resetea el formulario con los datos cargados
         reset({
-          comercializadora_id: initialComercializadoraId, // Preselecciona comercializadora
+          comercializadora_id: initialComercializadoraId,
           cliente_id: data.cliente_id,
-          // 'titular' ya no está en el form
           direccion: data.direccion ?? '',
           cups: data.cups ?? '',
           tarifa_acceso: data.tarifa_acceso ?? '',
@@ -161,46 +110,24 @@ export default function PuntoForm({ id }: { id?: string }) {
           consumo_anual_kwh: data.consumo_anual_kwh === null ? null : Number(data.consumo_anual_kwh),
           localidad: data.localidad ?? null,
           provincia: data.provincia ?? null,
-          tipo_factura: (data.tipo_factura as TipoFactura) ?? null, // Cast al tipo ENUM
+          tipo_factura: (data.tipo_factura as TipoFactura) ?? null,
         });
-
-        // (4) LÓGICA SIMPLIFICADA
-        // El `reset` anterior ya ha disparado el `useEffect` de filtrado,
-        // que ahora es "inteligente" y habrá respetado el `cliente_id`
-        // si este pertenecía a la comercializadora.
-        
-        // Solo necesitamos poblar el estado local para `filteredClientes`
-        // para que el dropdown se renderice correctamente.
-        if (initialComercializadoraId) {
-            setSelectedComercializadoraId(initialComercializadoraId);
-            const initialFiltered = allClientes.filter(c => c.empresa_id === initialComercializadoraId);
-            setFilteredClientes(initialFiltered);
-        }
       }
     })();
     return () => { alive = false; };
-  // (5) Quitamos setValue de las dependencias ya que no se usa aquí
   }, [editing, id, reset, comercializadoras, allClientes]);
 
 
   // --- Función onSubmit ---
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
-    // 1. Obtiene el NOMBRE de la comercializadora seleccionada
-    const selectedComercializadora = comercializadoras.find(c => c.id === values.comercializadora_id);
-    if (!selectedComercializadora) {
-        toast.error("Comercializadora seleccionada no es válida.");
-        return;
-    }
-    const titularNombre = selectedComercializadora.nombre;
-
-    // 2. Prepara el payload para la BBDD
+    // Prepara el payload para la BBDD
     const payload = {
       cliente_id: values.cliente_id,
-      titular: titularNombre, // Guarda el NOMBRE como titular
+      current_comercializadora_id: values.comercializadora_id || null,
       direccion: values.direccion,
       cups: values.cups,
       tarifa_acceso: values.tarifa_acceso,
-      potencia_contratada_kw: values.potencia_contratada_kw ?? null, // Asegura null si es undefined/vacío
+      potencia_contratada_kw: values.potencia_contratada_kw ?? null,
       consumo_anual_kwh: values.consumo_anual_kwh ?? null,
       localidad: values.localidad ?? null,
       provincia: values.provincia ?? null,
@@ -238,13 +165,13 @@ export default function PuntoForm({ id }: { id?: string }) {
           {/* --- CAMPOS REORDENADOS --- */}
           <div className="form-row"> {/* Usa form-row para ponerlos lado a lado */}
 
-            {/* Columna Izquierda: Comercializadora */}
+            {/* Columna Izquierda: Comercializadora (Opcional) */}
             <div>
-              <label htmlFor="comercializadora_id">Comercializadora</label>
+              <label htmlFor="comercializadora_id">Comercializadora (Opcional)</label>
               <div className="input-icon-wrapper">
                 <Building size={18} className="input-icon" />
                 <select id="comercializadora_id" {...register('comercializadora_id')} disabled={loadingComercializadoras}>
-                  <option value="">{loadingComercializadoras ? 'Cargando...' : 'Selecciona comercializadora'}</option>
+                  <option value="">{loadingComercializadoras ? 'Cargando...' : 'Selecciona comercializadora (opcional)'}</option>
                   {comercializadoras.map((c) => (
                     <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
@@ -253,51 +180,19 @@ export default function PuntoForm({ id }: { id?: string }) {
               {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
             </div>
 
-            {/* Columna Derecha: Cliente (Filtrado y Controlado) */}
+            {/* Columna Derecha: Cliente (Siempre habilitado) */}
             <div>
               <label htmlFor="cliente_id">Cliente</label>
-              {/* Div wrapper para capturar clic y mostrar tooltip */}
-              <div
-                  className="input-icon-wrapper"
-                  // Captura el clic ANTES de que el select intente abrirse
-                  onMouseDownCapture={(e) => {
-                      if (!selectedComercializadoraId) {
-                          e.preventDefault(); // Evita que el select se abra
-                          toast.error('Selecciona primero una comercializadora.');
-                      }
-                  }}
-                  title={!selectedComercializadoraId ? 'Selecciona primero una comercializadora' : undefined}
-              >
+              <div className="input-icon-wrapper">
                 <HardHat size={18} className="input-icon" />
-                {/* Controller para gestionar el 'disabled' dinámico */}
-                <Controller
-                    name="cliente_id"
-                    control={control}
-                    render={({ field }) => (
-                        <select
-                            id="cliente_id"
-                            {...field}
-                            // Deshabilitado si no hay comercializadora o si los clientes están cargando
-                            disabled={!selectedComercializadoraId || loadingClientes}
-                            style={{ cursor: !selectedComercializadoraId ? 'not-allowed' : 'default' }}
-                        >
-                            <option value="">
-                                {/* Mensaje dinámico en la opción por defecto */}
-                                {!selectedComercializadoraId
-                                    ? '← Selecciona comercializadora'
-                                    : loadingClientes
-                                    ? 'Cargando clientes...'
-                                    : filteredClientes.length === 0
-                                    ? 'No hay clientes para esta comercializadora'
-                                    : 'Selecciona cliente'}
-                            </option>
-                            {/* Mapea sobre los clientes FILTRADOS */}
-                            {filteredClientes.map((c) => (
-                              <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
-                            ))}
-                        </select>
-                    )}
-                />
+                <select id="cliente_id" {...register('cliente_id')} disabled={loadingClientes}>
+                  <option value="">
+                    {loadingClientes ? 'Cargando clientes...' : 'Selecciona cliente'}
+                  </option>
+                  {allClientes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
+                  ))}
+                </select>
               </div>
               {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>

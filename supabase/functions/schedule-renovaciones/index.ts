@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: contratos, error: errC } = await supabase
       .from('contratos')
-      .select('id, fecha_aviso, punto_id')
+      .select('id, fecha_aviso, punto_id, comercializadora_id')
       .or(filter);
     if (errC) throw errC;
 
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
       const { data: cliente, error: errCl } = await supabase
         .from('clientes')
-        .select('empresa_id, nombre')
+        .select('nombre')
         .eq('id', punto.cliente_id).maybeSingle();
       if (errCl || !cliente) continue;
 
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       programada.setHours(9,0,0,0); // 09:00 local
 
       const { data: ins, error: errN } = await supabase.from('notificaciones').insert({
-        empresa_id: cliente.empresa_id,
+        empresa_id: co.comercializadora_id,
         contrato_id: co.id,
         cliente_id: null,
         tipo: 'contrato_renovacion',

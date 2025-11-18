@@ -127,15 +127,15 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
 // Esta función gestiona la creación del cliente y, opcionalmente, su acceso al portal.
 async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) {
   const { clientData, createPortalAccess, userData, creatingUser } = payload;
-  if (!clientData || !clientData.empresa_id) throw new Error('Los datos del cliente y su empresa asociada son obligatorios.');
+  if (!clientData) throw new Error('Los datos del cliente son obligatorios.');
 
-  // --- CAMBIO CLAVE #2: Se elimina la referencia a 'comercializadora' ---
-  // Ahora la propiedad del cliente es directa a una 'empresa' (sea Open Energies u otra).
+  // 1. Separar empresa_id del resto de datos del cliente
+  const { empresa_id, ...clienteInsertData } = clientData;
 
-  // 1. Crear el registro en la tabla 'clientes'
+  // 2. Crear el registro en la tabla 'clientes' (SIN empresa_id)
   const { data: newClient, error: clientError } = await supabaseAdmin
     .from('clientes')
-    .insert(clientData)
+    .insert(clienteInsertData) // <-- Usamos el objeto limpio
     .select()
     .single();
     
@@ -143,24 +143,27 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
 
   let newAuthUser = null;
 
-  // Si se solicita crear acceso al portal, se crea el usuario y se vincula.
+  // Si se solicita crear acceso al portal
   if (createPortalAccess && userData) {
+    // Para crear el usuario, NECESITAMOS una empresa_id. 
+    // Si no venía en clientData, usamos la de Open Energies por defecto o lanzamos error.
+    const targetEmpresaId = empresa_id || OPEN_ENERGIES_EMPRESA_ID; 
+
     try {
-      // 2. Crear usuario en Auth
+      // ... (Creación de usuario en Auth igual que antes) ...
       const { data, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: userData.email,
         password: userData.password,
         email_confirm: true,
       });
       if (authError) throw authError;
-      if (!data.user) throw new Error('Fallo al crear el usuario en Auth.');
       newAuthUser = data.user;
       
-      // 3. Crear perfil del usuario en 'usuarios_app'
+      // 3. Crear perfil en 'usuarios_app'
       const { error: profileError } = await supabaseAdmin.from('usuarios_app').insert({
         user_id: newAuthUser.id,
-        empresa_id: clientData.empresa_id, // El usuario-cliente pertenece a la misma empresa que la ficha de cliente.
-        rol: 'cliente', // El rol siempre será 'cliente' en este flujo.
+        empresa_id: targetEmpresaId, // <-- Aquí SÍ usamos la empresa_id
+        rol: 'cliente',
         nombre: userData.nombre,
         apellidos: userData.apellidos,
         email: userData.email,
@@ -169,7 +172,7 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
       });
       if (profileError) throw profileError;
 
-      // 4. Vincular usuario y cliente en 'contactos_cliente'
+      // ... (Vincular contacto igual que antes) ...
       const { error: contactError } = await supabaseAdmin.from('contactos_cliente').insert({
         cliente_id: newClient.id,
         user_id: newAuthUser.id,
@@ -177,12 +180,10 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
       if (contactError) throw contactError;
 
     } catch (error) {
-      // Rollback: Si algo falla, borramos el cliente para no dejar datos inconsistentes.
       await supabaseAdmin.from('clientes').delete().eq('id', newClient.id);
       throw error;
     }
   }
-
   // --- Lógica de Auto-asignación para Comerciales (SIN CAMBIOS) ---
   // Esta lógica sigue siendo válida y funciona perfectamente.
   if (creatingUser?.rol === 'comercial' && creatingUser?.id) {

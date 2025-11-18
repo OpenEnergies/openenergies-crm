@@ -1,5 +1,5 @@
 // src/pages/puntos/PuntoForm.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { router } from '@router/routes'; // <-- (1) Importar router
 // --- Importa Controller ---
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
@@ -53,6 +53,15 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
 }
 // ---------------------------------------------
 
+function normalize(s: string) {
+  return (s || '')
+    .normalize('NFD')
+    // elimina marcas diacríticas
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+
 export default function PuntoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
 
@@ -66,6 +75,21 @@ export default function PuntoForm({ id }: { id?: string }) {
       queryKey: ['allClientesForPuntoForm'],
       queryFn: fetchAllClientes,
   });
+
+  // Estado del input visible (texto) y del dropdown
+  const [clienteInput, setClienteInput] = useState('');
+  const [clienteOpen, setClienteOpen] = useState(false);
+
+  // Sugerencias filtradas (desde 1 carácter)
+  const filteredClientes = useMemo(() => {
+    const q = normalize(clienteInput.trim());
+    if (!q) return [];
+    // nombre + cif opcional
+    return allClientes
+      .filter(c => normalize(`${c.nombre} ${c.cif ?? ''}`).includes(q))
+      .slice(0, 12); // limite razonable
+  }, [clienteInput, allClientes]);
+
   // ---------------------------------------
 
   const {
@@ -73,6 +97,9 @@ export default function PuntoForm({ id }: { id?: string }) {
     handleSubmit,
     reset,
     control,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -98,6 +125,8 @@ export default function PuntoForm({ id }: { id?: string }) {
       } else if (data) {
         // Usar current_comercializadora_id directamente
         const initialComercializadoraId = data.current_comercializadora_id ?? '';
+        const cli = allClientes.find(c => c.id === data.cliente_id);
+        setClienteInput(cli ? `${cli.nombre}${cli.cif ? ` (${cli.cif})` : ''}` : '');
 
         // Resetea el formulario con los datos cargados
         reset({
@@ -120,6 +149,10 @@ export default function PuntoForm({ id }: { id?: string }) {
 
   // --- Función onSubmit ---
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
+    if (!values.cliente_id) {
+      setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+      return;
+    }
     // Prepara el payload para la BBDD
     const payload = {
       cliente_id: values.cliente_id,
@@ -182,17 +215,93 @@ export default function PuntoForm({ id }: { id?: string }) {
 
             {/* Columna Derecha: Cliente (Siempre habilitado) */}
             <div>
-              <label htmlFor="cliente_id">Cliente</label>
-              <div className="input-icon-wrapper">
+              <label htmlFor="cliente_input">Cliente</label>
+              <div className="input-icon-wrapper" style={{ position: 'relative' }}>
                 <HardHat size={18} className="input-icon" />
-                <select id="cliente_id" {...register('cliente_id')} disabled={loadingClientes}>
-                  <option value="">
-                    {loadingClientes ? 'Cargando clientes...' : 'Selecciona cliente'}
-                  </option>
-                  {allClientes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
-                  ))}
-                </select>
+
+                {/* Input visible (texto) */}
+                <input
+                  id="cliente_input"
+                  type="text"
+                  autoComplete="off"
+                  value={clienteInput}
+                  placeholder={loadingClientes ? 'Cargando clientes...' : 'Escribe para buscar cliente'}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setClienteInput(v);
+                    // Invalida selección previa hasta que elija una sugerencia
+                    setValue('cliente_id', '' as any, { shouldValidate: true, shouldDirty: true });
+                    setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+                    setClienteOpen(normalize(v).length >= 1);
+                  }}
+                  onFocus={() => {
+                    if (normalize(clienteInput).length >= 1) setClienteOpen(true);
+                  }}
+                  onBlur={() => {
+                    // pequeño delay para permitir onMouseDown en la lista
+                    setTimeout(() => setClienteOpen(false), 150);
+                  }}
+                  style={{ paddingRight: '2rem' }}
+                />
+
+                {/* Campo real del formulario (oculto) — mantiene el UUID */}
+                <Controller
+                  name="cliente_id"
+                  control={control}
+                  render={({ field }) => (
+                    <input type="hidden" {...field} />
+                  )}
+                />
+
+                {/* Dropdown de sugerencias */}
+                {clienteOpen && filteredClientes.length > 0 && (
+                  <ul
+                    role="listbox"
+                    className="typeahead-list"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 20,
+                      margin: 0,
+                      padding: 0,
+                      listStyle: 'none',
+                      background: 'var(--card-bg, #fff)',
+                      border: '1px solid var(--border-color, #e5e7eb)',
+                      borderTop: 'none',
+                      maxHeight: '240px',
+                      overflowY: 'auto',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {filteredClientes.map((c) => (
+                      <li
+                        key={c.id}
+                        role="option"
+                        tabIndex={-1}
+                        onMouseDown={(e) => {
+                          // onMouseDown para que ocurra antes del blur del input
+                          e.preventDefault();
+                          const label = `${c.nombre}${c.cif ? ` (${c.cif})` : ''}`;
+                          setClienteInput(label);
+                          setValue('cliente_id', c.id, { shouldValidate: true, shouldDirty: true });
+                          clearErrors('cliente_id');
+                          setClienteOpen(false);
+                        }}
+                        style={{
+                          padding: '0.5rem 0.75rem',
+                          cursor: 'pointer',
+                          borderTop: '1px solid var(--border-color, #e5e7eb)',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        {c.nombre} {c.cif ? <span style={{ opacity: 0.7 }}>({c.cif})</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>

@@ -12,6 +12,7 @@ import type { Cliente, Empresa, PuntoSuministro } from '@lib/types';
 
 // === Schema del formulario (sin cambios) ===
 const schema = z.object({
+  cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
   punto_id: z.string().uuid({ message: 'Punto obligatorio' }),
   comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }),
   fecha_inicio: z.string().min(1, 'Fecha de inicio obligatoria'),
@@ -60,6 +61,13 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
 }
 // ---------------------------------------------
 
+function normalize(s: string) {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export default function ContratoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
   const queryClient = useQueryClient();
@@ -88,36 +96,59 @@ export default function ContratoForm({ id }: { id?: string }) {
     watch,
     control,
     getValues,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      cliente_id: '',
       aviso_renovacion: false,
       estado: 'activo',
     },
   });
 
+    // Cliente (typeahead)
+  const [clienteInput, setClienteInput] = useState('');
+  const [clienteOpen, setClienteOpen] = useState(false);
+
+  // Punto (typeahead)
+  const [puntoInput, setPuntoInput] = useState('');
+  const [puntoOpen, setPuntoOpen] = useState(false);
+
+
   // Observadores
-  const watchedClienteId = watch('cliente_id' as any); // Campo de filtro para cliente
+  const watchedClienteId = watch('cliente_id'); // Campo de filtro para cliente
   const aviso = watch('aviso_renovacion');
+
+  // Lista de clientes filtrados desde 1 carácter
+  const filteredClientes = useMemo(() => {
+    const q = normalize(clienteInput.trim());
+    if (!q) return [];
+    return allClientes
+      .filter(c => normalize(`${c.nombre} ${c.cif ?? ''}`).includes(q))
+      .slice(0, 12);
+  }, [clienteInput, allClientes]);
+
+  // Lista de puntos filtrados por cliente + query (CUPS o Dirección), mostrando solo CUPS
+
+  const filteredPuntosByQuery = useMemo(() => {
+    const q = normalize(puntoInput.trim());
+    if (!watchedClienteId || !q) return [];
+    const candidatos = allPuntos.filter(p => p.cliente_id === watchedClienteId);
+    return candidatos
+      .filter(p => normalize(`${p.cups} ${p.direccion ?? ''}`).includes(q))
+      .slice(0, 12);
+  }, [puntoInput, watchedClienteId, allPuntos]);
 
   // --- EFECTO FILTRADO PUNTOS POR CLIENTE ---
   useEffect(() => {
-      if (watchedClienteId) {
-          const filtered = allPuntos.filter(p => p.cliente_id === watchedClienteId);
-          setFilteredPuntos(filtered);
-
-          const currentPuntoId = getValues('punto_id');
-          const puntoInNewList = filtered.some(p => p.id === currentPuntoId);
-          if (!puntoInNewList) {
-            setValue('punto_id', '', { shouldValidate: false });
-          }
-      } else {
-          setFilteredPuntos([]);
-          setValue('punto_id', '', { shouldValidate: false });
-      }
-  }, [watchedClienteId, allPuntos, setValue, getValues]);
+    // Al cambiar de cliente, limpiar el punto
+    setPuntoInput('');
+    setValue('punto_id', '', { shouldValidate: true, shouldDirty: true });
+    if (watchedClienteId) clearErrors('cliente_id');
+  }, [watchedClienteId, setValue, clearErrors]);
 
   // --- EFECTO CARGA EDICIÓN ---
   useEffect(() => {
@@ -153,7 +184,12 @@ export default function ContratoForm({ id }: { id?: string }) {
         });
 
         // Usar setValue para el campo de filtro cliente_id
-        setValue('cliente_id' as any, initialClienteId, { shouldDirty: false });
+        setValue('cliente_id', initialClienteId, { shouldDirty: false });
+
+         // Mostrar nombre de cliente y CUPS del punto en los inputs visibles
+        const clienteInicial = allClientes.find(c => c.id === initialClienteId);
+        setClienteInput(clienteInicial ? `${clienteInicial.nombre}${clienteInicial.cif ? ` (${clienteInicial.cif})` : ''}` : '');
+        setPuntoInput(puntoInicial?.cups ?? '');
 
         // Poblar puntos filtrados
         if (initialClienteId) {
@@ -167,6 +203,20 @@ export default function ContratoForm({ id }: { id?: string }) {
 
   // --- FUNCIÓN ONSUBMIT ---
   const onSubmit = async (values: FormValues) => {
+    const clienteId = getValues('cliente_id');
+    if (!clienteId) {
+      setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+      return;
+    }
+    if (!values.punto_id) {
+      setError('punto_id', { type: 'validate', message: 'Selecciona un punto de la lista' });
+      return;
+    }
+    const puntoSel = allPuntos.find(p => p.id === values.punto_id);
+    if (!puntoSel || puntoSel.cliente_id !== clienteId) {
+      setError('punto_id', { type: 'validate', message: 'El punto no pertenece al cliente seleccionado' });
+      return;
+    }
     // Necesitamos obtener el cliente_id real del punto seleccionado
     let clienteIdParaActualizar: string | null = null;
     try {
@@ -267,71 +317,149 @@ export default function ContratoForm({ id }: { id?: string }) {
               {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
             </div>
 
-            {/* 2. Cliente (Siempre habilitado, independiente) */}
+            {/* 2. Cliente (Typeahead obligatorio, independiente) */}
             <div>
-              <label htmlFor="cliente_id">Cliente</label>
-              <div className="input-icon-wrapper">
+              <label htmlFor="cliente_input">Cliente</label>
+              <div className="input-icon-wrapper" style={{ position: 'relative' }}>
                 <HardHat size={18} className="input-icon" />
-                <Controller
-                    name={"cliente_id" as any} // Campo de control para filtrar puntos
-                    control={control}
-                    render={({ field }) => (
-                        <select
-                            id="cliente_id"
-                            {...field}
-                            disabled={loadingClientes}
-                        >
-                            <option value="">
-                                {loadingClientes ? 'Cargando...' : 'Selecciona cliente...'}
-                            </option>
-                            {allClientes.map((c) => (
-                              <option key={c.id} value={c.id}>{c.nombre} {c.cif ? `(${c.cif})` : ''}</option>
-                            ))}
-                        </select>
-                    )}
+
+                {/* Input visible */}
+                <input
+                  id="cliente_input"
+                  type="text"
+                  autoComplete="off"
+                  value={clienteInput}
+                  placeholder={loadingClientes ? 'Cargando clientes...' : 'Escribe para buscar cliente'}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setClienteInput(v);
+                    // Invalida la selección hasta que elija una sugerencia
+                    setValue('cliente_id', '', { shouldValidate: true, shouldDirty: true });
+                    setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+                    setClienteOpen(normalize(v).length >= 1);
+                  }}
+                  onFocus={() => {
+                    if (normalize(clienteInput).length >= 1) setClienteOpen(true);
+                  }}
+                  onBlur={() => setTimeout(() => setClienteOpen(false), 150)}
                 />
+
+                {/* Campo oculto con el UUID real */}
+                <Controller
+                  name={'cliente_id'}
+                  control={control}
+                  render={({ field }) => <input type="hidden" {...field} />}
+                />
+
+                {/* Dropdown de sugerencias */}
+                {clienteOpen && filteredClientes.length > 0 && (
+                  <ul
+                    role="listbox"
+                    className="typeahead-list"
+                    style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+                      margin: 0, padding: 0, listStyle: 'none',
+                      background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)',
+                      borderTop: 'none', maxHeight: 240, overflowY: 'auto',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {filteredClientes.map(c => (
+                      <li
+                        key={c.id}
+                        role="option"
+                        tabIndex={-1}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const label = `${c.nombre}${c.cif ? ` (${c.cif})` : ''}`;
+                          setClienteInput(label);
+                          setValue('cliente_id', c.id, { shouldValidate: true, shouldDirty: true });
+                          clearErrors('cliente_id');
+                          setClienteOpen(false);
+                        }}
+                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        {c.nombre} {c.cif ? <span style={{ opacity: 0.7 }}>({c.cif})</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
+              {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>
 
-            {/* 3. Punto de Suministro (Filtrado por cliente) */}
+
+            {/* 3. Punto de Suministro (Typeahead dependiente del cliente) */}
             <div>
-              <label htmlFor="punto_id">Punto de suministro</label>
-              <div
-                  className="input-icon-wrapper"
-                  onMouseDownCapture={(e) => {
-                      if (!watchedClienteId) {
-                          e.preventDefault();
-                          toast.error('Selecciona primero un cliente.');
-                      }
-                  }}
-                  title={!watchedClienteId ? 'Selecciona primero un cliente' : undefined}
-              >
+              <label htmlFor="punto_input">Punto de suministro</label>
+              <div className="input-icon-wrapper" style={{ position: 'relative' }}>
                 <Plug size={18} className="input-icon" />
-                <Controller
-                    name="punto_id"
-                    control={control}
-                    render={({ field }) => (
-                        <select
-                            id="punto_id"
-                            {...field}
-                            disabled={!watchedClienteId || loadingPuntos}
-                            style={{ cursor: !watchedClienteId ? 'not-allowed' : 'default' }}
-                        >
-                            <option value="">
-                                {!watchedClienteId
-                                    ? '← Selecciona un cliente'
-                                    : loadingPuntos
-                                    ? 'Cargando...'
-                                    : filteredPuntos.length === 0
-                                    ? 'No hay puntos'
-                                    : 'Selecciona punto...'}
-                            </option>
-                            {filteredPuntos.map((p) => (
-                              <option key={p.id} value={p.id}>{puntoLabel(p)}</option>
-                            ))}
-                        </select>
-                    )}
+
+                {/* Input visible */}
+                <input
+                  id="punto_input"
+                  type="text"
+                  autoComplete="off"
+                  value={puntoInput}
+                  placeholder={!watchedClienteId ? '← Selecciona un cliente' : (loadingPuntos ? 'Cargando puntos...' : 'Escribe CUPS o dirección')}
+                  disabled={!watchedClienteId || loadingPuntos}
+                  style={{ cursor: !watchedClienteId ? 'not-allowed' : 'text' }}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPuntoInput(v);
+                    setValue('punto_id', '' as any, { shouldValidate: true, shouldDirty: true });
+                    setError('punto_id', { type: 'validate', message: 'Selecciona un punto de la lista' });
+                    setPuntoOpen(!!watchedClienteId && normalize(v).length >= 1);
+                  }}
+                  onFocus={() => {
+                    if (watchedClienteId && normalize(puntoInput).length >= 1) setPuntoOpen(true);
+                  }}
+                  onBlur={() => setTimeout(() => setPuntoOpen(false), 150)}
                 />
+
+                {/* Campo oculto con el UUID real del punto */}
+                <Controller
+                  name="punto_id"
+                  control={control}
+                  render={({ field }) => <input type="hidden" {...field} />}
+                />
+
+                {/* Dropdown de sugerencias (muestra SOLO CUPS) */}
+                {puntoOpen && filteredPuntosByQuery.length > 0 && (
+                  <ul
+                    role="listbox"
+                    className="typeahead-list"
+                    style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+                      margin: 0, padding: 0, listStyle: 'none',
+                      background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)',
+                      borderTop: 'none', maxHeight: 240, overflowY: 'auto',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {filteredPuntosByQuery.map(p => (
+                      <li
+                        key={p.id}
+                        role="option"
+                        tabIndex={-1}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setPuntoInput(p.cups);            // 👉 solo CUPS en el input visible
+                          setValue('punto_id', p.id, { shouldValidate: true, shouldDirty: true });
+                          clearErrors('punto_id');
+                          setPuntoOpen(false);
+                        }}
+                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        {p.cups}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               {errors.punto_id && <p className="error-text">{errors.punto_id.message}</p>}
             </div>

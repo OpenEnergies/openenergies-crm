@@ -40,6 +40,14 @@ export default function ClienteDetailLayout() {
     { path: `${basePath}/documentos`, label: 'Documentos' },
   ];
 
+  // Renderizado horizontal de teléfonos separado por " - "
+  const renderTelefonos = (rawString: string | null | undefined) => {
+    if (!rawString) return 'No especificado';
+    const parts = rawString.split('/').map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return 'No especificado';
+    return parts.join(' - ');
+  };
+
   if (!clienteId) {
     return <div className="card" role="alert">Error: ID de cliente no encontrado en la URL.</div>;
   }
@@ -87,23 +95,26 @@ export default function ClienteDetailLayout() {
           </span>
         </div>
 
-        {/* --- GRID DE DATOS (4 Columnas Homogéneas) --- */}
+        {/* --- GRID DE DATOS --- */}
         <div className="profile-grid" style={{ 
             display: 'grid',
-            // Forzamos 4 columnas de igual tamaño (25% cada una)
-            gridTemplateColumns: 'repeat(4, 1fr)', 
-            gap: '1.5rem'
+            gridTemplateColumns: 'repeat(5, 1fr)', 
+            gap: '1.5rem',
+            // CAMBIO IMPORTANTE: 'start' en lugar de 'center' para que los títulos
+            // y valores empiecen arriba y no floten si hay diferencias de altura.
+            alignItems: 'start' 
         }}>
-          {/* 1. DNI / CIF (Alineado a la izquierda) */}
+          {/* 1. DNI / CIF */}
           <div>
             <label>{cliente.tipo === 'persona' ? 'DNI' : 'CIF'}</label>
             <p>{cliente.tipo === 'persona' ? (cliente.dni || '—') : (cliente.cif || '—')}</p>
           </div>
 
-          {/* 2. Estado (Centro-Izquierda) */}
+          {/* 2. Estado (Ajustado para estar "justo debajo") */}
           <div>
             <label>Estado</label>
-            <p style={{ display: 'flex', alignItems: 'center', margin: 0, paddingTop: '0.25rem' }}>
+            {/* Eliminado paddingTop extra y margin para pegarlo al label */}
+            <p style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
               <span
                 className={`status-dot ${
                   cliente.estado === 'activo' ? 'status-activo' :
@@ -116,22 +127,24 @@ export default function ClienteDetailLayout() {
             </p>
           </div>
 
-          {/* 3. Email Facturación (Centro-Derecha) */}
+          {/* 3. Email Facturación */}
           <div>
             <label>Email Facturación</label>
-            <p>{cliente.email_facturacion || 'No especificado'}</p>
+            <p style={{ wordBreak: 'break-all' }}>{cliente.email_facturacion || 'No especificado'}</p>
           </div>
 
-          {/* 4. Nº Cuenta (Alineado a la Derecha) */}
+          {/* 4. Teléfonos (Renderizado horizontal) */}
+          <div>
+            <label>Teléfono (s)</label>
+            <div style={{ fontWeight: 500, fontSize: '1rem' }}>
+              {renderTelefonos(cliente.telefonos)}
+            </div>
+          </div>
+
+          {/* 5. Nº Cuenta */}
           <div style={{ textAlign: 'right' }}>
             <label>Nº Cuenta</label>
-            {/* Eliminamos monospace y aplicamos el mismo peso que los demás */}
-            <p style={{ 
-                fontWeight: 500, 
-                fontSize: '1rem',
-                margin: 0,
-                paddingTop: '0.25rem'
-            }}>
+            <p style={{ fontWeight: 500, fontSize: '1rem', margin: 0 }}>
                {cliente.numero_cuenta || 'No especificado'}
             </p>
           </div>

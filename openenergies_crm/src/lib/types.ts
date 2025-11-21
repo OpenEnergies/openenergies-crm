@@ -81,6 +81,7 @@ export interface Cliente {
   estado: EstadoCliente;
   representante?: string | null;
   numero_cuenta?: string | null;
+  telefonos?: string | null;
 }
 
 export type TipoFactura = 'Luz' | 'Gas';

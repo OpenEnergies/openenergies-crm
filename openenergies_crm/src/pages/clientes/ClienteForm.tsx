@@ -1,6 +1,5 @@
 // src/pages/clientes/ClienteForm.tsx
 import React from 'react';
-// 1. Importamos useWatch
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,14 +9,12 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, TipoCliente, EstadoCliente, UsuarioApp } from '@lib/types';
 import { useSession } from '@hooks/useSession';
-import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users, CreditCard, User } from 'lucide-react';
+import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users, CreditCard, User, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
 
-// Tipado para los comerciales en el selector
 type ComercialOption = Pick<UsuarioApp, 'user_id' | 'nombre' | 'apellidos'>;
 
-// Schema Actualizado
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
@@ -27,6 +24,7 @@ const createClienteSchema = (createAccess: boolean) => z.object({
   email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
   representante: z.string().optional().nullable(),
   numero_cuenta: z.string().optional().nullable(),
+  telefonos: z.string().optional().nullable(),
   email: createAccess ? z.string().email('El email de acceso es obligatorio') : z.string().optional(),
   password: createAccess ? z.string().min(8, 'La contraseña debe tener al menos 8 caracteres') : z.string().optional(),
 });
@@ -56,6 +54,9 @@ export default function ClienteForm({ id }: { id?: string }) {
   const [selectedComerciales, setSelectedComerciales] = useState<string[]>([]);
   const [initialAssignments, setInitialAssignments] = useState<string[]>([]);
 
+  const [tel1, setTel1] = useState('');
+  const [tel2, setTel2] = useState('');
+
   const { data: comerciales = [], isLoading: loadingComerciales } = useQuery({
       queryKey: ['comercialesList'],
       queryFn: fetchComerciales,
@@ -70,13 +71,17 @@ export default function ClienteForm({ id }: { id?: string }) {
 
   const schema = createClienteSchema(createPortalAccess);
 
-  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, control, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { estado: 'stand by' }
   });
 
-  // --- 2. Vigilamos el valor del campo 'tipo' ---
   const tipoCliente = useWatch({ control, name: 'tipo' });
+
+  const syncTelefonos = (t1: string, t2: string) => {
+    const finalString = [t1, t2].filter(t => t.trim() !== '').join(' / ');
+    setValue('telefonos', finalString, { shouldDirty: true });
+  };
 
   useEffect(() => {
     if (!editing || !id) return;
@@ -89,12 +94,18 @@ export default function ClienteForm({ id }: { id?: string }) {
         return;
       }
       if (data) {
+        const rawTel = data.telefonos || '';
+        const parts = rawTel.split('/').map((s: string) => s.trim());
+        setTel1(parts[0] || '');
+        setTel2(parts[1] || '');
+
         const clienteData = {
           ...data,
           tipo: data.tipo as TipoCliente,
           estado: data.estado as EstadoCliente,
           representante: data.representante ?? '',
           numero_cuenta: data.numero_cuenta ?? '',
+          telefonos: rawTel,
         };
         reset(clienteData);
       }
@@ -119,17 +130,20 @@ export default function ClienteForm({ id }: { id?: string }) {
     setServerError(null);
     try {
       let clientIdToUse: string | null = editing ? id! : null;
+      const finalTelefonos = [tel1, tel2].filter(t => t.trim() !== '').join(' / ');
+      const valuesToSubmit = { ...values, telefonos: finalTelefonos };
 
       if (editing) {
         const { error: updateError } = await supabase.from('clientes').update({
-          nombre: values.nombre,
-          tipo: values.tipo,
-          dni: values.dni,
-          cif: values.cif,
-          email_facturacion: values.email_facturacion,
-          estado: values.estado,
-          representante: values.representante,
-          numero_cuenta: values.numero_cuenta
+          nombre: valuesToSubmit.nombre,
+          tipo: valuesToSubmit.tipo,
+          dni: valuesToSubmit.dni,
+          cif: valuesToSubmit.cif,
+          email_facturacion: valuesToSubmit.email_facturacion,
+          estado: valuesToSubmit.estado,
+          representante: valuesToSubmit.representante,
+          numero_cuenta: valuesToSubmit.numero_cuenta,
+          telefonos: valuesToSubmit.telefonos
         }).eq('id', id!);
         
         if (updateError) throw updateError;
@@ -155,21 +169,22 @@ export default function ClienteForm({ id }: { id?: string }) {
             payload: {
               creatingUser: { rol: currentUserRol, id: userId },
               clientData: {
-                nombre: values.nombre,
-                tipo: values.tipo,
-                dni: values.dni,
-                cif: values.cif,
-                email_facturacion: values.email_facturacion,
-                estado: values.estado,
-                representante: values.representante,
-                numero_cuenta: values.numero_cuenta
+                nombre: valuesToSubmit.nombre,
+                tipo: valuesToSubmit.tipo,
+                dni: valuesToSubmit.dni,
+                cif: valuesToSubmit.cif,
+                email_facturacion: valuesToSubmit.email_facturacion,
+                estado: valuesToSubmit.estado,
+                representante: valuesToSubmit.representante,
+                numero_cuenta: valuesToSubmit.numero_cuenta,
+                telefonos: valuesToSubmit.telefonos
               },
               createPortalAccess: createPortalAccess,
               userData: createPortalAccess ? {
-                email: values.email,
-                password: values.password,
-                nombre: values.nombre.split(' ')[0],
-                apellidos: values.nombre.split(' ').slice(1).join(' '),
+                email: valuesToSubmit.email,
+                password: valuesToSubmit.password,
+                nombre: valuesToSubmit.nombre.split(' ')[0],
+                apellidos: valuesToSubmit.nombre.split(' ').slice(1).join(' '),
               } : null
             }
           };
@@ -197,8 +212,6 @@ export default function ClienteForm({ id }: { id?: string }) {
   }
 
   const showComercialSelector = currentUserRol === 'administrador';
-
-  // Estilo para inputs deshabilitados
   const disabledStyle = { backgroundColor: 'var(--bg-muted)', cursor: 'not-allowed', opacity: 0.7 };
 
   return (
@@ -210,13 +223,13 @@ export default function ClienteForm({ id }: { id?: string }) {
       <form onSubmit={handleSubmit(onSubmit)} className="card">
         <div className="grid" style={{ gap: '1.5rem' }}>
           
-          {/* FILA 1: Nombre y Tipo */}
+          {/* FILA 1: Nombre y Tipo (50% - 50%) */}
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="nombre">Nombre o Razón Social</label>
               <div className="input-icon-wrapper">
                 <HardHat size={18} className="input-icon" />
-                <input id="nombre" {...register('nombre')} placeholder='Nombre del cliente' />
+                <input id="nombre" {...register('nombre')} />
               </div>
               {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
             </div>
@@ -234,7 +247,7 @@ export default function ClienteForm({ id }: { id?: string }) {
             </div>
           </div>
 
-          {/* FILA 2: Representante y Nº de Cuenta */}
+          {/* FILA 2: Representante y Nº de Cuenta (50% - 50%) */}
           <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
             <div>
               <label htmlFor="representante">Representante</label>
@@ -252,13 +265,11 @@ export default function ClienteForm({ id }: { id?: string }) {
             </div>
           </div>
 
-          {/* FILA 3: DNI y CIF (CON LÓGICA DE BLOQUEO) */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
-            
-            {/* Campo DNI: Bloqueado si es Sociedad */}
+          {/* FILA 3: DNI, CIF, Estado (25% - 25% - 50%) */}
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '1rem'}}>
             <div>
               <label htmlFor="dni" style={tipoCliente === 'sociedad' ? { color: 'var(--muted)' } : {}}>
-                DNI (para personas físicas)
+                DNI (personas)
               </label>
               <div className="input-icon-wrapper">
                 <FileText size={18} className="input-icon" />
@@ -267,15 +278,13 @@ export default function ClienteForm({ id }: { id?: string }) {
                   {...register('dni')}
                   disabled={tipoCliente === 'sociedad'}
                   style={tipoCliente === 'sociedad' ? disabledStyle : {}}
-                  placeholder={tipoCliente === 'sociedad' ? 'No aplica' : 'DNI del cliente'}
+                  placeholder={tipoCliente === 'sociedad' ? 'No aplica' : 'DNI'}
                 />
               </div>
             </div>
-
-            {/* Campo CIF: Bloqueado si es Persona */}
             <div>
               <label htmlFor="cif" style={tipoCliente === 'persona' ? { color: 'var(--muted)' } : {}}>
-                CIF (para sociedades)
+                CIF (sociedades)
               </label>
               <div className="input-icon-wrapper">
                 <FileText size={18} className="input-icon" />
@@ -284,23 +293,10 @@ export default function ClienteForm({ id }: { id?: string }) {
                   {...register('cif')} 
                   disabled={tipoCliente === 'persona'}
                   style={tipoCliente === 'persona' ? disabledStyle : {}}
-                  placeholder={tipoCliente === 'persona' ? 'No aplica' : 'CIF de la sociedad'}
+                  placeholder={tipoCliente === 'persona' ? 'No aplica' : 'CIF'}
                 />
               </div>
             </div>
-          </div>
-
-          {/* FILA 4: Email Facturación y Estado */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
-            <div>
-              <label htmlFor="email_facturacion">Email de facturación (opcional)</label>
-              <div className="input-icon-wrapper">
-                <Mail size={18} className="input-icon" />
-                <input id="email_facturacion" type="email" {...register('email_facturacion')} placeholder='Email de facturación'/>
-              </div>
-              {errors.email_facturacion && <p className="error-text">{errors.email_facturacion.message}</p>}
-            </div>
-            
             <div>
               <label htmlFor="estado">Estado</label>
               <div className="input-icon-wrapper">
@@ -317,7 +313,53 @@ export default function ClienteForm({ id }: { id?: string }) {
             </div>
           </div>
 
-          {/* --- SECCIÓN ASIGNAR COMERCIALES --- */}
+          {/* FILA 4: Email, Teléfonos (50% - 50%) */}
+          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+            
+            {/* Email */}
+            <div>
+              <label htmlFor="email_facturacion">Email de facturación</label>
+              <div className="input-icon-wrapper">
+                <Mail size={18} className="input-icon" />
+                <input id="email_facturacion" type="email" {...register('email_facturacion')} placeholder="ejemplo@email.com" />
+              </div>
+              {errors.email_facturacion && <p className="error-text">{errors.email_facturacion.message}</p>}
+            </div>
+
+            {/* Teléfonos (Input Doble) */}
+            <div>
+              <label>Teléfono(s) de contacto</label>
+              <div className="input-icon-wrapper">
+                <Phone size={18} className="input-icon" />
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input 
+                    placeholder="Teléfono 1" 
+                    value={tel1} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTel1(val);
+                      syncTelefonos(val, tel2);
+                    }}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <span style={{ color: 'var(--muted)', fontWeight: 'bold', userSelect: 'none' }}>/</span>
+                  <input 
+                    placeholder="Teléfono 2 (Opcional)" 
+                    value={tel2} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTel2(val);
+                      syncTelefonos(tel1, val);
+                    }}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                </div>
+              </div>
+              <input type="hidden" {...register('telefonos')} />
+            </div>
+          </div>
+
+          {/* ... (Resto de secciones) ... */}
           {showComercialSelector && (
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
                   <h3 style={{ marginTop: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -345,7 +387,6 @@ export default function ClienteForm({ id }: { id?: string }) {
               </div>
           )}
 
-          {/* Sección Crear Acceso Portal */}
           {!editing && (
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
               <h3 style={{ marginTop: 0, fontSize: '1.1rem' }}>Acceso al Portal de Cliente</h3>

@@ -79,6 +79,8 @@ export interface Cliente {
   email_facturacion: string | null;
   creado_en: string | null;
   estado: EstadoCliente;
+  representante?: string | null;
+  numero_cuenta?: string | null;
 }
 
 export type TipoFactura = 'Luz' | 'Gas';

@@ -15,10 +15,10 @@ const schema = z.object({
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
   punto_id: z.string().uuid({ message: 'Punto obligatorio' }),
   comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }),
-  fecha_inicio: z.string().min(1, 'Fecha de inicio obligatoria'),
+  fecha_inicio: z.string().optional().nullable().or(z.literal('')),
   estado: z.string().min(1, 'Estado obligatorio'),
   oferta: z.string().trim().optional().nullable(),
-  fecha_fin: z.string().optional().nullable(),
+  fecha_fin: z.string().optional().nullable().or(z.literal('')),
   aviso_renovacion: z.boolean().default(false),
   fecha_aviso: z.string().optional().nullable(),
 }).refine(
@@ -242,7 +242,7 @@ export default function ContratoForm({ id }: { id?: string }) {
     const payload = {
       punto_id: values.punto_id,
       comercializadora_id: values.comercializadora_id,
-      fecha_inicio: values.fecha_inicio,
+      fecha_inicio: values.fecha_inicio?.toString().trim() || null,
       estado: values.estado,
       oferta: values.oferta?.toString().trim() || null,
       fecha_fin: values.fecha_fin?.toString().trim() || null,

@@ -42,12 +42,7 @@ export default function ForceChangePassword() {
       if (updateProfileError) throw updateProfileError;
 
       // --- 3. FORZAR REFETCH Y ESPERAR ---
-      // Invalidamos Y forzamos la recarga inmediata de la query del perfil,
-      // esperando a que termine antes de continuar.
       await queryClient.refetchQueries({ queryKey: ['userProfile', user.id], exact: true });
-      // Alternativa (más explícita si la anterior no funciona):
-      // await queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
-      // await new Promise(resolve => setTimeout(resolve, 100)); // Pequeña pausa opcional
 
       // --- 4. FEEDBACK Y REDIRECCIÓN ---
       toast.success('Contraseña actualizada correctamente. Redirigiendo...');
@@ -57,17 +52,14 @@ export default function ForceChangePassword() {
 
     } catch (e: any) {
       console.error("Error al actualizar contraseña:", e);
-      toast.error(`Error al actualizar la contraseña: La contraseña debe tener al menos 8 caracteres, que incluyan al menos 1 letra mayúscula, 1 minúscula, 1 número y 1 carácter especial.`); // Mensaje genérico
+      toast.error(`Error al actualizar la contraseña: La contraseña debe tener al menos 8 caracteres, que incluyan al menos 1 letra mayúscula, 1 minúscula, 1 número y 1 carácter especial.`); 
     }
   }
 
   return (
-    // --- 👇 Aplicamos la misma clase de fondo que el Login ---
     <main className="login-page-background">
-      {/* --- 👇 Usamos la misma clase de tarjeta que el Login --- */}
       <div className="card login-card" aria-labelledby="change-password-title">
 
-        {/* --- Logo (igual que en Login) --- */}
         <div className="login-logo">
           <Leaf size={30} />
           <span>Open Energies CRM</span>
@@ -90,12 +82,12 @@ export default function ForceChangePassword() {
             {errors.password && <p className="error-text">{errors.password.message}</p>}
           </div>
 
-          {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
+          {/* --- 👇 CORRECCIÓN: Eliminado type="password" --- */}
           <div>
             <label htmlFor="confirmPassword">Confirmar Nueva Contraseña</label>
             <PasswordInput
                id="confirmPassword"
-               type="password"
+               // type="password"  <-- ¡ESTO SE HA ELIMINADO!
                {...register('confirmPassword')}
                aria-invalid={!!errors.confirmPassword}
                placeholder="Repite la contraseña"
@@ -103,11 +95,9 @@ export default function ForceChangePassword() {
             {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
           </div>
 
-          {/* Hint para lectores de pantalla */}
           <div id="change-password-hint" className="sr-only">Introduce y confirma tu nueva contraseña. Mínimo 8 caracteres.</div>
 
           <div>
-            {/* --- Botón mejorado (misma clase que Login) --- */}
             <button
                type="submit"
                disabled={isSubmitting}

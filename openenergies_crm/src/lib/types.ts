@@ -91,12 +91,13 @@ export interface PuntoSuministro {
   titular: string;
   direccion: string;
   cups: string;
-  tarifa_acceso: string;
+  tarifa_acceso: string | null;
   potencia_contratada_kw: number | null;
   consumo_anual_kwh: number | null;
   localidad?: string | null; // <-- NUEVO
   provincia?: string | null; // <-- NUEVO
   tipo_factura?: TipoFactura | null;
+  creado_en?: string;
 }
 
 
@@ -111,6 +112,7 @@ export interface Contrato {
   aviso_renovacion: boolean;
   fecha_aviso: string | null; // date
   estado: string; // 'activo'...
+  creado_en?: string;
 }
 
 export interface Documento {

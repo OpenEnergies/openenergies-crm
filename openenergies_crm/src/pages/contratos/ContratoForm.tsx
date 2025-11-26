@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, Empresa, PuntoSuministro } from '@lib/types';
 
-// === Schema del formulario (sin cambios) ===
+// === Schema del formulario ===
 const schema = z.object({
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
   punto_id: z.string().uuid({ message: 'Punto obligatorio' }),
@@ -33,7 +33,7 @@ type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
 type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif'>;
 type PuntoOpt = Pick<PuntoSuministro, 'id' | 'cups' | 'direccion' | 'cliente_id'>;
 
-// --- Funciones para fetching (sin cambios) ---
+// --- Funciones para fetching ---
 async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     const { data, error } = await supabase
         .from('empresas')
@@ -75,7 +75,7 @@ export default function ContratoForm({ id }: { id?: string }) {
   // --- Estado para filtrar puntos por cliente ---
   const [filteredPuntos, setFilteredPuntos] = useState<PuntoOpt[]>([]);
 
-  // --- Fetching de datos (sin cambios) ---
+  // --- Fetching de datos ---
   const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
       queryKey: ['comercializadoras'],
       queryFn: fetchComercializadoras,
@@ -98,7 +98,7 @@ export default function ContratoForm({ id }: { id?: string }) {
     getValues,
     setError,
     clearErrors,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -109,7 +109,7 @@ export default function ContratoForm({ id }: { id?: string }) {
     },
   });
 
-    // Cliente (typeahead)
+  // Cliente (typeahead)
   const [clienteInput, setClienteInput] = useState('');
   const [clienteOpen, setClienteOpen] = useState(false);
 
@@ -117,12 +117,11 @@ export default function ContratoForm({ id }: { id?: string }) {
   const [puntoInput, setPuntoInput] = useState('');
   const [puntoOpen, setPuntoOpen] = useState(false);
 
-
   // Observadores
-  const watchedClienteId = watch('cliente_id'); // Campo de filtro para cliente
+  const watchedClienteId = watch('cliente_id'); 
   const aviso = watch('aviso_renovacion');
 
-  // Lista de clientes filtrados desde 1 carácter
+  // Lista de clientes filtrados
   const filteredClientes = useMemo(() => {
     const q = normalize(clienteInput.trim());
     if (!q) return [];
@@ -131,8 +130,7 @@ export default function ContratoForm({ id }: { id?: string }) {
       .slice(0, 12);
   }, [clienteInput, allClientes]);
 
-  // Lista de puntos filtrados por cliente + query (CUPS o Dirección), mostrando solo CUPS
-
+  // Lista de puntos filtrados
   const filteredPuntosByQuery = useMemo(() => {
     const q = normalize(puntoInput.trim());
     if (!watchedClienteId || !q) return [];
@@ -141,14 +139,6 @@ export default function ContratoForm({ id }: { id?: string }) {
       .filter(p => normalize(`${p.cups} ${p.direccion ?? ''}`).includes(q))
       .slice(0, 12);
   }, [puntoInput, watchedClienteId, allPuntos]);
-
-  // --- EFECTO FILTRADO PUNTOS POR CLIENTE ---
-  useEffect(() => {
-    // Al cambiar de cliente, limpiar el punto
-    setPuntoInput('');
-    setValue('punto_id', '', { shouldValidate: true, shouldDirty: true });
-    if (watchedClienteId) clearErrors('cliente_id');
-  }, [watchedClienteId, setValue, clearErrors]);
 
   // --- EFECTO CARGA EDICIÓN ---
   useEffect(() => {
@@ -172,15 +162,16 @@ export default function ContratoForm({ id }: { id?: string }) {
         const initialClienteId = puntoInicial?.cliente_id ?? '';
 
         // Resetear campos del schema
+        // CORRECCIÓN 1: Usamos ?? '' para evitar que sean null (fix warning uncontrolled input)
         reset({
           punto_id: data.punto_id,
           comercializadora_id: data.comercializadora_id,
-          fecha_inicio: data.fecha_inicio,
+          fecha_inicio: data.fecha_inicio ?? '',
           estado: (data.estado as string) ?? 'activo',
-          oferta: data.oferta ?? null,
-          fecha_fin: data.fecha_fin ?? null,
+          oferta: data.oferta ?? '', 
+          fecha_fin: data.fecha_fin ?? '', 
           aviso_renovacion: Boolean(data.aviso_renovacion),
-          fecha_aviso: data.fecha_aviso ?? null,
+          fecha_aviso: data.fecha_aviso ?? '', 
         });
 
         // Usar setValue para el campo de filtro cliente_id
@@ -238,7 +229,6 @@ export default function ContratoForm({ id }: { id?: string }) {
       return;
     }
 
-    // Preparamos el payload sin el campo temporal 'cliente_id_filter'
     const payload = {
       punto_id: values.punto_id,
       comercializadora_id: values.comercializadora_id,
@@ -259,7 +249,7 @@ export default function ContratoForm({ id }: { id?: string }) {
           const { error } = await supabase.from('contratos').insert(payload);
           if (error) throw error;
 
-          // --- LÓGICA DE ACTUALIZAR ESTADO DE CLIENTE ---
+          // --- LÓGICA DE ACTUALIZAR ESTADO DE CLIENTE (Solo creación) ---
           if (clienteIdParaActualizar) {
             const { error: clienteUpdateError } = await supabase
               .from('clientes')
@@ -268,13 +258,27 @@ export default function ContratoForm({ id }: { id?: string }) {
 
             if (clienteUpdateError) {
               console.error('Error al actualizar estado del cliente:', clienteUpdateError.message);
-              toast.error('Contrato creado, pero no se pudo actualizar el estado del cliente.');
             } else {
               queryClient.invalidateQueries({ queryKey: ['clientes'] });
             }
           }
-          // ------------------------------------------
         }
+
+        // --- LÓGICA: Sincronización del Punto ---
+        // Se ejecuta SIEMPRE (tanto para Creación como para Edición)
+        if (values.punto_id && values.comercializadora_id) {
+           const { error: updatePuntoError } = await supabase
+             .from('puntos_suministro')
+             .update({ current_comercializadora_id: values.comercializadora_id })
+             .eq('id', values.punto_id);
+             
+           if (updatePuntoError) {
+             console.error("Error al actualizar comercializadora en el punto:", updatePuntoError);
+             // No lanzamos error fatal para no bloquear el flujo, pero avisamos en consola
+           }
+        }
+        // -------------------------------------------------------------------
+
         toast.success(editing ? 'Contrato actualizado' : 'Contrato creado');
         router.history.back();
     } catch (error: any) {
@@ -283,16 +287,9 @@ export default function ContratoForm({ id }: { id?: string }) {
     }
   };
 
-
-  const puntoLabel = useMemo(
-    () => (p: PuntoOpt) => `${p.cups} — ${p.direccion}`,
-    []
-  );
-
   const isLoadingData = loadingComercializadoras || loadingClientes || loadingPuntos;
   const isSubmittingForm = isSubmitting || isLoadingData;
 
-  // --- RENDERIZADO (JSX) ---
   return (
     <div className="grid">
       <div className="page-header">
@@ -304,7 +301,7 @@ export default function ContratoForm({ id }: { id?: string }) {
 
           <div className="form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
 
-            {/* 1. Comercializadora (Independiente) */}
+            {/* 1. Comercializadora */}
             <div>
               <label htmlFor="comercializadora_id">Comercializadora</label>
               <div className="input-icon-wrapper">
@@ -317,13 +314,11 @@ export default function ContratoForm({ id }: { id?: string }) {
               {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
             </div>
 
-            {/* 2. Cliente (Typeahead obligatorio, independiente) */}
+            {/* 2. Cliente */}
             <div>
               <label htmlFor="cliente_input">Cliente</label>
               <div className="input-icon-wrapper" style={{ position: 'relative' }}>
                 <HardHat size={18} className="input-icon" />
-
-                {/* Input visible */}
                 <input
                   id="cliente_input"
                   type="text"
@@ -333,9 +328,10 @@ export default function ContratoForm({ id }: { id?: string }) {
                   onChange={(e) => {
                     const v = e.target.value;
                     setClienteInput(v);
-                    // Invalida la selección hasta que elija una sugerencia
                     setValue('cliente_id', '', { shouldValidate: true, shouldDirty: true });
                     setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+                    setPuntoInput('');
+                    setValue('punto_id', '', { shouldValidate: true, shouldDirty: true });
                     setClienteOpen(normalize(v).length >= 1);
                   }}
                   onFocus={() => {
@@ -343,44 +339,15 @@ export default function ContratoForm({ id }: { id?: string }) {
                   }}
                   onBlur={() => setTimeout(() => setClienteOpen(false), 150)}
                 />
-
-                {/* Campo oculto con el UUID real */}
                 <Controller
                   name={'cliente_id'}
                   control={control}
                   render={({ field }) => <input type="hidden" {...field} />}
                 />
-
-                {/* Dropdown de sugerencias */}
                 {clienteOpen && filteredClientes.length > 0 && (
-                  <ul
-                    role="listbox"
-                    className="typeahead-list"
-                    style={{
-                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
-                      margin: 0, padding: 0, listStyle: 'none',
-                      background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)',
-                      borderTop: 'none', maxHeight: 240, overflowY: 'auto',
-                      boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
-                    }}
-                  >
+                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)', borderTop: 'none', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }}>
                     {filteredClientes.map(c => (
-                      <li
-                        key={c.id}
-                        role="option"
-                        tabIndex={-1}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const label = `${c.nombre}${c.cif ? ` (${c.cif})` : ''}`;
-                          setClienteInput(label);
-                          setValue('cliente_id', c.id, { shouldValidate: true, shouldDirty: true });
-                          clearErrors('cliente_id');
-                          setClienteOpen(false);
-                        }}
-                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
+                      <li key={c.id} role="option" tabIndex={-1} onMouseDown={(e) => { e.preventDefault(); const label = `${c.nombre}${c.cif ? ` (${c.cif})` : ''}`; setClienteInput(label); setPuntoInput(''); setValue('punto_id', '', { shouldValidate: true, shouldDirty: true }); setValue('cliente_id', c.id, { shouldValidate: true, shouldDirty: true }); clearErrors('cliente_id'); setClienteOpen(false); }} style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                         {c.nombre} {c.cif ? <span style={{ opacity: 0.7 }}>({c.cif})</span> : null}
                       </li>
                     ))}
@@ -390,14 +357,11 @@ export default function ContratoForm({ id }: { id?: string }) {
               {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>
 
-
-            {/* 3. Punto de Suministro (Typeahead dependiente del cliente) */}
+            {/* 3. Punto de Suministro */}
             <div>
               <label htmlFor="punto_input">Punto de suministro</label>
               <div className="input-icon-wrapper" style={{ position: 'relative' }}>
                 <Plug size={18} className="input-icon" />
-
-                {/* Input visible */}
                 <input
                   id="punto_input"
                   type="text"
@@ -418,43 +382,15 @@ export default function ContratoForm({ id }: { id?: string }) {
                   }}
                   onBlur={() => setTimeout(() => setPuntoOpen(false), 150)}
                 />
-
-                {/* Campo oculto con el UUID real del punto */}
                 <Controller
                   name="punto_id"
                   control={control}
                   render={({ field }) => <input type="hidden" {...field} />}
                 />
-
-                {/* Dropdown de sugerencias (muestra SOLO CUPS) */}
                 {puntoOpen && filteredPuntosByQuery.length > 0 && (
-                  <ul
-                    role="listbox"
-                    className="typeahead-list"
-                    style={{
-                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
-                      margin: 0, padding: 0, listStyle: 'none',
-                      background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)',
-                      borderTop: 'none', maxHeight: 240, overflowY: 'auto',
-                      boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
-                    }}
-                  >
+                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)', borderTop: 'none', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }}>
                     {filteredPuntosByQuery.map(p => (
-                      <li
-                        key={p.id}
-                        role="option"
-                        tabIndex={-1}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setPuntoInput(p.cups);            // 👉 solo CUPS en el input visible
-                          setValue('punto_id', p.id, { shouldValidate: true, shouldDirty: true });
-                          clearErrors('punto_id');
-                          setPuntoOpen(false);
-                        }}
-                        style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
+                      <li key={p.id} role="option" tabIndex={-1} onMouseDown={(e) => { e.preventDefault(); setPuntoInput(p.cups); setValue('punto_id', p.id, { shouldValidate: true, shouldDirty: true }); clearErrors('punto_id'); setPuntoOpen(false); }} style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                         {p.cups}
                       </li>
                     ))}
@@ -514,20 +450,12 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <label htmlFor="estado">Estado</label>
                   <div className="input-icon-wrapper">
                     <Activity size={18} className="input-icon" />
+                    {/* CORRECCIÓN 2: Usamos emojis en lugar de <span> */}
                     <select id="estado" {...register('estado')}>
-                      {/* Añadimos el span con el punto de color */}
-                      <option value="stand by">
-                        <span className="status-dot status-standby" style={{ verticalAlign: 'middle' }}></span> Stand By
-                      </option>
-                      <option value="procesando">
-                        <span className="status-dot status-procesando" style={{ verticalAlign: 'middle' }}></span> Procesando
-                      </option>
-                      <option value="activo">
-                        <span className="status-dot status-activo" style={{ verticalAlign: 'middle' }}></span> Activo
-                      </option>
-                      <option value="desistido">
-                        <span className="status-dot status-desistido" style={{ verticalAlign: 'middle' }}></span> Desistido
-                      </option>
+                      <option value="stand by">🟠 Stand By</option>
+                      <option value="procesando">🟡 Procesando</option>
+                      <option value="activo">🟢 Activo</option>
+                      <option value="desistido">⚫ Desistido</option>
                     </select>
                   </div>
                   {errors.estado && <p className="error-text">{errors.estado.message}</p>}
@@ -540,7 +468,7 @@ export default function ContratoForm({ id }: { id?: string }) {
             <button
             type="submit"
             className=""
-            disabled={isSubmittingForm}
+            disabled={isSubmittingForm || !isDirty}
           >
             {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear contrato')}
           </button>

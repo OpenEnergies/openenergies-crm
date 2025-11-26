@@ -1,41 +1,49 @@
-// @ts-nocheck
 // src/pages/clientes/ClientesList.tsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import type { Cliente, EstadoCliente } from '@lib/types';
 import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
-import { fmtDate } from '@lib/utils';
+import { fmtDate, clsx } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
-// --- Importar nuevos iconos ---
-import { Pencil, MapPin, Building2, Trash2, Users, XCircle, Edit } from 'lucide-react';
+import { Trash2, XCircle, Edit, ArrowUpDown, ArrowUp, ArrowDown, Users } from 'lucide-react'; // Iconos de ordenación
 import { toast } from 'react-hot-toast';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
-import { useSortableTable } from '@hooks/useSortableTable';
-// --- Importar ConfirmationModal ---
-import ConfirmationModal from '@components/ConfirmationModal'; // Adjust path if needed
-import { clsx } from '@lib/utils'; // Import clsx
+import ConfirmationModal from '@components/ConfirmationModal';
+import { Pagination } from '@components/Pagination'; // <--- IMPORTAR EL NUEVO COMPONENTE
 
 type ClienteConEmpresa = Cliente & {
-  empresas: {
-    nombre: string;
-  } | null;
+  empresas: { nombre: string } | null;
   estado: EstadoCliente;
   comerciales_asignados?: { nombre: string | null, apellidos: string | null }[] | null;
 };
-
-type SortableClienteKey = keyof ClienteConEmpresa | 'empresa_nombre' | 'dni_cif' | 'comerciales_nombres';
 
 const initialColumnFilters = {
   estado: [] as string[],
 };
 
-// fetchClientes y deleteCliente (SIN CAMBIOS, asumiendo que deleteCliente puede manejar un ID)
-// Si necesitas borrado múltiple real, la función deleteCliente (o la Edge Function) debe modificarse
-async function fetchClientes(filter: string): Promise<ClienteConEmpresa[]> {
-    // ... (código existente de fetchClientes) ...
-     const selectQuery = `
+// --- Tipos para la Paginación y Ordenación ---
+type SortField = 'nombre' | 'creado_en' | 'email_facturacion' | 'estado'; // Solo columnas reales de BBDD
+type SortOrder = 'asc' | 'desc';
+
+interface FetchParams {
+  filter: string;
+  page: number;
+  pageSize: number;
+  sortField: SortField;
+  sortOrder: SortOrder;
+  estadoFilters: string[];
+}
+
+// --- Nueva función de fetch robusta con paginación ---
+async function fetchClientes({ filter, page, pageSize, sortField, sortOrder, estadoFilters }: FetchParams) {
+  // 1. Calcular rango para Supabase (0-based)
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  // Query Base
+  const selectQuery = `
     *,
     estado,
     comerciales_asignados:asignaciones_comercial (
@@ -43,30 +51,40 @@ async function fetchClientes(filter: string): Promise<ClienteConEmpresa[]> {
     )
   `;
 
-  if (!filter) {
-    const { data, error } = await supabase
-      .from('clientes')
-      .select(selectQuery)
-      .limit(100)
-      .order('creado_en', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(c => ({
-        ...c,
-        comerciales_asignados: c.comerciales_asignados?.map((a: any) => a.usuarios_app) ?? []
-    })) as ClienteConEmpresa[];
+  let query;
+
+  if (filter) {
+    // Usando RPC para búsqueda de texto
+    query = (supabase.rpc('search_clientes', { search_text: filter }) as any)
+      .select(selectQuery, { count: 'exact' }); // count: exact es CLAVE para paginación
+  } else {
+    // Consulta normal
+    query = (supabase.from('clientes') as any)
+      .select(selectQuery, { count: 'exact' });
   }
 
-  const { data, error } = await supabase
-    .rpc('search_clientes', { search_text: filter })
-    .select(selectQuery) // Ajusta este select si la RPC devuelve toda la data
-    .limit(100)
-    .order('creado_en', { ascending: false });
+  // Aplicar filtros de columna (Estado)
+  if (estadoFilters.length > 0) {
+    query = query.in('estado', estadoFilters);
+  }
+
+  // Aplicar Ordenación
+  // Nota: 'dni_cif' es complejo de ordenar en servidor sin una columna computada, 
+  // por simplicidad usamos columnas directas.
+  query = query.order(sortField, { ascending: sortOrder === 'asc' });
+
+  // Aplicar Paginación
+  const { data, error, count } = await query.range(from, to);
 
   if (error) throw error;
-   return (data || []).map((c: any) => ({
-        ...c,
-        comerciales_asignados: c.comerciales_asignados?.map((a: any) => a.usuarios_app ?? a) ?? []
-    })) as ClienteConEmpresa[];
+
+  // Mapeo de datos (limpieza de comerciales)
+  const clientes = (data || []).map((c: any) => ({
+    ...c,
+    comerciales_asignados: c.comerciales_asignados?.map((a: any) => a.usuarios_app ?? a) ?? []
+  })) as ClienteConEmpresa[];
+
+  return { data: clientes, count: count || 0 };
 }
 
 async function deleteCliente({ clienteId }: { clienteId: string }) {
@@ -75,93 +93,96 @@ async function deleteCliente({ clienteId }: { clienteId: string }) {
     });
     if (error) throw new Error(error.message);
 }
-// --- Fin funciones sin cambios ---
 
-export default function ClientesList(){
+export default function ClientesList() {
   const { rol } = useSession();
   const queryClient = useQueryClient();
+  
+  // Estados de Control de Tabla
   const [filter, setFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // 50 registros por página es un buen estándar
+  const [sortField, setSortField] = useState<SortField>('creado_en');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
 
-  // --- (1) Estado para IDs seleccionados ---
+  // Estados de Selección
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  // --- Estado para el modal de borrado (ahora guarda IDs) ---
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
-  const { data: fetchedData, isLoading, isError } = useQuery({
-      queryKey:['clientes', filter],
-      queryFn:()=>fetchClientes(filter)
+  // Resetear página si cambia el filtro
+  useEffect(() => {
+    setPage(1);
+  }, [filter, columnFilters]);
+
+  // Query Principal
+  const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
+    queryKey: ['clientes', filter, page, pageSize, sortField, sortOrder, columnFilters.estado],
+    queryFn: () => fetchClientes({ 
+      filter, 
+      page, 
+      pageSize, 
+      sortField, 
+      sortOrder,
+      estadoFilters: columnFilters.estado 
+    }),
+    placeholderData: (previousData) => previousData // Mantiene los datos viejos mientras carga los nuevos (evita parpadeo)
   });
 
-  // --- Mutación de borrado (adaptada para potencialmente borrar varios) ---
+  const clientes = queryData?.data || [];
+  const totalCount = queryData?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // --- Handlers de Ordenación Manual ---
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc'); // Default a ascendente al cambiar columna
+    }
+  };
+
+  // Renderizador de icono de ordenación
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown size={14} style={{ marginLeft: '4px', opacity: 0.3 }} />;
+    return sortOrder === 'asc' 
+      ? <ArrowUp size={14} style={{ marginLeft: '4px' }} /> 
+      : <ArrowDown size={14} style={{ marginLeft: '4px' }} />;
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Idealmente, tu backend (manage-client) aceptaría un array de IDs
-      // Si no, iteramos aquí (menos eficiente):
       for (const clienteId of ids) {
-        // Podrías añadir un try/catch por ID si quieres continuar aunque uno falle
         await deleteCliente({ clienteId });
       }
-      // Simular un pequeño retardo si borras muchos para que el usuario vea el cambio
       if (ids.length > 1) await new Promise(res => setTimeout(res, 300));
     },
-    onSuccess: (data, variables) => { // variables contiene los IDs que se mandaron a borrar
+    onSuccess: (data, variables) => {
         toast.success(`${variables.length} cliente(s) eliminado(s) correctamente.`);
-        setIdsToDelete([]); // Limpiar IDs a borrar
-        setSelectedIds([]); // Limpiar selección
+        setIdsToDelete([]);
+        setSelectedIds([]);
         queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
     onError: (error: any) => {
         toast.error(`Error al eliminar cliente(s): ${error.message}`);
-        setIdsToDelete([]); // Limpiar aunque falle
+        setIdsToDelete([]);
     }
   });
 
-  const filterOptions = useMemo(() => { // Sin cambios
+  const filterOptions = useMemo(() => {
     return { estado: ['stand by', 'procesando', 'activo', 'desistido'] as EstadoCliente[] };
   }, []);
 
-  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => { // Sin cambios
+  const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
-
-  const filteredData = useMemo(() => { // Sin cambios
-    if (!fetchedData) return [];
-    let items = fetchedData;
-    return items.filter(item => {
-      const estadoItem = item.estado || 'stand by';
-      return (columnFilters.estado.length === 0 || columnFilters.estado.includes(estadoItem));
-    });
-  }, [fetchedData, columnFilters]);
-
-  const { // Sin cambios
-      sortedData: displayedData,
-      handleSort,
-      renderSortIcon
-  } = useSortableTable<ClienteConEmpresa, SortableClienteKey>(filteredData, {
-      initialSortKey: 'creado_en',
-      initialSortDirection: 'desc',
-      sortValueAccessors: { /* ... accesors existentes ... */
-          dni_cif: (item) => item.dni || item.cif,
-          nombre: (item) => item.nombre,
-          comerciales_nombres: (item) =>
-              item.comerciales_asignados && item.comerciales_asignados.length > 0
-              ? item.comerciales_asignados
-                  .map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim())
-                  .filter(Boolean)
-                  .join(', ')
-              : null,
-          email_facturacion: (item) => item.email_facturacion,
-      }
-  });
 
   const canDelete = rol === 'administrador';
   const canEdit = rol === 'administrador' || rol === 'comercial';
   const isAdmin = rol === 'administrador';
-  const isFiltered = filter.length > 0 || columnFilters.estado.length > 0;
 
-  // --- Helper para formatear comerciales (sin cambios) ---
-  const formatComerciales = (comerciales: { nombre: string | null, apellidos: string | null }[] | null | undefined): string => { /* ... código existente ... */
+  const formatComerciales = (comerciales: { nombre: string | null, apellidos: string | null }[] | null | undefined): string => {
       if (!comerciales || comerciales.length === 0) return '—';
       return comerciales
           .map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim())
@@ -169,12 +190,11 @@ export default function ClientesList(){
           .join(', ');
   };
 
-  // --- (2) Handlers para checkboxes ---
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      setSelectedIds(displayedData.map(item => item.id)); // Seleccionar todos los IDs *visibles*
+      setSelectedIds(clientes.map(item => item.id));
     } else {
-      setSelectedIds([]); // Deseleccionar todos
+      setSelectedIds([]);
     }
   };
 
@@ -184,14 +204,12 @@ export default function ClientesList(){
     );
   };
 
-  // --- Determinar estado de la cabecera checkbox ---
-  const isAllSelected = displayedData.length > 0 && selectedIds.length === displayedData.length;
-  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < displayedData.length;
+  const isAllSelected = clientes.length > 0 && selectedIds.length === clientes.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < clientes.length;
 
-  // --- Handler para el botón de borrado contextual ---
   const handleDeleteSelected = () => {
     if (selectedIds.length > 0) {
-      setIdsToDelete([...selectedIds]); // Prepara los IDs para el modal
+      setIdsToDelete([...selectedIds]);
     }
   };
 
@@ -203,18 +221,16 @@ export default function ClientesList(){
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
                <span>{selectedIds.length} seleccionado(s)</span>
-               {/* Botón Editar (solo si 1 seleccionado) */}
                {selectedIds.length === 1 && canEdit && (
                  <Link
                    to="/app/clientes/$id/editar"
-                   params={{ id: selectedIds[0] }}
+                   params={{ id: selectedIds[0]! }}
                    className="icon-button secondary"
                    title="Editar Cliente"
                  >
                    <Edit size={18} />
                  </Link>
                )}
-               {/* Botón Borrar (si 1 o más seleccionados) */}
                {canDelete && (
                   <button
                     className="icon-button danger"
@@ -225,7 +241,6 @@ export default function ClientesList(){
                     <Trash2 size={18} />
                   </button>
                )}
-               {/* Botón Limpiar Selección */}
                <button
                  className="icon-button secondary"
                  title="Limpiar selección"
@@ -235,13 +250,12 @@ export default function ClientesList(){
                </button>
             </div>
           ) : (
-             // Mostrar buscador y botón de nuevo si no hay selección
              <>
                <input
                  placeholder="Buscar por nombre o DNI/CIF"
                  value={filter}
                  onChange={e => setFilter(e.target.value)}
-                 style={{ minWidth: '300px' }} // Un poco más ancho quizás
+                 style={{ minWidth: '300px' }}
                />
                <Link to="/app/clientes/nuevo"><button>Nuevo Cliente</button></Link>
              </>
@@ -249,89 +263,82 @@ export default function ClientesList(){
         </div>
       </div>
 
-      <div className="card">
-         {isLoading && <div>Cargando...</div>}
-        {isError && <div role="alert">Error al cargar clientes.</div>}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}> {/* Padding 0 para que la tabla y paginación toquen bordes */}
+         {isLoading && <div style={{padding: '2rem', textAlign: 'center'}}>Cargando...</div>}
+        {isError && <div role="alert" style={{padding: '2rem', color: 'red'}}>Error al cargar clientes.</div>}
 
-        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && (
-          <EmptyState
-            title="Sin clientes"
-            description="Aún no hay clientes registrados."
-            cta={<Link to="/app/clientes/nuevo"><button>Crear el primero</button></Link>}
-          />
+        {!isLoading && !isError && clientes.length === 0 && (
+          <div style={{padding: '2rem'}}>
+            <EmptyState
+              title="Sin clientes"
+              description="No se encontraron clientes con los filtros actuales."
+              cta={!filter && columnFilters.estado.length === 0 ? <Link to="/app/clientes/nuevo"><button>Crear el primero</button></Link> : null}
+            />
+          </div>
         )}
 
-        {!isLoading && !isError && fetchedData && fetchedData.length > 0 && (
-          <div className="table-wrapper" role="table" aria-label="Listado de clientes">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: '1%', paddingRight: 0 }}>
-                     <input
-                       type="checkbox"
-                       checked={isAllSelected}
-                       ref={input => {
-                         if (input) input.indeterminate = isIndeterminate;
-                       }}
-                       onChange={handleSelectAll}
-                       aria-label="Seleccionar todos los clientes"
-                     />
-                  </th>
-                  <th>
-                    <button onClick={() => handleSort('nombre')} className="sortable-header">
-                      Nombre {renderSortIcon('nombre')}
-                    </button>
-                  </th>
-                  <th>
-                    <button onClick={() => handleSort('dni_cif')} className="sortable-header">
-                      DNI/CIF {renderSortIcon('dni_cif')}
-                    </button>
-                  </th>
-                  {!isAdmin && (
+        {!isLoading && !isError && clientes.length > 0 && (
+          <>
+            <div className="table-wrapper" role="table" aria-label="Listado de clientes">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '1%', paddingRight: 0 }}>
+                       <input
+                         type="checkbox"
+                         checked={isAllSelected}
+                         ref={input => { if (input) input.indeterminate = isIndeterminate; }}
+                         onChange={handleSelectAll}
+                         aria-label="Seleccionar todos"
+                       />
+                    </th>
                     <th>
-                      <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
-                        Email facturación {renderSortIcon('email_facturacion')}
+                      <button onClick={() => handleSort('nombre')} className="sortable-header">
+                        Nombre {renderSortIcon('nombre')}
                       </button>
                     </th>
-                  )}
-                   {isAdmin && ( 
+                    <th>
+                        {/* DNI/CIF no tiene ordenación servidor simple por ser 2 columnas mezcladas, lo dejamos fijo o requeriría computed column */}
+                        DNI/CIF 
+                    </th>
+                    {!isAdmin && (
                       <th>
-                        <button onClick={() => handleSort('comerciales_nombres')} className="sortable-header">
-                          Comerciales {renderSortIcon('comerciales_nombres')}
+                        <button onClick={() => handleSort('email_facturacion')} className="sortable-header">
+                          Email {renderSortIcon('email_facturacion')}
                         </button>
                       </th>
-                   )}
-                  <th> 
-                    <button onClick={() => handleSort('creado_en')} className="sortable-header">
-                      Creado {renderSortIcon('creado_en')}
-                    </button>
-                  </th>
-                  <th> 
-                    <button onClick={() => handleSort('estado')} className="sortable-header">
-                      Estado {renderSortIcon('estado')}
-                    </button>
-                    <ColumnFilterDropdown 
-                      columnName="Estado"
-                      options={filterOptions.estado}
-                      selectedOptions={columnFilters.estado}
-                      onChange={(selected) => handleColumnFilterChange('estado', selected)}
-                    />
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedData.length > 0 ? (
-                  displayedData.map(c => {
-                    const isSelected = selectedIds.includes(c.id); // Check si la fila está seleccionada
+                    )}
+                     {isAdmin && ( 
+                        <th>Comerciales</th>
+                     )}
+                    <th> 
+                      <button onClick={() => handleSort('creado_en')} className="sortable-header">
+                        Creado {renderSortIcon('creado_en')}
+                      </button>
+                    </th>
+                    <th> 
+                      <button onClick={() => handleSort('estado')} className="sortable-header">
+                        Estado {renderSortIcon('estado')}
+                      </button>
+                      <ColumnFilterDropdown 
+                        columnName="Estado"
+                        options={filterOptions.estado}
+                        selectedOptions={columnFilters.estado}
+                        onChange={(selected) => handleColumnFilterChange('estado', selected)}
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody style={isPlaceholderData ? { opacity: 0.5 } : {}}>
+                  {clientes.map(c => {
+                    const isSelected = selectedIds.includes(c.id);
                     return (
-                    // --- (6) Añadir clase condicional a <tr> ---
                     <tr key={c.id} className={clsx(isSelected && 'selected-row')}>
                        <td style={{ paddingRight: 0 }}>
                          <input
                            type="checkbox"
                            checked={isSelected}
                            onChange={() => handleRowSelect(c.id)}
-                           aria-label={`Seleccionar cliente ${c.nombre}`}
                          />
                        </td>
                       <td> 
@@ -362,35 +369,32 @@ export default function ClientesList(){
                         <span className="status-text">{c.estado || 'stand by'}</span>
                       </td>
                     </tr>
-                  )})
-                ) : (
-                  <tr>
-                    <td colSpan={isAdmin ? 8 : 7} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
-                      Sin resultados que coincidan con los filtros.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )})}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* --- COMPONENTE DE PAGINACIÓN --- */}
+            <Pagination 
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalCount}
+              onPageChange={setPage}
+              isLoading={isPlaceholderData} // Deshabilita botones mientras recarga
+            />
+          </>
         )}
       </div>
+
       <ConfirmationModal
-        // Se abre si hay IDs preparados para borrar
         isOpen={idsToDelete.length > 0}
-        // Al cerrar, limpiar los IDs a borrar
         onClose={() => setIdsToDelete([])}
-        // Al confirmar, llamar a la mutación con los IDs
         onConfirm={() => {
           deleteMutation.mutate(idsToDelete);
         }}
         title={`Confirmar Eliminación (${idsToDelete.length})`}
-        message={
-            idsToDelete.length === 1
-            ? `¿Estás seguro de que quieres eliminar al cliente seleccionado? Se borrarán todos sus datos asociados.`
-            : `¿Estás seguro de que quieres eliminar los ${idsToDelete.length} clientes seleccionados? Se borrarán todos sus datos asociados.`
-        }
-        confirmText={`Sí, Eliminar ${idsToDelete.length}`}
+        message={`¿Estás seguro de que quieres eliminar los ${idsToDelete.length} clientes seleccionados?`}
+        confirmText={`Sí, Eliminar`}
         cancelText="Cancelar"
         confirmButtonClass="danger"
         isConfirming={deleteMutation.isPending}

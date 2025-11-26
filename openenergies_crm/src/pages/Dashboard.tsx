@@ -23,9 +23,9 @@ import EstadoMisClientesWidget from './dashboard/widgets/EstadoMisClientesWidget
 //}
 
 export default function Dashboard() {
-  const { rol, nombre } = useSession();
+  const { rol, nombre, apellidos } = useSession();
 
-  const canChat = rol === 'administrador' || rol === 'comercial';
+  const canChat = rol === 'administrador';
   const canSeeAgendaWidget = rol === 'administrador' || rol === 'comercial';
   const canSeeRenovacionesWidget = rol === 'administrador' || rol === 'comercial';
   const canSeeClientesWidget = rol === 'administrador' || rol === 'comercial';
@@ -40,7 +40,7 @@ export default function Dashboard() {
         {/* --- ¡MENSAJE PERSONALIZADO! --- */}
         <h2 style={{ margin: 0 }}>
           {/* Si tenemos el nombre, lo mostramos. Si no, un saludo genérico. */}
-          {nombre ? `Bienvenido, ${nombre}` : 'Bienvenido'} al CRM de Open Energies
+          {nombre ? apellidos ? `Bienvenido ${nombre} ${apellidos}` : `Bienvenido ${nombre}` : 'Bienvenido'} al CRM de Open Energies
         </h2>
         <p style={{ color: 'var(--muted)', marginTop: '0.25rem' }}>
           Gestiona tus clientes, contratos y documentos desde un único lugar.

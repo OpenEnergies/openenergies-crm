@@ -7,7 +7,6 @@ import type { Contrato } from '@lib/types';
 import { Trash2, XCircle, Edit, ArrowUpDown, ArrowUp, ArrowDown, BadgePlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
-// import DateFilterDropdown from '@components/DateFilterDropdown'; // Deshabilitamos filtro fecha complejo por ahora
 import { toast } from 'react-hot-toast';
 import { fmtDate, clsx } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
@@ -36,18 +35,32 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
+  // Consulta base por defecto (Left Join)
+  let selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
   let query;
 
   if (filter) {
+    // Búsqueda por texto (RPC)
     query = supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null })
-      .select(selectQuery);
+      .select(selectQuery); // El RPC ya maneja el filtro de cliente internamente si está bien programado
   } else {
-    query = supabase.from('contratos').select(selectQuery, { count: 'exact' });
-    if (clienteId) query = query.eq('cliente_id', clienteId); // Asumiendo que contratos tiene cliente_id
+    // Consulta estándar
+    if (clienteId) {
+      // --- CORRECCIÓN ---
+      // Si filtramos por cliente, forzamos INNER JOIN (!inner) en puntos_suministro
+      // para poder filtrar por 'puntos_suministro.cliente_id'
+      selectQuery = `*, puntos_suministro!inner ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
+      
+      query = supabase.from('contratos')
+        .select(selectQuery, { count: 'exact' })
+        .eq('puntos_suministro.cliente_id', clienteId); // Filtramos por la relación
+    } else {
+      // Vista global: consulta normal
+      query = supabase.from('contratos').select(selectQuery, { count: 'exact' });
+    }
   }
 
-  // Filtro booleano de Aviso (Mapeo 'Sí'/'No' a true/false)
+  // Filtro booleano de Aviso
   if (avisoFilter.length > 0) {
     const wantsTrue = avisoFilter.includes('Sí');
     const wantsFalse = avisoFilter.includes('No');
@@ -60,7 +73,7 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { data: data as ContratoExtendido[], count: count || 0 };
+  return { data: data as unknown as ContratoExtendido[], count: count || 0 };
 }
 
 export default function ContratosList({ clienteId }: { clienteId?: string }) {

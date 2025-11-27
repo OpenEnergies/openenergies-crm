@@ -1,5 +1,5 @@
 // src/pages/contratos/ContratoForm.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from '@router/routes';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -10,7 +10,6 @@ import { toast } from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, Empresa, PuntoSuministro } from '@lib/types';
 
-// === Schema del formulario ===
 const schema = z.object({
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
   punto_id: z.string().uuid({ message: 'Punto obligatorio' }),
@@ -27,13 +26,11 @@ const schema = z.object({
 );
 
 type FormValues = z.input<typeof schema>;
-
-// --- Tipos para los desplegables ---
 type ComercializadoraOpt = Pick<Empresa, 'id' | 'nombre'>;
 type ClienteOpt = Pick<Cliente, 'id' | 'nombre' | 'cif'>;
 type PuntoOpt = Pick<PuntoSuministro, 'id' | 'cups' | 'direccion' | 'cliente_id'>;
 
-// --- Funciones para fetching ---
+// --- Fetching ---
 async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     const { data, error } = await supabase
         .from('empresas')
@@ -43,52 +40,67 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     if (error) throw error;
     return data || [];
 }
-async function fetchAllClientes(): Promise<ClienteOpt[]> {
+
+// Búsqueda dinámica de Clientes
+async function searchClientes(query: string): Promise<ClienteOpt[]> {
+    if (!query) return [];
     const { data, error } = await supabase
         .from('clientes')
         .select('id, nombre, cif')
-        .order('nombre', { ascending: true });
+        .or(`nombre.ilike.%${query}%,cif.ilike.%${query}%`)
+        .limit(20);
     if (error) throw error;
     return data || [];
 }
-async function fetchAllPuntos(): Promise<PuntoOpt[]> {
-    const { data, error } = await supabase
+
+// Búsqueda dinámica de Puntos (filtrados por cliente si se selecciona)
+async function searchPuntos(query: string, clienteId?: string): Promise<PuntoOpt[]> {
+    let q = supabase
         .from('puntos_suministro')
         .select('id, cups, direccion, cliente_id')
-        .order('cups', { ascending: true });
+        .limit(20);
+    
+    if (clienteId) {
+        q = q.eq('cliente_id', clienteId);
+    }
+    
+    // Si hay query, filtramos por CUPS o Dirección
+    if (query) {
+        q = q.or(`cups.ilike.%${query}%,direccion.ilike.%${query}%`);
+    } else if (!clienteId) {
+        // Si no hay cliente ni query, no devolver nada para no saturar
+        return [];
+    }
+
+    const { data, error } = await q;
     if (error) throw error;
     return data || [];
-}
-// ---------------------------------------------
-
-function normalize(s: string) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
 }
 
 export default function ContratoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
   const queryClient = useQueryClient();
 
-  // --- Estado para filtrar puntos por cliente ---
-  const [filteredPuntos, setFilteredPuntos] = useState<PuntoOpt[]>([]);
+  // --- Estados de Búsqueda ---
+  const [clienteInput, setClienteInput] = useState('');
+  const [puntoInput, setPuntoInput] = useState('');
+  
+  const [debouncedCliente, setDebouncedCliente] = useState('');
+  const [debouncedPunto, setDebouncedPunto] = useState('');
 
-  // --- Fetching de datos ---
+  const [clienteOpen, setClienteOpen] = useState(false);
+  const [puntoOpen, setPuntoOpen] = useState(false);
+
+  // Debounce effects
+  useEffect(() => { const t = setTimeout(() => setDebouncedCliente(clienteInput), 300); return () => clearTimeout(t); }, [clienteInput]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedPunto(puntoInput), 300); return () => clearTimeout(t); }, [puntoInput]);
+
   const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
       queryKey: ['comercializadoras'],
       queryFn: fetchComercializadoras,
   });
-  const { data: allClientes = [], isLoading: loadingClientes } = useQuery({
-      queryKey: ['allClientesForContratoForm'],
-      queryFn: fetchAllClientes,
-  });
-  const { data: allPuntos = [], isLoading: loadingPuntos } = useQuery({
-      queryKey: ['allPuntosForContratoForm'],
-      queryFn: fetchAllPuntos,
-  });
 
+  // React Hook Form
   const {
     register,
     handleSubmit,
@@ -102,67 +114,53 @@ export default function ContratoForm({ id }: { id?: string }) {
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      cliente_id: '',
-      aviso_renovacion: false,
-      estado: 'activo',
-    },
+    defaultValues: { cliente_id: '', aviso_renovacion: false, estado: 'activo' },
   });
 
-  // Cliente (typeahead)
-  const [clienteInput, setClienteInput] = useState('');
-  const [clienteOpen, setClienteOpen] = useState(false);
-
-  // Punto (typeahead)
-  const [puntoInput, setPuntoInput] = useState('');
-  const [puntoOpen, setPuntoOpen] = useState(false);
-
-  // Observadores
-  const watchedClienteId = watch('cliente_id'); 
+  const watchedClienteId = watch('cliente_id');
   const aviso = watch('aviso_renovacion');
 
-  // Lista de clientes filtrados
-  const filteredClientes = useMemo(() => {
-    const q = normalize(clienteInput.trim());
-    if (!q) return [];
-    return allClientes
-      .filter(c => normalize(`${c.nombre} ${c.cif ?? ''}`).includes(q))
-      .slice(0, 12);
-  }, [clienteInput, allClientes]);
+  // --- Queries Dinámicas ---
+  const { data: clientesFound = [], isLoading: loadingClientes } = useQuery({
+      queryKey: ['searchClientes', debouncedCliente],
+      queryFn: () => searchClientes(debouncedCliente),
+      enabled: debouncedCliente.length >= 2,
+  });
 
-  // Lista de puntos filtrados
-  const filteredPuntosByQuery = useMemo(() => {
-    const q = normalize(puntoInput.trim());
-    if (!watchedClienteId || !q) return [];
-    const candidatos = allPuntos.filter(p => p.cliente_id === watchedClienteId);
-    return candidatos
-      .filter(p => normalize(`${p.cups} ${p.direccion ?? ''}`).includes(q))
-      .slice(0, 12);
-  }, [puntoInput, watchedClienteId, allPuntos]);
+  const { data: puntosFound = [], isLoading: loadingPuntos } = useQuery({
+      queryKey: ['searchPuntos', debouncedPunto, watchedClienteId],
+      queryFn: () => searchPuntos(debouncedPunto, watchedClienteId),
+      // Buscar si hay texto O si hay un cliente seleccionado (para mostrar todos sus puntos)
+      enabled: debouncedPunto.length >= 2 || !!watchedClienteId, 
+  });
 
-  // --- EFECTO CARGA EDICIÓN ---
+  // --- Carga Inicial (Edición) ---
   useEffect(() => {
     if (!editing || !id) return;
-    if (loadingComercializadoras || loadingClientes || loadingPuntos) return;
+    if (loadingComercializadoras) return;
 
     let alive = true;
     (async () => {
-      // Cargar contrato
+      // Obtenemos contrato con joins para mostrar nombre cliente y cups
       const { data, error } = await supabase
         .from('contratos')
-        .select('id,punto_id,comercializadora_id,oferta,fecha_inicio,fecha_fin,aviso_renovacion,fecha_aviso,estado')
+        .select(`
+            *,
+            puntos_suministro (
+                id, cups, direccion, cliente_id,
+                clientes ( id, nombre, cif )
+            )
+        `)
         .eq('id', id)
         .maybeSingle();
+
       if (!alive) return;
       if (error) {
-        toast.error(`Error al cargar el contrato: ${error.message}`);
+        toast.error(`Error al cargar: ${error.message}`);
       } else if (data) {
-        const initialPuntoId = data.punto_id;
-        const puntoInicial = allPuntos.find(p => p.id === initialPuntoId);
-        const initialClienteId = puntoInicial?.cliente_id ?? '';
+        const punto = data.puntos_suministro as any; // Cast rápido para acceder a relaciones
+        const cliente = punto?.clientes;
 
-        // Resetear campos del schema
-        // CORRECCIÓN 1: Usamos ?? '' para evitar que sean null (fix warning uncontrolled input)
         reset({
           punto_id: data.punto_id,
           comercializadora_id: data.comercializadora_id,
@@ -172,72 +170,32 @@ export default function ContratoForm({ id }: { id?: string }) {
           fecha_fin: data.fecha_fin ?? '', 
           aviso_renovacion: Boolean(data.aviso_renovacion),
           fecha_aviso: data.fecha_aviso ?? '', 
+          cliente_id: cliente?.id ?? '' // Establecer ID cliente para habilitar filtro puntos
         });
 
-        // Usar setValue para el campo de filtro cliente_id
-        setValue('cliente_id', initialClienteId, { shouldDirty: false });
-
-         // Mostrar nombre de cliente y CUPS del punto en los inputs visibles
-        const clienteInicial = allClientes.find(c => c.id === initialClienteId);
-        setClienteInput(clienteInicial ? `${clienteInicial.nombre}${clienteInicial.cif ? ` (${clienteInicial.cif})` : ''}` : '');
-        setPuntoInput(puntoInicial?.cups ?? '');
-
-        // Poblar puntos filtrados
-        if (initialClienteId) {
-            const puntosFiltrados = allPuntos.filter(p => p.cliente_id === initialClienteId);
-            setFilteredPuntos(puntosFiltrados);
-        }
+        // Pre-rellenar inputs visuales
+        if (cliente) setClienteInput(`${cliente.nombre} ${cliente.cif ? `(${cliente.cif})` : ''}`);
+        if (punto) setPuntoInput(`${punto.cups} - ${punto.direccion}`);
       }
     })();
     return () => { alive = false; };
-  }, [editing, id, reset, setValue, loadingComercializadoras, loadingClientes, loadingPuntos, allPuntos]);
+  }, [editing, id, reset, loadingComercializadoras]);
 
-  // --- FUNCIÓN ONSUBMIT ---
+  // --- Submit Optimizado (Bloque 1 + Bloque 2) ---
   const onSubmit = async (values: FormValues) => {
-    const clienteId = getValues('cliente_id');
-    if (!clienteId) {
-      setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
-      return;
-    }
-    if (!values.punto_id) {
-      setError('punto_id', { type: 'validate', message: 'Selecciona un punto de la lista' });
-      return;
-    }
-    const puntoSel = allPuntos.find(p => p.id === values.punto_id);
-    if (!puntoSel || puntoSel.cliente_id !== clienteId) {
-      setError('punto_id', { type: 'validate', message: 'El punto no pertenece al cliente seleccionado' });
-      return;
-    }
-    // Necesitamos obtener el cliente_id real del punto seleccionado
-    let clienteIdParaActualizar: string | null = null;
-    try {
-      const puntoSeleccionado = allPuntos.find(p => p.id === values.punto_id);
-      if (puntoSeleccionado) {
-        clienteIdParaActualizar = puntoSeleccionado.cliente_id;
-      } else {
-        const { data: puntoData, error: puntoError } = await supabase
-          .from('puntos_suministro')
-          .select('cliente_id')
-          .eq('id', values.punto_id)
-          .single();
-        if (puntoError) throw new Error(`Punto de suministro no encontrado: ${puntoError.message}`);
-        clienteIdParaActualizar = puntoData.cliente_id;
-      }
-    } catch (e: any) {
-      console.error("Error al buscar cliente_id:", e);
-      toast.error(`Error al validar el punto de suministro: ${e.message}`);
-      return;
-    }
+    // Validaciones básicas
+    if (!values.cliente_id) { setError('cliente_id', { message: 'Selecciona un cliente' }); return; }
+    if (!values.punto_id) { setError('punto_id', { message: 'Selecciona un punto' }); return; }
 
     const payload = {
       punto_id: values.punto_id,
       comercializadora_id: values.comercializadora_id,
-      fecha_inicio: values.fecha_inicio?.toString().trim() || null,
+      fecha_inicio: values.fecha_inicio?.trim() || null,
       estado: values.estado,
-      oferta: values.oferta?.toString().trim() || null,
-      fecha_fin: values.fecha_fin?.toString().trim() || null,
+      oferta: values.oferta?.trim() || null,
+      fecha_fin: values.fecha_fin?.trim() || null,
       aviso_renovacion: values.aviso_renovacion,
-      fecha_aviso: values.aviso_renovacion ? (values.fecha_aviso?.toString().trim() || null) : null,
+      fecha_aviso: values.aviso_renovacion ? (values.fecha_aviso?.trim() || null) : null,
     };
 
     try {
@@ -245,50 +203,22 @@ export default function ContratoForm({ id }: { id?: string }) {
           const { error } = await supabase.from('contratos').update(payload).eq('id', id!);
           if (error) throw error;
         } else {
-          // --- CREACIÓN ---
           const { error } = await supabase.from('contratos').insert(payload);
           if (error) throw error;
-
-          // --- LÓGICA DE ACTUALIZAR ESTADO DE CLIENTE (Solo creación) ---
-          if (clienteIdParaActualizar) {
-            const { error: clienteUpdateError } = await supabase
-              .from('clientes')
-              .update({ estado: 'activo' })
-              .eq('id', clienteIdParaActualizar);
-
-            if (clienteUpdateError) {
-              console.error('Error al actualizar estado del cliente:', clienteUpdateError.message);
-            } else {
-              queryClient.invalidateQueries({ queryKey: ['clientes'] });
-            }
-          }
         }
 
-        // --- LÓGICA: Sincronización del Punto ---
-        // Se ejecuta SIEMPRE (tanto para Creación como para Edición)
-        if (values.punto_id && values.comercializadora_id) {
-           const { error: updatePuntoError } = await supabase
-             .from('puntos_suministro')
-             .update({ current_comercializadora_id: values.comercializadora_id })
-             .eq('id', values.punto_id);
-             
-           if (updatePuntoError) {
-             console.error("Error al actualizar comercializadora en el punto:", updatePuntoError);
-             // No lanzamos error fatal para no bloquear el flujo, pero avisamos en consola
-           }
-        }
-        // -------------------------------------------------------------------
+        // Invalidación global para refrescar vistas
+        queryClient.invalidateQueries({ queryKey: ['contratos'] });
+        queryClient.invalidateQueries({ queryKey: ['clientes'] });
+        queryClient.invalidateQueries({ queryKey: ['puntos'] });
 
         toast.success(editing ? 'Contrato actualizado' : 'Contrato creado');
         router.history.back();
     } catch (error: any) {
-        console.error("Error al guardar contrato:", error);
+        console.error("Error:", error);
         toast.error(`Error al guardar: ${error.message}`);
     }
   };
-
-  const isLoadingData = loadingComercializadoras || loadingClientes || loadingPuntos;
-  const isSubmittingForm = isSubmitting || isLoadingData;
 
   return (
     <div className="grid">
@@ -300,7 +230,6 @@ export default function ContratoForm({ id }: { id?: string }) {
         <div className="grid" style={{ gap: '1.5rem' }}>
 
           <div className="form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
-
             {/* 1. Comercializadora */}
             <div>
               <label htmlFor="comercializadora_id">Comercializadora</label>
@@ -314,7 +243,7 @@ export default function ContratoForm({ id }: { id?: string }) {
               {errors.comercializadora_id && <p className="error-text">{errors.comercializadora_id.message}</p>}
             </div>
 
-            {/* 2. Cliente */}
+            {/* 2. Cliente (Server-Side Search) */}
             <div>
               <label htmlFor="cliente_input">Cliente</label>
               <div className="input-icon-wrapper" style={{ position: 'relative' }}>
@@ -324,40 +253,41 @@ export default function ContratoForm({ id }: { id?: string }) {
                   type="text"
                   autoComplete="off"
                   value={clienteInput}
-                  placeholder={loadingClientes ? 'Cargando clientes...' : 'Escribe para buscar cliente'}
+                  placeholder="Buscar cliente..."
                   onChange={(e) => {
-                    const v = e.target.value;
-                    setClienteInput(v);
-                    setValue('cliente_id', '', { shouldValidate: true, shouldDirty: true });
-                    setError('cliente_id', { type: 'validate', message: 'Selecciona un cliente de la lista' });
+                    setClienteInput(e.target.value);
+                    setValue('cliente_id', '', { shouldDirty: true }); // Reset ID al escribir
+                    // Resetear también punto porque depende del cliente
+                    setValue('punto_id', '', { shouldDirty: true });
                     setPuntoInput('');
-                    setValue('punto_id', '', { shouldValidate: true, shouldDirty: true });
-                    setClienteOpen(normalize(v).length >= 1);
+                    setClienteOpen(e.target.value.length >= 2);
                   }}
-                  onFocus={() => {
-                    if (normalize(clienteInput).length >= 1) setClienteOpen(true);
-                  }}
-                  onBlur={() => setTimeout(() => setClienteOpen(false), 150)}
+                  onFocus={() => { if (clienteInput.length >= 2) setClienteOpen(true); }}
+                  onBlur={() => setTimeout(() => setClienteOpen(false), 200)}
                 />
-                <Controller
-                  name={'cliente_id'}
-                  control={control}
-                  render={({ field }) => <input type="hidden" {...field} />}
-                />
-                {clienteOpen && filteredClientes.length > 0 && (
-                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)', borderTop: 'none', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }}>
-                    {filteredClientes.map(c => (
-                      <li key={c.id} role="option" tabIndex={-1} onMouseDown={(e) => { e.preventDefault(); const label = `${c.nombre}${c.cif ? ` (${c.cif})` : ''}`; setClienteInput(label); setPuntoInput(''); setValue('punto_id', '', { shouldValidate: true, shouldDirty: true }); setValue('cliente_id', c.id, { shouldValidate: true, shouldDirty: true }); clearErrors('cliente_id'); setClienteOpen(false); }} style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-                        {c.nombre} {c.cif ? <span style={{ opacity: 0.7 }}>({c.cif})</span> : null}
+                <Controller name='cliente_id' control={control} render={({ field }) => <input type="hidden" {...field} />} />
+                
+                {clienteOpen && (
+                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color)', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.1)' }}>
+                    {loadingClientes ? <li style={{padding:'0.5rem'}}>Cargando...</li> : clientesFound.map(c => (
+                      <li key={c.id} onMouseDown={(e) => {
+                        e.preventDefault();
+                        setClienteInput(`${c.nombre} ${c.cif ? `(${c.cif})` : ''}`);
+                        setValue('cliente_id', c.id, { shouldValidate: true });
+                        clearErrors('cliente_id');
+                        setClienteOpen(false);
+                      }} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #eee' }}>
+                        {c.nombre} <small style={{color:'var(--muted)'}}>{c.cif}</small>
                       </li>
                     ))}
+                    {!loadingClientes && clientesFound.length === 0 && <li style={{padding:'0.5rem'}}>No se encontraron clientes</li>}
                   </ul>
                 )}
               </div>
               {errors.cliente_id && <p className="error-text">{errors.cliente_id.message}</p>}
             </div>
 
-            {/* 3. Punto de Suministro */}
+            {/* 3. Punto (Server-Side Search + Filtro Cliente) */}
             <div>
               <label htmlFor="punto_input">Punto de suministro</label>
               <div className="input-icon-wrapper" style={{ position: 'relative' }}>
@@ -367,39 +297,37 @@ export default function ContratoForm({ id }: { id?: string }) {
                   type="text"
                   autoComplete="off"
                   value={puntoInput}
-                  placeholder={!watchedClienteId ? '← Selecciona un cliente' : (loadingPuntos ? 'Cargando puntos...' : 'Escribe CUPS o dirección')}
-                  disabled={!watchedClienteId || loadingPuntos}
-                  style={{ cursor: !watchedClienteId ? 'not-allowed' : 'text' }}
+                  placeholder={!watchedClienteId ? 'Selecciona un cliente primero' : 'Buscar CUPS...'}
+                  disabled={!watchedClienteId}
                   onChange={(e) => {
-                    const v = e.target.value;
-                    setPuntoInput(v);
-                    setValue('punto_id', '' as any, { shouldValidate: true, shouldDirty: true });
-                    setError('punto_id', { type: 'validate', message: 'Selecciona un punto de la lista' });
-                    setPuntoOpen(!!watchedClienteId && normalize(v).length >= 1);
+                    setPuntoInput(e.target.value);
+                    setValue('punto_id', '' as any, { shouldDirty: true });
+                    setPuntoOpen(true); // Abrir siempre al escribir si hay cliente
                   }}
-                  onFocus={() => {
-                    if (watchedClienteId && normalize(puntoInput).length >= 1) setPuntoOpen(true);
-                  }}
-                  onBlur={() => setTimeout(() => setPuntoOpen(false), 150)}
+                  onFocus={() => { if (watchedClienteId) setPuntoOpen(true); }}
+                  onBlur={() => setTimeout(() => setPuntoOpen(false), 200)}
                 />
-                <Controller
-                  name="punto_id"
-                  control={control}
-                  render={({ field }) => <input type="hidden" {...field} />}
-                />
-                {puntoOpen && filteredPuntosByQuery.length > 0 && (
-                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color, #e5e7eb)', borderTop: 'none', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }}>
-                    {filteredPuntosByQuery.map(p => (
-                      <li key={p.id} role="option" tabIndex={-1} onMouseDown={(e) => { e.preventDefault(); setPuntoInput(p.cups); setValue('punto_id', p.id, { shouldValidate: true, shouldDirty: true }); clearErrors('punto_id'); setPuntoOpen(false); }} style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderTop: '1px solid var(--border-color, #e5e7eb)' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted, #f6f7f9)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-                        {p.cups}
+                <Controller name="punto_id" control={control} render={({ field }) => <input type="hidden" {...field} />} />
+
+                {puntoOpen && watchedClienteId && (
+                  <ul className="typeahead-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, margin: 0, padding: 0, listStyle: 'none', background: 'var(--card-bg, #fff)', border: '1px solid var(--border-color)', maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 20px rgba(0,0,0,0.1)' }}>
+                    {loadingPuntos ? <li style={{padding:'0.5rem'}}>Cargando...</li> : puntosFound.map(p => (
+                      <li key={p.id} onMouseDown={(e) => {
+                        e.preventDefault();
+                        setPuntoInput(p.cups);
+                        setValue('punto_id', p.id, { shouldValidate: true });
+                        clearErrors('punto_id');
+                        setPuntoOpen(false);
+                      }} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #eee' }}>
+                        <strong>{p.cups}</strong><br/><small>{p.direccion}</small>
                       </li>
                     ))}
+                    {!loadingPuntos && puntosFound.length === 0 && <li style={{padding:'0.5rem'}}>Sin resultados</li>}
                   </ul>
                 )}
               </div>
               {errors.punto_id && <p className="error-text">{errors.punto_id.message}</p>}
             </div>
-
           </div>
 
           <div className="form-row">
@@ -450,7 +378,6 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <label htmlFor="estado">Estado</label>
                   <div className="input-icon-wrapper">
                     <Activity size={18} className="input-icon" />
-                    {/* CORRECCIÓN 2: Usamos emojis en lugar de <span> */}
                     <select id="estado" {...register('estado')}>
                       <option value="stand by">🟠 Stand By</option>
                       <option value="procesando">🟡 Procesando</option>
@@ -465,20 +392,12 @@ export default function ContratoForm({ id }: { id?: string }) {
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
-            <button
-            type="submit"
-            className=""
-            disabled={isSubmittingForm || !isDirty}
-          >
-            {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear contrato')}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => router.history.back()}
-          >
-            Cancelar
-          </button>
+            <button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear contrato')}
+            </button>
+            <button type="button" className="secondary" onClick={() => router.history.back()}>
+                Cancelar
+            </button>
           </div>
         </div>
       </form>

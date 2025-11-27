@@ -12,7 +12,6 @@ import { EmptyState } from '@components/EmptyState';
 import { clsx } from '@lib/utils';
 import { Pagination } from '@components/Pagination';
 
-// Tipo extendido
 type PuntoConCliente = Omit<PuntoSuministro, 'localidad' | 'provincia' | 'tipo_factura'> & {
   localidad?: string | null;
   provincia?: string | null;
@@ -21,7 +20,6 @@ type PuntoConCliente = Omit<PuntoSuministro, 'localidad' | 'provincia' | 'tipo_f
   empresas?: { nombre: string } | null;
 };
 
-// Columnas reales de la BBDD para ordenar
 type SortField = 'cups' | 'direccion' | 'localidad' | 'provincia' | 'tarifa_acceso';
 type SortOrder = 'asc' | 'desc';
 
@@ -42,14 +40,21 @@ const initialColumnFilters = {
   tarifa_acceso: [] as string[],
 };
 
-// --- Función de Fetch Paginada ---
+// --- Nueva función para obtener filtros del servidor ---
+async function fetchPuntosFilters() {
+  const { data, error } = await supabase.rpc('get_puntos_filters_values');
+  if (error) {
+    console.error('Error fetching filters:', error);
+    return null;
+  }
+  return data; // { localidad: [], provincia: [], ... }
+}
+
 async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filters, clienteId }: FetchParams) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
   let query;
-
-  // Selección base con count exacto
   const selectStr = '*, clientes(nombre), empresas:current_comercializadora_id(nombre)';
 
   if (filter) {
@@ -66,16 +71,13 @@ async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filte
     }
   }
 
-  // Filtros de Columna (Server-side)
   if (filters.localidad.length > 0) query = query.in('localidad', filters.localidad);
   if (filters.provincia.length > 0) query = query.in('provincia', filters.provincia);
   if (filters.tipo_factura.length > 0) query = query.in('tipo_factura', filters.tipo_factura);
   if (filters.tarifa_acceso.length > 0) query = query.in('tarifa_acceso', filters.tarifa_acceso);
 
-  // Ordenación
   query = query.order(sortField, { ascending: sortOrder === 'asc' });
 
-  // Paginación
   const { data, error, count } = await query.range(from, to);
 
   if (error) throw error;
@@ -85,7 +87,6 @@ async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filte
 export default function PuntosList({ clienteId }: { clienteId?: string }) {
   const queryClient = useQueryClient();
   
-  // Estados de Paginación y Filtro
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
@@ -96,7 +97,6 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
-  // Reiniciar a página 1 si cambian los filtros
   useEffect(() => {
     setPage(1);
   }, [filter, columnFilters, clienteId]);
@@ -109,22 +109,22 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
     placeholderData: (prev) => prev
   });
 
+  // --- Query para los Filtros (Carga una sola vez y cachea) ---
+  const { data: serverFilters } = useQuery({
+    queryKey: ['puntosFilters'],
+    queryFn: fetchPuntosFilters,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  const filterOptions = useMemo(() => {
+    if (serverFilters) return serverFilters;
+    // Fallback vacio mientras carga
+    return { localidad: [], provincia: [], tipo_factura: [], tarifa_acceso: [] };
+  }, [serverFilters]);
+
   const puntos = queryData?.data || [];
   const totalCount = queryData?.count || 0;
   const totalPages = Math.ceil(totalCount / pageSize);
-
-  // --- Opciones para los dropdowns (podríamos traerlas de una query aparte para que sean todas) ---
-  // Por simplicidad, extraemos de la página actual, pero idealmente debería ser un distinct de la BBDD.
-  const filterOptions = useMemo(() => {
-    const getUnique = (key: keyof PuntoConCliente) =>
-      Array.from(new Set(puntos.map(p => p[key]).filter(Boolean) as string[])).sort();
-    return {
-      localidad: getUnique('localidad'),
-      provincia: getUnique('provincia'),
-      tipo_factura: getUnique('tipo_factura'),
-      tarifa_acceso: getUnique('tarifa_acceso'),
-    };
-  }, [puntos]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -144,7 +144,6 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  // ... (Lógica de Borrado igual que antes) ...
   const deletePuntoMutation = useMutation({
     mutationFn: async (puntoIds: string[]) => {
       const results = await Promise.allSettled(puntoIds.map(puntoId =>
@@ -164,6 +163,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
         setIdsToDelete([]);
         setSelectedIds([]);
         queryClient.invalidateQueries({ queryKey: ['puntos'] });
+        queryClient.invalidateQueries({ queryKey: ['puntosFilters'] }); // Refrescar filtros si borramos algo único
     },
     onError: (error: Error) => {
         toast.error(error.message);

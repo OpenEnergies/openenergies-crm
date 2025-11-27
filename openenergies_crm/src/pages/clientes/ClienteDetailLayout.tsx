@@ -25,7 +25,7 @@ async function fetchCliente(clienteId: string) {
 export default function ClienteDetailLayout() {
   const { id: clienteId } = useParams({ from: clienteDetailRoute.id }) as { id: string };
   const location = useLocation();
-  const { rol } = useSession();
+  const { rol } = useSession(); // Obtenemos el rol
 
   const { data: cliente, isLoading, isError } = useQuery({
     queryKey: ['cliente', clienteId],
@@ -34,11 +34,15 @@ export default function ClienteDetailLayout() {
   });
 
   const basePath = `/app/clientes/${clienteId}`;
+  
+  // --- MODIFICACIÓN: Filtrar pestañas según el rol ---
   const navLinks = [
     { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
-    { path: `${basePath}/contratos`, label: 'Contratos' },
+    // Solo mostramos 'Contratos' si NO es comercial
+    ...(rol !== 'comercial' ? [{ path: `${basePath}/contratos`, label: 'Contratos' }] : []),
     { path: `${basePath}/documentos`, label: 'Documentos' },
   ];
+  // ---------------------------------------------------
 
   const renderTelefonos = (rawString: string | null | undefined) => {
     if (!rawString) return 'No especificado';
@@ -97,22 +101,16 @@ export default function ClienteDetailLayout() {
         {/* --- GRID DE DATOS --- */}
         <div className="profile-grid" style={{ 
             display: 'grid',
-            // CAMBIO: Usamos proporciones personalizadas en lugar de 5 columnas iguales.
-            // 0.8fr para CIF y Estado (pequeños)
-            // 2fr para Email (grande, evita cortes)
-            // 1.2fr para Teléfono y Cuenta (medianos)
             gridTemplateColumns: '0.8fr 0.8fr 2fr 1.2fr 1.2fr', 
-            gap: '1rem', // Reducido un poco el gap para dar más espacio al contenido
+            gap: '1rem',
             alignItems: 'start',
-            width: '100%' // Asegura que ocupe todo el ancho disponible
+            width: '100%'
         }}>
-          {/* 1. DNI / CIF */}
           <div style={{ textAlign: 'center' }}>
             <label>{cliente.tipo === 'persona' ? 'DNI' : 'CIF'}</label>
             <p>{cliente.tipo === 'persona' ? (cliente.dni || '—') : (cliente.cif || '—')}</p>
           </div>
 
-          {/* 2. Estado */}
           <div style={{ textAlign: 'center' }}>
             <label>Estado</label>
             <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
@@ -128,13 +126,11 @@ export default function ClienteDetailLayout() {
             </p>
           </div>
 
-          {/* 3. Email Facturación (Columna más ancha) */}
           <div style={{ textAlign: 'center' }}>
             <label>Email Facturación</label>
             <p style={{ wordBreak: 'break-word' }}>{cliente.email_facturacion || 'No especificado'}</p>
           </div>
 
-          {/* 4. Teléfonos */}
           <div style={{ textAlign: 'center' }}>
             <label>Teléfono (s)</label>
             <div style={{ fontWeight: 500, fontSize: '1rem' }}>
@@ -142,7 +138,6 @@ export default function ClienteDetailLayout() {
             </div>
           </div>
 
-          {/* 5. Nº Cuenta */}
           <div style={{ textAlign: 'center' }}>
             <label>Nº Cuenta</label>
             <p style={{ fontWeight: 500, fontSize: '1rem', margin: 0 }}>

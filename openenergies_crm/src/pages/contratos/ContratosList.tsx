@@ -7,6 +7,7 @@ import type { Contrato } from '@lib/types';
 import { Trash2, XCircle, Edit, ArrowUpDown, ArrowUp, ArrowDown, BadgePlus } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
+import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { toast } from 'react-hot-toast';
 import { fmtDate, clsx } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
@@ -28,39 +29,46 @@ interface FetchParams {
   sortField: SortField;
   sortOrder: SortOrder;
   avisoFilter: string[];
+  dateFilters: {
+    inicio: DateParts;
+    fin: DateParts;
+  };
   clienteId?: string;
 }
 
-async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId }: FetchParams) {
+const initialDateFilter: DateParts = { year: null, month: null, day: null };
+
+// --- Nueva función para obtener fechas del servidor ---
+async function fetchContratosDates() {
+  const { data, error } = await supabase.rpc('get_contratos_dates');
+  if (error) {
+    console.error(error);
+    return { fecha_inicio: [], fecha_fin: [] };
+  }
+  return data;
+}
+
+async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, avisoFilter, dateFilters, clienteId }: FetchParams) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Consulta base por defecto (Left Join)
   let selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
-  let query;
+  let query: any;
 
   if (filter) {
-    // Búsqueda por texto (RPC)
     query = supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null })
-      .select(selectQuery); // El RPC ya maneja el filtro de cliente internamente si está bien programado
+      .select(selectQuery);
   } else {
-    // Consulta estándar
     if (clienteId) {
-      // --- CORRECCIÓN ---
-      // Si filtramos por cliente, forzamos INNER JOIN (!inner) en puntos_suministro
-      // para poder filtrar por 'puntos_suministro.cliente_id'
       selectQuery = `*, puntos_suministro!inner ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
-      
       query = supabase.from('contratos')
         .select(selectQuery, { count: 'exact' })
-        .eq('puntos_suministro.cliente_id', clienteId); // Filtramos por la relación
+        .eq('puntos_suministro.cliente_id', clienteId);
     } else {
-      // Vista global: consulta normal
       query = supabase.from('contratos').select(selectQuery, { count: 'exact' });
     }
   }
 
-  // Filtro booleano de Aviso
   if (avisoFilter.length > 0) {
     const wantsTrue = avisoFilter.includes('Sí');
     const wantsFalse = avisoFilter.includes('No');
@@ -68,12 +76,50 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
     if (!wantsTrue && wantsFalse) query = query.eq('aviso_renovacion', false);
   }
 
+  // --- Aplicar filtros de fecha en el servidor (si existen) ---
+  // (Nota: DateFilterDropdown es complejo de mapear 1:1 a SQL simple sin más lógica, 
+  // pero para filtrado exacto server-side necesitaríamos construir el string. 
+  // Por ahora mantenemos el filtro de fecha en cliente sobre la página O lo implementamos server-side.
+  // Dado que la paginación es server-side, el filtro DEBE ser server-side para funcionar bien.
+  // Aquí implementamos una versión simplificada de filtro server-side para Año/Mes/Día)
+  
+  const applyDateFilter = (col: string, part: DateParts) => {
+    if (part.year) {
+      const yearStart = `${part.year}-01-01`;
+      const yearEnd = `${part.year}-12-31`;
+      // Si hay mes
+      if (part.month) {
+         const m = part.month;
+         // Calcular último día del mes es complejo en SQL puro sin fechas exactas, 
+         // pero podemos usar like o range. Usaremos range simple.
+         const dateStart = `${part.year}-${m}-01`;
+         // Truco: next month
+         let nextM = parseInt(m) + 1;
+         let nextY = parseInt(part.year);
+         if (nextM > 12) { nextM = 1; nextY++; }
+         const dateEnd = `${nextY}-${nextM.toString().padStart(2,'0')}-01`;
+         
+         if (part.day) {
+            query = query.eq(col, `${part.year}-${m}-${part.day}`);
+         } else {
+            query = query.gte(col, dateStart).lt(col, dateEnd);
+         }
+      } else {
+         query = query.gte(col, yearStart).lte(col, yearEnd);
+      }
+    }
+  };
+
+  applyDateFilter('fecha_inicio', dateFilters.inicio);
+  applyDateFilter('fecha_fin', dateFilters.fin);
+
+
   query = query.order(sortField, { ascending: sortOrder === 'asc' })
                .range(from, to);
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { data: data as unknown as ContratoExtendido[], count: count || 0 };
+  return { data: data as ContratoExtendido[], count: count || 0 };
 }
 
 export default function ContratosList({ clienteId }: { clienteId?: string }) {
@@ -85,18 +131,41 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
   const [pageSize] = useState(50);
   const [sortField, setSortField] = useState<SortField>('fecha_inicio');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  
   const [avisoFilter, setAvisoFilter] = useState<string[]>([]);
+  const [dateFilterInicio, setDateFilterInicio] = useState<DateParts>(initialDateFilter);
+  const [dateFilterFin, setDateFilterFin] = useState<DateParts>(initialDateFilter);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
-  useEffect(() => { setPage(1); }, [filter, avisoFilter, clienteId]);
+  useEffect(() => { setPage(1); }, [filter, avisoFilter, dateFilterInicio, dateFilterFin, clienteId]);
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
-    queryKey: ['contratos', filter, page, sortField, sortOrder, avisoFilter, clienteId],
-    queryFn: () => fetchContratos({ filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId }),
+    queryKey: ['contratos', filter, page, sortField, sortOrder, avisoFilter, dateFilterInicio, dateFilterFin, clienteId],
+    queryFn: () => fetchContratos({ 
+      filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId,
+      dateFilters: { inicio: dateFilterInicio, fin: dateFilterFin }
+    }),
     placeholderData: (prev) => prev
   });
+
+  // --- Query de Fechas Totales ---
+  const { data: dateOptionsRaw } = useQuery({
+    queryKey: ['contratosDates'],
+    queryFn: fetchContratosDates,
+    staleTime: 5 * 60 * 1000
+  });
+
+  const filterOptions = useMemo(() => {
+    // Convertir strings a Date objects para el componente
+    const toDates = (arr: string[]) => (arr || []).map(d => new Date(d));
+    return {
+      fecha_inicio: toDates(dateOptionsRaw?.fecha_inicio),
+      fecha_fin: toDates(dateOptionsRaw?.fecha_fin),
+      aviso: ['Sí', 'No'] // Estático
+    };
+  }, [dateOptionsRaw]);
 
   const contratos = queryData?.data || [];
   const totalCount = queryData?.count || 0;
@@ -112,6 +181,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
       setIdsToDelete([]);
       setSelectedIds([]);
       queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['contratosDates'] }); // Refrescar fechas
     },
     onError: (e) => toast.error(e.message)
   });
@@ -184,11 +254,27 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                     <th>CUPS</th>
                     <th>Comercializadora</th>
                     <th><button onClick={() => handleSort('oferta')} className="sortable-header">Oferta {renderSortIcon('oferta')}</button></th>
-                    <th><button onClick={() => handleSort('fecha_inicio')} className="sortable-header">Inicio {renderSortIcon('fecha_inicio')}</button></th>
-                    <th><button onClick={() => handleSort('fecha_fin')} className="sortable-header">Fin {renderSortIcon('fecha_fin')}</button></th>
+                    <th>
+                        <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">Inicio {renderSortIcon('fecha_inicio')}</button>
+                        <DateFilterDropdown 
+                            columnName="Fecha Inicio" 
+                            options={filterOptions.fecha_inicio} 
+                            selectedDate={dateFilterInicio} 
+                            onChange={setDateFilterInicio} 
+                        />
+                    </th>
+                    <th>
+                        <button onClick={() => handleSort('fecha_fin')} className="sortable-header">Fin {renderSortIcon('fecha_fin')}</button>
+                        <DateFilterDropdown 
+                            columnName="Fecha Fin" 
+                            options={filterOptions.fecha_fin} 
+                            selectedDate={dateFilterFin} 
+                            onChange={setDateFilterFin} 
+                        />
+                    </th>
                     <th>
                       Aviso
-                      <ColumnFilterDropdown columnName="Aviso" options={['Sí', 'No']} selectedOptions={avisoFilter} onChange={setAvisoFilter} />
+                      <ColumnFilterDropdown columnName="Aviso" options={filterOptions.aviso} selectedOptions={avisoFilter} onChange={setAvisoFilter} />
                     </th>
                   </tr>
                 </thead>

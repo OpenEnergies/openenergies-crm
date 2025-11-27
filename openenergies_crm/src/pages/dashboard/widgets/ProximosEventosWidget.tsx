@@ -5,31 +5,24 @@ import { Link } from '@tanstack/react-router';
 import { CalendarDays, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useSession } from '@hooks/useSession'; // Para filtrar por comercial si es necesario
+import { useSession } from '@hooks/useSession';
 
-// Tipo simplificado para los eventos del widget
 type ProximoEvento = {
   id: string;
   titulo: string;
-  fecha_inicio: string; // ISO String
+  fecha_inicio: string;
+  etiqueta?: string | null; // <-- Añadido para filtrar
 };
 
-// Función para obtener los próximos eventos
 async function fetchProximosEventos(userId: string | null, rol: string | null): Promise<ProximoEvento[]> {
-  const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const hoy = new Date().toISOString().split('T')[0];
 
   let query = supabase
     .from('agenda_eventos')
-    .select('id, titulo, fecha_inicio')
-    .gte('fecha_inicio', hoy) // Desde hoy en adelante
-    .order('fecha_inicio', { ascending: true }) // Los más cercanos primero
-    .limit(5); // Mostramos los próximos 5
-
-  // Si el usuario es 'comercial', filtramos por sus eventos creados
-  // (Asegúrate de que la tabla agenda_eventos tenga una columna user_id o similar)
-  // if (rol === 'comercial' && userId) {
-  //   query = query.eq('user_id', userId); // Descomenta y ajusta si tienes user_id
-  // }
+    .select('id, titulo, fecha_inicio, etiqueta') // <-- Pedimos etiqueta
+    .gte('fecha_inicio', hoy)
+    .order('fecha_inicio', { ascending: true })
+    .limit(10); // Pedimos un poco más por si filtramos
 
   const { data, error } = await query;
 
@@ -37,19 +30,29 @@ async function fetchProximosEventos(userId: string | null, rol: string | null): 
     console.error("Error fetching próximos eventos:", error);
     throw new Error(error.message);
   }
-  return (data as ProximoEvento[]) || [];
+
+  let eventos = (data as ProximoEvento[]) || [];
+
+  // --- MODIFICACIÓN: Filtrar renovaciones para comerciales ---
+  if (rol === 'comercial') {
+    eventos = eventos.filter(e => e.etiqueta !== 'Renovación');
+  }
+  // ----------------------------------------------------------
+
+  // Devolvemos solo los 5 primeros tras el filtro
+  return eventos.slice(0, 5);
 }
 
 export default function ProximosEventosWidget() {
-  const { userId, rol } = useSession(); // Obtenemos el usuario actual
+  const { userId, rol } = useSession();
 
   const { data: eventos, isLoading, isError } = useQuery({
-    queryKey: ['proximosEventosDashboard', userId, rol], // La key depende del usuario/rol
+    queryKey: ['proximosEventosDashboard', userId, rol],
     queryFn: () => fetchProximosEventos(userId, rol),
   });
 
   return (
-    <div className="card"> {/* Usamos la clase card para el estilo base */}
+    <div className="card">
       <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1rem' }}>
         <CalendarDays size={20} /> Próximos Eventos
       </h3>
@@ -76,7 +79,6 @@ export default function ProximosEventosWidget() {
               </span>
             </li>
           ))}
-          {/* Enlace para ver toda la agenda */}
           <li style={{ textAlign: 'right', marginTop: '0.5rem' }}>
             <Link to="/app/agenda" style={{ fontSize: '0.9rem' }}>Ver agenda completa &rarr;</Link>
           </li>

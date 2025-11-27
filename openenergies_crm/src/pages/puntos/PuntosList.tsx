@@ -40,9 +40,13 @@ const initialColumnFilters = {
   tarifa_acceso: [] as string[],
 };
 
-// --- Nueva función para obtener filtros del servidor ---
-async function fetchPuntosFilters() {
-  const { data, error } = await supabase.rpc('get_puntos_filters_values');
+// --- MODIFICACIÓN: Aceptar clienteId opcional ---
+async function fetchPuntosFilters(clienteId?: string) {
+  // Pasamos el parámetro p_cliente_id a la función RPC
+  const { data, error } = await supabase.rpc('get_puntos_filters_values', { 
+    p_cliente_id: clienteId || null 
+  });
+  
   if (error) {
     console.error('Error fetching filters:', error);
     return null;
@@ -109,16 +113,15 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
     placeholderData: (prev) => prev
   });
 
-  // --- Query para los Filtros (Carga una sola vez y cachea) ---
+  // --- MODIFICACIÓN: Pasar clienteId a la query de filtros ---
   const { data: serverFilters } = useQuery({
-    queryKey: ['puntosFilters'],
-    queryFn: fetchPuntosFilters,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    queryKey: ['puntosFilters', clienteId], // Incluimos clienteId en la key para refrescar si cambia
+    queryFn: () => fetchPuntosFilters(clienteId), // Pasamos el ID a la función
+    staleTime: 5 * 60 * 1000, 
   });
 
   const filterOptions = useMemo(() => {
     if (serverFilters) return serverFilters;
-    // Fallback vacio mientras carga
     return { localidad: [], provincia: [], tipo_factura: [], tarifa_acceso: [] };
   }, [serverFilters]);
 
@@ -163,7 +166,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
         setIdsToDelete([]);
         setSelectedIds([]);
         queryClient.invalidateQueries({ queryKey: ['puntos'] });
-        queryClient.invalidateQueries({ queryKey: ['puntosFilters'] }); // Refrescar filtros si borramos algo único
+        queryClient.invalidateQueries({ queryKey: ['puntosFilters'] }); 
     },
     onError: (error: Error) => {
         toast.error(error.message);

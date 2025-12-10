@@ -2,7 +2,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { useNavigate } from '@tanstack/react-router';
+// CAMBIO: Quitamos useNavigate por window.history.back()
+// import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, useRef  } from 'react';
 import type { Empresa } from '@lib/types';
 import { empresasEditRoute } from '@router/routes';
@@ -75,7 +76,7 @@ async function convertToPngBlob(file: File): Promise<Blob> {
 }
 
 export default function EmpresaForm({ id }: { id?: string }) {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Eliminado
   const editing = Boolean(id);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -210,7 +211,8 @@ export default function EmpresaForm({ id }: { id?: string }) {
       } else {
         toast.success('No hay cambios que guardar.');
       }
-      navigate({ to: '/app/empresas' });
+      // CAMBIO: Volver al historial en lugar de ruta fija
+      window.history.back();
 
     } catch (e: any) {
       console.error("Error al guardar:", e);
@@ -294,7 +296,8 @@ export default function EmpresaForm({ id }: { id?: string }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem' }}>
-            <button type="button" className="secondary" onClick={() => navigate({ to: '/app/empresas' })}>
+            {/* CAMBIO: Volver al historial en Cancelar */}
+            <button type="button" className="secondary" onClick={() => window.history.back()}>
               Cancelar
             </button>
             <button type="submit" disabled={isSubmitting || (!isDirty && !logoDirty)}>

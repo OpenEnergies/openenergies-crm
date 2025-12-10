@@ -4,7 +4,8 @@ import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-import { useNavigate } from '@tanstack/react-router';
+// CAMBIO: Eliminamos useNavigate ya que usaremos history.back()
+// import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cliente, TipoCliente, EstadoCliente, UsuarioApp } from '@lib/types';
@@ -44,7 +45,7 @@ async function fetchCurrentAssignments(clienteId: string): Promise<string[]> {
 }
 
 export default function ClienteForm({ id }: { id?: string }) {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Eliminado
   const { rol: currentUserRol, userId } = useSession();
   const editing = Boolean(id);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -203,7 +204,8 @@ export default function ClienteForm({ id }: { id?: string }) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      navigate({ to: '/app/clientes' });
+      // CAMBIO: Volver al historial en lugar de ruta fija
+      window.history.back();
 
     } catch (e: any) {
       console.error("Error al guardar cliente:", e);
@@ -423,7 +425,8 @@ export default function ClienteForm({ id }: { id?: string }) {
           )}
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-            <button type="button" className="secondary" onClick={() => navigate({ to: '/app/clientes' })}>
+            {/* CAMBIO: Volver al historial en Cancelar */}
+            <button type="button" className="secondary" onClick={() => window.history.back()}>
               Cancelar
             </button>
             <button type="submit" disabled={isSubmitting || loadingComerciales || (editing && loadingAssignments)}>

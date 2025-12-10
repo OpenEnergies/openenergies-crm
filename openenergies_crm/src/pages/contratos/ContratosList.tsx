@@ -1,4 +1,3 @@
-// src/pages/contratos/ContratosList.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
@@ -13,10 +12,11 @@ import { fmtDate, clsx } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
 import { Pagination } from '@components/Pagination';
 import { EmptyState } from '@components/EmptyState';
+import { useEmpresas } from '@hooks/useEmpresas';
 
 type ContratoExtendido = Contrato & {
   puntos_suministro: { cups: string; direccion: string; clientes: { nombre: string } | null; } | null;
-  empresas: { nombre: string } | null;
+  empresas: { id: string, nombre: string } | null;
 };
 
 type SortField = 'fecha_inicio' | 'fecha_fin' | 'oferta' | 'estado' | 'created_at';
@@ -29,44 +29,42 @@ interface FetchParams {
   sortField: SortField;
   sortOrder: SortOrder;
   avisoFilter: string[];
-  dateFilters: {
-    inicio: DateParts;
-    fin: DateParts;
-  };
+  dateFilters: { inicio: DateParts; fin: DateParts; };
   clienteId?: string;
+  empresaId?: string;
+  comercializadoraFilter?: string[];
 }
 
 const initialDateFilter: DateParts = { year: null, month: null, day: null };
 
-// --- Nueva función para obtener fechas del servidor ---
 async function fetchContratosDates() {
   const { data, error } = await supabase.rpc('get_contratos_dates');
-  if (error) {
-    console.error(error);
-    return { fecha_inicio: [], fecha_fin: [] };
-  }
+  if (error) { console.error(error); return { fecha_inicio: [], fecha_fin: [] }; }
   return data;
 }
 
-async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, avisoFilter, dateFilters, clienteId }: FetchParams) {
+async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, avisoFilter, dateFilters, clienteId, empresaId, comercializadoraFilter }: FetchParams) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
+  let selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( id, nombre )`;
   let query: any;
 
   if (filter) {
-    query = supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null })
-      .select(selectQuery);
+    // CAMBIO: Cast a any para permitir .select con count tras rpc
+    query = (supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null }) as any)
+      .select(selectQuery, { count: 'exact' });
   } else {
     if (clienteId) {
-      selectQuery = `*, puntos_suministro!inner ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
-      query = supabase.from('contratos')
-        .select(selectQuery, { count: 'exact' })
-        .eq('puntos_suministro.cliente_id', clienteId);
+      selectQuery = `*, puntos_suministro!inner ( cups, direccion, clientes ( nombre ) ), empresas ( id, nombre )`;
+      query = supabase.from('contratos').select(selectQuery, { count: 'exact' }).eq('puntos_suministro.cliente_id', clienteId);
     } else {
       query = supabase.from('contratos').select(selectQuery, { count: 'exact' });
     }
+  }
+
+  if (empresaId) {
+      query = query.eq('comercializadora_id', empresaId);
   }
 
   if (avisoFilter.length > 0) {
@@ -75,35 +73,24 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
     if (wantsTrue && !wantsFalse) query = query.eq('aviso_renovacion', true);
     if (!wantsTrue && wantsFalse) query = query.eq('aviso_renovacion', false);
   }
-
-  // --- Aplicar filtros de fecha en el servidor (si existen) ---
-  // (Nota: DateFilterDropdown es complejo de mapear 1:1 a SQL simple sin más lógica, 
-  // pero para filtrado exacto server-side necesitaríamos construir el string. 
-  // Por ahora mantenemos el filtro de fecha en cliente sobre la página O lo implementamos server-side.
-  // Dado que la paginación es server-side, el filtro DEBE ser server-side para funcionar bien.
-  // Aquí implementamos una versión simplificada de filtro server-side para Año/Mes/Día)
   
+  if (comercializadoraFilter && comercializadoraFilter.length > 0) {
+      query = query.in('comercializadora_id', comercializadoraFilter);
+  }
+
   const applyDateFilter = (col: string, part: DateParts) => {
     if (part.year) {
       const yearStart = `${part.year}-01-01`;
       const yearEnd = `${part.year}-12-31`;
-      // Si hay mes
       if (part.month) {
          const m = part.month;
-         // Calcular último día del mes es complejo en SQL puro sin fechas exactas, 
-         // pero podemos usar like o range. Usaremos range simple.
          const dateStart = `${part.year}-${m}-01`;
-         // Truco: next month
          let nextM = parseInt(m) + 1;
          let nextY = parseInt(part.year);
          if (nextM > 12) { nextM = 1; nextY++; }
          const dateEnd = `${nextY}-${nextM.toString().padStart(2,'0')}-01`;
-         
-         if (part.day) {
-            query = query.eq(col, `${part.year}-${m}-${part.day}`);
-         } else {
-            query = query.gte(col, dateStart).lt(col, dateEnd);
-         }
+         if (part.day) query = query.eq(col, `${part.year}-${m}-${part.day}`);
+         else query = query.gte(col, dateStart).lt(col, dateEnd);
       } else {
          query = query.gte(col, yearStart).lte(col, yearEnd);
       }
@@ -113,18 +100,17 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
   applyDateFilter('fecha_inicio', dateFilters.inicio);
   applyDateFilter('fecha_fin', dateFilters.fin);
 
-
-  query = query.order(sortField, { ascending: sortOrder === 'asc' })
-               .range(from, to);
+  query = query.order(sortField, { ascending: sortOrder === 'asc' }).range(from, to);
 
   const { data, error, count } = await query;
   if (error) throw error;
   return { data: data as ContratoExtendido[], count: count || 0 };
 }
 
-export default function ContratosList({ clienteId }: { clienteId?: string }) {
+export default function ContratosList({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
   const queryClient = useQueryClient();
   const { rol } = useSession();
+  const { empresas: listaEmpresas } = useEmpresas();
   
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -133,39 +119,47 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   
   const [avisoFilter, setAvisoFilter] = useState<string[]>([]);
+  const [comercializadoraFilter, setComercializadoraFilter] = useState<string[]>([]);
   const [dateFilterInicio, setDateFilterInicio] = useState<DateParts>(initialDateFilter);
   const [dateFilterFin, setDateFilterFin] = useState<DateParts>(initialDateFilter);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
-  useEffect(() => { setPage(1); }, [filter, avisoFilter, dateFilterInicio, dateFilterFin, clienteId]);
+  useEffect(() => { setPage(1); }, [filter, avisoFilter, comercializadoraFilter, dateFilterInicio, dateFilterFin, clienteId, empresaId]);
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
-    queryKey: ['contratos', filter, page, sortField, sortOrder, avisoFilter, dateFilterInicio, dateFilterFin, clienteId],
+    queryKey: ['contratos', filter, page, sortField, sortOrder, avisoFilter, comercializadoraFilter, dateFilterInicio, dateFilterFin, clienteId, empresaId],
     queryFn: () => fetchContratos({ 
-      filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId,
+      filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId, empresaId,
+      comercializadoraFilter,
       dateFilters: { inicio: dateFilterInicio, fin: dateFilterFin }
     }),
     placeholderData: (prev) => prev
   });
 
-  // --- Query de Fechas Totales ---
-  const { data: dateOptionsRaw } = useQuery({
-    queryKey: ['contratosDates'],
-    queryFn: fetchContratosDates,
-    staleTime: 5 * 60 * 1000
-  });
+  const { data: dateOptionsRaw } = useQuery({ queryKey: ['contratosDates'], queryFn: fetchContratosDates, staleTime: 5 * 60 * 1000 });
 
   const filterOptions = useMemo(() => {
-    // Convertir strings a Date objects para el componente
     const toDates = (arr: string[]) => (arr || []).map(d => new Date(d));
     return {
       fecha_inicio: toDates(dateOptionsRaw?.fecha_inicio),
       fecha_fin: toDates(dateOptionsRaw?.fecha_fin),
-      aviso: ['Sí', 'No'] // Estático
+      aviso: ['Sí', 'No']
     };
   }, [dateOptionsRaw]);
+
+  const empresaNombreToId = useMemo(() => {
+      const map: Record<string, string> = {};
+      listaEmpresas.forEach(e => map[e.nombre] = e.id);
+      return map;
+  }, [listaEmpresas]);
+
+  const handleComercializadoraFilterChange = (nombres: string[]) => {
+      // CAMBIO: as string[] para corregir error TS
+      const ids = nombres.map(n => empresaNombreToId[n]).filter(Boolean) as string[];
+      setComercializadoraFilter(ids);
+  };
 
   const contratos = queryData?.data || [];
   const totalCount = queryData?.count || 0;
@@ -178,10 +172,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
     },
     onSuccess: () => {
       toast.success('Contratos eliminados.');
-      setIdsToDelete([]);
-      setSelectedIds([]);
+      setIdsToDelete([]); setSelectedIds([]);
       queryClient.invalidateQueries({ queryKey: ['contratos'] });
-      queryClient.invalidateQueries({ queryKey: ['contratosDates'] }); // Refrescar fechas
+      queryClient.invalidateQueries({ queryKey: ['contratosDates'] });
     },
     onError: (e) => toast.error(e.message)
   });
@@ -208,8 +201,8 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
   return (
     <div className="grid">
       <div className="page-header">
-        {!clienteId && <h2 style={{margin:0}}>Contratos</h2>}
-        <div className="page-actions" style={{ marginLeft: clienteId ? 'auto' : undefined }}>
+        {!clienteId && !empresaId && <h2 style={{margin:0}}>Contratos</h2>}
+        <div className="page-actions" style={{ marginLeft: (clienteId || empresaId) ? 'auto' : undefined }}>
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
                <span>{selectedIds.length} seleccionados</span>
@@ -221,7 +214,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
             </div>
           ) : (
             <>
-              {!clienteId && (
+              {!clienteId && !empresaId && (
                 <>
                   <input placeholder="Buscar..." value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: '250px' }} />
                   {canEdit && <Link to="/app/contratos/nuevo"><button><BadgePlus /></button></Link>}
@@ -239,7 +232,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
         {!isLoading && !isError && contratos.length === 0 && (
           <div style={{padding: '2rem'}}>
              <EmptyState title="Sin contratos" description="No se encontraron contratos." 
-               cta={canEdit && !clienteId ? <Link to="/app/contratos/nuevo"><button>Crear primero</button></Link> : null}
+               cta={canEdit && !clienteId && !empresaId ? <Link to="/app/contratos/nuevo"><button>Crear primero</button></Link> : null}
              />
           </div>
         )}
@@ -252,25 +245,28 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                   <tr>
                     <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === contratos.length} onChange={handleSelectAll}/></th>
                     <th>CUPS</th>
-                    <th>Comercializadora</th>
+                    {/* CAMBIO: Ocultar columna Comercializadora si estamos en ficha de empresa */}
+                    {!empresaId && (
+                      <th>
+                          <div style={{display:'flex', alignItems:'center'}}>
+                              Comercializadora
+                              <ColumnFilterDropdown 
+                                  columnName="Comercializadora" 
+                                  options={listaEmpresas.map(e => e.nombre)} 
+                                  selectedOptions={comercializadoraFilter.map(id => listaEmpresas.find(e => e.id === id)?.nombre || '')} 
+                                  onChange={handleComercializadoraFilterChange} 
+                              />
+                          </div>
+                      </th>
+                    )}
                     <th><button onClick={() => handleSort('oferta')} className="sortable-header">Oferta {renderSortIcon('oferta')}</button></th>
                     <th>
                         <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">Inicio {renderSortIcon('fecha_inicio')}</button>
-                        <DateFilterDropdown 
-                            columnName="Fecha Inicio" 
-                            options={filterOptions.fecha_inicio} 
-                            selectedDate={dateFilterInicio} 
-                            onChange={setDateFilterInicio} 
-                        />
+                        <DateFilterDropdown columnName="Fecha Inicio" options={filterOptions.fecha_inicio} selectedDate={dateFilterInicio} onChange={setDateFilterInicio} />
                     </th>
                     <th>
                         <button onClick={() => handleSort('fecha_fin')} className="sortable-header">Fin {renderSortIcon('fecha_fin')}</button>
-                        <DateFilterDropdown 
-                            columnName="Fecha Fin" 
-                            options={filterOptions.fecha_fin} 
-                            selectedDate={dateFilterFin} 
-                            onChange={setDateFilterFin} 
-                        />
+                        <DateFilterDropdown columnName="Fecha Fin" options={filterOptions.fecha_fin} selectedDate={dateFilterFin} onChange={setDateFilterFin} />
                     </th>
                     <th>
                       Aviso
@@ -283,7 +279,15 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                     <tr key={c.id} className={clsx(selectedIds.includes(c.id) && 'selected-row')}>
                       <td><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => handleRowSelect(c.id)}/></td>
                       <td>{c.puntos_suministro?.cups ?? '—'}</td>
-                      <td>{c.empresas?.nombre ?? '—'}</td>
+                      
+                      {!empresaId && (
+                        <td>
+                          {c.empresas ? (
+                              <Link to="/app/empresas/$id" params={{ id: c.empresas.id }} className="table-action-link">{c.empresas.nombre}</Link>
+                          ) : '—'}
+                        </td>
+                      )}
+                      
                       <td>{c.oferta ?? '—'}</td>
                       <td>{fmtDate(c.fecha_inicio)}</td>
                       <td>{fmtDate(c.fecha_fin)}</td>
@@ -297,15 +301,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
           </>
         )}
       </div>
-      <ConfirmationModal
-        isOpen={idsToDelete.length > 0}
-        onClose={() => setIdsToDelete([])}
-        onConfirm={() => deleteMutation.mutate(idsToDelete)}
-        title="Eliminar Contratos"
-        message="¿Seguro que deseas eliminar los contratos seleccionados?"
-        confirmButtonClass="danger"
-        isConfirming={deleteMutation.isPending}
-      />
+      <ConfirmationModal isOpen={idsToDelete.length > 0} onClose={() => setIdsToDelete([])} onConfirm={() => deleteMutation.mutate(idsToDelete)} title="Eliminar Contratos" message="¿Seguro que deseas eliminar los contratos seleccionados?" confirmButtonClass="danger" isConfirming={deleteMutation.isPending} />
     </div>
   );
 }

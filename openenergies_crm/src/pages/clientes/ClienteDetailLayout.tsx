@@ -1,149 +1,109 @@
-// src/pages/clientes/ClienteDetailLayout.tsx
 import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { clienteDetailRoute } from '@router/routes';
-import type { Cliente, EstadoCliente } from '@lib/types';
 import { clsx } from '@lib/utils';
-import { useSession } from '@hooks/useSession';
+// CAMBIO: Añadido CreditCard a los imports
+import { ArrowLeft, User, Phone, Mail, FileText, MapPin, CreditCard } from 'lucide-react';
 
-type ClienteDetallado = Cliente & {
-  estado: EstadoCliente;
-};
-
-async function fetchCliente(clienteId: string) {
+async function fetchCliente(id: string) {
   const { data, error } = await supabase
     .from('clientes')
-    .select('*, estado')
-    .eq('id', clienteId)
+    .select('*')
+    .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as ClienteDetallado;
+  return data;
 }
 
 export default function ClienteDetailLayout() {
-  const { id: clienteId } = useParams({ from: clienteDetailRoute.id }) as { id: string };
+  const { id } = useParams({ from: clienteDetailRoute.id });
   const location = useLocation();
-  const { rol } = useSession(); // Obtenemos el rol
 
   const { data: cliente, isLoading, isError } = useQuery({
-    queryKey: ['cliente', clienteId],
-    queryFn: (): Promise<ClienteDetallado> => fetchCliente(clienteId),
-    enabled: !!clienteId,
+    queryKey: ['cliente', id],
+    queryFn: () => fetchCliente(id),
+    enabled: !!id,
   });
 
-  const basePath = `/app/clientes/${clienteId}`;
+  const basePath = `/app/clientes/${id}`;
   
-  // --- MODIFICACIÓN: Filtrar pestañas según el rol ---
   const navLinks = [
     { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
-    // Solo mostramos 'Contratos' si NO es comercial
-    ...(rol !== 'comercial' ? [{ path: `${basePath}/contratos`, label: 'Contratos' }] : []),
+    { path: `${basePath}/contratos`, label: 'Contratos' },
     { path: `${basePath}/documentos`, label: 'Documentos' },
   ];
-  // ---------------------------------------------------
 
-  const renderTelefonos = (rawString: string | null | undefined) => {
-    if (!rawString) return 'No especificado';
-    const parts = rawString.split('/').map(s => s.trim()).filter(Boolean);
-    if (parts.length === 0) return 'No especificado';
-    return parts.join(' - ');
+  const isTabActive = (path: string) => {
+      if (path.endsWith('/documentos')) {
+          return location.pathname.includes('/documentos');
+      }
+      return location.pathname === path;
   };
 
-  if (!clienteId) {
-    return <div className="card" role="alert">Error: ID de cliente no encontrado en la URL.</div>;
-  }
-
-  if (isLoading) return <div className="card">Cargando ficha del cliente...</div>;
-  if (isError) return <div className="card" role="alert">Error al cargar los datos del cliente.</div>;
-
-  if (rol === 'cliente') {
-    return (
-      <div className="grid">
-        <Outlet />
-      </div>
-    );
-  }
-
-  if (!cliente) {
-    return <div className="card" role="alert">No se pudo encontrar al cliente con ID: {clienteId}.</div>;
-  }
+  if (!id) return <div className="card" role="alert">Error: ID de cliente no encontrado.</div>;
+  if (isLoading) return <div className="card">Cargando ficha de cliente...</div>;
+  if (isError || !cliente) return <div className="card" role="alert">Error al cargar el cliente.</div>;
 
   return (
     <div className="grid">
-      <div className="card">
-        {/* --- CABECERA --- */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: 0,
-          marginBottom: '1.5rem',
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '1rem',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
-          <h3 style={{ margin: 0 }}>
-            {cliente.nombre}
-          </h3>
+      <div className="page-header">
+         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <Link to="/app/clientes" className="icon-button secondary" title="Volver a listado"><ArrowLeft size={20}/></Link>
+            <h2 style={{margin:0}}>Ficha del Cliente</h2>
+         </div>
+      </div>
 
-          <span style={{
-            fontSize: '1rem',
-            fontWeight: 500,
-            color: 'var(--fg)',
-          }}>
-            {cliente.representante || <span style={{color: 'var(--muted)'}}>(Sin representante)</span>}
-          </span>
-        </div>
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+          
+          {/* CAMBIO: Eliminado el bloque del Avatar */}
+          
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem' }}>
+                {cliente.nombre}
+                </h3>
+                <span className={`status-dot ${cliente.estado === 'activo' ? 'status-activo' : cliente.estado === 'desistido' ? 'status-desistido' : cliente.estado === 'procesando' ? 'status-procesando' : 'status-standby'}`} 
+                      title={cliente.estado || 'stand by'} 
+                      style={{ width: 12, height: 12, display: 'inline-block', marginLeft: 8 }}
+                ></span>
+            </div>
 
-        {/* --- GRID DE DATOS --- */}
-        <div className="profile-grid" style={{ 
-            display: 'grid',
-            gridTemplateColumns: '0.8fr 0.8fr 2fr 1.2fr 1.2fr', 
-            gap: '1rem',
-            alignItems: 'start',
-            width: '100%'
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <label>{cliente.tipo === 'persona' ? 'DNI' : 'CIF'}</label>
-            <p>{cliente.tipo === 'persona' ? (cliente.dni || '—') : (cliente.cif || '—')}</p>
-          </div>
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={16} /> 
+                <span style={{ fontWeight: 500 }}>{cliente.dni || cliente.cif || 'Sin ID'}</span>
+              </div>
+              
+              {(cliente.email_facturacion) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Mail size={16} />
+                    <a href={`mailto:${cliente.email_facturacion}`} className="hover:underline">{cliente.email_facturacion}</a>
+                  </div>
+              )}
 
-          <div style={{ textAlign: 'center' }}>
-            <label>Estado</label>
-            <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-              <span
-                className={`status-dot ${
-                  cliente.estado === 'activo' ? 'status-activo' :
-                  cliente.estado === 'desistido' ? 'status-desistido' :
-                  cliente.estado === 'procesando' ? 'status-procesando' :
-                  'status-standby'
-                }`}
-              ></span>
-              <span className="status-text">{cliente.estado || 'stand by'}</span>
-            </p>
-          </div>
+              {(cliente.telefono || cliente.telefonos) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Phone size={16} />
+                    <span>{cliente.telefono || cliente.telefonos}</span>
+                  </div>
+              )}
 
-          <div style={{ textAlign: 'center' }}>
-            <label>Email Facturación</label>
-            <p style={{ wordBreak: 'break-word' }}>{cliente.email_facturacion || 'No especificado'}</p>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <label>Teléfono (s)</label>
-            <div style={{ fontWeight: 500, fontSize: '1rem' }}>
-              {renderTelefonos(cliente.telefonos)}
+              {/* CAMBIO: Añadido campo IBAN / Nº Cuenta */}
+              {(cliente.numero_cuenta) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <CreditCard size={16} />
+                    <span style={{ fontFamily: 'monospace' }}>{cliente.numero_cuenta}</span>
+                  </div>
+              )}
             </div>
           </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <label>Nº Cuenta</label>
-            <p style={{ fontWeight: 500, fontSize: '1rem', margin: 0 }}>
-               {cliente.numero_cuenta || 'No especificado'}
-            </p>
-          </div>
+          
+          <Link to={`${basePath}/editar` as unknown as any} className="button secondary small">
+            Editar Ficha
+          </Link>
         </div>
       </div>
 
@@ -152,14 +112,16 @@ export default function ClienteDetailLayout() {
           <Link
             key={link.path}
             to={link.path}
-            className={clsx('tab-link', location.pathname.startsWith(link.path) && 'active')}
+            className={clsx('tab-link', isTabActive(link.path) && 'active')}
           >
             {link.label}
           </Link>
         ))}
       </div>
 
-      <Outlet />
+      <div style={{ marginTop: '1.5rem' }}>
+        <Outlet />
+      </div>
     </div>
   );
 }

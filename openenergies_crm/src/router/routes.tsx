@@ -17,6 +17,7 @@ import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
 import EmpresasList from '@pages/empresas/EmpresasList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
 import EmpresasArchivadasPage from '@pages/empresas/EmpresasArchivadasPage'; 
+import EmpresaDetailLayout from '@pages/empresas/EmpresaDetailLayout';  // <-- IMPORT NUEVO
 import ForceChangePassword from '@pages/auth/ForceChangePassword';
 import PerfilPage from '@pages/perfil/PerfilPage';
 import ComparativaForm from '@pages/comparativas/ComparativaForm';
@@ -35,7 +36,6 @@ export const rootRoute = createRootRoute({
 });
 
 // --- 2. RUTAS PÚBLICAS ---
-// ... (sin cambios) ...
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
@@ -62,11 +62,10 @@ const appRoute = createRoute({
   component: () => <RequireAuth><Layout /></RequireAuth>,
 });
 
-// ... (El resto de definiciones hasta documentosClienteRoute no cambian) ...
 const notificacionesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/notificaciones',
-  component: NotificacionesPage, // Usar el componente creado
+  component: NotificacionesPage,
 });
 const agendaRoute = createRoute({ getParentRoute: () => appRoute, path: 'agenda', component: () => <RequireRole roles={['administrador', 'comercial']}><AgendaPage /></RequireRole>,})
 const dashboardRoute = createRoute({ getParentRoute: () => appRoute, path: '/', component: Dashboard, });
@@ -91,15 +90,11 @@ const documentosRoute = createRoute({
   component: DocumentosPageWrapper 
 });
 
-// --- CORRECCIÓN AQUÍ ---
-// Eliminamos la propiedad 'id' explícita
 export const documentosClienteRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/documentos-cliente/$', 
-  // id: '/app/documentos-cliente/$', // <-- ELIMINAR ESTA LÍNEA
   component: ClienteDocumentosExplorer
 });
-// --- FIN CORRECCIÓN ---
 
 const documentoUploadRoute = createRoute({ getParentRoute: () => appRoute, path: '/documentos/subir', component: DocumentoUpload });
 const usuariosRoute = createRoute({ getParentRoute: () => appRoute, path: '/usuarios', component: () => <RequireRole roles={['administrador']}><UsuariosList /></RequireRole>, });
@@ -109,15 +104,27 @@ const comparativasNewRoute = createRoute({ getParentRoute: () => appRoute, path:
 const perfilRoute = createRoute({ getParentRoute: () => appRoute, path: '/perfil', component: PerfilPage, });
 export const empresasRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas', component: () => <RequireRole roles={['administrador']}><EmpresasList /></RequireRole>, });
 export const empresasNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/nueva', component: () => <RequireRole roles={['administrador']}><EmpresaForm /></RequireRole>, });
-export const empresasEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/$id', component: function EditEmpresa() { const { id } = useParams({ from: empresasEditRoute.id }) as {id: string}; return <RequireRole roles={['administrador']}><EmpresaForm id={id} /></RequireRole>; } }); 
+export const empresasEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/$id/editar', component: function EditEmpresa() { const { id } = useParams({ from: empresasEditRoute.id }) as {id: string}; return <RequireRole roles={['administrador']}><EmpresaForm id={id} /></RequireRole>; } }); 
 export const empresasArchivadasRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/empresas/archivadas',
   component: () => <RequireRole roles={['administrador']}><EmpresasArchivadasPage /></RequireRole>,
 });
 
+// --- NUEVA RUTA: Detalle de Empresa ---
+export const empresaDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/empresas/$id',
+  component: () => <RequireRole roles={['administrador']}><EmpresaDetailLayout /></RequireRole>,
+});
+// Sub-rutas de empresa
+const empresaClientesRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'clientes', component: () => { const { id } = useParams({ from: empresaDetailRoute.id }) as {id: string}; return <ClientesList empresaId={id} />; } });
+const empresaPuntosRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'puntos', component: () => { const { id } = useParams({ from: empresaDetailRoute.id }) as {id: string}; return <PuntosList empresaId={id} />; } });
+const empresaContratosRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'contratos', component: () => { const { id } = useParams({ from: empresaDetailRoute.id }) as {id: string}; return <ContratosList empresaId={id} />; } });
+const empresaDetailIndexRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/empresas/$id/clientes', params }); } });
+
+
 // --- 4. RUTA PARA "NO ENCONTRADO" (404) ---
-// ... (sin cambios) ...
 const notFoundRoute = new NotFoundRoute({
   getParentRoute: () => rootRoute,
   component: () => (
@@ -131,7 +138,6 @@ const notFoundRoute = new NotFoundRoute({
 
 
 // --- 5. CONSTRUCCIÓN DEL ÁRBOL DE RUTAS ---
-// ... (sin cambios) ...
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -146,6 +152,13 @@ const routeTree = rootRoute.addChildren([
     empresasNewRoute,
     empresasEditRoute,
     empresasArchivadasRoute,
+    // Añadimos la ruta de detalle con sus hijos
+    empresaDetailRoute.addChildren([
+      empresaDetailIndexRoute,
+      empresaClientesRoute,
+      empresaPuntosRoute,
+      empresaContratosRoute,
+    ]),
     usuariosRoute,
     usuarioInviteRoute,
     usuarioEditRoute,
@@ -166,7 +179,7 @@ const routeTree = rootRoute.addChildren([
     contratoEditRoute,
     renovacionesRoute,
     documentosRoute, 
-    documentosClienteRoute, // Añadida
+    documentosClienteRoute,
     documentoUploadRoute,
   ]),
 ]);

@@ -9,9 +9,9 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
   const { rol } = useSession();
 
+  // Reordenado: Usuarios movido después de Agenda
   const navItems = [
     { to: '/app', label: 'Inicio', icon: Home, module: 'inicio' },
-    { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
     { to: '/app/empresas', label: 'Empresas', icon: Building2, module: 'empresas' },
     { to: '/app/clientes', label: 'Clientes', icon: Handshake, module: 'clientes' },
     { to: '/app/puntos', label: 'Puntos', icon: EvCharger, module: 'puntos' },
@@ -20,6 +20,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     { to: '/app/documentos', label: 'Documentos', icon: Files, module: 'documentos' },
     { to: '/app/comparativas/nueva', label: 'Comparativas', icon: ChartNoAxesCombined, module: 'comparativas' },
     { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, module: 'agenda' },
+    { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' }, // <-- MOVIDO AQUÍ
   ];
 
   // Filtramos los items según los permisos del rol
@@ -32,7 +33,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     <nav className="main-nav">
       <ul>
         {visibleItems.map(item => {
-          const exactMatchRoutes = ['/app', '/app/empresas'];
+          const exactMatchRoutes = ['/app', '/app/empresas', '/app/usuarios'];
           
           const isActive = exactMatchRoutes.includes(item.to)
             ? location.pathname === item.to // Coincidencia exacta

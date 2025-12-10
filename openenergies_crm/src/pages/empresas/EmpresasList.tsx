@@ -38,7 +38,6 @@ async function fetchEmpresas({ mode, page, pageSize, sortField, sortOrder }: Fet
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Nota: El conteo de contratos_activos se trae pero NO se usa para ordenar en servidor en esta versión simple.
   const { data, error, count } = await supabase
     .from('empresas')
     .select(`
@@ -47,9 +46,6 @@ async function fetchEmpresas({ mode, page, pageSize, sortField, sortOrder }: Fet
       contratos_activos:contratos!comercializadora_id(count)
     `, { count: 'exact' })
     .eq('is_archived', mode === 'archived')
-    // Filtros adicionales de contratos activos (se mantienen igual que tu query original para el count)
-    // Nota: Esto solo afecta al count devuelto en el array, no filtra las empresas en sí mismas necesariamente
-    // a menos que uses !inner, pero tu query original usaba left join implicito.
     .order(sortField, { ascending: sortOrder === 'asc' })
     .range(from, to);
 
@@ -70,7 +66,6 @@ export default function EmpresasList({ mode = 'active' }: { mode?: 'active' | 'a
   const [idsToUnarchive, setIdsToUnarchive] = useState<string[]>([]);
   const [modalState, setModalState] = useState<{ id: string; nombre: string } | null>(null);
 
-  // Reset página si cambia modo
   useEffect(() => { setPage(1); }, [mode]);
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
@@ -141,7 +136,7 @@ export default function EmpresasList({ mode = 'active' }: { mode?: 'active' | 'a
               <span>{selectedIds.length} seleccionadas</span>
               {mode === 'active' && (
                 <>
-                  {selectedIds.length === 1 && <Link to="/app/empresas/$id" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18}/></Link>}
+                  {selectedIds.length === 1 && <Link to="/app/empresas/$id/editar" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18}/></Link>}
                   {selectedIds.length === 1 && empresas.find(e=>e.id===selectedIds[0]!)?.tipo === 'comercializadora' && 
                     <button className="icon-button secondary" onClick={() => setModalState({ id: selectedIds[0]!, nombre: empresas.find(e=>e.id===selectedIds[0]!)?.nombre! })}><DollarSign size={18}/></button>
                   }
@@ -182,7 +177,7 @@ export default function EmpresasList({ mode = 'active' }: { mode?: 'active' | 'a
                     <th><button onClick={() => handleSort('nombre')} className="sortable-header">Nombre {renderSortIcon('nombre')}</button></th>
                     <th><button onClick={() => handleSort('cif')} className="sortable-header">CIF {renderSortIcon('cif')}</button></th>
                     <th><button onClick={() => handleSort('tipo')} className="sortable-header">Tipo {renderSortIcon('tipo')}</button></th>
-                    <th>Contratos Activos</th> {/* Sin sort */}
+                    <th>Contratos Activos</th>
                     <th><button onClick={() => handleSort(mode === 'active' ? 'creada_en' : 'archived_at')} className="sortable-header">{mode==='active'?'Creada':'Archivada'} {renderSortIcon(mode === 'active' ? 'creada_en' : 'archived_at')}</button></th>
                   </tr>
                 </thead>
@@ -190,7 +185,12 @@ export default function EmpresasList({ mode = 'active' }: { mode?: 'active' | 'a
                   {empresas.map(e => (
                     <tr key={e.id} className={clsx(selectedIds.includes(e.id) && 'selected-row')}>
                       <td><input type="checkbox" checked={selectedIds.includes(e.id)} onChange={() => handleRowSelect(e.id)} /></td>
-                      <td><div style={{display:'flex',alignItems:'center',gap:8}}><EmpresaLogo url={e.logo_url}/><span>{e.nombre}</span></div></td>
+                      {/* --- NOMBRE CLICABLE --- */}
+                      <td>
+                        <Link to="/app/empresas/$id" params={{ id: e.id }} className="table-action-link font-semibold" style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <EmpresaLogo url={e.logo_url}/><span>{e.nombre}</span>
+                        </Link>
+                      </td>
                       <td>{e.cif ?? '—'}</td>
                       <td><span className="kbd">{e.tipo}</span></td>
                       <td>{e.contratos_activos[0]?.count ?? 0}</td>

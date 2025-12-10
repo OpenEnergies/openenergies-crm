@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -11,18 +15,38 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "vitest/globals"],
-    "ignoreDeprecations": "6.0",                // 👈 ESTA LÍNEA SILENCIA EL AVISO
-    "baseUrl": ".",                             
+    "types": [
+      "vite/client",
+      "vitest/globals"
+    ],
+    "ignoreDeprecations": "5.0", // 👈 ESTA LÍNEA SILENCIA EL AVISO
+    "baseUrl": ".",
     "paths": {
-      "@lib/*": ["src/lib/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@components/*": ["src/components/*"],
-      "@pages/*": ["src/pages/*"],
-      "@router/*": ["src/router/*"],
-      "@features/*": ["src/features/*"]
+      "@lib/*": [
+        "src/lib/*"
+      ],
+      "@hooks/*": [
+        "src/hooks/*"
+      ],
+      "@components/*": [
+        "src/components/*"
+      ],
+      "@pages/*": [
+        "src/pages/*"
+      ],
+      "@router/*": [
+        "src/router/*"
+      ],
+      "@features/*": [
+        "src/features/*"
+      ]
     }
   },
-  "include": ["src", "tests"],
-  "exclude": ["supabase/functions"]
+  "include": [
+    "src",
+    "tests"
+  ],
+  "exclude": [
+    "supabase/functions"
+  ]
 }

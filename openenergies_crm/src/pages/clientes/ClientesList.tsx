@@ -52,32 +52,40 @@ async function fetchClientes({ filter, page, pageSize, sortField, sortOrder, est
   let query: any;
 
   if (filter) {
-    // Si hay búsqueda por texto, usamos la RPC existente
-    // (Nota: Esta RPC solo busca por campos directos del cliente, no por comercializadora relacionada por ahora)
-    query = (supabase.rpc('search_clientes', { search_text: filter }) as any)
-      .select(selectQuery, { count: 'exact' });
-  } else {
-    // Consulta normal
-    // Si filtramos por empresaId, necesitamos hacer un join !inner con puntos_suministro
-    if (empresaId) {
-        query = supabase.from('clientes')
-            .select(`${selectQuery}, puntos_suministro!inner(current_comercializadora_id)`, { count: 'exact' })
-            .eq('puntos_suministro.current_comercializadora_id', empresaId);
-    } else {
-        query = supabase.from('clientes').select(selectQuery, { count: 'exact' });
-    }
-  }
+    // When searching, get IDs from RPC first, then query with those IDs
+    // This is because .select() chaining after .rpc() doesn't properly support count
+    const { data: searchResults, error: searchError } = await supabase.rpc('search_clientes', {
+      search_text: filter
+    });
 
-  // Si usamos la RPC y además hay empresaId, intentamos aplicar el filtro sobre el resultado (si Supabase lo permite en RPCs)
-  // o si no, la RPC debería soportar el parámetro. Como no podemos cambiar la RPC, asumimos que el filtro de empresa
-  // tiene prioridad visual en la ficha de empresa donde no suele haber barra de búsqueda global conflictiva.
-  // Sin embargo, si se filtra sobre el resultado:
-  if (filter && empresaId) {
-      // Intento de filtrado post-RPC (depende de si la RPC devuelve la relación o permite join posterior)
-      // Esto podría fallar si la RPC no retorna puntos_suministro.
-      // Solución segura: Avisar al usuario o implementar búsqueda full custom.
-      // Por ahora, aplicamos el filtro si es posible en la query builder encadenada.
-      // query = query.eq('puntos_suministro.current_comercializadora_id', empresaId); // Probablemente falle si no está en el select de la RPC
+    if (searchError) throw searchError;
+
+    const ids = (searchResults || []).map((c: any) => c.id);
+
+    if (ids.length === 0) {
+      return { data: [], count: 0 };
+    }
+
+    // Now query with the IDs to get proper count and relations
+    if (empresaId) {
+      query = supabase.from('clientes')
+        .select(`${selectQuery}, puntos_suministro!inner(current_comercializadora_id)`, { count: 'exact' })
+        .in('id', ids)
+        .eq('puntos_suministro.current_comercializadora_id', empresaId);
+    } else {
+      query = supabase.from('clientes')
+        .select(selectQuery, { count: 'exact' })
+        .in('id', ids);
+    }
+  } else {
+    // Consulta normal sin búsqueda
+    if (empresaId) {
+      query = supabase.from('clientes')
+        .select(`${selectQuery}, puntos_suministro!inner(current_comercializadora_id)`, { count: 'exact' })
+        .eq('puntos_suministro.current_comercializadora_id', empresaId);
+    } else {
+      query = supabase.from('clientes').select(selectQuery, { count: 'exact' });
+    }
   }
 
   if (estadoFilters.length > 0) {
@@ -85,7 +93,7 @@ async function fetchClientes({ filter, page, pageSize, sortField, sortOrder, est
   }
 
   query = query.order(sortField, { ascending: sortOrder === 'asc' });
-  
+
   // Paginación
   const { data, error, count } = await query.range(from, to);
 
@@ -100,16 +108,16 @@ async function fetchClientes({ filter, page, pageSize, sortField, sortOrder, est
 }
 
 async function deleteCliente({ clienteId }: { clienteId: string }) {
-    const { error } = await supabase.functions.invoke('manage-client', {
-        body: { action: 'delete', payload: { clienteId } }
-    });
-    if (error) throw new Error(error.message);
+  const { error } = await supabase.functions.invoke('manage-client', {
+    body: { action: 'delete', payload: { clienteId } }
+  });
+  if (error) throw new Error(error.message);
 }
 
 export default function ClientesList({ empresaId }: { empresaId?: string }) {
   const { rol } = useSession();
   const queryClient = useQueryClient();
-  
+
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
@@ -124,11 +132,11 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['clientes', filter, page, pageSize, sortField, sortOrder, columnFilters.estado, empresaId],
-    queryFn: () => fetchClientes({ 
-      filter, 
-      page, 
-      pageSize, 
-      sortField, 
+    queryFn: () => fetchClientes({
+      filter,
+      page,
+      pageSize,
+      sortField,
       sortOrder,
       estadoFilters: columnFilters.estado,
       empresaId // <-- Pasamos el ID
@@ -156,13 +164,13 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
       if (ids.length > 1) await new Promise(res => setTimeout(res, 300));
     },
     onSuccess: (data, variables) => {
-        toast.success(`${variables.length} cliente(s) eliminado(s) correctamente.`);
-        setIdsToDelete([]); setSelectedIds([]);
-        queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      toast.success(`${variables.length} cliente(s) eliminado(s) correctamente.`);
+      setIdsToDelete([]); setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
     onError: (error: any) => {
-        toast.error(`Error al eliminar cliente(s): ${error.message}`);
-        setIdsToDelete([]);
+      toast.error(`Error al eliminar cliente(s): ${error.message}`);
+      setIdsToDelete([]);
     }
   });
 
@@ -174,8 +182,8 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
   const isAdmin = rol === 'administrador';
 
   const formatComerciales = (comerciales: { nombre: string | null, apellidos: string | null }[] | null | undefined): string => {
-      if (!comerciales || comerciales.length === 0) return '—';
-      return comerciales.map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim()).filter(Boolean).join(', ');
+    if (!comerciales || comerciales.length === 0) return '—';
+    return comerciales.map(c => `${c?.nombre ?? ''} ${c?.apellidos ?? ''}`.trim()).filter(Boolean).join(', ');
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,32 +204,32 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
         <div className="page-actions">
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
-               <span>{selectedIds.length} seleccionado(s)</span>
-               {selectedIds.length === 1 && canEdit && (
-                 <Link to="/app/clientes/$id/editar" params={{ id: selectedIds[0]! }} className="icon-button secondary" title="Editar Cliente"><Edit size={18} /></Link>
-               )}
-               {canDelete && (
-                  <button className="icon-button danger" title={`Eliminar ${selectedIds.length} cliente(s)`} onClick={handleDeleteSelected} disabled={deleteMutation.isPending}><Trash2 size={18} /></button>
-               )}
-               <button className="icon-button secondary" title="Limpiar selección" onClick={() => setSelectedIds([])}><XCircle size={18} /></button>
+              <span>{selectedIds.length} seleccionado(s)</span>
+              {selectedIds.length === 1 && canEdit && (
+                <Link to="/app/clientes/$id/editar" params={{ id: selectedIds[0]! }} className="icon-button secondary" title="Editar Cliente"><Edit size={18} /></Link>
+              )}
+              {canDelete && (
+                <button className="icon-button danger" title={`Eliminar ${selectedIds.length} cliente(s)`} onClick={handleDeleteSelected} disabled={deleteMutation.isPending}><Trash2 size={18} /></button>
+              )}
+              <button className="icon-button secondary" title="Limpiar selección" onClick={() => setSelectedIds([])}><XCircle size={18} /></button>
             </div>
           ) : (
-             !empresaId && (
-               <>
-                 <input placeholder="Buscar por nombre o DNI/CIF" value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: '300px' }} />
-                 <Link to="/app/clientes/nuevo"><button>Nuevo Cliente</button></Link>
-               </>
-             )
+            !empresaId && (
+              <>
+                <input placeholder="Buscar por nombre o DNI/CIF" value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: '300px' }} />
+                <Link to="/app/clientes/nuevo"><button>Nuevo Cliente</button></Link>
+              </>
+            )
           )}
         </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-         {isLoading && <div style={{padding: '2rem', textAlign: 'center'}}>Cargando...</div>}
-        {isError && <div role="alert" style={{padding: '2rem', color: 'red'}}>Error al cargar clientes.</div>}
+        {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>}
+        {isError && <div role="alert" style={{ padding: '2rem', color: 'red' }}>Error al cargar clientes.</div>}
 
         {!isLoading && !isError && clientes.length === 0 && (
-          <div style={{padding: '2rem'}}>
+          <div style={{ padding: '2rem' }}>
             <EmptyState
               title="Sin clientes"
               description="No se encontraron clientes con los filtros actuales."
@@ -237,14 +245,14 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                 <thead>
                   <tr>
                     <th style={{ width: '1%', paddingRight: 0 }}>
-                       <input type="checkbox" checked={isAllSelected} ref={input => { if (input) input.indeterminate = isIndeterminate; }} onChange={handleSelectAll} aria-label="Seleccionar todos" />
+                      <input type="checkbox" checked={isAllSelected} ref={input => { if (input) input.indeterminate = isIndeterminate; }} onChange={handleSelectAll} aria-label="Seleccionar todos" />
                     </th>
                     <th><button onClick={() => handleSort('nombre')} className="sortable-header">Nombre {renderSortIcon('nombre')}</button></th>
                     <th>DNI/CIF</th>
                     {!isAdmin && <th><button onClick={() => handleSort('email_facturacion')} className="sortable-header">Email {renderSortIcon('email_facturacion')}</button></th>}
-                     {isAdmin && <th>Comerciales</th>}
+                    {isAdmin && <th>Comerciales</th>}
                     <th><button onClick={() => handleSort('creado_en')} className="sortable-header">Creado {renderSortIcon('creado_en')}</button></th>
-                    <th> 
+                    <th>
                       <button onClick={() => handleSort('estado')} className="sortable-header">Estado {renderSortIcon('estado')}</button>
                       <ColumnFilterDropdown columnName="Estado" options={filterOptions.estado} selectedOptions={columnFilters.estado} onChange={(selected) => handleColumnFilterChange('estado', selected)} />
                     </th>
@@ -254,16 +262,17 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   {clientes.map(c => {
                     const isSelected = selectedIds.includes(c.id);
                     return (
-                    <tr key={c.id} className={clsx(isSelected && 'selected-row')}>
-                       <td style={{ paddingRight: 0 }}><input type="checkbox" checked={isSelected} onChange={() => handleRowSelect(c.id)} /></td>
-                      <td><Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">{c.nombre}</Link></td>
-                      <td>{c.dni || c.cif || '—'}</td> 
-                      {!isAdmin && <td>{c.email_facturacion ?? '—'}</td>}
-                      {isAdmin && <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={16} style={{ color: 'var(--muted)'}} />{formatComerciales(c.comerciales_asignados)}</div></td>}
-                      <td>{fmtDate(c.creado_en)}</td> 
-                      <td><span className={`status-dot ${c.estado === 'activo' ? 'status-activo' : c.estado === 'desistido' ? 'status-desistido' : c.estado === 'procesando' ? 'status-procesando' : 'status-standby'}`} title={c.estado || 'stand by'}></span><span className="status-text">{c.estado || 'stand by'}</span></td>
-                    </tr>
-                  )})}
+                      <tr key={c.id} className={clsx(isSelected && 'selected-row')}>
+                        <td style={{ paddingRight: 0 }}><input type="checkbox" checked={isSelected} onChange={() => handleRowSelect(c.id)} /></td>
+                        <td><Link to="/app/clientes/$id" params={{ id: c.id }} className="table-action-link font-semibold">{c.nombre}</Link></td>
+                        <td>{c.dni || c.cif || '—'}</td>
+                        {!isAdmin && <td>{c.email_facturacion ?? '—'}</td>}
+                        {isAdmin && <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={16} style={{ color: 'var(--muted)' }} />{formatComerciales(c.comerciales_asignados)}</div></td>}
+                        <td>{fmtDate(c.creado_en)}</td>
+                        <td><span className={`status-dot ${c.estado === 'activo' ? 'status-activo' : c.estado === 'desistido' ? 'status-desistido' : c.estado === 'procesando' ? 'status-procesando' : 'status-standby'}`} title={c.estado || 'stand by'}></span><span className="status-text">{c.estado || 'stand by'}</span></td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

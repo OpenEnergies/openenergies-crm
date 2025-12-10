@@ -51,9 +51,25 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
   let query: any;
 
   if (filter) {
-    // CAMBIO: Cast a any para permitir .select con count tras rpc
-    query = (supabase.rpc('search_contratos', { search_text: filter, p_cliente_id: clienteId || null }) as any)
-      .select(selectQuery, { count: 'exact' });
+    // When searching, get IDs from RPC first, then query with those IDs
+    // This is because .select() chaining after .rpc() doesn't properly support count
+    const { data: searchResults, error: searchError } = await supabase.rpc('search_contratos', {
+      search_text: filter,
+      p_cliente_id: clienteId || null
+    });
+
+    if (searchError) throw searchError;
+
+    const ids = (searchResults || []).map((c: any) => c.id);
+
+    if (ids.length === 0) {
+      return { data: [], count: 0 };
+    }
+
+    // Now query with the IDs to get proper count and relations
+    query = supabase.from('contratos')
+      .select(selectQuery, { count: 'exact' })
+      .in('id', ids);
   } else {
     if (clienteId) {
       selectQuery = `*, puntos_suministro!inner ( cups, direccion, clientes ( nombre ) ), empresas ( id, nombre )`;
@@ -64,7 +80,7 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
   }
 
   if (empresaId) {
-      query = query.eq('comercializadora_id', empresaId);
+    query = query.eq('comercializadora_id', empresaId);
   }
 
   if (avisoFilter.length > 0) {
@@ -73,9 +89,9 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
     if (wantsTrue && !wantsFalse) query = query.eq('aviso_renovacion', true);
     if (!wantsTrue && wantsFalse) query = query.eq('aviso_renovacion', false);
   }
-  
+
   if (comercializadoraFilter && comercializadoraFilter.length > 0) {
-      query = query.in('comercializadora_id', comercializadoraFilter);
+    query = query.in('comercializadora_id', comercializadoraFilter);
   }
 
   const applyDateFilter = (col: string, part: DateParts) => {
@@ -83,16 +99,16 @@ async function fetchContratos({ filter, page, pageSize, sortField, sortOrder, av
       const yearStart = `${part.year}-01-01`;
       const yearEnd = `${part.year}-12-31`;
       if (part.month) {
-         const m = part.month;
-         const dateStart = `${part.year}-${m}-01`;
-         let nextM = parseInt(m) + 1;
-         let nextY = parseInt(part.year);
-         if (nextM > 12) { nextM = 1; nextY++; }
-         const dateEnd = `${nextY}-${nextM.toString().padStart(2,'0')}-01`;
-         if (part.day) query = query.eq(col, `${part.year}-${m}-${part.day}`);
-         else query = query.gte(col, dateStart).lt(col, dateEnd);
+        const m = part.month;
+        const dateStart = `${part.year}-${m}-01`;
+        let nextM = parseInt(m) + 1;
+        let nextY = parseInt(part.year);
+        if (nextM > 12) { nextM = 1; nextY++; }
+        const dateEnd = `${nextY}-${nextM.toString().padStart(2, '0')}-01`;
+        if (part.day) query = query.eq(col, `${part.year}-${m}-${part.day}`);
+        else query = query.gte(col, dateStart).lt(col, dateEnd);
       } else {
-         query = query.gte(col, yearStart).lte(col, yearEnd);
+        query = query.gte(col, yearStart).lte(col, yearEnd);
       }
     }
   };
@@ -111,13 +127,13 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
   const queryClient = useQueryClient();
   const { rol } = useSession();
   const { empresas: listaEmpresas } = useEmpresas();
-  
+
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
   const [sortField, setSortField] = useState<SortField>('fecha_inicio');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  
+
   const [avisoFilter, setAvisoFilter] = useState<string[]>([]);
   const [comercializadoraFilter, setComercializadoraFilter] = useState<string[]>([]);
   const [dateFilterInicio, setDateFilterInicio] = useState<DateParts>(initialDateFilter);
@@ -130,7 +146,7 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['contratos', filter, page, sortField, sortOrder, avisoFilter, comercializadoraFilter, dateFilterInicio, dateFilterFin, clienteId, empresaId],
-    queryFn: () => fetchContratos({ 
+    queryFn: () => fetchContratos({
       filter, page, pageSize, sortField, sortOrder, avisoFilter, clienteId, empresaId,
       comercializadoraFilter,
       dateFilters: { inicio: dateFilterInicio, fin: dateFilterFin }
@@ -150,15 +166,15 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
   }, [dateOptionsRaw]);
 
   const empresaNombreToId = useMemo(() => {
-      const map: Record<string, string> = {};
-      listaEmpresas.forEach(e => map[e.nombre] = e.id);
-      return map;
+    const map: Record<string, string> = {};
+    listaEmpresas.forEach(e => map[e.nombre] = e.id);
+    return map;
   }, [listaEmpresas]);
 
   const handleComercializadoraFilterChange = (nombres: string[]) => {
-      // CAMBIO: as string[] para corregir error TS
-      const ids = nombres.map(n => empresaNombreToId[n]).filter(Boolean) as string[];
-      setComercializadoraFilter(ids);
+    // CAMBIO: as string[] para corregir error TS
+    const ids = nombres.map(n => empresaNombreToId[n]).filter(Boolean) as string[];
+    setComercializadoraFilter(ids);
   };
 
   const contratos = queryData?.data || [];
@@ -201,16 +217,16 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
   return (
     <div className="grid">
       <div className="page-header">
-        {!clienteId && !empresaId && <h2 style={{margin:0}}>Contratos</h2>}
+        {!clienteId && !empresaId && <h2 style={{ margin: 0 }}>Contratos</h2>}
         <div className="page-actions" style={{ marginLeft: (clienteId || empresaId) ? 'auto' : undefined }}>
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
-               <span>{selectedIds.length} seleccionados</span>
-               {selectedIds.length === 1 && canEdit && (
-                 <Link to="/app/contratos/$id" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18}/></Link>
-               )}
-               <button className="icon-button danger" onClick={() => setIdsToDelete([...selectedIds])}><Trash2 size={18}/></button>
-               <button className="icon-button secondary" onClick={() => setSelectedIds([])}><XCircle size={18}/></button>
+              <span>{selectedIds.length} seleccionados</span>
+              {selectedIds.length === 1 && canEdit && (
+                <Link to="/app/contratos/$id" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18} /></Link>
+              )}
+              <button className="icon-button danger" onClick={() => setIdsToDelete([...selectedIds])}><Trash2 size={18} /></button>
+              <button className="icon-button secondary" onClick={() => setSelectedIds([])}><XCircle size={18} /></button>
             </div>
           ) : (
             <>
@@ -226,14 +242,14 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {isLoading && <div style={{padding: '2rem', textAlign: 'center'}}>Cargando...</div>}
-        {isError && <div style={{padding: '2rem', color: 'red'}}>Error al cargar.</div>}
+        {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>}
+        {isError && <div style={{ padding: '2rem', color: 'red' }}>Error al cargar.</div>}
 
         {!isLoading && !isError && contratos.length === 0 && (
-          <div style={{padding: '2rem'}}>
-             <EmptyState title="Sin contratos" description="No se encontraron contratos." 
-               cta={canEdit && !clienteId && !empresaId ? <Link to="/app/contratos/nuevo"><button>Crear primero</button></Link> : null}
-             />
+          <div style={{ padding: '2rem' }}>
+            <EmptyState title="Sin contratos" description="No se encontraron contratos."
+              cta={canEdit && !clienteId && !empresaId ? <Link to="/app/contratos/nuevo"><button>Crear primero</button></Link> : null}
+            />
           </div>
         )}
 
@@ -243,30 +259,30 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === contratos.length} onChange={handleSelectAll}/></th>
+                    <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === contratos.length} onChange={handleSelectAll} /></th>
                     <th>CUPS</th>
                     {/* CAMBIO: Ocultar columna Comercializadora si estamos en ficha de empresa */}
                     {!empresaId && (
                       <th>
-                          <div style={{display:'flex', alignItems:'center'}}>
-                              Comercializadora
-                              <ColumnFilterDropdown 
-                                  columnName="Comercializadora" 
-                                  options={listaEmpresas.map(e => e.nombre)} 
-                                  selectedOptions={comercializadoraFilter.map(id => listaEmpresas.find(e => e.id === id)?.nombre || '')} 
-                                  onChange={handleComercializadoraFilterChange} 
-                              />
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          Comercializadora
+                          <ColumnFilterDropdown
+                            columnName="Comercializadora"
+                            options={listaEmpresas.map(e => e.nombre)}
+                            selectedOptions={comercializadoraFilter.map(id => listaEmpresas.find(e => e.id === id)?.nombre || '')}
+                            onChange={handleComercializadoraFilterChange}
+                          />
+                        </div>
                       </th>
                     )}
                     <th><button onClick={() => handleSort('oferta')} className="sortable-header">Oferta {renderSortIcon('oferta')}</button></th>
                     <th>
-                        <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">Inicio {renderSortIcon('fecha_inicio')}</button>
-                        <DateFilterDropdown columnName="Fecha Inicio" options={filterOptions.fecha_inicio} selectedDate={dateFilterInicio} onChange={setDateFilterInicio} />
+                      <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">Inicio {renderSortIcon('fecha_inicio')}</button>
+                      <DateFilterDropdown columnName="Fecha Inicio" options={filterOptions.fecha_inicio} selectedDate={dateFilterInicio} onChange={setDateFilterInicio} />
                     </th>
                     <th>
-                        <button onClick={() => handleSort('fecha_fin')} className="sortable-header">Fin {renderSortIcon('fecha_fin')}</button>
-                        <DateFilterDropdown columnName="Fecha Fin" options={filterOptions.fecha_fin} selectedDate={dateFilterFin} onChange={setDateFilterFin} />
+                      <button onClick={() => handleSort('fecha_fin')} className="sortable-header">Fin {renderSortIcon('fecha_fin')}</button>
+                      <DateFilterDropdown columnName="Fecha Fin" options={filterOptions.fecha_fin} selectedDate={dateFilterFin} onChange={setDateFilterFin} />
                     </th>
                     <th>
                       Aviso
@@ -277,17 +293,17 @@ export default function ContratosList({ clienteId, empresaId }: { clienteId?: st
                 <tbody style={{ opacity: isPlaceholderData ? 0.5 : 1 }}>
                   {contratos.map(c => (
                     <tr key={c.id} className={clsx(selectedIds.includes(c.id) && 'selected-row')}>
-                      <td><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => handleRowSelect(c.id)}/></td>
+                      <td><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => handleRowSelect(c.id)} /></td>
                       <td>{c.puntos_suministro?.cups ?? '—'}</td>
-                      
+
                       {!empresaId && (
                         <td>
                           {c.empresas ? (
-                              <Link to="/app/empresas/$id" params={{ id: c.empresas.id }} className="table-action-link">{c.empresas.nombre}</Link>
+                            <Link to="/app/empresas/$id" params={{ id: c.empresas.id }} className="table-action-link">{c.empresas.nombre}</Link>
                           ) : '—'}
                         </td>
                       )}
-                      
+
                       <td>{c.oferta ?? '—'}</td>
                       <td>{fmtDate(c.fecha_inicio)}</td>
                       <td>{fmtDate(c.fecha_fin)}</td>

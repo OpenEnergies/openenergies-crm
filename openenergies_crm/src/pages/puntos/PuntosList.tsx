@@ -43,8 +43,8 @@ const initialColumnFilters = {
 };
 
 async function fetchPuntosFilters(clienteId?: string) {
-  const { data, error } = await supabase.rpc('get_puntos_filters_values', { 
-    p_cliente_id: clienteId || null 
+  const { data, error } = await supabase.rpc('get_puntos_filters_values', {
+    p_cliente_id: clienteId || null
   });
   if (error) { console.error('Error fetching filters:', error); return null; }
   return data;
@@ -58,16 +58,29 @@ async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filte
   let query: any;
 
   if (filter) {
-    // CAMBIO: Usamos (as any) para permitir pasar { count: 'exact' } al select posterior al RPC.
-    // Esto soluciona que devuelva 0 registros en el count cuando se usa el buscador.
-    query = (supabase.rpc('search_puntos_suministro', { 
-      search_text: filter, 
-      p_cliente_id: clienteId || null 
-    }) as any).select(selectStr, { count: 'exact' });
+    // When searching, we need to get IDs from RPC first, then query with those IDs
+    // This is because .select() chaining after .rpc() doesn't properly support count
+    const { data: searchResults, error: searchError } = await supabase.rpc('search_puntos_suministro', {
+      search_text: filter,
+      p_cliente_id: clienteId || null
+    });
+
+    if (searchError) throw searchError;
+
+    const ids = (searchResults || []).map((p: any) => p.id);
+
+    if (ids.length === 0) {
+      return { data: [], count: 0 };
+    }
+
+    // Now query with the IDs to get proper count and relations
+    query = supabase.from('puntos_suministro')
+      .select(selectStr, { count: 'exact' })
+      .in('id', ids);
   } else {
     query = supabase.from('puntos_suministro')
       .select(selectStr, { count: 'exact' });
-    
+
     if (clienteId) query = query.eq('cliente_id', clienteId);
     if (empresaId) query = query.eq('current_comercializadora_id', empresaId);
   }
@@ -77,9 +90,9 @@ async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filte
   if (filters.provincia.length > 0) query = query.in('provincia', filters.provincia);
   if (filters.tipo_factura.length > 0) query = query.in('tipo_factura', filters.tipo_factura);
   if (filters.tarifa_acceso.length > 0) query = query.in('tarifa_acceso', filters.tarifa_acceso);
-  
+
   if (filters.comercializadora.length > 0) {
-      query = query.in('current_comercializadora_id', filters.comercializadora);
+    query = query.in('current_comercializadora_id', filters.comercializadora);
   }
 
   query = query.order(sortField, { ascending: sortOrder === 'asc' });
@@ -93,7 +106,7 @@ async function fetchPuntos({ filter, page, pageSize, sortField, sortOrder, filte
 export default function PuntosList({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
   const queryClient = useQueryClient();
   const { empresas: listaEmpresas } = useEmpresas();
-  
+
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
@@ -108,7 +121,7 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
 
   const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['puntos', filter, page, sortField, sortOrder, columnFilters, clienteId, empresaId],
-    queryFn: () => fetchPuntos({ 
+    queryFn: () => fetchPuntos({
       filter, page, pageSize, sortField, sortOrder, filters: columnFilters, clienteId, empresaId
     }),
     placeholderData: (prev) => prev
@@ -117,24 +130,24 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
   const { data: serverFilters } = useQuery({
     queryKey: ['puntosFilters', clienteId],
     queryFn: () => fetchPuntosFilters(clienteId),
-    staleTime: 5 * 60 * 1000, 
+    staleTime: 5 * 60 * 1000,
   });
 
   const filterOptions = useMemo(() => {
     const base = serverFilters || { localidad: [], provincia: [], tipo_factura: [], tarifa_acceso: [] };
     return { ...base };
   }, [serverFilters]);
-  
+
   const empresaNombreToId = useMemo(() => {
-      const map: Record<string, string> = {};
-      listaEmpresas.forEach(e => map[e.nombre] = e.id);
-      return map;
+    const map: Record<string, string> = {};
+    listaEmpresas.forEach(e => map[e.nombre] = e.id);
+    return map;
   }, [listaEmpresas]);
 
   const handleComercializadoraFilterChange = (nombres: string[]) => {
-      // CAMBIO: as string[] para corregir error TS
-      const ids = nombres.map(n => empresaNombreToId[n]).filter(Boolean) as string[];
-      setColumnFilters(prev => ({ ...prev, comercializadora: ids }));
+    // CAMBIO: as string[] para corregir error TS
+    const ids = nombres.map(n => empresaNombreToId[n]).filter(Boolean) as string[];
+    setColumnFilters(prev => ({ ...prev, comercializadora: ids }));
   };
 
   const puntos = queryData?.data || [];
@@ -170,9 +183,9 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
       if (puntoIds.length > 1) await new Promise(res => setTimeout(res, 300));
     },
     onSuccess: () => {
-        toast.success('Puntos eliminados.');
-        setIdsToDelete([]); setSelectedIds([]);
-        queryClient.invalidateQueries({ queryKey: ['puntos'] });
+      toast.success('Puntos eliminados.');
+      setIdsToDelete([]); setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['puntos'] });
     },
     onError: (error: Error) => { toast.error(error.message); setIdsToDelete([]); },
   });
@@ -192,16 +205,16 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
         <div className="page-actions" style={{ marginLeft: (clienteId || empresaId) ? 'auto' : undefined }}>
           {selectedIds.length > 0 ? (
             <div className="contextual-actions">
-               <span>{selectedIds.length} seleccionados</span>
-               {selectedIds.length === 1 && <Link to="/app/puntos/$id" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18}/></Link>}
-               <button className="icon-button danger" onClick={handleDeleteSelected}><Trash2 size={18}/></button>
-               <button className="icon-button secondary" onClick={() => setSelectedIds([])}><XCircle size={18}/></button>
+              <span>{selectedIds.length} seleccionados</span>
+              {selectedIds.length === 1 && <Link to="/app/puntos/$id" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18} /></Link>}
+              <button className="icon-button danger" onClick={handleDeleteSelected}><Trash2 size={18} /></button>
+              <button className="icon-button secondary" onClick={() => setSelectedIds([])}><XCircle size={18} /></button>
             </div>
           ) : (
             <>
               {!clienteId && !empresaId && (
                 <>
-                  <input placeholder="Buscar (CUPS, Direc., Comerc...)" value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: '250px' }}/>
+                  <input placeholder="Buscar (CUPS, Dirección, Comercializadora...)" value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: '250px' }} />
                   <Link to="/app/puntos/nuevo"><button><MapPinPlus /></button></Link>
                 </>
               )}
@@ -216,7 +229,7 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
 
         {!isLoading && !isError && puntos.length === 0 && (
           <div style={{ padding: '2rem' }}>
-             <EmptyState title="Sin resultados" description="No hay puntos que coincidan con los filtros." />
+            <EmptyState title="Sin resultados" description="No hay puntos que coincidan con los filtros." />
           </div>
         )}
 
@@ -226,19 +239,19 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === puntos.length && puntos.length > 0} onChange={handleSelectAll}/></th>
+                    <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === puntos.length && puntos.length > 0} onChange={handleSelectAll} /></th>
                     {/* CAMBIO: Ocultar columna Comercializadora si estamos en ficha de empresa */}
                     {!empresaId && (
                       <th>
-                          <div style={{display:'flex', alignItems:'center'}}>
-                              Comercializadora
-                              <ColumnFilterDropdown 
-                                  columnName="Comercializadora" 
-                                  options={listaEmpresas.map(e => e.nombre)}
-                                  selectedOptions={columnFilters.comercializadora.map(id => listaEmpresas.find(e => e.id === id)?.nombre || '')} 
-                                  onChange={handleComercializadoraFilterChange}
-                              />
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          Comercializadora
+                          <ColumnFilterDropdown
+                            columnName="Comercializadora"
+                            options={listaEmpresas.map(e => e.nombre)}
+                            selectedOptions={columnFilters.comercializadora.map(id => listaEmpresas.find(e => e.id === id)?.nombre || '')}
+                            onChange={handleComercializadoraFilterChange}
+                          />
+                        </div>
                       </th>
                     )}
                     {/* CAMBIO: Ocultar columna Cliente si estamos en ficha de cliente */}
@@ -248,14 +261,14 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
                     <th><button onClick={() => handleSort('cups')} className="sortable-header">CUPS {renderSortIcon('cups')}</button></th>
                     <th><button onClick={() => handleSort('direccion')} className="sortable-header">Dirección {renderSortIcon('direccion')}</button></th>
                     <th><button onClick={() => handleSort('localidad')} className="sortable-header">Localidad {renderSortIcon('localidad')}</button>
-                        <ColumnFilterDropdown columnName="Localidad" options={filterOptions.localidad} selectedOptions={columnFilters.localidad} onChange={(s) => handleColumnFilterChange('localidad', s)}/>
+                      <ColumnFilterDropdown columnName="Localidad" options={filterOptions.localidad} selectedOptions={columnFilters.localidad} onChange={(s) => handleColumnFilterChange('localidad', s)} />
                     </th>
                     <th><button onClick={() => handleSort('provincia')} className="sortable-header">Provincia {renderSortIcon('provincia')}</button>
-                        <ColumnFilterDropdown columnName="Provincia" options={filterOptions.provincia} selectedOptions={columnFilters.provincia} onChange={(s) => handleColumnFilterChange('provincia', s)}/>
+                      <ColumnFilterDropdown columnName="Provincia" options={filterOptions.provincia} selectedOptions={columnFilters.provincia} onChange={(s) => handleColumnFilterChange('provincia', s)} />
                     </th>
-                    <th>Tipo Fact. <ColumnFilterDropdown columnName="Tipo" options={filterOptions.tipo_factura} selectedOptions={columnFilters.tipo_factura} onChange={(s) => handleColumnFilterChange('tipo_factura', s)}/></th>
+                    <th>Tipo Fact. <ColumnFilterDropdown columnName="Tipo" options={filterOptions.tipo_factura} selectedOptions={columnFilters.tipo_factura} onChange={(s) => handleColumnFilterChange('tipo_factura', s)} /></th>
                     <th><button onClick={() => handleSort('tarifa_acceso')} className="sortable-header">Tarifa {renderSortIcon('tarifa_acceso')}</button>
-                        <ColumnFilterDropdown columnName="Tarifa" options={filterOptions.tarifa_acceso} selectedOptions={columnFilters.tarifa_acceso} onChange={(s) => handleColumnFilterChange('tarifa_acceso', s)}/>
+                      <ColumnFilterDropdown columnName="Tarifa" options={filterOptions.tarifa_acceso} selectedOptions={columnFilters.tarifa_acceso} onChange={(s) => handleColumnFilterChange('tarifa_acceso', s)} />
                     </th>
                   </tr>
                 </thead>
@@ -263,23 +276,23 @@ export default function PuntosList({ clienteId, empresaId }: { clienteId?: strin
                   {puntos.map(p => (
                     <tr key={p.id} className={clsx(selectedIds.includes(p.id) && 'selected-row')}>
                       <td><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => handleRowSelect(p.id)} /></td>
-                      
+
                       {!empresaId && (
                         <td>
                           {p.empresas ? (
-                              <Link to="/app/empresas/$id" params={{ id: p.empresas.id }} className="table-action-link">{p.empresas.nombre}</Link>
+                            <Link to="/app/empresas/$id" params={{ id: p.empresas.id }} className="table-action-link">{p.empresas.nombre}</Link>
                           ) : '—'}
                         </td>
                       )}
-                      
+
                       {!clienteId && (
                         <td>
                           {p.clientes ? (
-                              <Link to="/app/clientes/$id" params={{ id: p.clientes.id }} className="table-action-link">{p.clientes.nombre}</Link>
+                            <Link to="/app/clientes/$id" params={{ id: p.clientes.id }} className="table-action-link">{p.clientes.nombre}</Link>
                           ) : '—'}
                         </td>
                       )}
-                      
+
                       <td>{p.cups}</td>
                       <td>{p.direccion}</td>
                       <td>{p.localidad ?? '—'}</td>

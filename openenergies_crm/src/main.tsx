@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from '@router/routes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

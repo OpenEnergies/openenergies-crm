@@ -8,7 +8,7 @@ import EmpresasList from './EmpresasList'; // Importa el componente de lista mod
  */
 export default function EmpresasArchivadasPage() {
   return (
-    <div className="grid">
+    <div className="page-layout">
       {/* Renderiza el componente de lista, que ahora
           incluye su propia cabecera adaptada. */}
       <EmpresasList mode="archived" />

@@ -2,42 +2,68 @@ import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { empresaDetailRoute } from '@router/routes';
-import type { Empresa } from '@lib/types';
-import { clsx } from '@lib/utils';
-import { ArrowLeft } from 'lucide-react';
+import { Building2, FileText, Users, Zap, ArrowLeft, Pencil, Loader2 } from 'lucide-react';
 
-type EmpresaDetallada = Empresa & {
-  logo_url?: string | null;
-};
-
-// Componente Logo (reutilizado)
-function EmpresaLogo({ url, size = 60 }: { url?: string | null; size?: number }) {
-  const placeholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="24" fill="%239ca3af">?</text></svg>';
-  return <img src={url ?? placeholder} alt="" width={size} height={size} style={{ objectFit: 'contain', borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb' }} onError={(e) => { if (e.currentTarget.src !== placeholder) e.currentTarget.src = placeholder; }} />;
+interface EmpresaDetallada {
+  id: string;
+  nombre: string;
+  cif: string | null;
+  tipo: 'comercializadora' | 'fenixnewenergy';
+  creado_en: string | null;
+  clientes_count: number;
+  puntos_count: number;
+  contratos_count: number;
+  contratos_activos_count: number;
 }
 
-async function fetchEmpresa(empresaId: string) {
-  const { data: empresaData, error } = await supabase
+async function fetchEmpresa(empresaId: string): Promise<EmpresaDetallada> {
+  const { data: empresa, error } = await supabase
     .from('empresas')
     .select('*')
     .eq('id', empresaId)
+    .is('eliminado_en', null)
     .single();
 
   if (error) throw error;
 
-  const { count, error: countError } = await supabase
-    .from('contratos')
-    .select('*', { count: 'exact', head: true })
-    .eq('comercializadora_id', empresaId)
-    .eq('estado', 'activo');
-  
-  if (countError) console.error("Error contando contratos:", countError);
+  const { count: puntosCount } = await supabase
+    .from('puntos_suministro')
+    .select('id', { count: 'exact', head: true })
+    .eq('current_comercializadora_id', empresaId)
+    .is('eliminado_en', null);
 
-  return { ...empresaData, activeContracts: count ?? 0 } as EmpresaDetallada & { activeContracts: number };
+  const { count: contratosCount } = await supabase
+    .from('contratos')
+    .select('id', { count: 'exact', head: true })
+    .eq('comercializadora_id', empresaId)
+    .is('eliminado_en', null);
+
+  const { count: contratosActivosCount } = await supabase
+    .from('contratos')
+    .select('id', { count: 'exact', head: true })
+    .eq('comercializadora_id', empresaId)
+    .not('estado', 'in', '("Baja","Desiste","Rechazado")')
+    .is('eliminado_en', null);
+
+  const { data: clientesData } = await supabase
+    .from('puntos_suministro')
+    .select('cliente_id')
+    .eq('current_comercializadora_id', empresaId)
+    .is('eliminado_en', null);
+
+  const uniqueClienteIds = new Set(clientesData?.map(p => p.cliente_id).filter(Boolean));
+
+  return {
+    ...empresa,
+    clientes_count: uniqueClienteIds.size,
+    puntos_count: puntosCount || 0,
+    contratos_count: contratosCount || 0,
+    contratos_activos_count: contratosActivosCount || 0,
+  } as EmpresaDetallada;
 }
 
 export default function EmpresaDetailLayout() {
-  const { id: empresaId } = useParams({ from: empresaDetailRoute.id }) as { id: string };
+  const { id: empresaId } = useParams({ from: empresaDetailRoute.id });
   const location = useLocation();
 
   const { data: empresa, isLoading, isError } = useQuery({
@@ -47,63 +73,144 @@ export default function EmpresaDetailLayout() {
   });
 
   const basePath = `/app/empresas/${empresaId}`;
-  
   const navLinks = [
     { path: `${basePath}/clientes`, label: 'Clientes' },
-    { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
+    { path: `${basePath}/puntos`, label: 'Puntos' },
     { path: `${basePath}/contratos`, label: 'Contratos' },
   ];
 
-  if (!empresaId) return <div className="card" role="alert">Error: ID de empresa no encontrado.</div>;
-  if (isLoading) return <div className="card">Cargando ficha de empresa...</div>;
-  if (isError || !empresa) return <div className="card" role="alert">Error al cargar la empresa.</div>;
+  if (!empresaId) {
+    return (
+      <div className="glass-card p-6 text-red-400">
+        Error: ID de empresa no encontrado en la URL.
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="glass-card p-6 flex items-center justify-center gap-3">
+        <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
+        <span className="text-gray-400">Cargando ficha de empresa...</span>
+      </div>
+    );
+  }
+
+  if (isError || !empresa) {
+    return (
+      <div className="glass-card p-6 text-red-400">
+        Error al cargar los datos de la empresa.
+      </div>
+    );
+  }
 
   return (
-    <div className="grid">
-      <div className="page-header">
-         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <Link to="/app/empresas" className="icon-button secondary"><ArrowLeft size={20}/></Link>
-            <h2 style={{margin:0}}>Ficha de Empresa</h2>
-         </div>
-      </div>
+    <div className="space-y-6">
+      {/* Back Link */}
+      <Link
+        to="/app/empresas"
+        className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+      >
+        <ArrowLeft size={16} />
+        Volver a Empresas
+      </Link>
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          <EmpresaLogo url={empresa.logo_url} size={80} />
-          
-          <div style={{ flex: 1 }}>
-            <h3 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {empresa.nombre} 
-              {empresa.is_archived && <span className="badge inactive">Archivada</span>}
-            </h3>
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '0.9rem' }}>
-              <div>
-                <span style={{ fontWeight: 600 }}>CIF:</span> {empresa.cif || '—'}
+
+      {/* Header Card */}
+      <div className="glass-card p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          {/* Left: Icon + Name */}
+          <div className="flex items-center gap-4 flex-shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-fenix-500/20 to-fenix-600/20 flex items-center justify-center shrink-0 ring-1 ring-fenix-500/20">
+              <Building2 className="w-7 h-7 text-fenix-500" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">{empresa.nombre}</h2>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {empresa.tipo === 'comercializadora' ? 'Comercializadora' : 'Fenix New Energy'}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Stats Cards + Edit button */}
+          <div className="flex flex-col items-end gap-4">
+            {/* Edit button */}
+            <Link
+              to="/app/empresas/$id/editar"
+              params={{ id: empresaId }}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors"
+              title="Editar empresa"
+            >
+              <Pencil size={18} />
+            </Link>
+
+            {/* Stats Cards */}
+            <div className="flex flex-wrap gap-3 justify-end">
+              {/* Contratos Activos */}
+              {/* Contratos Activos */}
+              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <FileText size={16} className="text-fenix-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-white">{empresa.contratos_activos_count}</p>
+                  <p className="text-xs text-fenix-200 font-medium">Contratos Activos</p>
+                </div>
               </div>
-              {/* CAMBIO: Eliminado el campo "Tipo" */}
-              <div>
-                <span style={{ fontWeight: 600 }}>Contratos Activos:</span> {empresa.activeContracts}
+
+              {/* Clientes */}
+              {/* Clientes */}
+              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <Users size={16} className="text-fenix-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-white">{empresa.clientes_count}</p>
+                  <p className="text-xs text-fenix-200 font-medium">Cliente{empresa.clientes_count === 1 ? '' : 's'}</p>
+                </div>
+              </div>
+
+              {/* Puntos */}
+              {/* Puntos */}
+              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
+                <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <Zap size={16} className="text-fenix-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-white">{empresa.puntos_count}</p>
+                  <p className="text-xs text-fenix-200 font-medium">Punto{empresa.puntos_count === 1 ? '' : 's'}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="tabs-nav">
-        {navLinks.map(link => (
-          <Link
-            key={link.path}
-            to={link.path}
-            className={clsx('tab-link', location.pathname.startsWith(link.path) && 'active')}
-          >
-            {link.label}
-          </Link>
-        ))}
+      {/* Tab Navigation - iOS Style */}
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-bg-intermediate overflow-x-auto">
+        {navLinks.map(link => {
+          const isActive = location.pathname.startsWith(link.path);
+          return (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`
+                px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200
+                ${isActive
+                  ? 'bg-fenix-500/15 text-fenix-400 shadow-sm border border-fenix-500/30 ring-1 ring-fenix-500/20'
+                  : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+              `}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <Outlet />
-      </div>
+      {/* Tab Content */}
+      <Outlet />
     </div>
   );
 }
+
+

@@ -47,7 +47,7 @@ export default function ClienteDetailLayout() {
   if (isError || !cliente) return <div className="card" role="alert">Error al cargar el cliente.</div>;
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <Link to="/app/clientes" className="icon-button secondary" title="Volver a listado"><ArrowLeft size={20}/></Link>

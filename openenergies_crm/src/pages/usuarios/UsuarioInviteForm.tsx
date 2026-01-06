@@ -152,7 +152,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
         <h2 style={{ margin: 0 }}>{editing ? 'Editar Usuario' : 'Nuevo Colaborador'}</h2>
       </div>

@@ -7,6 +7,16 @@ export type TipoCliente = 'persona' | 'sociedad';
 
 export type EstadoCliente = 'desistido' | 'stand by' | 'procesando' | 'activo';
 
+export type EstadoPunto =
+  | 'Nueva Oportunidad'
+  | 'Solicitar Doc.'
+  | 'Doc. OK'
+  | 'Estudio enviado'
+  | 'Aceptado'
+  | 'Permanencia'
+  | 'Standby'
+  | 'Desiste';
+
 export type RootDocumentItem = {
   cliente_id: string;
   cliente_nombre: string;

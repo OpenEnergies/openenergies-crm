@@ -78,7 +78,7 @@ export default function NotificacionesPage() {
   };
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
         <h2 style={{ margin: 0 }}>Notificaciones ({unreadCount} no leídas)</h2>
         {/* Aquí podrías añadir "Marcar todas como leídas" */}

@@ -1,213 +1,287 @@
-// src/pages/empresas/EmpresasList.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
 import type { Empresa } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
-import { fmtDate, clsx } from '@lib/utils';
-import { Pencil, HousePlus, DollarSign, Archive, ArchiveRestore, Inbox, XCircle, Edit, ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { fmtDate } from '@lib/utils';
+import { Edit, HousePlus, Building2, Loader2, XCircle, Archive, RotateCcw, ArrowLeft } from 'lucide-react';
+import { useSortableTable } from '@hooks/useSortableTable';
 import { toast } from 'react-hot-toast';
-import PreciosEmpresaModal from './PreciosEmpresaModal';
-import ConfirmationModal from '@components/ConfirmationModal';
-import { Pagination } from '@components/Pagination';
 
-// --- Componente Logo ---
-function EmpresaLogo({ url, size = 20 }: { url?: string | null; size?: number }) {
-  const placeholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="12" fill="%239ca3af">?</text></svg>';
-  return <img src={url ?? placeholder} alt="" width={size} height={size} style={{ objectFit: 'contain', borderRadius: 4, background: '#fff', border: '1px solid #e5e7eb' }} onError={(e) => { if (e.currentTarget.src !== placeholder) e.currentTarget.src = placeholder; }} />;
-}
-
-type EmpresaConConteo = Empresa & {
-  contratos_activos: { count: number }[];
-  logo_url?: string | null;
-};
-
-type SortField = 'nombre' | 'cif' | 'tipo' | 'creada_en' | 'archived_at';
-type SortOrder = 'asc' | 'desc';
-
-interface FetchParams {
-  mode: 'active' | 'archived';
-  page: number;
-  pageSize: number;
-  sortField: SortField;
-  sortOrder: SortOrder;
-}
-
-async function fetchEmpresas({ mode, page, pageSize, sortField, sortOrder }: FetchParams) {
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  const { data, error, count } = await supabase
+async function fetchEmpresas(archived: boolean) {
+  const query = supabase
     .from('empresas')
-    .select(`
-      *,
-      logo_url,
-      contratos_activos:contratos!comercializadora_id(count)
-    `, { count: 'exact' })
-    .eq('is_archived', mode === 'archived')
-    .order(sortField, { ascending: sortOrder === 'asc' })
-    .range(from, to);
+    .select('*')
+    .order('creada_en', { ascending: false });
 
+  if (archived) {
+    query.eq('is_archived', true);
+  } else {
+    query.or('is_archived.is.null,is_archived.eq.false');
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
-  return { data: data as EmpresaConConteo[], count: count || 0 };
+  return data as Empresa[];
 }
 
-export default function EmpresasList({ mode = 'active' }: { mode?: 'active' | 'archived' }) {
+interface EmpresasListProps {
+  mode?: 'active' | 'archived';
+}
+
+export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
+  const isArchivedMode = mode === 'archived';
   const queryClient = useQueryClient();
-  
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(50);
-  const [sortField, setSortField] = useState<SortField>(mode === 'active' ? 'creada_en' : 'archived_at');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-
+  const { data: fetchedData, isLoading, isError } = useQuery({
+    queryKey: ['empresas', mode],
+    queryFn: () => fetchEmpresas(isArchivedMode)
+  });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [idsToArchive, setIdsToArchive] = useState<string[]>([]);
-  const [idsToUnarchive, setIdsToUnarchive] = useState<string[]>([]);
-  const [modalState, setModalState] = useState<{ id: string; nombre: string } | null>(null);
 
-  useEffect(() => { setPage(1); }, [mode]);
-
-  const { data: queryData, isLoading, isError, isPlaceholderData } = useQuery({
-    queryKey: ['empresas', mode, page, sortField, sortOrder],
-    queryFn: () => fetchEmpresas({ mode, page, pageSize, sortField, sortOrder }),
-    placeholderData: (prev) => prev
+  const {
+    sortedData: displayedData,
+    handleSort,
+    renderSortIcon
+  } = useSortableTable<Empresa>(fetchedData, {
+    initialSortKey: 'nombre',
+    initialSortDirection: 'asc'
   });
 
-  const empresas = queryData?.data || [];
-  const totalCount = queryData?.count || 0;
-  const totalPages = Math.ceil(totalCount / pageSize);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortOrder('asc'); }
+  // Selection handlers
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setSelectedIds(displayedData.map(item => item.id));
+    } else {
+      setSelectedIds([]);
+    }
   };
 
-  const renderSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown size={14} style={{ marginLeft: '4px', opacity: 0.3 }} />;
-    return sortOrder === 'asc' ? <ArrowUp size={14} style={{ marginLeft: '4px' }} /> : <ArrowDown size={14} style={{ marginLeft: '4px' }} />;
-  };
-
-  const archiveMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('empresas').update({ is_archived: true, archived_at: new Date().toISOString() }).in('id', ids);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Empresas archivadas.');
-      queryClient.invalidateQueries({ queryKey: ['empresas'] });
-      setSelectedIds([]); setIdsToArchive([]);
-    },
-    onError: (e) => toast.error(e.message)
-  });
-
-  const unarchiveMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('empresas').update({ is_archived: false, archived_at: null }).in('id', ids);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Empresas recuperadas.');
-      queryClient.invalidateQueries({ queryKey: ['empresas'] });
-      setSelectedIds([]); setIdsToUnarchive([]);
-    },
-    onError: (e) => toast.error(e.message)
-  });
-
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedIds(e.target.checked ? empresas.map(x => x.id) : []);
-  };
   const handleRowSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
   };
+
+  const isAllSelected = displayedData.length > 0 && selectedIds.length === displayedData.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < displayedData.length;
+
+  // Restore archived empresa
+  const restoreMutation = useMutation({
+    mutationFn: async (empresaId: string) => {
+      const { error } = await supabase
+        .from('empresas')
+        .update({ is_archived: false, archived_at: null })
+        .eq('id', empresaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Empresa restaurada correctamente');
+      queryClient.invalidateQueries({ queryKey: ['empresas'] });
+      setSelectedIds([]);
+    },
+    onError: (err: Error) => toast.error(`Error: ${err.message}`),
+  });
 
   return (
-    <div className="grid">
-      <div className="page-header">
-        {mode === 'active' ? <h2 style={{margin:0}}>Empresas</h2> : 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <Link to="/app/empresas" className="icon-button secondary"><ArrowLeft size={20}/></Link>
-            <h2 style={{margin:0}}>Empresas Archivadas</h2>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isArchivedMode ? 'bg-gray-500/20' : 'bg-fenix-500/20'}`}>
+            {isArchivedMode ? <Archive className="w-5 h-5 text-gray-400" /> : <Building2 className="w-5 h-5 text-fenix-400" />}
           </div>
-        }
-        <div className="page-actions">
+          <div>
+            <h1 className={`text-2xl font-bold ${isArchivedMode ? 'text-gray-400' : 'text-fenix-500'}`}>
+              {isArchivedMode ? 'Empresas Archivadas' : 'Gestión de Empresas'}
+            </h1>
+            {isArchivedMode && <p className="text-sm text-gray-500">Empresas que han sido archivadas</p>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {isArchivedMode && (
+            <Link to="/app/empresas">
+              <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-bg-intermediate hover:bg-bg-intermediate/80 text-gray-300 font-medium transition-colors cursor-pointer">
+                <ArrowLeft size={18} />
+                <span className="hidden sm:inline">Volver</span>
+              </button>
+            </Link>
+          )}
           {selectedIds.length > 0 ? (
-            <div className="contextual-actions">
-              <span>{selectedIds.length} seleccionadas</span>
-              {mode === 'active' && (
-                <>
-                  {selectedIds.length === 1 && <Link to="/app/empresas/$id/editar" params={{ id: selectedIds[0]! }} className="icon-button secondary"><Edit size={18}/></Link>}
-                  {selectedIds.length === 1 && empresas.find(e=>e.id===selectedIds[0]!)?.tipo === 'comercializadora' && 
-                    <button className="icon-button secondary" onClick={() => setModalState({ id: selectedIds[0]!, nombre: empresas.find(e=>e.id===selectedIds[0]!)?.nombre! })}><DollarSign size={18}/></button>
-                  }
-                  <button className="icon-button danger" onClick={() => setIdsToArchive([...selectedIds])}><Archive size={18}/></button>
-                </>
-              )}
-              {mode === 'archived' && (
-                <button className="icon-button secondary" onClick={() => setIdsToUnarchive([...selectedIds])}><ArchiveRestore size={18}/></button>
-              )}
-              <button className="icon-button secondary" onClick={() => setSelectedIds([])}><XCircle size={18}/></button>
+            /* Selection action bar - compact inline style */
+            <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
+              <span className="text-sm text-fenix-400 font-medium">
+                {selectedIds.length} seleccionado(s)
+              </span>
+              <div className="flex items-center gap-1 ml-2">
+                {selectedIds.length === 1 && selectedIds[0] && !isArchivedMode && (
+                  <Link
+                    to="/app/empresas/$id/editar"
+                    params={{ id: selectedIds[0] }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                    title="Editar Empresa"
+                  >
+                    <Edit size={16} />
+                  </Link>
+                )}
+                {selectedIds.length === 1 && selectedIds[0] && isArchivedMode && (
+                  <button
+                    onClick={() => restoreMutation.mutate(selectedIds[0]!)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-fenix-400 hover:bg-fenix-500/10 transition-colors cursor-pointer"
+                    title="Restaurar Empresa"
+                    disabled={restoreMutation.isPending}
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                )}
+                <button
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                  title="Cancelar selección"
+                  onClick={() => setSelectedIds([])}
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
             </div>
           ) : (
-            mode === 'active' && (
-              <>
-                <Link to="/app/empresas/archivadas"><button className="secondary" title="Archivadas"><Inbox size={22}/></button></Link>
-                <Link to="/app/empresas/nueva"><button><HousePlus size={22}/></button></Link>
-              </>
+            !isArchivedMode && (
+              <Link to="/app/empresas/nueva">
+                <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
+                  <HousePlus size={18} />
+                  <span className="hidden sm:inline">Nueva</span>
+                </button>
+              </Link>
             )
           )}
         </div>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {isLoading && <div style={{padding: '2rem', textAlign: 'center'}}>Cargando...</div>}
-        {!isLoading && !isError && empresas.length === 0 && (
-          <div style={{padding: '2rem'}}>
-            <EmptyState title="Sin empresas" description="No hay empresas registradas." />
+      {/* Table Card */}
+      <div className="glass-card overflow-hidden">
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
           </div>
         )}
 
-        {!isLoading && !isError && empresas.length > 0 && (
-          <>
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '1%' }}><input type="checkbox" checked={selectedIds.length === empresas.length} onChange={handleSelectAll}/></th>
-                    <th><button onClick={() => handleSort('nombre')} className="sortable-header">Nombre {renderSortIcon('nombre')}</button></th>
-                    <th><button onClick={() => handleSort('cif')} className="sortable-header">CIF {renderSortIcon('cif')}</button></th>
-                    <th><button onClick={() => handleSort('tipo')} className="sortable-header">Tipo {renderSortIcon('tipo')}</button></th>
-                    <th>Contratos Activos</th>
-                    <th><button onClick={() => handleSort(mode === 'active' ? 'creada_en' : 'archived_at')} className="sortable-header">{mode==='active'?'Creada':'Archivada'} {renderSortIcon(mode === 'active' ? 'creada_en' : 'archived_at')}</button></th>
-                  </tr>
-                </thead>
-                <tbody style={{ opacity: isPlaceholderData ? 0.5 : 1 }}>
-                  {empresas.map(e => (
-                    <tr key={e.id} className={clsx(selectedIds.includes(e.id) && 'selected-row')}>
-                      <td><input type="checkbox" checked={selectedIds.includes(e.id)} onChange={() => handleRowSelect(e.id)} /></td>
-                      {/* --- NOMBRE CLICABLE --- */}
-                      <td>
-                        <Link to="/app/empresas/$id" params={{ id: e.id }} className="table-action-link font-semibold" style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <EmpresaLogo url={e.logo_url}/><span>{e.nombre}</span>
+        {isError && (
+          <div className="text-center py-12">
+            <p className="text-red-400">Error al cargar las empresas.</p>
+          </div>
+        )}
+
+        {fetchedData && fetchedData.length === 0 && !isLoading && (
+          <EmptyState
+            title="Sin empresas"
+            description="Aún no hay empresas colaboradoras registradas."
+            cta={
+              <Link to="/app/empresas/nueva">
+                <button className="h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
+                  Crear la primera
+                </button>
+              </Link>
+            }
+          />
+        )}
+
+        {fetchedData && fetchedData.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
+                  <th className="w-10 p-4 text-left">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={input => {
+                        if (input) input.indeterminate = isIndeterminate;
+                      }}
+                      onChange={handleSelectAll}
+                      aria-label="Seleccionar todas"
+                      className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                    />
+                  </th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('nombre')}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      Nombre {renderSortIcon('nombre')}
+                    </button>
+                  </th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('cif')}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      CIF {renderSortIcon('cif')}
+                    </button>
+                  </th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('tipo')}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      Tipo {renderSortIcon('tipo')}
+                    </button>
+                  </th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('creada_en')}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      Creada en {renderSortIcon('creada_en')}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-fenix-500/10">
+                {displayedData.map(e => {
+                  const isSelected = selectedIds.includes(e.id);
+                  return (
+                    <tr
+                      key={e.id}
+                      className={`
+                        transition-colors cursor-default ${isSelected
+                          ? 'bg-fenix-500/15 hover:bg-fenix-500/20'
+                          : 'hover:bg-fenix-500/8'}
+                      `}
+                    >
+                      <td className="p-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleRowSelect(e.id)}
+                          aria-label={`Seleccionar ${e.nombre}`}
+                          className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                        />
+                      </td>
+                      <td className="p-4">
+                        <Link
+                          to="/app/empresas/$id"
+                          params={{ id: e.id }}
+                          className="text-fenix-400 hover:text-fenix-300 font-medium transition-colors cursor-pointer"
+                        >
+                          {e.nombre}
                         </Link>
                       </td>
-                      <td>{e.cif ?? '—'}</td>
-                      <td><span className="kbd">{e.tipo}</span></td>
-                      <td>{e.contratos_activos[0]?.count ?? 0}</td>
-                      <td>{fmtDate(mode === 'active' ? e.creada_en : e.archived_at)}</td>
+                      <td className="p-4 text-gray-400">{e.cif ?? '—'}</td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 text-xs font-medium rounded-md bg-bg-intermediate text-gray-300">
+                          {e.tipo}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-400">{fmtDate(e.creada_en)}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination page={page} totalPages={totalPages} totalItems={totalCount} onPageChange={setPage} isLoading={isPlaceholderData} />
-          </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
-
-      <ConfirmationModal isOpen={idsToArchive.length > 0} onClose={() => setIdsToArchive([])} onConfirm={() => archiveMutation.mutate(idsToArchive)} title="Archivar" message="¿Archivar empresas?" confirmButtonClass="danger" />
-      <ConfirmationModal isOpen={idsToUnarchive.length > 0} onClose={() => setIdsToUnarchive([])} onConfirm={() => unarchiveMutation.mutate(idsToUnarchive)} title="Recuperar" message="¿Recuperar empresas?" confirmButtonClass="secondary" />
-      {modalState && <PreciosEmpresaModal empresaId={modalState.id} empresaNombre={modalState.nombre} onClose={() => setModalState(null)} />}
     </div>
   );
 }
+

@@ -6,96 +6,94 @@ import type { Contrato } from '@lib/types';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { fmtDate } from '@lib/utils';
-import { CalendarCheck } from 'lucide-react'; // Icono para el botón de reiniciar
+import { CalendarClock, Search, CalendarCheck, Calendar } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
 
 // Tipos (igual que en ContratosList)
 type ContratoExtendido = Contrato & {
   puntos_suministro: {
     cups: string;
-    direccion: string;
+    direccion_sum: string;
     clientes: { nombre: string } | null;
   } | null;
-  empresas: { nombre: string } | null;
+  comercializadoras: { nombre: string } | null;
 };
 
-type SortableRenovacionKey = keyof ContratoExtendido | 'cups' | 'comercializadora_nombre';
+// ... resto del archivo sin cambios hasta fetchRenovaciones ...
 
 const initialColumnFilters = {
-  fecha_inicio: { year: null, month: null, day: null } as DateParts,
-  fecha_fin: { year: null, month: null, day: null } as DateParts,
+  fecha_activacion: { year: null, month: null, day: null } as DateParts,
+  fecha_renovacion: { year: null, month: null, day: null } as DateParts,
   aviso_renovacion: [] as string[],
 };
 
 // --- FUNCIÓN DE FETCH MODIFICADA ---
-// Ahora acepta 'daysToExpiry'
 async function fetchRenovaciones(
   filter: string,
   daysToExpiry: number
 ): Promise<ContratoExtendido[]> {
-  
-  // Calcula las fechas límite
+
   const today = new Date();
   const futureDate = new Date();
   futureDate.setDate(today.getDate() + daysToExpiry);
   const todayISO = today.toISOString().split('T')[0];
   const futureDateISO = futureDate.toISOString().split('T')[0];
 
-  const selectQuery = `*, puntos_suministro ( cups, direccion, clientes ( nombre ) ), empresas ( nombre )`;
-  
-  // Modificamos ambas ramas de la consulta para incluir el filtro de fecha
-  
-  if (!filter) {
-    let q = supabase.from('contratos').select(selectQuery)
-      .gte('fecha_fin', todayISO)      // >= Hoy
-      .lte('fecha_fin', futureDateISO) // <= Futuro
-      .eq('estado', 'activo');         // Solo contratos activos
+  const selectQuery = `
+    *,
+    puntos_suministro ( cups, direccion_sum, clientes ( nombre ) ),
+    comercializadoras:empresas!contratos_comercializadora_id_fkey ( nombre )
+  `;
 
-    const { data, error } = await q.order('fecha_inicio', { ascending: false }).limit(100);
+  if (!filter) {
+    const { data, error } = await supabase
+      .from('contratos')
+      .select(selectQuery)
+      .gte('fecha_renovacion', todayISO)
+      .lte('fecha_renovacion', futureDateISO)
+      .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
+      .order('fecha_renovacion', { ascending: true })
+      .limit(100);
     if (error) throw error;
     return data as ContratoExtendido[];
   }
-  
-  // Búsqueda RPC CON filtro de fecha
+
   const { data, error } = await supabase
     .rpc('search_contratos', { search_text: filter, p_cliente_id: null })
     .select(selectQuery)
-    .gte('fecha_fin', todayISO)      // >= Hoy
-    .lte('fecha_fin', futureDateISO) // <= Futuro
-    .eq('estado', 'activo')         // Solo contratos activos
-    .order('fecha_inicio', { ascending: false })
+    .gte('fecha_renovacion', todayISO)
+    .lte('fecha_renovacion', futureDateISO)
+    .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
+    .order('fecha_renovacion', { ascending: true })
     .limit(100);
 
   if (error) throw error;
   return data as ContratoExtendido[];
 }
 
-// Props: Acepta daysToExpiry y onReset
 interface Props {
   daysToExpiry: number;
   onReset: () => void;
 }
 
-export default function RenovacionesList({ daysToExpiry, onReset }: Props){
+export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
 
-  // El Query Key ahora incluye 'daysToExpiry'
   const { data: fetchedData, isLoading, isError } = useQuery({
-      queryKey: ['renovaciones', filter, daysToExpiry],
-      queryFn: () => fetchRenovaciones(filter, daysToExpiry),
-      refetchOnWindowFocus: false,
+    queryKey: ['renovaciones', filter, daysToExpiry],
+    queryFn: () => fetchRenovaciones(filter, daysToExpiry),
+    refetchOnWindowFocus: false,
   });
 
-  // --- El resto de la lógica de filtros (useMemo, handlers) es IDÉNTICA a ContratosList ---
   const filterOptions = useMemo(() => {
-    if (!fetchedData) return { fecha_inicio: [], fecha_fin: [], aviso_renovacion: [] };
-    const getUniqueDates = (key: 'fecha_inicio' | 'fecha_fin') => 
+    if (!fetchedData) return { fecha_activacion: [], fecha_renovacion: [], aviso_renovacion: [] };
+    const getUniqueDates = (key: 'fecha_activacion' | 'fecha_renovacion') =>
       fetchedData.map(c => c[key] ? new Date(c[key]!) : null).filter(Boolean) as Date[];
     const avisoOptions = Array.from(new Set(fetchedData.map(c => c.aviso_renovacion ? 'Sí' : 'No')));
     return {
-      fecha_inicio: getUniqueDates('fecha_inicio'),
-      fecha_fin: getUniqueDates('fecha_fin'),
+      fecha_activacion: getUniqueDates('fecha_activacion'),
+      fecha_renovacion: getUniqueDates('fecha_renovacion'),
       aviso_renovacion: avisoOptions,
     };
   }, [fetchedData]);
@@ -104,140 +102,178 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  // --- 👇 3. Filtra por columnas (igual que ContratosList) ---
   const filteredData = useMemo(() => {
     if (!fetchedData) return [];
-    // El filtro de texto ya lo hace la query fetchRenovaciones
-    // Aplicamos filtros de columna
     return fetchedData.filter(item => {
-      const inicio = item.fecha_inicio ? new Date(item.fecha_inicio) : null;
-      const fin = item.fecha_fin ? new Date(item.fecha_fin) : null;
+      const activacion = item.fecha_activacion ? new Date(item.fecha_activacion) : null;
+      const renovacion = item.fecha_renovacion ? new Date(item.fecha_renovacion) : null;
       const formattedAviso = item.aviso_renovacion ? 'Sí' : 'No';
       const checkDate = (date: Date | null, filter: DateParts) => {
-        // Si no hay filtros aplicados, aceptar cualquier fecha
         if (!filter || (filter.year === null && filter.month === null && filter.day === null)) return true;
-        // Si hay filtro pero el valor es nulo, no coincide
         if (!date) return false;
-        // Comparaciones por partes (si están definidas)
         if (filter.year !== null && date.getFullYear() !== Number(filter.year)) return false;
         if (filter.month !== null && (date.getMonth() + 1) !== Number(filter.month)) return false;
         if (filter.day !== null && date.getDate() !== Number(filter.day)) return false;
         return true;
       };
       return (
-        checkDate(inicio, columnFilters.fecha_inicio) &&
-        checkDate(fin, columnFilters.fecha_fin) &&
+        checkDate(activacion, columnFilters.fecha_activacion) &&
+        checkDate(renovacion, columnFilters.fecha_renovacion) &&
         (columnFilters.aviso_renovacion.length === 0 || columnFilters.aviso_renovacion.includes(formattedAviso))
       );
     });
   }, [fetchedData, columnFilters]);
-  // --------------------------------------------------------
 
-  // --- 👇 4. Usa el hook useSortableTable (igual que ContratosList) ---
   const {
-      sortedData: displayedData,
-      handleSort,
-      renderSortIcon
+    sortedData: displayedData,
+    handleSort,
+    renderSortIcon
   } = useSortableTable(filteredData, {
-      initialSortKey: 'fecha_fin', // Orden inicial por fecha de fin ASCENDENTE
-      initialSortDirection: 'asc', // <-- Cambiado a 'asc'
-      sortValueAccessors: {
-          // Use the relation keys allowed by the hook's type definitions.
-          // Return the comparable value (CUPS string or null).
-          puntos_suministro: (item) => item.puntos_suministro?.cups ?? null,
-          // Use empresas to access comercializadora nombre.
-          empresas: (item) => item.empresas?.nombre ?? null,
-          oferta: (item) => item.oferta,
-          fecha_inicio: (item) => item.fecha_inicio ? new Date(item.fecha_inicio) : null,
-          fecha_fin: (item) => item.fecha_fin ? new Date(item.fecha_fin) : null,
-          aviso_renovacion: (item) => item.aviso_renovacion,
-      }
+    initialSortKey: 'fecha_renovacion',
+    initialSortDirection: 'asc',
+    sortValueAccessors: {
+      puntos_suministro: (item) => item.puntos_suministro?.cups ?? null,
+      comercializadoras: (item: ContratoExtendido) => item.comercializadoras?.nombre ?? null,
+      estado: (item) => item.estado,
+      fecha_activacion: (item) => item.fecha_activacion ? new Date(item.fecha_activacion) : null,
+      fecha_renovacion: (item) => item.fecha_renovacion ? new Date(item.fecha_renovacion) : null,
+      aviso_renovacion: (item) => item.aviso_renovacion,
+    }
   });
-  
+
   return (
-    <div className="grid">
-      {/* --- CABECERA MODIFICADA --- */}
-      <div className="page-header">
-        <h2 style={{margin:0}}>Renovaciones (Próximos {daysToExpiry} días)</h2>
-        <div className="page-actions" style={{width: '100%', maxWidth: 500}}>
-          <input placeholder="Buscar por Comercializadora o CUPS..." value={filter} onChange={e => setFilter(e.target.value)} />
-          {/* --- BOTÓN DE REINICIAR CONSULTA --- */}
-          <button onClick={onReset} className="secondary" title="Reiniciar consulta">
-            <CalendarCheck size={18} />
+    <div className="flex flex-col gap-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2">
+            <CalendarClock size={24} className="text-emerald-400" />
+            Renovaciones
+          </h2>
+          <p className="text-gray-400">
+            Contratos que vencen en los próximos <span className="font-semibold text-fenix-400">{daysToExpiry} días</span>.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              placeholder="Buscar por Comercializadora o CUPS..."
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="glass-input w-full pl-10"
+            />
+          </div>
+
+          <button
+            onClick={onReset}
+            className="p-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors border border-bg-intermediate glass shadow-sm cursor-pointer"
+            title="Cambiar filtro de días"
+          >
+            <CalendarCheck size={20} />
           </button>
         </div>
       </div>
 
-      <div className="card">
-        {isLoading && <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>}
-        {isError && <div role="alert" style={{ padding: '2rem', textAlign: 'center' }}>Error al cargar contratos.</div>}
+      <div className="glass-card overflow-hidden">
+        {isLoading && (
+          <div className="p-12 flex items-center justify-center">
+            <div className="animate-spin text-fenix-500 mr-3"><Calendar size={24} /></div>
+            <span className="text-gray-400">Cargando renovaciones...</span>
+          </div>
+        )}
+
+        {isError && (
+          <div role="alert" className="p-8 text-center text-red-500">
+            Error al cargar contratos.
+          </div>
+        )}
 
         {fetchedData && fetchedData.length > 0 && (
-          <div className="table-wrapper" style={{overflow: 'visible'}}>
-            <table className="table">
-              <thead>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-200 uppercase bg-bg-intermediate border-b border-bg-intermediate">
                 <tr>
-                  <th>
-                    <button onClick={() => handleSort('puntos_suministro')} className="sortable-header">
+                  <th className="px-6 py-3 font-medium">
+                    <button onClick={() => handleSort('puntos_suministro')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                       CUPS {renderSortIcon('puntos_suministro')}
                     </button>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('empresas')} className="sortable-header">
-                      Comercializadora {renderSortIcon('empresas')}
+                  <th className="px-6 py-3 font-medium">
+                    <button onClick={() => handleSort('comercializadoras')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
+                      Comercializadora {renderSortIcon('comercializadoras')}
                     </button>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('oferta')} className="sortable-header">
-                      Oferta {renderSortIcon('oferta')}
+                  <th className="px-6 py-3 font-medium">
+                    <button onClick={() => handleSort('estado')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
+                      Estado {renderSortIcon('estado')}
                     </button>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('fecha_inicio')} className="sortable-header">
-                      Inicio {renderSortIcon('fecha_inicio')}
-                    </button>
-                    <DateFilterDropdown
-                      columnName="Fecha Inicio"
-                      options={filterOptions.fecha_inicio}
-                      selectedDate={columnFilters.fecha_inicio}
-                      onChange={(selected) => handleColumnFilterChange('fecha_inicio', selected)}
-                    />
+                  <th className="px-6 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleSort('fecha_activacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
+                        Activación {renderSortIcon('fecha_activacion')}
+                      </button>
+                      <DateFilterDropdown
+                        columnName="Fecha Activación"
+                        options={filterOptions.fecha_activacion}
+                        selectedDate={columnFilters.fecha_activacion}
+                        onChange={(selected) => handleColumnFilterChange('fecha_activacion', selected)}
+                      />
+                    </div>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('fecha_fin')} className="sortable-header">
-                      Fin {renderSortIcon('fecha_fin')}
-                    </button>
-                    <DateFilterDropdown
-                      columnName="Fecha Fin"
-                      options={filterOptions.fecha_fin}
-                      selectedDate={columnFilters.fecha_fin}
-                      onChange={(selected) => handleColumnFilterChange('fecha_fin', selected)}
-                    />
+                  <th className="px-6 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleSort('fecha_renovacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
+                        Renovación {renderSortIcon('fecha_renovacion')}
+                      </button>
+                      <DateFilterDropdown
+                        columnName="Fecha Renovación"
+                        options={filterOptions.fecha_renovacion}
+                        selectedDate={columnFilters.fecha_renovacion}
+                        onChange={(selected) => handleColumnFilterChange('fecha_renovacion', selected)}
+                      />
+                    </div>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('aviso_renovacion')} className="sortable-header">
-                      Aviso {renderSortIcon('aviso_renovacion')}
-                    </button>
-                    <ColumnFilterDropdown
-                      columnName="Aviso"
-                      options={filterOptions.aviso_renovacion}
-                      selectedOptions={columnFilters.aviso_renovacion}
-                      onChange={(selected) => handleColumnFilterChange('aviso_renovacion', selected as string[])}
-                    />
+                  <th className="px-6 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleSort('aviso_renovacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
+                        Aviso {renderSortIcon('aviso_renovacion')}
+                      </button>
+                      <ColumnFilterDropdown
+                        columnName="Aviso"
+                        options={filterOptions.aviso_renovacion}
+                        selectedOptions={columnFilters.aviso_renovacion}
+                        onChange={(selected) => handleColumnFilterChange('aviso_renovacion', selected as string[])}
+                      />
+                    </div>
                   </th>
-                  {/* Columna de Acciones Eliminada */}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-fenix-500/10">
                 {displayedData.map(c => (
-                  <tr key={c.id}>
-                    <td>{c.puntos_suministro?.cups ?? '—'}</td>
-                    <td>{c.empresas?.nombre ?? '—'}</td>
-                    <td>{c.oferta ?? '—'}</td>
-                    <td>{fmtDate(c.fecha_inicio)}</td>
-                    <td>{fmtDate(c.fecha_fin)}</td>
-                    <td>{c.aviso_renovacion ? `Sí (${fmtDate(c.fecha_aviso)})` : 'No'}</td>
-                    {/* Celda de Acciones Eliminada */}
+                  <tr key={c.id} className="hover:bg-bg-intermediate transition-colors cursor-pointer">
+                    <td className="px-6 py-4 font-mono text-gray-300">
+                      {c.puntos_suministro?.cups
+                        ? <span className="bg-bg-intermediate px-2 py-0.5 rounded text-xs">{c.puntos_suministro.cups}</span>
+                        : '—'}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-white">{c.comercializadoras?.nombre ?? '—'}</td>
+                    <td className="px-6 py-4 text-gray-300">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/30 text-blue-300">
+                        {c.estado}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">{fmtDate(c.fecha_activacion)}</td>
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-amber-400">{fmtDate(c.fecha_renovacion)}</span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">
+                      {c.aviso_renovacion
+                        ? <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">Sí ({fmtDate(c.fecha_aviso)})</span>
+                        : <span className="text-gray-400">No</span>
+                      }
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -245,8 +281,14 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props){
           </div>
         )}
         {displayedData && displayedData.length === 0 && !isLoading && (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            No se encontraron contratos que venzan en los próximos {daysToExpiry} días.
+          <div className="p-12 text-center">
+            <div className="w-16 h-16 bg-bg-intermediate rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-lg font-medium text-white mb-1">No se encontraron renovaciones</p>
+            <p className="text-gray-400">
+              No hay contratos que venzan en los próximos {daysToExpiry} días con los filtros actuales.
+            </p>
           </div>
         )}
       </div>

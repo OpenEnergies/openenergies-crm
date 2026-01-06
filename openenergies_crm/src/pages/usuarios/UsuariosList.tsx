@@ -136,7 +136,7 @@ export default function UsuariosList() {
   const isFiltered = columnFilters.rol.length > 0;
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
         <h2>Gestión de Usuarios</h2>
         <div className="page-actions">

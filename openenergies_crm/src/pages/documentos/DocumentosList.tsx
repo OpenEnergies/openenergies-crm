@@ -117,7 +117,7 @@ export default function DocumentosList() {
   };
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
         <h2 style={{ margin: 0 }}>Documentos Globales</h2>
         <div className="page-actions">

@@ -853,7 +853,7 @@ input[type="checkbox"].rounded-full:hover {
    ======================================== */
 
 /* Page layout */
-.grid {
+.page-layout {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;

@@ -1,435 +1,447 @@
 // src/pages/clientes/ClienteForm.tsx
-import React from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
-// CAMBIO: Eliminamos useNavigate ya que usaremos history.back()
-// import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Cliente, TipoCliente, EstadoCliente, UsuarioApp } from '@lib/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@hooks/useSession';
-import { HardHat, Tags, FileText, Mail, Lock, Building2, Activity, Users, CreditCard, User, Phone } from 'lucide-react';
+import { HardHat, Tags, FileText, Mail, Users, Loader2, ArrowLeft, Phone, Lock, CreditCard, UserCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
+import { MultiPhoneInput } from '@components/form/MultiPhoneInput';
 
-type ComercialOption = Pick<UsuarioApp, 'user_id' | 'nombre' | 'apellidos'>;
+type TipoCliente = 'Persona fisica' | 'Persona juridica';
 
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  tipo: z.enum(['persona', 'sociedad'], { required_error: 'Debes seleccionar un tipo' }),
-  estado: z.enum(['rechazado', 'desistido', 'stand by', 'procesando', 'activo'], { required_error: 'El estado es obligatorio' }).default('stand by'),
+  tipo: z.enum(['Persona fisica', 'Persona juridica']).optional().nullable(),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
-  email_facturacion: z.string().email('Email de facturación inválido').optional().nullable().or(z.literal('')),
-  representante: z.string().optional().nullable(),
   numero_cuenta: z.string().optional().nullable(),
+  representante: z.string().optional().nullable(),
   telefonos: z.string().optional().nullable(),
-  email: createAccess ? z.string().email('El email de acceso es obligatorio') : z.string().optional(),
-  password: createAccess ? z.string().min(8, 'La contraseña debe tener al menos 8 caracteres') : z.string().optional(),
+  email: z.string().email('Formato de email inválido').optional().nullable().or(z.literal('')),
+  portal_email: createAccess ? z.string().email('El email de acceso es obligatorio') : z.string().optional(),
+  portal_password: createAccess ? z.string().min(8, 'La contraseña debe tener al menos 8 caracteres') : z.string().optional(),
 });
 
 type FormData = z.infer<ReturnType<typeof createClienteSchema>>;
 
-async function fetchComerciales(): Promise<ComercialOption[]> {
-    const { data, error } = await supabase.from('usuarios_app').select('user_id, nombre, apellidos').eq('rol', 'comercial').eq('activo', true).order('nombre', { ascending: true });
-    if (error) throw error;
-    return data || [];
+interface ClienteFormProps {
+  readonly id?: string;
 }
 
-async function fetchCurrentAssignments(clienteId: string): Promise<string[]> {
-    if (!clienteId) return [];
-    const { data } = await supabase.from('asignaciones_comercial').select('comercial_user_id').eq('cliente_id', clienteId);
-    return data?.map(a => a.comercial_user_id) ?? [];
-}
-
-export default function ClienteForm({ id }: { id?: string }) {
-  // const navigate = useNavigate(); // Eliminado
+export default function ClienteForm({ id }: ClienteFormProps) {
+  const navigate = useNavigate();
   const { rol: currentUserRol, userId } = useSession();
   const editing = Boolean(id);
-  const [serverError, setServerError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const [createPortalAccess, setCreatePortalAccess] = useState(false);
-  const [selectedComerciales, setSelectedComerciales] = useState<string[]>([]);
-  const [initialAssignments, setInitialAssignments] = useState<string[]>([]);
-
-  const [tel1, setTel1] = useState('');
-  const [tel2, setTel2] = useState('');
-
-  const { data: comerciales = [], isLoading: loadingComerciales } = useQuery({
-      queryKey: ['comercialesList'],
-      queryFn: fetchComerciales,
-      enabled: currentUserRol === 'administrador',
-  });
-
-  const { data: currentAssignmentsData, isLoading: loadingAssignments } = useQuery({
-      queryKey: ['clienteAssignments', id],
-      queryFn: () => fetchCurrentAssignments(id!),
-      enabled: editing && !!id && currentUserRol === 'administrador',
-  });
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const schema = createClienteSchema(createPortalAccess);
 
-  const { register, handleSubmit, reset, control, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting }
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { estado: 'stand by' }
+    defaultValues: {
+      nombre: '',
+      tipo: null,
+      dni: '',
+      cif: '',
+      numero_cuenta: '',
+      representante: '',
+      telefonos: '',
+      email: '',
+    }
   });
 
-  const tipoCliente = useWatch({ control, name: 'tipo' });
+  const tipoCliente = watch('tipo');
+  const isDniDisabled = tipoCliente === 'Persona juridica';
+  const isCifDisabled = tipoCliente === 'Persona fisica';
 
-  const syncTelefonos = (t1: string, t2: string) => {
-    const finalString = [t1, t2].filter(t => t.trim() !== '').join(' / ');
-    setValue('telefonos', finalString, { shouldDirty: true });
-  };
+  useEffect(() => {
+    if (tipoCliente === 'Persona fisica') {
+      setValue('cif', '');
+    } else if (tipoCliente === 'Persona juridica') {
+      setValue('dni', '');
+    }
+  }, [tipoCliente, setValue]);
 
   useEffect(() => {
     if (!editing || !id) return;
+
     let isMounted = true;
+
     const fetchCliente = async () => {
-      const { data, error } = await supabase.from('clientes').select('*').eq('id', id!).maybeSingle();
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', id)
+        .is('eliminado_en', null)
+        .maybeSingle();
+
       if (!isMounted) return;
+
       if (error) {
         toast.error(`Error al cargar el cliente: ${error.message}`);
         return;
       }
-      if (data) {
-        const rawTel = data.telefonos || '';
-        const parts = rawTel.split('/').map((s: string) => s.trim());
-        setTel1(parts[0] || '');
-        setTel2(parts[1] || '');
 
-        const clienteData = {
-          ...data,
-          tipo: data.tipo as TipoCliente,
-          estado: data.estado as EstadoCliente,
-          representante: data.representante ?? '',
-          numero_cuenta: data.numero_cuenta ?? '',
-          telefonos: rawTel,
-        };
-        reset(clienteData);
+      if (data) {
+        reset({
+          nombre: data.nombre || '',
+          tipo: data.tipo as TipoCliente || null,
+          dni: data.dni || '',
+          cif: data.cif || '',
+          numero_cuenta: data.numero_cuenta || '',
+          representante: data.representante || '',
+          telefonos: data.telefonos || '',
+          email: data.email || '',
+        });
       }
     };
+
     fetchCliente();
+
     return () => { isMounted = false; };
   }, [editing, id, reset]);
 
-  useEffect(() => {
-      if (editing && currentUserRol === 'administrador' && typeof currentAssignmentsData !== 'undefined') {
-          const initialSelection = Array.isArray(currentAssignmentsData) ? currentAssignmentsData : [];
-          setSelectedComerciales(initialSelection);
-          setInitialAssignments(initialSelection);
-      }
-  }, [editing, currentUserRol, currentAssignmentsData]);
-
-  const handleComercialSelection = (comercialId: string) => {
-    setSelectedComerciales(prev => prev.includes(comercialId) ? prev.filter(id => id !== comercialId) : [...prev, comercialId]);
-  };
-
   async function onSubmit(values: FormData) {
     setServerError(null);
-    try {
-      let clientIdToUse: string | null = editing ? id! : null;
-      const finalTelefonos = [tel1, tel2].filter(t => t.trim() !== '').join(' / ');
-      const valuesToSubmit = { ...values, telefonos: finalTelefonos };
 
-      if (editing) {
-        const { error: updateError } = await supabase.from('clientes').update({
-          nombre: valuesToSubmit.nombre,
-          tipo: valuesToSubmit.tipo,
-          dni: valuesToSubmit.dni,
-          cif: valuesToSubmit.cif,
-          email_facturacion: valuesToSubmit.email_facturacion,
-          estado: valuesToSubmit.estado,
-          representante: valuesToSubmit.representante,
-          numero_cuenta: valuesToSubmit.numero_cuenta,
-          telefonos: valuesToSubmit.telefonos
-        }).eq('id', id!);
-        
+    try {
+      if (editing && id) {
+        const { error: updateError } = await supabase
+          .from('clientes')
+          .update({
+            nombre: values.nombre,
+            tipo: values.tipo,
+            dni: values.dni || null,
+            cif: values.cif || null,
+            numero_cuenta: values.numero_cuenta || null,
+            representante: values.representante || null,
+            telefonos: values.telefonos || null,
+            email: values.email || null,
+            modificado_en: new Date().toISOString(),
+            modificado_por: userId,
+          })
+          .eq('id', id);
+
         if (updateError) throw updateError;
         toast.success('Cliente actualizado correctamente');
 
-        if (currentUserRol === 'administrador') {
-            const assignmentsToAdd = selectedComerciales.filter(cid => !initialAssignments.includes(cid));
-            const assignmentsToRemove = initialAssignments.filter(cid => !selectedComerciales.includes(cid));
-            
-            if (assignmentsToAdd.length > 0) {
-                const inserts = assignmentsToAdd.map(uid => ({ cliente_id: clientIdToUse, comercial_user_id: uid }));
-                await supabase.from('asignaciones_comercial').insert(inserts);
-            }
-            if (assignmentsToRemove.length > 0) {
-                await supabase.from('asignaciones_comercial').delete().eq('cliente_id', clientIdToUse!).in('comercial_user_id', assignmentsToRemove);
-            }
-            setInitialAssignments([...selectedComerciales]);
-        }
-
       } else {
-        const payload = {
+        if (createPortalAccess && values.portal_email && values.portal_password) {
+          const payload = {
             action: 'onboard-client',
             payload: {
               creatingUser: { rol: currentUserRol, id: userId },
               clientData: {
-                nombre: valuesToSubmit.nombre,
-                tipo: valuesToSubmit.tipo,
-                dni: valuesToSubmit.dni,
-                cif: valuesToSubmit.cif,
-                email_facturacion: valuesToSubmit.email_facturacion,
-                estado: valuesToSubmit.estado,
-                representante: valuesToSubmit.representante,
-                numero_cuenta: valuesToSubmit.numero_cuenta,
-                telefonos: valuesToSubmit.telefonos
+                nombre: values.nombre,
+                tipo: values.tipo,
+                dni: values.dni || null,
+                cif: values.cif || null,
+                numero_cuenta: values.numero_cuenta || null,
+                representante: values.representante || null,
+                telefonos: values.telefonos || null,
+                email: values.email || null,
               },
-              createPortalAccess: createPortalAccess,
-              userData: createPortalAccess ? {
-                email: valuesToSubmit.email,
-                password: valuesToSubmit.password,
-                nombre: valuesToSubmit.nombre.split(' ')[0],
-                apellidos: valuesToSubmit.nombre.split(' ').slice(1).join(' '),
-              } : null
+              createPortalAccess: true,
+              userData: {
+                email: values.portal_email,
+                password: values.portal_password,
+                nombre: values.nombre.split(' ')[0],
+                apellidos: values.nombre.split(' ').slice(1).join(' '),
+              }
             }
           };
-        const { data: functionData, error: functionError } = await supabase.functions.invoke('manage-user', { body: payload });
-        if (functionError) throw functionError;
-        clientIdToUse = functionData.data.newClientId;
-        toast.success('Cliente creado correctamente');
 
-        if (currentUserRol === 'administrador' && selectedComerciales.length > 0 && clientIdToUse) {
-          const asignaciones = selectedComerciales.map(uid => ({ cliente_id: clientIdToUse, comercial_user_id: uid }));
-          await supabase.from('asignaciones_comercial').insert(asignaciones);
+          const { error: functionError } = await supabase.functions.invoke('manage-user', { body: payload });
+          if (functionError) throw functionError;
+
+        } else {
+          const { error: insertError } = await supabase
+            .from('clientes')
+            .insert({
+              nombre: values.nombre,
+              tipo: values.tipo || 'Persona fisica',
+              dni: values.dni || null,
+              cif: values.cif || null,
+              numero_cuenta: values.numero_cuenta || null,
+              representante: values.representante || null,
+              telefonos: values.telefonos || null,
+              email: values.email || null,
+              creado_por: userId,
+            });
+
+          if (insertError) throw insertError;
         }
-        if (currentUserRol === 'comercial' && userId && clientIdToUse && !selectedComerciales.includes(userId)) {
-            await supabase.from('asignaciones_comercial').insert({ cliente_id: clientIdToUse, comercial_user_id: userId });
-        }
+
+        toast.success('Cliente creado correctamente');
       }
 
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      // CAMBIO: Volver al historial en lugar de ruta fija
-      window.history.back();
+      navigate({ to: '/app/clientes' });
 
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Error al guardar cliente:", e);
-      toast.error(`Error al guardar: ${e.message}`);
+      const message = e instanceof Error ? e.message : 'Ocurrió un error inesperado.';
+      toast.error(`Error al guardar: ${message}`);
+      setServerError(`Error al guardar: ${message}`);
     }
   }
 
-  const showComercialSelector = currentUserRol === 'administrador';
-  const disabledStyle = { backgroundColor: 'var(--bg-muted)', cursor: 'not-allowed', opacity: 0.7 };
-
   return (
-    <div className="grid">
-      <div className="page-header">
-        <h2 style={{ margin: '0' }}>{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate({ to: '/app/clientes' })}
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-fenix-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-fenix-500">
+            {editing ? 'Editar Cliente' : 'Nuevo Cliente'}
+          </h1>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="card">
-        <div className="grid" style={{ gap: '1.5rem' }}>
-          
-          {/* FILA 1: Nombre y Tipo (50% - 50%) */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
-            <div>
-              <label htmlFor="nombre">Nombre o Razón Social</label>
-              <div className="input-icon-wrapper">
-                <HardHat size={18} className="input-icon" />
-                <input id="nombre" {...register('nombre')} />
-              </div>
-              {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="tipo">Tipo de cliente</label>
-              <div className="input-icon-wrapper">
-                <Tags size={18} className="input-icon" />
-                <select id="tipo" {...register('tipo')}>
-                  <option value=""> Selecciona </option>
-                  <option value="persona">Persona</option>
-                  <option value="sociedad">Sociedad</option>
-                </select>
-              </div>
-              {errors.tipo && <p className="error-text">{errors.tipo.message}</p>}
-            </div>
-          </div>
+      {/* Form Card */}
+      <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6">
+        <div className="space-y-6">
 
-          {/* FILA 2: Representante y Nº de Cuenta (50% - 50%) */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+          {/* Row 1: Nombre + Tipo */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="representante">Representante</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input id="representante" {...register('representante')} placeholder="Nombre del representante" />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="numero_cuenta">Nº de Cuenta</label>
-              <div className="input-icon-wrapper">
-                <CreditCard size={18} className="input-icon" />
-                <input id="numero_cuenta" {...register('numero_cuenta')} placeholder="IBAN o Nº de cuenta" />
-              </div>
-            </div>
-          </div>
-
-          {/* FILA 3: DNI, CIF, Estado (25% - 25% - 50%) */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '1rem'}}>
-            <div>
-              <label htmlFor="dni" style={tipoCliente === 'sociedad' ? { color: 'var(--muted)' } : {}}>
-                DNI (personas)
+              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <HardHat size={16} />
+                Nombre o Razón Social *
               </label>
-              <div className="input-icon-wrapper">
-                <FileText size={18} className="input-icon" />
-                <input 
-                  id="dni" 
-                  {...register('dni')}
-                  disabled={tipoCliente === 'sociedad'}
-                  style={tipoCliente === 'sociedad' ? disabledStyle : {}}
-                  placeholder={tipoCliente === 'sociedad' ? 'No aplica' : 'DNI'}
-                />
-              </div>
+              <input
+                id="nombre"
+                {...register('nombre')}
+                placeholder="Nombre completo o razón social"
+                className="glass-input w-full"
+              />
+              {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
             </div>
+
             <div>
-              <label htmlFor="cif" style={tipoCliente === 'persona' ? { color: 'var(--muted)' } : {}}>
-                CIF (sociedades)
+              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <Tags size={16} />
+                Tipo de cliente
               </label>
-              <div className="input-icon-wrapper">
-                <FileText size={18} className="input-icon" />
-                <input 
-                  id="cif" 
-                  {...register('cif')} 
-                  disabled={tipoCliente === 'persona'}
-                  style={tipoCliente === 'persona' ? disabledStyle : {}}
-                  placeholder={tipoCliente === 'persona' ? 'No aplica' : 'CIF'}
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="estado">Estado</label>
-              <div className="input-icon-wrapper">
-                <Activity size={18} className="input-icon" />
-                <select id="estado" {...register('estado')}>
-                  <option value="stand by">🟠 Stand By</option>
-                  <option value="procesando">🟡 Procesando</option>
-                  <option value="activo">🟢 Activo</option>
-                  <option value="rechazado">🔴 Rechazado</option>
-                  <option value="desistido">⚫ Desistido</option>
-                </select>
-              </div>
-              {errors.estado && <p className="error-text">{errors.estado.message}</p>}
+              <select
+                id="tipo"
+                {...register('tipo')}
+                className="glass-input w-full appearance-none cursor-pointer"
+              >
+                <option value="">Selecciona tipo</option>
+                <option value="Persona fisica">Persona Física</option>
+                <option value="Persona juridica">Persona Jurídica</option>
+              </select>
+              {errors.tipo && <p className="text-sm text-red-400 mt-1">{errors.tipo.message}</p>}
             </div>
           </div>
 
-          {/* FILA 4: Email, Teléfonos (50% - 50%) */}
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-            
-            {/* Email */}
-            <div>
-              <label htmlFor="email_facturacion">Email de facturación</label>
-              <div className="input-icon-wrapper">
-                <Mail size={18} className="input-icon" />
-                <input id="email_facturacion" type="email" {...register('email_facturacion')} placeholder="ejemplo@email.com" />
-              </div>
-              {errors.email_facturacion && <p className="error-text">{errors.email_facturacion.message}</p>}
+          {/* Row 2: DNI + CIF */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={isDniDisabled ? 'opacity-50' : ''}>
+              <label htmlFor="dni" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <FileText size={16} />
+                DNI
+              </label>
+              <input
+                id="dni"
+                {...register('dni')}
+                disabled={isDniDisabled}
+                placeholder={isDniDisabled ? 'No aplica para Persona Jurídica' : 'DNI del titular'}
+                className="glass-input w-full disabled:cursor-not-allowed"
+              />
+              {errors.dni && <p className="text-sm text-red-400 mt-1">{errors.dni.message}</p>}
             </div>
 
-            {/* Teléfonos (Input Doble) */}
-            <div>
-              <label>Teléfono(s) de contacto</label>
-              <div className="input-icon-wrapper">
-                <Phone size={18} className="input-icon" />
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input 
-                    placeholder="Teléfono 1" 
-                    value={tel1} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setTel1(val);
-                      syncTelefonos(val, tel2);
-                    }}
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <span style={{ color: 'var(--muted)', fontWeight: 'bold', userSelect: 'none' }}>/</span>
-                  <input 
-                    placeholder="Teléfono 2 (Opcional)" 
-                    value={tel2} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setTel2(val);
-                      syncTelefonos(tel1, val);
-                    }}
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                </div>
-              </div>
-              <input type="hidden" {...register('telefonos')} />
+            <div className={isCifDisabled ? 'opacity-50' : ''}>
+              <label htmlFor="cif" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <FileText size={16} />
+                CIF
+              </label>
+              <input
+                id="cif"
+                {...register('cif')}
+                disabled={isCifDisabled}
+                placeholder={isCifDisabled ? 'No aplica para Persona Física' : 'CIF de la empresa'}
+                className="glass-input w-full disabled:cursor-not-allowed"
+              />
+              {errors.cif && <p className="text-sm text-red-400 mt-1">{errors.cif.message}</p>}
             </div>
           </div>
 
-          {/* ... (Resto de secciones) ... */}
-          {showComercialSelector && (
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-                  <h3 style={{ marginTop: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Users size={20} /> Asignar Comerciales {editing ? '' : '(Opcional)'}
-                  </h3>
-                  {(loadingComerciales || (editing && loadingAssignments)) ? (
-                      <p>Cargando información de comerciales...</p>
-                  ) : comerciales.length === 0 ? (
-                      <p style={{ color: 'var(--muted)'}}>No hay comerciales activos para asignar.</p>
-                  ) : (
-                      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.5rem' }}>
-                          {comerciales.map(comercial => (
-                              <label key={comercial.user_id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', cursor: 'pointer', borderRadius: '4px' }} className="comercial-select-label">
-                                  <input
-                                      type="checkbox"
-                                      checked={selectedComerciales.includes(comercial.user_id)}
-                                      onChange={() => handleComercialSelection(comercial.user_id)}
-                                      style={{ width: 'auto' }}
-                                  />
-                                  <span>{comercial.nombre} {comercial.apellidos}</span>
-                              </label>
-                          ))}
-                      </div>
-                  )}
-              </div>
-          )}
+          {/* Row 3: IBAN + Representante */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="numero_cuenta" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <CreditCard size={16} />
+                Número de cuenta (IBAN)
+              </label>
+              <input
+                id="numero_cuenta"
+                {...register('numero_cuenta')}
+                placeholder="ES00 0000 0000 0000 0000 0000"
+                className="glass-input w-full font-mono"
+              />
+              {errors.numero_cuenta && <p className="text-sm text-red-400 mt-1">{errors.numero_cuenta.message}</p>}
+            </div>
 
+            <div>
+              <label htmlFor="representante" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <UserCircle size={16} />
+                Representante
+              </label>
+              <input
+                id="representante"
+                {...register('representante')}
+                placeholder="Nombre del representante legal"
+                className="glass-input w-full"
+              />
+              {errors.representante && <p className="text-sm text-red-400 mt-1">{errors.representante.message}</p>}
+            </div>
+          </div>
+
+          {/* Row 4: Teléfonos + Email */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="telefonos" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <Phone size={16} />
+                Teléfono(s)
+              </label>
+              <Controller
+                name="telefonos"
+                control={control}
+                render={({ field }) => (
+                  <MultiPhoneInput
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    showIcon={false}
+                  />
+                )}
+              />
+              {errors.telefonos && <p className="text-sm text-red-400 mt-1">{errors.telefonos.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <Mail size={16} />
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                {...register('email')}
+                placeholder="correo@ejemplo.com"
+                className="glass-input w-full"
+              />
+              {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>}
+            </div>
+          </div>
+
+          {/* Portal Access Section (only on create) */}
           {!editing && (
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-              <h3 style={{ marginTop: 0, fontSize: '1.1rem' }}>Acceso al Portal de Cliente</h3>
-              <label className="switch-wrapper">
-                <input
-                  type="checkbox"
-                  checked={createPortalAccess}
-                  onChange={(e) => setCreatePortalAccess(e.target.checked)}
-                />
-                <span className="switch-slider"></span>
-                <span className="switch-label">Crear un usuario para que este cliente pueda acceder a su portal</span>
+            <div className="border-t border-bg-intermediate pt-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Acceso al Portal de Cliente</h3>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={createPortalAccess}
+                    onChange={(e) => setCreatePortalAccess(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-bg-primary border border-fenix-500/30 rounded-full peer peer-checked:bg-fenix-500 peer-checked:border-fenix-500 transition-colors cursor-pointer"></div>
+                  <div className="absolute left-1 top-1 w-4 h-4 bg-fenix-500/30 peer-checked:bg-white rounded-full transition-all peer-checked:translate-x-5 shadow-sm"></div>
+                </div>
+                <span className="text-gray-300">Crear usuario para acceso al portal</span>
               </label>
+
               {createPortalAccess && (
-                  <div className="grid" style={{ gap: '1rem', marginTop: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg)', borderRadius: '0.5rem' }}>
-                       <p style={{color: 'var(--muted)', fontSize: '0.9rem', margin: 0}}>
-                        Se creará un usuario con rol 'cliente'. Deberás comunicarle sus credenciales de acceso.
-                      </p>
-                      <div>
-                        <label htmlFor="email">Email de acceso</label>
-                        <div className="input-icon-wrapper">
-                          <Mail size={18} className="input-icon" />
-                          <input id="email" type="email" {...register('email')} />
-                        </div>
-                        {errors.email && <p className="error-text">{errors.email.message}</p>}
-                      </div>
-                      <div>
-                        <label htmlFor="password">Contraseña inicial</label>
-                        <PasswordInput id="password" {...register('password')} />
-                        {errors.password && <p className="error-text">{errors.password.message}</p>}
-                      </div>
+                <div className="mt-4 p-4 rounded-lg bg-bg-intermediate border border-bg-intermediate space-y-4">
+                  <p className="text-sm text-gray-400">
+                    Se creará un usuario con rol 'cliente'. Comunícale sus credenciales de acceso.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="portal_email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                        <Mail size={16} />
+                        Email de acceso *
+                      </label>
+                      <input
+                        id="portal_email"
+                        type="email"
+                        {...register('portal_email')}
+                        placeholder="usuario@ejemplo.com"
+                        className="glass-input w-full"
+                      />
+                      {errors.portal_email && <p className="text-sm text-red-400 mt-1">{errors.portal_email.message}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="portal_password" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                        <Lock size={16} />
+                        Contraseña inicial *
+                      </label>
+                      <PasswordInput
+                        id="portal_password"
+                        {...register('portal_password')}
+                        showIcon={false}
+                      />
+                      {errors.portal_password && <p className="text-sm text-red-400 mt-1">{errors.portal_password.message}</p>}
+                    </div>
                   </div>
+                </div>
               )}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-            {/* CAMBIO: Volver al historial en Cancelar */}
-            <button type="button" className="secondary" onClick={() => window.history.back()}>
+          {/* Server Error */}
+          {serverError && (
+            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+              {serverError}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-6 border-t border-bg-intermediate">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => navigate({ to: '/app/clientes' })}
+            >
               Cancelar
             </button>
-            <button type="submit" disabled={isSubmitting || loadingComerciales || (editing && loadingAssignments)}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isSubmitting && <Loader2 size={16} className="animate-spin" />}
               {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Cliente')}
             </button>
           </div>

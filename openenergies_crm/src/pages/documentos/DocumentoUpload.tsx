@@ -57,7 +57,7 @@ export default function DocumentoUpload(){
   }
 
   return (
-    <div className="grid">
+    <div className="page-layout">
       <div className="page-header">
         <h2 style={{marginTop:0}}>Subir Documento</h2>
       </div>
@@ -112,3 +112,4 @@ export default function DocumentoUpload(){
     </div>
   );
 }
+

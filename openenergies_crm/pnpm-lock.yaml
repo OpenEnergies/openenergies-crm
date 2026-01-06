@@ -92,12 +92,6 @@ importers:
         version: 18.3.0
       '@vitejs/plugin-react':
         specifier: ^4.7.0
-<<<<<<< HEAD
-        version: 4.7.0(vite@5.4.20(@types/node@24.7.0))
-      serve:
-        specifier: ^14.2.5
-        version: 14.2.5
-=======
         version: 4.7.0(vite@5.4.20(@types/node@24.7.0)(lightningcss@1.30.2))
       autoprefixer:
         specifier: ^10.4.23
@@ -111,7 +105,6 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
->>>>>>> 8bcb6b7 (Migración parte del frontend)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -934,14 +927,11 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
-<<<<<<< HEAD
-=======
   browserslist@4.28.1:
     resolution: {integrity: sha512-ZC5Bd0LgJXgwGqUknZY/vkUQ04r8NXnJZ3yYi4vDmSiZmC/pdSN0NbNRPxZpbtO4uAfDUAFffO8IZoM3Gj8IkA==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   bytes@3.0.0:
     resolution: {integrity: sha512-pMhOfFDPiv9t5jjIXkHosWmkSyQbvsgEVNkz0ERHbuLh2T/7j4Mqqpz523Fe8MVY89KC6Sh/QfS2sM+SjgFDcw==}
     engines: {node: '>= 0.8'}
@@ -1123,13 +1113,10 @@ packages:
   emoji-regex@9.2.2:
     resolution: {integrity: sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==}
 
-<<<<<<< HEAD
-=======
   enhanced-resolve@5.18.4:
     resolution: {integrity: sha512-LgQMM4WXU3QI+SYgEc2liRgznaD5ojbmY3sb8LxyguVkIg5FxdpTkvk72te2R38/TGKxH634oLxXRGY6d7AP+Q==}
     engines: {node: '>=10.13.0'}
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
 
@@ -1295,13 +1282,10 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
-<<<<<<< HEAD
-=======
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -1830,8 +1814,6 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
-<<<<<<< HEAD
-=======
   tailwindcss@4.1.18:
     resolution: {integrity: sha512-4+Z+0yiYyEtUVCScyfHCxOYP06L5Ne+JiHhY2IjR2KWMIWhJOYZKLSGZaP5HkZ8+bY0cxfzwDE5uOmzFXyIwxw==}
 
@@ -1839,7 +1821,6 @@ packages:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
@@ -1907,15 +1888,12 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
-<<<<<<< HEAD
-=======
   update-browserslist-db@1.2.3:
     resolution: {integrity: sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w==}
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   update-check@1.5.4:
     resolution: {integrity: sha512-5YHsflzHP4t1G+8WGPlvKbJEbAJGCgw+Em+dGR1KmBUbr1J36SJBqlHLjR7oob7sco5hWHGQVcr9B2poIVDDTQ==}
 
@@ -2823,8 +2801,6 @@ snapshots:
       node-releases: 2.0.23
       update-browserslist-db: 1.1.3(browserslist@4.26.3)
 
-<<<<<<< HEAD
-=======
   browserslist@4.28.1:
     dependencies:
       baseline-browser-mapping: 2.9.11
@@ -2833,7 +2809,6 @@ snapshots:
       node-releases: 2.0.27
       update-browserslist-db: 1.2.3(browserslist@4.28.1)
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   bytes@3.0.0: {}
 
   bytes@3.1.2: {}
@@ -2988,15 +2963,8 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  eastasianwidth@0.2.0: {}
-
   electron-to-chromium@1.5.233: {}
 
-<<<<<<< HEAD
-  emoji-regex@8.0.0: {}
-
-  emoji-regex@9.2.2: {}
-=======
   electron-to-chromium@1.5.267: {}
 
   emoji-regex@8.0.0: {}
@@ -3007,7 +2975,6 @@ snapshots:
     dependencies:
       graceful-fs: 4.2.11
       tapable: 2.3.0
->>>>>>> 8bcb6b7 (Migración parte del frontend)
 
   es-module-lexer@1.7.0: {}
 
@@ -3181,11 +3148,8 @@ snapshots:
 
   isexe@2.0.0: {}
 
-<<<<<<< HEAD
-=======
   jiti@2.6.1: {}
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   js-tokens@4.0.0: {}
 
   jsesc@3.1.0: {}
@@ -3704,13 +3668,10 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
-<<<<<<< HEAD
-=======
   tailwindcss@4.1.18: {}
 
   tapable@2.3.0: {}
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   tar@6.2.1:
     dependencies:
       chownr: 2.0.0
@@ -3762,15 +3723,12 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
-<<<<<<< HEAD
-=======
   update-browserslist-db@1.2.3(browserslist@4.28.1):
     dependencies:
       browserslist: 4.28.1
       escalade: 3.2.0
       picocolors: 1.1.1
 
->>>>>>> 8bcb6b7 (Migración parte del frontend)
   update-check@1.5.4:
     dependencies:
       registry-auth-token: 3.3.2
@@ -3788,11 +3746,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-<<<<<<< HEAD
-  vite-node@2.1.9(@types/node@24.7.0):
-=======
   vite-node@2.1.9(@types/node@24.7.0)(lightningcss@1.30.2):
->>>>>>> 8bcb6b7 (Migración parte del frontend)
     dependencies:
       cac: 6.7.14
       debug: 4.4.3(supports-color@5.5.0)

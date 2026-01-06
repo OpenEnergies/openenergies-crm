@@ -34,22 +34,27 @@ export default function ColumnFilterDropdown({ columnName, options, selectedOpti
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Ref para el menú, para detectar clics fuera
   const menuRef = useRef<HTMLDivElement>(null);
-  const hasOptions = options.length > 0;
+
+  // Null safety for arrays
+  const safeOptions = options || [];
+  const safeSelectedOptions = selectedOptions || [];
+  const hasOptions = safeOptions.length > 0;
+
   // Usa el hook para cerrar al hacer clic fuera del menú
   useOnClickOutside(menuRef, () => setIsOpen(false));
 
   const handleOptionToggle = (option: string) => {
-    const newSelected = selectedOptions.includes(option)
-      ? selectedOptions.filter(item => item !== option)
-      : [...selectedOptions, option];
+    const newSelected = safeSelectedOptions.includes(option)
+      ? safeSelectedOptions.filter(item => item !== option)
+      : [...safeSelectedOptions, option];
     onChange(newSelected);
   };
 
   const handleSelectAll = () => {
-    if (selectedOptions.length === options.length) {
+    if (safeSelectedOptions.length === safeOptions.length) {
       onChange([]); // Deseleccionar todo
     } else {
-      onChange(options); // Seleccionar todo
+      onChange(safeOptions); // Seleccionar todo
     }
     // Opcional: cerrar el menú después de seleccionar/limpiar todo
     setIsOpen(false);
@@ -76,9 +81,9 @@ export default function ColumnFilterDropdown({ columnName, options, selectedOpti
       <button
         ref={buttonRef} // Asigna la ref al botón
         onClick={() => {
-            if (hasOptions) setIsOpen(!isOpen);
+          if (hasOptions) setIsOpen(!isOpen);
         }}
-        className={`icon-button secondary small ${selectedOptions.length > 0 ? 'active' : ''}`}
+        className={`icon-button secondary small ${safeSelectedOptions.length > 0 ? 'active' : ''}`}
         title={hasOptions ? `Filtrar por ${columnName}` : 'No hay opciones para filtrar'}
         disabled={!hasOptions}
       >
@@ -96,15 +101,15 @@ export default function ColumnFilterDropdown({ columnName, options, selectedOpti
           {/* Contenido del menú sin cambios */}
           <div className="dropdown-item">
             <button onClick={handleSelectAll} style={{ width: '100%', textAlign: 'left' }}>
-              {selectedOptions.length === options.length ? 'Limpiar selección' : 'Seleccionar todo'}
+              {safeSelectedOptions.length === safeOptions.length ? 'Limpiar selección' : 'Seleccionar todo'}
             </button>
           </div>
-          <hr style={{ margin: '4px 0'}} />
-          {options.map(option => (
+          <hr style={{ margin: '4px 0' }} />
+          {safeOptions.map(option => (
             <label key={option} className="dropdown-item checkbox-label">
               <input
                 type="checkbox"
-                checked={selectedOptions.includes(option)}
+                checked={safeSelectedOptions.includes(option)}
                 onChange={() => handleOptionToggle(option)}
               />
               {/* Añade un span para asegurar que el texto se alinea correctamente */}

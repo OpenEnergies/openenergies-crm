@@ -1,8 +1,7 @@
 // src/pages/dashboard/widgets/EstadoMisClientesWidget.tsx
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import { Link } from '@tanstack/react-router';
-import { BarChart3, Loader2 } from 'lucide-react'; // Usamos BarChart3 como icono
+import { BarChart3, Loader2 } from 'lucide-react';
 import { useSession } from '@hooks/useSession';
 import type { EstadoCliente } from '@lib/types';
 
@@ -20,10 +19,9 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
   };
 
   if (!comercialUserId) {
-    return summary; // Si no es comercial, devuelve ceros
+    return summary;
   }
 
-  // 1. Obtenemos los IDs de los clientes asignados
   const { data: asignaciones, error: asignError } = await supabase
     .from('asignaciones_comercial')
     .select('cliente_id')
@@ -37,24 +35,22 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
   const clienteIds = asignaciones?.map(a => a.cliente_id) ?? [];
 
   if (clienteIds.length === 0) {
-    return summary; // Si no tiene clientes asignados, devuelve ceros
+    return summary;
   }
 
-  // 2. Obtenemos el estado de esos clientes
   const { data: clientes, error: clientesError } = await supabase
     .from('clientes')
     .select('estado')
-    .in('id', clienteIds); // Filtramos por los IDs obtenidos
+    .in('id', clienteIds);
 
   if (clientesError) {
     console.error("Error fetching estado clientes:", clientesError);
     throw new Error(clientesError.message);
   }
 
-  // 3. Contamos los clientes por estado
   summary.total = clientes?.length ?? 0;
   clientes?.forEach(cliente => {
-    const estado = cliente.estado as EstadoCliente | null ?? 'stand by'; // Usamos 'stand by' si es null
+    const estado = cliente.estado as EstadoCliente | null ?? 'stand by';
     if (summary[estado] !== undefined) {
       summary[estado]++;
     }
@@ -63,62 +59,75 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
   return summary;
 }
 
-// Mapa de estados a clases de status-dot (para el color)
-const estadoDotClass: Record<EstadoCliente, string> = {
-    'activo': 'status-activo',
-    'procesando': 'status-procesando',
-    'stand by': 'status-standby',
-    'desistido': 'status-desistido',
+// Tailwind color classes for each status
+const estadoColors: Record<EstadoCliente, string> = {
+  'activo': 'bg-green-400',
+  'procesando': 'bg-amber-400',
+  'stand by': 'bg-gray-400',
+  'desistido': 'bg-red-400',
 };
 
-
 export default function EstadoMisClientesWidget() {
-  const { userId } = useSession(); // Obtenemos el userId del comercial
+  const { userId } = useSession();
 
   const { data: summary, isLoading, isError } = useQuery({
     queryKey: ['estadoClientesAsignadosDashboard', userId],
     queryFn: () => fetchEstadoClientesAsignados(userId),
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000, // Cachear por 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Excluimos 'total' para el mapeo de la lista
   const estadosAMostrar = Object.keys(summary ?? {}).filter(k => k !== 'total') as EstadoCliente[];
 
   return (
-    <div className="card">
-      <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1rem' }}>
-        <BarChart3 size={20} /> Estado de Mis Clientes
-      </h3>
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+          <BarChart3 className="w-4 h-4 text-emerald-400" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Estado de Mis Clientes</h3>
+      </div>
+
+      {/* Loading */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>
-          <Loader2 className="animate-spin" size={24} />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
         </div>
       )}
+
+      {/* Error */}
       {isError && (
-        <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar estados.</p>
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar estados.</p>
       )}
+
+      {/* Empty */}
       {!isLoading && !isError && summary && summary.total === 0 && (
-          <p style={{ textAlign: 'center', color: 'var(--muted)' }}>No tienes clientes asignados.</p>
+        <p className="text-sm text-gray-400 text-center py-4">No tienes clientes asignados.</p>
       )}
+
+      {/* Content */}
       {!isLoading && !isError && summary && summary.total > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <ul className="space-y-2">
           {estadosAMostrar.map((estado) => (
-            <li key={estado} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '0.5rem', fontSize: '0.9rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'capitalize' }}>
-                <span className={`status-dot ${estadoDotClass[estado]}`}></span> {/* Punto de color */}
+            <li
+              key={estado}
+              className="flex items-center justify-between py-2 border-b border-bg-intermediate last:border-0"
+            >
+              <span className="flex items-center gap-2 text-sm text-gray-300 capitalize">
+                <span className={`w-2 h-2 rounded-full ${estadoColors[estado]}`} />
                 {estado}
               </span>
-              <span style={{ fontWeight: 'bold' }}>
+              <span className="text-sm font-semibold text-white">
                 {summary[estado]}
               </span>
             </li>
           ))}
           {/* Total */}
-           <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', marginTop: '0.25rem', borderTop: '1px solid var(--border-color)', fontWeight: 'bold' }}>
-              <span>Total</span>
-              <span>{summary.total}</span>
-           </li>
+          <li className="flex items-center justify-between pt-3 mt-2 border-t border-bg-intermediate">
+            <span className="text-sm font-medium text-gray-200">Total</span>
+            <span className="text-lg font-bold text-fenix-400">{summary.total}</span>
+          </li>
         </ul>
       )}
     </div>

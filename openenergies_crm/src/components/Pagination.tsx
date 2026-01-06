@@ -1,67 +1,58 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
-interface Props {
-  page: number;
-  totalPages: number;
-  totalItems: number;
-  onPageChange: (page: number) => void;
-  isLoading?: boolean;
+interface PaginationProps {
+    page: number;
+    totalPages: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
+    isLoading?: boolean;
 }
 
-export function Pagination({ page, totalPages, totalItems, onPageChange, isLoading }: Props) {
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages && !isLoading) {
-      onPageChange(newPage);
-    }
-  };
+export function Pagination({ page, totalPages, totalItems, onPageChange, isLoading = false }: PaginationProps) {
+    const goToPage = (newPage: number) => {
+        onPageChange(Math.max(1, Math.min(newPage, totalPages)));
+    };
 
-  return (
-    <div className="pagination-container" style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'space-between', 
-      padding: '1rem', 
-      borderTop: '1px solid var(--border-color)',
-      backgroundColor: 'var(--bg-card)'
-    }}>
-      <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
-        Total: <strong>{totalItems}</strong> registros • Página <strong>{page}</strong> de <strong>{totalPages || 1}</strong>
-      </span>
-      
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button
-          className="icon-button secondary"
-          onClick={() => handlePageChange(1)}
-          disabled={page === 1 || isLoading}
-          title="Primera página"
-        >
-          <ChevronsLeft size={18} />
-        </button>
-        <button
-          className="icon-button secondary"
-          onClick={() => handlePageChange(page - 1)}
-          disabled={page === 1 || isLoading}
-          title="Anterior"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <button
-          className="icon-button secondary"
-          onClick={() => handlePageChange(page + 1)}
-          disabled={page === totalPages || totalPages === 0 || isLoading}
-          title="Siguiente"
-        >
-          <ChevronRight size={18} />
-        </button>
-        <button
-          className="icon-button secondary"
-          onClick={() => handlePageChange(totalPages)}
-          disabled={page === totalPages || totalPages === 0 || isLoading}
-          title="Última página"
-        >
-          <ChevronsRight size={18} />
-        </button>
-      </div>
-    </div>
-  );
+    return (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-bg-intermediate">
+            <div className="text-sm text-gray-400">
+                Total: <span className="text-white font-medium">{totalItems}</span> registros •
+                Página <span className="text-white font-medium">{page}</span> de <span className="text-white font-medium">{totalPages || 1}</span>
+            </div>
+            <div className="flex items-center gap-1">
+                <button
+                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() => goToPage(1)}
+                    disabled={page === 1 || isLoading}
+                    title="Primera página"
+                >
+                    <ChevronsLeft size={18} />
+                </button>
+                <button
+                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page === 1 || isLoading}
+                    title="Página anterior"
+                >
+                    <ChevronLeft size={18} />
+                </button>
+                <button
+                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page >= totalPages || isLoading}
+                    title="Página siguiente"
+                >
+                    <ChevronRight size={18} />
+                </button>
+                <button
+                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() => goToPage(totalPages)}
+                    disabled={page >= totalPages || isLoading}
+                    title="Última página"
+                >
+                    <ChevronsRight size={18} />
+                </button>
+            </div>
+        </div>
+    );
 }

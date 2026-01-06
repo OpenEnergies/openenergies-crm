@@ -2,10 +2,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { Users, UserCheck, UserX, ShieldCheck, BriefcaseBusiness, User as UserIcon, Loader2 } from 'lucide-react';
+import { Users, UserCheck, UserX, ShieldCheck, BriefcaseBusiness, User as UserIcon, Loader2, ArrowRight } from 'lucide-react';
 import type { RolUsuario } from '@lib/types';
 
-// Tipo para almacenar los conteos
 type UserSummaryCounts = {
   total: number;
   activos: number;
@@ -13,18 +12,16 @@ type UserSummaryCounts = {
   roles: Record<RolUsuario, number>;
 };
 
-// Función para obtener todos los conteos en una sola consulta
 async function fetchUserSummaryCounts(): Promise<UserSummaryCounts> {
   const { data, error } = await supabase
     .from('usuarios_app')
-    .select('activo, rol', { count: 'exact' }); // Pedimos 'activo' y 'rol' y el conteo total
+    .select('activo, rol', { count: 'exact' });
 
   if (error) {
     console.error("Error fetching user summary counts:", error);
     throw new Error(error.message);
   }
 
-  // Calculamos los diferentes conteos a partir de los datos
   const total = data?.length ?? 0;
   const activos = data?.filter(u => u.activo).length ?? 0;
   const bloqueados = total - activos;
@@ -43,56 +40,68 @@ async function fetchUserSummaryCounts(): Promise<UserSummaryCounts> {
   return { total, activos, bloqueados, roles };
 }
 
-// Componente KpiCard reutilizable
-function KpiCard({ title, value, icon: Icon, linkTo }: { title: string; value: number | string; icon: React.ElementType; linkTo?: string }) {
-  const content = (
-     <div style={{ textAlign: 'center' }}>
-       <Icon size={28} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
-       <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: '0 0 0.25rem' }}>{value}</p>
-       <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>{title}</p>
-     </div>
+function StatItem({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-bg-intermediate/50">
+      <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
+        <Icon className="w-4 h-4 text-current" />
+      </div>
+      <div>
+        <p className="text-xl font-bold text-white">{value}</p>
+        <p className="text-xs text-gray-400">{label}</p>
+      </div>
+    </div>
   );
-
-  if (linkTo) {
-      return <Link to={linkTo} className="card-link"><div className="card action-card">{content}</div></Link>;
-  }
-  return <div className="card">{content}</div>; // Sin hover si no hay link
 }
-
 
 export default function ResumenUsuariosWidget() {
   const { data: counts, isLoading, isError } = useQuery({
     queryKey: ['userSummaryCountsDashboard'],
     queryFn: fetchUserSummaryCounts,
-    staleTime: 5 * 60 * 1000, // Cachear por 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 
   return (
-    <div className="card"> {/* Contenedor principal del widget */}
-      <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
-        <Users size={20} /> Resumen de Usuarios
-      </h3>
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+          <Users className="w-4 h-4 text-blue-400" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Resumen de Usuarios</h3>
+      </div>
 
+      {/* Loading */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>
-          <Loader2 className="animate-spin" size={24} />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
         </div>
-      )}
-      {isError && (
-        <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar resumen.</p>
       )}
 
-      {/* Cuadrícula para las tarjetas KPI */}
+      {/* Error */}
+      {isError && (
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar resumen.</p>
+      )}
+
+      {/* Content */}
       {!isLoading && !isError && counts && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.8rem' }}>
-          <KpiCard title="Total Usuarios" value={counts.total} icon={Users} linkTo="/app/usuarios" />
-          <KpiCard title="Activos" value={counts.activos} icon={UserCheck} linkTo="/app/usuarios" />
-          <KpiCard title="Bloqueados" value={counts.bloqueados} icon={UserX} linkTo="/app/usuarios" />
-          <KpiCard title="Admins" value={counts.roles.administrador} icon={ShieldCheck} linkTo="/app/usuarios" />
-          <KpiCard title="Comerciales" value={counts.roles.comercial} icon={BriefcaseBusiness} linkTo="/app/usuarios" />
-          <KpiCard title="Clientes" value={counts.roles.cliente} icon={UserIcon} linkTo="/app/usuarios" />
+        <div className="grid grid-cols-2 gap-3">
+          <StatItem icon={Users} label="Total" value={counts.total} color="bg-fenix-500/20 text-fenix-400" />
+          <StatItem icon={UserCheck} label="Activos" value={counts.activos} color="bg-green-500/20 text-green-400" />
+          <StatItem icon={UserX} label="Bloqueados" value={counts.bloqueados} color="bg-red-500/20 text-red-400" />
+          <StatItem icon={ShieldCheck} label="Admins" value={counts.roles.administrador} color="bg-purple-500/20 text-purple-400" />
+          <StatItem icon={BriefcaseBusiness} label="Comerciales" value={counts.roles.comercial} color="bg-cyan-500/20 text-cyan-400" />
+          <StatItem icon={UserIcon} label="Clientes" value={counts.roles.cliente} color="bg-amber-500/20 text-amber-400" />
         </div>
       )}
+
+      {/* Footer link */}
+      <Link
+        to="/app/usuarios"
+        className="flex items-center justify-end gap-1 mt-4 text-sm text-fenix-400 hover:text-fenix-300 transition-colors cursor-pointer"
+      >
+        Ver usuarios <ArrowRight size={14} />
+      </Link>
     </div>
   );
 }

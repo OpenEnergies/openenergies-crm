@@ -2,25 +2,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { Users, Loader2 } from 'lucide-react'; // Usamos Users como icono
-import { fmtDate } from '@lib/utils'; // Para formatear la fecha
+import { Users, Loader2, ArrowRight } from 'lucide-react';
+import { fmtDate } from '@lib/utils';
 
-// Tipo para los clientes recientes
 type ClienteReciente = {
   id: string;
   nombre: string;
   creado_en: string | null;
 };
 
-// Función para obtener los últimos clientes
 async function fetchUltimosClientes(limit: number = 5): Promise<ClienteReciente[]> {
-  // Nota: Si en el futuro necesitas filtrar por comercial,
-  // necesitarías pasar el userId del comercial y hacer un join
-  // con la tabla 'asignaciones_comercial'.
   const { data, error } = await supabase
     .from('clientes')
     .select('id, nombre, creado_en')
-    .order('creado_en', { ascending: false, nullsFirst: false }) // Los más recientes primero, nulls al final
+    .order('creado_en', { ascending: false, nullsFirst: false })
     .limit(limit);
 
   if (error) {
@@ -31,50 +26,71 @@ async function fetchUltimosClientes(limit: number = 5): Promise<ClienteReciente[
 }
 
 export default function UltimosClientesWidget() {
-  const displayLimit = 5; // Cuántos clientes mostrar
+  const displayLimit = 5;
 
   const { data: clientes, isLoading, isError } = useQuery({
     queryKey: ['ultimosClientesDashboard', displayLimit],
     queryFn: () => fetchUltimosClientes(displayLimit),
-    staleTime: 15 * 60 * 1000, // Cachear por 15 minutos
+    staleTime: 15 * 60 * 1000,
   });
 
   return (
-    <div className="card"> {/* Usamos card para el estilo */}
-      <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1rem' }}>
-        <Users size={20} /> Últimos Clientes Añadidos
-      </h3>
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+          <Users className="w-4 h-4 text-violet-400" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Últimos Clientes</h3>
+      </div>
+
+      {/* Loading */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>
-          <Loader2 className="animate-spin" size={24} />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
         </div>
       )}
+
+      {/* Error */}
       {isError && (
-        <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar clientes.</p>
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar clientes.</p>
       )}
+
+      {/* Empty */}
       {!isLoading && !isError && clientes && clientes.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'var(--muted)' }}>No hay clientes recientes.</p>
+        <p className="text-sm text-gray-400 text-center py-4">No hay clientes recientes.</p>
       )}
+
+      {/* Content */}
       {!isLoading && !isError && clientes && clientes.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <ul className="space-y-3">
           {clientes.map(cliente => (
-            <li key={cliente.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '0.5rem' }}>
-              {/* Enlace al perfil del cliente */}
-              <Link to="/app/clientes/$id" params={{ id: cliente.id }} className="table-action-link" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <li
+              key={cliente.id}
+              className="flex items-center justify-between pb-3 border-b border-bg-intermediate last:border-0"
+            >
+              <Link
+                to="/app/clientes/$id"
+                params={{ id: cliente.id }}
+                className="text-sm font-medium text-gray-200 hover:text-fenix-400 transition-colors truncate pr-3 cursor-pointer"
+              >
                 {cliente.nombre}
               </Link>
-              {/* Fecha de creación */}
-              <span style={{ color: 'var(--muted)', fontSize: '0.85rem', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+              <span className="text-xs text-gray-400 whitespace-nowrap">
                 {fmtDate(cliente.creado_en)}
               </span>
             </li>
           ))}
-           {/* Enlace opcional para ver todos los clientes */}
-           <li style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-            <Link to="/app/clientes" style={{ fontSize: '0.9rem' }}>Ver todos los clientes &rarr;</Link>
-          </li>
         </ul>
       )}
+
+      {/* Footer link */}
+      <Link
+        to="/app/clientes"
+        className="flex items-center justify-end gap-1 mt-4 text-sm text-fenix-400 hover:text-fenix-300 transition-colors cursor-pointer"
+      >
+        Ver todos <ArrowRight size={14} />
+      </Link>
     </div>
   );
 }

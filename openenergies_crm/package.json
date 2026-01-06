@@ -32,11 +32,22 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/file-saver": "^2.0.7",
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.7.0",
+<<<<<<< HEAD
     "serve": "^14.2.5",
+=======
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "serve": "^14.2.5",
+    "tailwindcss": "^4.1.18",
+>>>>>>> 8bcb6b7 (Migración parte del frontend)
     "typescript": "^5.9.3",
     "vite": "^5.4.10",
     "vite-plugin-static-copy": "^3.1.4",

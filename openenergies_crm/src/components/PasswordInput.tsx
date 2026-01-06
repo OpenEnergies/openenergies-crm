@@ -2,14 +2,13 @@
 import React, { useState, forwardRef, InputHTMLAttributes } from 'react';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 
-// Definimos los props, que incluirán todos los atributos de un input
 interface PasswordInputProps extends InputHTMLAttributes<HTMLInputElement> {
-  // No necesitamos props extra, react-hook-form las pasará
+  error?: boolean;
+  showIcon?: boolean;
 }
 
-// Usamos forwardRef para pasar la 'ref' de react-hook-form al input interno
 const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, error, showIcon = true, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
 
     const toggleShowPassword = () => {
@@ -17,32 +16,49 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
     };
 
     return (
-      <div className="input-icon-wrapper">
-        {/* Icono de candado (fijo a la izquierda) */}
-        <Lock size={18} className="input-icon" />
-        
+      <div className="relative">
+        {/* Icono de candado */}
+        {/* Icono de candado */}
+        {showIcon && (
+          <Lock
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+          />
+        )}
+
         <input
           type={showPassword ? 'text' : 'password'}
-          // Combinamos clases: la que pasamos y la nuestra para el padding
-          className={`password-input-with-toggle ${className || ''}`}
-          {...props} // Pasa todos los props (id, placeholder, ...register, etc.)
-          ref={ref}   // Pasa el ref de register al input
+          className={`
+            glass-input pr-12
+            ${showIcon ? 'pl-10' : ''}
+            ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
+            ${className || ''}
+          `}
+          {...props}
+          ref={ref}
         />
 
-        {/* Botón para mostrar/ocultar (ojo) */}
+        {/* Botón toggle */}
         <button
           type="button"
           onClick={toggleShowPassword}
-          className="password-toggle-button" // Clase CSS dedicada
+          className="
+            absolute right-2 top-1/2 -translate-y-1/2
+            p-1.5 rounded-md
+            text-gray-400 hover:text-white
+            hover:bg-bg-intermediate
+            transition-colors duration-150
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-fenix-500
+          "
           title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          tabIndex={-1} // Evita que el botón sea parte del 'tab' normal
+          tabIndex={-1}
         >
-          {showPassword ? <EyeOff size={36} /> : <Eye size={36} />}
+          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
         </button>
       </div>
     );
   }
 );
 
-PasswordInput.displayName = 'PasswordInput'; // Buenas prácticas para React DevTools
+PasswordInput.displayName = 'PasswordInput';
 export default PasswordInput;

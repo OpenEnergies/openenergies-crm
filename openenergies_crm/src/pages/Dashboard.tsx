@@ -1,6 +1,5 @@
 // src/pages/Dashboard.tsx
 import { useSession } from '@hooks/useSession';
-import ChatWidget from '@features/chat/ChatWidget';
 import ProximosEventosWidget from './dashboard/widgets/ProximosEventosWidget';
 import ContratosPorVencerWidget from './dashboard/widgets/ContratosPorVencerWidget';
 import UltimosClientesWidget from './dashboard/widgets/UltimosClientesWidget';
@@ -12,35 +11,38 @@ import EstadoMisClientesWidget from './dashboard/widgets/EstadoMisClientesWidget
 export default function Dashboard() {
   const { rol, nombre, apellidos } = useSession();
 
-  const canChat = rol === 'administrador';
-  
   // --- VISIBILIDAD DE WIDGETS ---
-  const canSeeAgendaWidget = rol === 'administrador' || rol === 'comercial';
-  const canSeeRenovacionesWidget = rol === 'administrador'; 
-  const canSeeClientesWidget = rol === 'administrador';
-  const canSeeUsuariosWidget = rol === 'administrador';
-  const canSeeEmpresasWidget = rol === 'administrador';
-  const canSeeMisClientesWidget = rol === 'administrador' || 'comercial';
-  const canSeeEstadoMisClientesWidget = false; // Desactivado para todos (incluso comercial)
-  // ------------------------------
+  const isAdmin = rol === 'administrador';
+  const isComercial = rol === 'comercial';
+  const canSeeAgendaWidget = isAdmin || isComercial;
+  const canSeeRenovacionesWidget = isAdmin;
+  const canSeeClientesWidget = isAdmin;
+  const canSeeUsuariosWidget = isAdmin;
+  const canSeeEmpresasWidget = isAdmin;
+  const canSeeMisClientesWidget = isComercial;
+  const canSeeEstadoMisClientesWidget = isComercial;
 
   return (
-    <div className="grid">
-      <div>
-        <h2 style={{ margin: 0 }}>
-          {nombre ? apellidos ? `Bienvenido ${nombre} ${apellidos}` : `Bienvenido ${nombre}` : 'Bienvenido'} al CRM de Open Energies
-        </h2>
-        <p style={{ color: 'var(--muted)', marginTop: '0.25rem' }}>
-          Gestiona tus clientes y actividad diaria.
-        </p>
+    <div className="space-y-6 w-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-fenix-500">
+            {nombre ? `Bienvenido, ${nombre}${apellidos ? ` ${apellidos}` : ''}` : 'Bienvenido'}
+          </h1>
+          <p className="text-fenix-500/70 text-sm sm:text-base">
+            Gestiona tus clientes, contratos y documentos desde un único lugar.
+          </p>
+        </div>
       </div>
 
-      <div className="dashboard-widget-grid">
-        {/* Próximos Eventos (Filtrado internamente para comercial) */}
+      {/* Main Widgets Grid */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
+        {/* Agenda Widget */}
         {canSeeAgendaWidget && (
           <ProximosEventosWidget />
         )}
-        
+
         {/* Mis Clientes (Solo comercial) */}
         {canSeeMisClientesWidget && (
           <MisClientesAsignadosWidget />
@@ -59,14 +61,12 @@ export default function Dashboard() {
         {canSeeEmpresasWidget && (
           <ResumenEmpresasWidget />
         )}
-        
-        {/* Desactivado */}
+
+        {/* Estado Mis Clientes (comercial) */}
         {canSeeEstadoMisClientesWidget && (
           <EstadoMisClientesWidget />
         )}
       </div>
-
-      {canChat && <ChatWidget />}
     </div>
   );
 }

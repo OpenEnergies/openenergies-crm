@@ -2,84 +2,72 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { Target, Loader2 } from 'lucide-react'; // Usamos Target como icono
-import { useSession } from '@hooks/useSession'; // Para obtener el ID del comercial
+import { Target, Loader2, Zap } from 'lucide-react';
+import { useSession } from '@hooks/useSession';
 
-// Función para contar los clientes asignados a un comercial específico
-async function fetchClientesAsignadosCount(comercialUserId: string | null): Promise<number> {
-  // Si no hay ID de comercial (p.ej., si es admin), no hay clientes asignados directamente
+async function fetchPuntosAsignadosCount(comercialUserId: string | null): Promise<number> {
   if (!comercialUserId) {
     return 0;
   }
 
-  // Contamos en la tabla de asignaciones
   const { count, error } = await supabase
     .from('asignaciones_comercial')
-    .select('*', { count: 'exact', head: true }) // Solo necesitamos el conteo
-    .eq('comercial_user_id', comercialUserId); // Filtramos por el ID del comercial
+    .select('*', { count: 'exact', head: true })
+    .eq('comercial_user_id', comercialUserId);
 
   if (error) {
-    console.error("Error fetching clientes asignados count:", error);
+    console.error("Error fetching puntos asignados count:", error);
     throw new Error(error.message);
   }
 
   return count ?? 0;
 }
 
-// Reutilizamos el KpiCard (Asegúrate de que esté disponible o cópialo aquí/muévelo a /components)
-function KpiCard({ title, value, icon: Icon, linkTo }: { title: string; value: number | string; icon: React.ElementType; linkTo?: string }) {
-  const content = (
-     <div style={{ textAlign: 'center' }}>
-       <Icon size={28} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
-       <p style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: '0 0 0.25rem' }}>{value}</p>
-       <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>{title}</p>
-     </div>
-  );
-
-  if (linkTo) {
-      // Puedes ajustar el enlace si quieres que lleve a una vista filtrada de "mis clientes"
-      return <Link to={linkTo} className="card-link"><div className="card action-card">{content}</div></Link>;
-  }
-  return <div className="card">{content}</div>;
-}
-
-
 export default function MisClientesAsignadosWidget() {
-  const { userId } = useSession(); // Obtenemos el userId del comercial logueado
+  const { userId } = useSession();
 
   const { data: count, isLoading, isError } = useQuery({
-    // La query key incluye el userId para que sea específica de este comercial
-    queryKey: ['clientesAsignadosCountDashboard', userId],
-    queryFn: () => fetchClientesAsignadosCount(userId),
-    enabled: !!userId, // Solo se ejecuta si tenemos el userId
-    staleTime: 5 * 60 * 1000, // Cachear por 5 minutos
+    queryKey: ['puntosAsignadosCountDashboard', userId],
+    queryFn: () => fetchPuntosAsignadosCount(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Este widget solo tiene sentido si hay un conteo > 0,
-  // pero lo mostramos siempre (con 0) para consistencia si eres comercial.
-  // Podrías ocultarlo si count es 0 si lo prefieres.
-
   return (
-    <div className="card"> {/* Contenedor principal */}
-       <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1.5rem', justifyContent: 'center' }}>
-         <Target size={20} /> Mis Clientes
-       </h3>
-       {isLoading && (
-         <div style={{ textAlign: 'center', padding: '1rem' }}>
-           <Loader2 className="animate-spin" size={24} />
-         </div>
-       )}
-       {isError && (
-         <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar.</p>
-       )}
-       {!isLoading && !isError && count !== undefined && count !== null && (
-         // Mostramos una única tarjeta KPI con el conteo
-         <KpiCard title="Clientes Asignados" value={count} icon={Users} linkTo="/app/clientes" />
-         // Considera cambiar linkTo a una ruta filtrada si la creas
-       )}
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+          <Target className="w-4 h-4 text-cyan-400" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Mis Clientes Asignados</h3>
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
+        </div>
+      )}
+
+      {/* Error */}
+      {isError && (
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar.</p>
+      )}
+
+      {/* Content */}
+      {!isLoading && !isError && count !== undefined && count !== null && (
+        <Link
+          to="/app/clientes"
+          className="block text-center p-4 rounded-lg glass-card hover:bg-bg-intermediate transition-colors"
+        >
+          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center mx-auto mb-3">
+            <Zap className="w-6 h-6 text-cyan-400" />
+          </div>
+          <p className="text-3xl font-bold text-white mb-1">{count}</p>
+          <p className="text-sm text-gray-400">Clientes Asignados</p>
+        </Link>
+      )}
     </div>
   );
 }
-
-// Necesitarás este icono si no lo tienes ya en KpiCard o importado arriba
-import { Users } from 'lucide-react';

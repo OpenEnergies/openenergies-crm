@@ -5,13 +5,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Leaf, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Mail, ShieldCheck, Loader2 } from 'lucide-react';
 import PasswordInput from '@components/PasswordInput';
 
-// Esquema de validación
 const schema = z.object({
   email: z.string().email('Introduce un email válido'),
-  // contraseña opcional para permitir magic link
   password: z.string().min(1, 'La contraseña es obligatoria').optional().or(z.literal('')),
   mfaCode: z.string().optional(),
 });
@@ -26,28 +24,20 @@ export default function Login() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
     reset,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
   });
 
-  // ahora mismo no lo usamos, pero lo dejo porque ya lo tenías
-  const mfaCodeInput = watch('mfaCode');
-
   async function onSubmit(formData: FormData) {
     try {
-      // ========================
-      // PASO 2: VERIFICAR 2FA
-      // ========================
       if (isMfaStep) {
         if (!formData.mfaCode || formData.mfaCode.length !== 6) {
           toast.error('Introduce un código de 6 dígitos.');
           return;
         }
 
-        // 1. listar factores activos del usuario de esta sesión
         const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
         if (factorsError) {
           throw new Error(`Error al listar factores 2FA: ${factorsError.message}`);
@@ -58,7 +48,6 @@ export default function Login() {
           throw new Error('No se encontró un factor 2FA (TOTP) activo para verificar.');
         }
 
-        // 2. crear challenge y verificar en un solo paso
         const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
           factorId: totpFactor.id,
           code: formData.mfaCode,
@@ -68,18 +57,13 @@ export default function Login() {
           throw new Error('Código 2FA incorrecto o caducado.');
         }
 
-        // 3. éxito: ya estamos en AAL2
         window.location.href = '/app';
         return;
       }
 
-      // ========================
-      // PASO 1: EMAIL + PASSWORD
-      // ========================
       const email = formData.email;
       const password = formData.password;
 
-      // --- caso magic link (sin contraseña) ---
       if (!password) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
@@ -92,30 +76,24 @@ export default function Login() {
         return;
       }
 
-      // --- caso login normal con contraseña ---
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        // aquí ya no esperamos que venga "AAL2_REQUIRED"
         throw error;
       }
 
-      // 👇 aquí es donde Supabase te dice si HAY que subir a AAL2
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalError) {
         console.warn('No se pudo obtener el nivel de autenticación:', aalError.message);
       }
 
-      // si la sesión actual es AAL1 y el siguiente nivel disponible es AAL2 -> pedir código
       if (aalData && aalData.currentLevel !== aalData.nextLevel && aalData.nextLevel === 'aal2') {
         toast.success('Contraseña correcta. Introduce tu código 2FA.');
         setLoginEmail(email);
         setIsMfaStep(true);
-        // dejamos el email y limpiamos lo demás
         reset({ email, password: '', mfaCode: '' });
         return;
       }
 
-      // si no hay MFA pendiente, entrar directo
       window.location.href = '/app';
     } catch (e: any) {
       toast.error(e.message || 'Ha ocurrido un error');
@@ -123,63 +101,95 @@ export default function Login() {
   }
 
   return (
-    <main className="login-page-background">
-      <div className="card login-card" aria-labelledby="login-title">
-        <div className="login-logo">
-          <Leaf size={30} />
-          <span>Open Energies CRM</span>
+    <main className="
+      min-h-screen flex items-center justify-center p-4
+      bg-gradient-to-br from-fenix-950 via-bg-primary to-bg-secondary
+    ">
+      {/* Login Card */}
+      <div
+        className="glass-modal w-full max-w-md p-6 sm:p-8 animate-slide-up"
+        aria-labelledby="login-title"
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="w-11 h-11 rounded-xl bg-white/90 flex items-center justify-center">
+            <img src="/logo_openenergies.png" alt="Open Energies" className="w-9 h-9" />
+          </div>
+          <span className="text-xl font-semibold text-white">Open Energies CRM</span>
         </div>
 
-        <h1 id="login-title" style={{ marginTop: 0, textAlign: 'center', fontSize: '1.8rem' }}>
+        {/* Title */}
+        <h1
+          id="login-title"
+          className="text-2xl font-bold text-white text-center mb-2"
+        >
           {isMfaStep ? 'Verificar Identidad' : 'Accede a tu cuenta'}
         </h1>
 
-        <p className="login-hint">
+        {/* Hint text */}
+        <p className="text-gray-400 text-sm text-center mb-6 leading-relaxed">
           {isMfaStep
             ? `Introduce el código de 6 dígitos de tu app de autenticación para ${loginEmail}`
             : 'Introduce tu email y contraseña. Si no la recuerdas, deja la contraseña en blanco para recibir un enlace mágico.'}
         </p>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid login-form">
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Email */}
           {!isMfaStep && (
-            <div>
-              <label htmlFor="email">Email</label>
-              <div className="input-icon-wrapper">
-                <Mail size={18} className="input-icon" />
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                Email
+              </label>
+              <div className="relative">
+                <Mail
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
                 <input
                   id="email"
                   type="email"
                   autoComplete="email"
                   {...register('email')}
                   placeholder="tu.email@ejemplo.com"
+                  className="glass-input pl-10"
                 />
               </div>
-              {errors.email && <div className="error-text" role="alert">{errors.email.message}</div>}
+              {errors.email && (
+                <p className="text-sm text-red-400" role="alert">{errors.email.message}</p>
+              )}
             </div>
           )}
 
           {/* Password */}
           {!isMfaStep && (
-            <div>
-              <label htmlFor="password">Contraseña (opcional)</label>
-              {/* Reemplaza div.input-icon-wrapper + input por PasswordInput */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                Contraseña <span className="text-gray-500">(opcional)</span>
+              </label>
               <PasswordInput
-                 id="password"
-                 autoComplete="current-password"
-                 {...register('password')}
-                 placeholder="********"
-               />
-              {errors.password && <div role="alert" className="error-text">{errors.password.message}</div>}
+                id="password"
+                autoComplete="current-password"
+                {...register('password')}
+                placeholder="********"
+              />
+              {errors.password && (
+                <p className="text-sm text-red-400" role="alert">{errors.password.message}</p>
+              )}
             </div>
           )}
 
           {/* MFA code */}
           {isMfaStep && (
-            <div>
-              <label htmlFor="mfaCode">Código de Autenticación (6 dígitos)</label>
-              <div className="input-icon-wrapper">
-                <ShieldCheck size={18} className="input-icon" />
+            <div className="space-y-1.5">
+              <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-300">
+                Código de Autenticación
+              </label>
+              <div className="relative">
+                <ShieldCheck
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
                 <input
                   id="mfaCode"
                   type="tel"
@@ -188,40 +198,62 @@ export default function Login() {
                   placeholder="123456"
                   maxLength={6}
                   autoFocus
+                  className="glass-input pl-10 text-center text-lg tracking-[0.5em] font-mono"
                 />
               </div>
-              {errors.mfaCode && <div className="error-text" role="alert">{errors.mfaCode.message}</div>}
+              {errors.mfaCode && (
+                <p className="text-sm text-red-400" role="alert">{errors.mfaCode.message}</p>
+              )}
             </div>
           )}
 
-          <div>
-            <button type="submit" disabled={isSubmitting} className="login-submit-button">
-              {isSubmitting ? 'Validando...' : isMfaStep ? 'Verificar y Entrar' : 'Entrar'}
-            </button>
-          </div>
+          {/* Submit button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="
+              w-full py-3 rounded-xl font-medium
+              bg-gradient-to-r from-fenix-500 to-fenix-600
+              hover:from-fenix-400 hover:to-fenix-500
+              text-white shadow-lg shadow-fenix-500/25
+              transition-all duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
+              flex items-center justify-center gap-2
+            "
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Validando...
+              </>
+            ) : isMfaStep ? (
+              'Verificar y Entrar'
+            ) : (
+              'Entrar'
+            )}
+          </button>
 
-          {/* volver al login normal */}
+          {/* Back to login */}
           {isMfaStep && (
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <div className="text-center">
               <button
                 type="button"
-                className="secondary"
-                style={{ background: 'none', color: 'var(--muted)', padding: 0 }}
+                className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
                 onClick={() => setIsMfaStep(false)}
               >
-                Volver a Email/Contraseña
+                ← Volver a Email/Contraseña
               </button>
             </div>
           )}
         </form>
-        <footer className="auth-footer">
-          <span>
+
+        {/* Footer */}
+        <footer className="mt-8 pt-6 border-t border-bg-intermediate text-center">
+          <span className="text-xs text-gray-500">
             © {new Date().getFullYear()} Powered by Converly Solutions
           </span>
         </footer>
       </div>
-      {/* --- 👇 Pie de Página de Marca Añadido --- */}
-      
     </main>
   );
 }

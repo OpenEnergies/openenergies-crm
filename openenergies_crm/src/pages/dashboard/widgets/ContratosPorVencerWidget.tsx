@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { fmtDate } from '@lib/utils';
 
 // -------- Tipos RAW (lo que puede venir de Supabase) --------
@@ -66,7 +66,7 @@ async function fetchProximosContratosPorVencer(
     .lte('fecha_fin', futureDateISO)
     .order('fecha_fin', { ascending: true })
     .limit(limit)
-    .returns<ContratoPorVencerRaw[]>(); // Tipamos SOLO la respuesta cruda
+    .returns<ContratoPorVencerRaw[]>();
 
   if (error) {
     console.error('Error fetching próximos contratos por vencer:', error);
@@ -84,9 +84,9 @@ async function fetchProximosContratosPorVencer(
       fecha_fin: row.fecha_fin,
       puntos_suministro: ps
         ? {
-            cups: ps.cups,
-            clientes: cliente ? { id: cliente.id, nombre: cliente.nombre } : null,
-          }
+          cups: ps.cups,
+          clientes: cliente ? { id: cliente.id, nombre: cliente.nombre } : null,
+        }
         : null,
       empresas: empresa ? { nombre: empresa.nombre } : null,
     };
@@ -107,32 +107,43 @@ export default function ContratosPorVencerWidget() {
 
   const count = contratos?.length ?? 0;
 
-  
-
   return (
-    <div className="card" >
-      <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1rem' }}>
-        <AlertTriangle size={20} /> Contratos por Vencer ({days} días)
-      </h3>
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Contratos por Vencer</h3>
+        <span className="ml-auto text-xs text-gray-400 bg-bg-intermediate px-2 py-1 rounded-full">
+          {days} días
+        </span>
+      </div>
 
+      {/* Loading */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>
-          <Loader2 className="animate-spin" size={24} />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
         </div>
       )}
 
-      {isError && <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar.</p>}
+      {/* Error */}
+      {isError && (
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar.</p>
+      )}
 
+      {/* Content */}
       {!isLoading && !isError && contratos && (
-        <div>
+        <>
           {count > 0 && (
-            <p style={{ fontSize: '1.5rem', fontWeight: 'bold', textAlign: 'center', margin: '0 0 1rem' }}>
-              {count}{count >= displayLimit ? '+' : ''} Contratos
+            <p className="text-3xl font-bold text-white text-center mb-4">
+              {count}{count >= displayLimit ? '+' : ''}
+              <span className="text-lg font-normal text-gray-400 ml-2">contratos</span>
             </p>
           )}
 
           {contratos.length > 0 ? (
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <ul className="space-y-3">
               {contratos.map((contrato) => {
                 const cliente = contrato.puntos_suministro?.clientes;
                 const clienteNombre = cliente?.nombre ?? 'Cliente Desconocido';
@@ -143,55 +154,49 @@ export default function ContratosPorVencerWidget() {
                 return (
                   <li
                     key={contrato.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid var(--border-color-light)',
-                      paddingBottom: '0.5rem',
-                      fontSize: '0.9rem',
-                    }}
+                    className="flex items-center justify-between pb-3 border-b border-bg-intermediate last:border-0"
                   >
-                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className="min-w-0 flex-1">
                       {clienteId ? (
-                        <Link to="/app/clientes/$id" params={{ id: clienteId }} title={cups}>
+                        <Link
+                          to="/app/clientes/$id"
+                          params={{ id: clienteId }}
+                          className="text-sm font-medium text-gray-200 hover:text-fenix-400 transition-colors truncate block cursor-pointer"
+                          title={cups}
+                        >
                           {clienteNombre}
                         </Link>
                       ) : (
-                        <span title={cups}>{clienteNombre}</span>
+                        <span className="text-sm font-medium text-gray-200 truncate block" title={cups}>
+                          {clienteNombre}
+                        </span>
                       )}
-                      <br />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{comercializadoraNombre}</span>
-                    </span>
+                      <span className="text-xs text-gray-500">{comercializadoraNombre}</span>
+                    </div>
 
-                    <span
-                      style={{
-                        color: 'var(--danger-color, #DC2626)',
-                        fontWeight: 'bold',
-                        whiteSpace: 'nowrap',
-                        marginLeft: '1rem',
-                        textAlign: 'right',
-                      }}
-                    >
-                      Vence:
-                      <br /> {fmtDate(contrato.fecha_fin)}
-                    </span>
+                    <div className="text-right ml-3">
+                      <span className="text-xs text-gray-400">Vence</span>
+                      <span className="block text-sm font-semibold text-amber-400">
+                        {fmtDate(contrato.fecha_fin)}
+                      </span>
+                    </div>
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p style={{ textAlign: 'center', color: 'var(--muted)' }}>No hay contratos venciendo pronto.</p>
+            <p className="text-sm text-gray-400 text-center py-4">No hay contratos venciendo pronto.</p>
           )}
 
           {count > 0 && (
-            <div style={{ textAlign: 'right' }}>
-              <Link to="/app/renovaciones" style={{ fontSize: '0.9rem' }}>
-                Ver todos &rarr;
-              </Link>
-            </div>
+            <Link
+              to="/app/renovaciones"
+              className="flex items-center justify-end gap-1 mt-4 text-sm text-fenix-400 hover:text-fenix-300 transition-colors cursor-pointer"
+            >
+              Ver todos <ArrowRight size={14} />
+            </Link>
           )}
-        </div>
+        </>
       )}
     </div>
   );

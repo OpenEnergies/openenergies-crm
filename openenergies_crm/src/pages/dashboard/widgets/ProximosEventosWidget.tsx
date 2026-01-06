@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { CalendarDays, Loader2 } from 'lucide-react';
+import { CalendarDays, Loader2, ArrowRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSession } from '@hooks/useSession';
@@ -11,7 +11,7 @@ type ProximoEvento = {
   id: string;
   titulo: string;
   fecha_inicio: string;
-  etiqueta?: string | null; // <-- Añadido para filtrar
+  etiqueta?: string | null;
 };
 
 async function fetchProximosEventos(userId: string | null, rol: string | null): Promise<ProximoEvento[]> {
@@ -19,10 +19,10 @@ async function fetchProximosEventos(userId: string | null, rol: string | null): 
 
   let query = supabase
     .from('agenda_eventos')
-    .select('id, titulo, fecha_inicio, etiqueta') // <-- Pedimos etiqueta
+    .select('id, titulo, fecha_inicio, etiqueta')
     .gte('fecha_inicio', hoy)
     .order('fecha_inicio', { ascending: true })
-    .limit(10); // Pedimos un poco más por si filtramos
+    .limit(10);
 
   const { data, error } = await query;
 
@@ -33,13 +33,11 @@ async function fetchProximosEventos(userId: string | null, rol: string | null): 
 
   let eventos = (data as ProximoEvento[]) || [];
 
-  // --- MODIFICACIÓN: Filtrar renovaciones para comerciales ---
+  // Filtrar renovaciones para comerciales
   if (rol === 'comercial') {
     eventos = eventos.filter(e => e.etiqueta !== 'Renovación');
   }
-  // ----------------------------------------------------------
 
-  // Devolvemos solo los 5 primeros tras el filtro
   return eventos.slice(0, 5);
 }
 
@@ -52,38 +50,58 @@ export default function ProximosEventosWidget() {
   });
 
   return (
-    <div className="card">
-      <h3 className="section-title" style={{ marginTop: 0, marginBottom: '1rem' }}>
-        <CalendarDays size={20} /> Próximos Eventos
-      </h3>
+    <div className="glass-card p-5">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+          <CalendarDays className="w-4 h-4 text-fenix-500" />
+        </div>
+        <h3 className="text-base font-semibold text-white">Próximos Eventos</h3>
+      </div>
+
+      {/* Loading */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '1rem' }}>
-          <Loader2 className="animate-spin" size={24} />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
         </div>
       )}
+
+      {/* Error */}
       {isError && (
-        <p className="error-text" style={{ textAlign: 'center' }}>Error al cargar eventos.</p>
+        <p className="text-sm text-red-400 text-center py-4">Error al cargar eventos.</p>
       )}
+
+      {/* Empty */}
       {!isLoading && !isError && eventos && eventos.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'var(--muted)' }}>No hay eventos próximos.</p>
+        <p className="text-sm text-gray-400 text-center py-4">No hay eventos próximos.</p>
       )}
+
+      {/* Content */}
       {!isLoading && !isError && eventos && eventos.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <ul className="space-y-3">
           {eventos.map(evento => (
-            <li key={evento.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '0.5rem' }}>
-              <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <li
+              key={evento.id}
+              className="flex items-center justify-between pb-3 border-b border-bg-intermediate last:border-0"
+            >
+              <span className="text-sm font-medium text-gray-200 truncate pr-3">
                 {evento.titulo}
               </span>
-              <span style={{ color: 'var(--muted)', fontSize: '0.85rem', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+              <span className="text-xs text-gray-400 whitespace-nowrap">
                 {format(parseISO(evento.fecha_inicio), 'dd MMM HH:mm', { locale: es })}
               </span>
             </li>
           ))}
-          <li style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-            <Link to="/app/agenda" style={{ fontSize: '0.9rem' }}>Ver agenda completa &rarr;</Link>
-          </li>
         </ul>
       )}
+
+      {/* Footer link */}
+      <Link
+        to="/app/agenda"
+        className="flex items-center justify-end gap-1 mt-4 text-sm text-fenix-400 hover:text-fenix-300 transition-colors cursor-pointer"
+      >
+        Ver agenda <ArrowRight size={14} />
+      </Link>
     </div>
   );
 }

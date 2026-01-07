@@ -5,48 +5,81 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query'
 import { supabase } from '@lib/supabase'
-//import { AgendaEventoForm, AgendaItem } from '@lib/types'
-import { useEmpresaId } from '@hooks/useEmpresaId' // ¡Importante para RLS!
+import { useEmpresaId } from '@hooks/useEmpresaId'
 import { toast } from 'react-hot-toast'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, Trash2, X, Calendar, Clock, Palette, Tag } from 'lucide-react'
 import ConfirmationModal from '@components/ConfirmationModal'
 import { etiquetaColorMap, etiquetasSeleccionables } from '@lib/agendaConstants';
+import { isQuarterHour } from '@components/form/QuarterHourSelect';
 
-// --- Esquema de Validación con Zod ---
+const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
+  const h = Math.floor(i / 4).toString().padStart(2, '0');
+  const m = ((i % 4) * 15).toString().padStart(2, '0');
+  return { value: `${h}:${m}`, label: `${h}:${m}` };
+});
+
+interface ParsedDates {
+  startDate: Date;
+  endDate: Date | null;
+}
+
+function parseDateStrings(fechaInicioStr: string, fechaFinStr: string | null): ParsedDates {
+  const startDate = new Date(fechaInicioStr);
+  if (Number.isNaN(startDate.getTime())) {
+    throw new TypeError('Fecha u hora de inicio inválida.');
+  }
+
+  let endDate: Date | null = null;
+  if (fechaFinStr) {
+    endDate = new Date(fechaFinStr);
+    if (Number.isNaN(endDate.getTime())) {
+      throw new TypeError('Fecha u hora de fin inválida.');
+    }
+    if (endDate <= startDate) {
+      throw new RangeError('La fecha/hora de fin debe ser posterior a la de inicio.');
+    }
+  }
+
+  return { startDate, endDate };
+}
+
+function buildDateString(fecha: string, hora: string): string {
+  return `${fecha}T${hora}:00`;
+}
+
 const eventoSchema = z.object({
   titulo: z.string().min(3, { message: 'El título es requerido' }),
   etiqueta: z.string().min(1, { message: 'La etiqueta es requerida' }),
   color: z.string().min(1, { message: 'El color es requerido' }),
   fecha_inicio_fecha: z.string().min(1, { message: 'La fecha de inicio es requerida' }),
-  fecha_inicio_hora: z.string().min(1, { message: 'La hora de inicio es requerida' }),
+  fecha_inicio_hora: z.string().min(1, { message: 'La hora de inicio es requerida' })
+    .refine(isQuarterHour, { message: 'Solo cuartos de hora (00, 15, 30, 45)' }),
   fecha_fin_fecha: z.string().optional().nullable(),
-  fecha_fin_hora: z.string().optional().nullable(),
+  fecha_fin_hora: z.string().optional().nullable()
+    .refine(val => !val || isQuarterHour(val), { message: 'Solo cuartos de hora (00, 15, 30, 45)' }),
 }).refine(data => {
-    // Validación extra: si se pone fecha fin, se debe poner hora fin, y viceversa
-    const hasFechaFin = !!data.fecha_fin_fecha;
-    const hasHoraFin = !!data.fecha_fin_hora;
-    return (hasFechaFin && hasHoraFin) || (!hasFechaFin && !hasHoraFin);
+  const hasFechaFin = !!data.fecha_fin_fecha;
+  const hasHoraFin = !!data.fecha_fin_hora;
+  return (hasFechaFin && hasHoraFin) || (!hasFechaFin && !hasHoraFin);
 }, {
-    message: 'Si especificas una fecha de fin, también debes especificar una hora de fin',
-    path: ['fecha_fin_hora'], // O 'fecha_fin_fecha'
+  message: 'Si especificas una fecha de fin, también debes especificar una hora de fin',
+  path: ['fecha_fin_hora'],
 });
 
 type AgendaEventoForm = z.infer<typeof eventoSchema>;
 
-// --- Propiedades del Componente ---
 type EventoFormModalProps = {
-  id: string | null // null = Modo Creación, string = Modo Edición
-  fechaSeleccionada?: string | null // Para pre-rellenar al crear
+  id: string | null
+  fechaSeleccionada?: string | null
   onClose: () => void
 }
 
-export default function EventoFormModal({ id, fechaSeleccionada, onClose }: EventoFormModalProps) {
+export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Readonly<EventoFormModalProps>) {
   const queryClient = useQueryClient()
-  const { empresaId } = useEmpresaId() // Obtenemos la empresa_id del usuario actual
+  const { empresaId } = useEmpresaId()
   const isEditMode = Boolean(id)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // --- Query para cargar datos en Modo Edición ---
   const { data: existingEvento, isLoading: isLoadingEvento } = useQuery({
     queryKey: ['agendaEvento', id],
     queryFn: async () => {
@@ -58,34 +91,26 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
       if (error) throw new Error(error.message)
       return data
     },
-    enabled: isEditMode, // Solo se ejecuta si estamos en modo edición
+    enabled: isEditMode,
   })
-  // --- (CAMBIO 3: Añadir Función Helper) ---
-  // Esta función nos ayuda a separar un ISO string (o null) en partes
-  // fecha (YYYY-MM-DD) y hora (HH:mm) para los inputs del formulario.
+
   const getFechaHoraParts = (isoString: string | null | undefined) => {
     if (!isoString) return { fecha: '', hora: '' };
     try {
-      // Usamos Date para que la conversión a partes respete la zona horaria local
       const localDate = new Date(isoString);
-      // Comprobamos si la fecha es válida
-      if (isNaN(localDate.getTime())) return { fecha: '', hora: '' };
+      if (Number.isNaN(localDate.getTime())) return { fecha: '', hora: '' };
 
-      // Formato YYYY-MM-DD
       const fecha = localDate.getFullYear() + '-' +
-                    ('0' + (localDate.getMonth() + 1)).slice(-2) + '-' +
-                    ('0' + localDate.getDate()).slice(-2);
-      // Formato HH:mm
+        ('0' + (localDate.getMonth() + 1)).slice(-2) + '-' +
+        ('0' + localDate.getDate()).slice(-2);
       const hora = ('0' + localDate.getHours()).slice(-2) + ':' +
-                   ('0' + localDate.getMinutes()).slice(-2);
+        ('0' + localDate.getMinutes()).slice(-2);
       return { fecha, hora };
     } catch (e) {
-      // En caso de error al parsear, devolvemos vacío
       console.error("Error parsing date:", isoString, e);
       return { fecha: '', hora: '' };
     }
   };
-  // --- FIN CAMBIO 3 ---
 
   const initialParts = getFechaHoraParts(fechaSeleccionada);
   const defaultEtiqueta = etiquetasSeleccionables[0] || 'Reunión';
@@ -96,114 +121,75 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
     formState: { errors, isDirty, dirtyFields },
     control,
     setValue,
-  } = useForm<AgendaEventoForm>({ // <-- Usar el tipo inferido AgendaEventoForm
+  } = useForm<AgendaEventoForm>({
     resolver: zodResolver(eventoSchema),
-    // Cambiamos los defaultValues para usar los nuevos nombres de campo
     defaultValues: {
       titulo: '',
       etiqueta: defaultEtiqueta,
       color: etiquetaColorMap[defaultEtiqueta],
-      // Valores iniciales para los campos separados
       fecha_inicio_fecha: initialParts.fecha,
       fecha_inicio_hora: initialParts.hora,
-      fecha_fin_fecha: '', // Empezar vacíos
-      fecha_fin_hora: '',  // Empezar vacíos
+      fecha_fin_fecha: '',
+      fecha_fin_hora: '',
     },
   });
 
-  // --- (NUEVO) Observar cambios en la etiqueta ---
   const watchedEtiqueta = useWatch({ control, name: 'etiqueta' });
 
-  // --- (NUEVO) Efecto para actualizar el color cuando cambia la etiqueta ---
   useEffect(() => {
     if (watchedEtiqueta && etiquetaColorMap[watchedEtiqueta]) {
-      // --- CORRECTO: Check specific field ---
       if (!dirtyFields.color) {
-      // --- FIN CORRECTO ---
-         // Only update color automatically if the user hasn't manually changed it
-         setValue('color', etiquetaColorMap[watchedEtiqueta], { shouldDirty: false });
+        setValue('color', etiquetaColorMap[watchedEtiqueta], { shouldDirty: false });
       }
     }
-    // Make sure 'isDirty' object itself is in the dependency array if you use it directly
   }, [watchedEtiqueta, setValue, dirtyFields]);
 
-  // --- (CAMBIO 5: Efecto para rellenar en Modo Edición) ---
   useEffect(() => {
     if (isEditMode && existingEvento) {
-      // Usamos el helper para separar las fechas de la BBDD en partes
       const inicioParts = getFechaHoraParts(existingEvento.fecha_inicio);
       const finParts = getFechaHoraParts(existingEvento.fecha_fin);
-      // Actualizamos el reset para usar los nuevos nombres de campo
       reset({
         titulo: existingEvento.titulo,
-        etiqueta: existingEvento.etiqueta || defaultEtiqueta, // Usar defaultEtiqueta como fallback
-        color: existingEvento.color || etiquetaColorMap[defaultEtiqueta], // Usar color por defecto como fallback
-        // Rellenar campos separados
+        etiqueta: existingEvento.etiqueta || defaultEtiqueta,
+        color: existingEvento.color || etiquetaColorMap[defaultEtiqueta],
         fecha_inicio_fecha: inicioParts.fecha,
         fecha_inicio_hora: inicioParts.hora,
         fecha_fin_fecha: finParts.fecha,
         fecha_fin_hora: finParts.hora,
       });
     }
-    // Aseguramos que defaultEtiqueta esté en las dependencias si se usa en el reset
   }, [existingEvento, isEditMode, reset, defaultEtiqueta]);
 
-  // --- (CAMBIO 6: Mutación para Guardar - Combinar fecha y hora) ---
   const saveMutation = useMutation({
     mutationFn: async (formData: AgendaEventoForm) => {
-      // Combinamos fecha y hora en un string reconocible por `new Date()`
-      const fecha_inicio_str = `${formData.fecha_inicio_fecha}T${formData.fecha_inicio_hora}:00`;
-      let fecha_fin_str: string | null = null;
-      if (formData.fecha_fin_fecha && formData.fecha_fin_hora) {
-        fecha_fin_str = `${formData.fecha_fin_fecha}T${formData.fecha_fin_hora}:00`;
-      }
+      const fechaInicioStr = buildDateString(formData.fecha_inicio_fecha, formData.fecha_inicio_hora);
+      const fechaFinStr = (formData.fecha_fin_fecha && formData.fecha_fin_hora)
+        ? buildDateString(formData.fecha_fin_fecha, formData.fecha_fin_hora)
+        : null;
 
-      // Convertimos a objetos Date para validación y conversión a ISO UTC
-      let startDate: Date;
-      let endDate: Date | null = null;
-      try {
-           startDate = new Date(fecha_inicio_str);
-           // Validamos si la fecha/hora de inicio es válida
-           if (isNaN(startDate.getTime())) throw new Error("Fecha u hora de inicio inválida.");
+      const { startDate, endDate } = parseDateStrings(fechaInicioStr, fechaFinStr);
 
-           if (fecha_fin_str) {
-               endDate = new Date(fecha_fin_str);
-               // Validamos si la fecha/hora de fin es válida
-               if (isNaN(endDate.getTime())) throw new Error("Fecha u hora de fin inválida.");
-               // Opcional pero recomendado: Validar que fin sea posterior a inicio
-               if (endDate <= startDate) throw new Error("La fecha/hora de fin debe ser posterior a la de inicio.");
-           }
-      } catch (e: any) {
-           console.error("Error al construir fechas:", e);
-           // Lanzamos el error específico para mostrarlo al usuario
-           throw new Error(e.message || "Formato de fecha u hora inválido.");
-      }
-
-      // Creamos el payload final con los nombres originales de la BBDD (fecha_inicio, fecha_fin)
-      // y usamos toISOString() para enviar en formato UTC estándar.
       const payload = {
         titulo: formData.titulo,
         etiqueta: formData.etiqueta,
         color: formData.color,
-        fecha_inicio: startDate.toISOString(), // <-- Convertido a ISO UTC
-        fecha_fin: endDate ? endDate.toISOString() : null, // <-- Convertido a ISO UTC o null
+        fecha_inicio: startDate.toISOString(),
+        fecha_fin: endDate?.toISOString() ?? null,
       };
 
-      // La lógica de update/insert no necesita cambiar aquí
       if (isEditMode) {
-         const { error } = await supabase.from('agenda_eventos').update(payload).eq('id', id!)
-         if (error) throw error
+        const { error } = await supabase.from('agenda_eventos').update(payload).eq('id', id!);
+        if (error) throw error;
       } else {
-         if (!empresaId) throw new Error('No se pudo determinar la empresa del usuario.')
-         const { error } = await supabase
-           .from('agenda_eventos')
-           .insert({ ...payload, empresa_id: empresaId }) // Se añade empresa_id aquí
-         if (error) throw error
+        if (!empresaId) throw new Error('No se pudo determinar la empresa del usuario.');
+        const { error } = await supabase
+          .from('agenda_eventos')
+          .insert({ ...payload, empresa_id: empresaId });
+        if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success(isEditMode ? 'Evento actualizado' : 'Evento creado')
-      // ¡Invalidamos la query de la agenda para que el calendario se refresque!
       queryClient.invalidateQueries({ queryKey: ['agendaItems'] })
       onClose()
     },
@@ -212,7 +198,6 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
     },
   })
 
-  // --- Mutación para Eliminar ---
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from('agenda_eventos').delete().eq('id', id!)
@@ -228,7 +213,6 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
     },
   })
 
-  // --- Manejadores ---
   const onSubmit: SubmitHandler<AgendaEventoForm> = (data) => {
     saveMutation.mutate(data)
   }
@@ -242,193 +226,207 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
   const openPicker = (e: React.MouseEvent<HTMLInputElement>) => {
     try {
       (e.currentTarget as HTMLInputElement).showPicker?.();
-    } catch {}
+    } catch { }
   };
 
-
   return (
-    <>
-      <div className="modal-overlay agenda-modal" onClick={onClose}>
-        <div className="modal-content agenda-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="card" style={{ padding: 0 }}>
-            {/* --- Cabecera del Modal --- */}
-            <div className="page-header" style={{ padding: '1.5rem', marginBottom: 0, borderBottom: '1px solid var(--border-color)' }}>
-              <h2>{isEditMode ? 'Editar Evento' : 'Crear Evento'}</h2>
-              {isEditMode && (
-                <button
-                  className="icon-button danger"
-                  title="Eliminar Evento"
-                  onClick={() => setIsDeleting(true)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 size={20} />
-                </button>
-              )}
-            </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="glass-modal w-full max-w-2xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Calendar className="text-fenix-400" />
+            {isEditMode ? 'Editar Evento' : 'Crear Evento'}
+          </h2>
+          <div className="flex items-center gap-2">
+            {isEditMode && (
+              <button
+                type="button"
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                title="Eliminar Evento"
+                onClick={() => setIsDeleting(true)}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
 
-            {/* --- Formulario --- */}
-            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-              {isLoadingEvento ? (
-                <div style={{ padding: '2rem', textAlign: 'center' }}><Loader2 className="animate-spin" /></div>
-              ) : (
-                // --- DIV INTERMEDIO PARA SCROLL ---
-                <div style={{
-                    padding: '1rem',
-                    overflowY: 'auto', // Habilita scroll vertical
-                    flexGrow: 1 // Ocupa el espacio disponible
-                }}>
-                  <div style={{ display: 'grid', gap: '1rem' }}> {/* Mueve el grid aquí dentro */}
-                    {/* --- Título --- */}
-                    <div> {/* Envuelve el título en un div para mantener el grid */}
-                      <label htmlFor="titulo">Título</label>
-                      <input id="titulo" {...register('titulo')} />
-                      {errors.titulo && <span className="error-text">{errors.titulo.message}</span>}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <form id="evento-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {isLoadingEvento ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-fenix-400 w-8 h-8" />
+              </div>
+            ) : (
+              <>
+                {/* Título */}
+                <div className="space-y-2">
+                  <label htmlFor="titulo" className="text-sm font-medium text-gray-300">Título del evento</label>
+                  <input
+                    id="titulo"
+                    {...register('titulo')}
+                    className="glass-input w-full"
+                    placeholder="Ej: Reunión con cliente"
+                  />
+                  {errors.titulo && <span className="text-sm text-red-400 mt-1">{errors.titulo.message}</span>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Etiqueta */}
+                  <div className="space-y-2">
+                    <label htmlFor="etiqueta" className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                      <Tag size={16} /> Etiqueta
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="etiqueta"
+                        {...register('etiqueta')}
+                        className="glass-select w-full appearance-none cursor-pointer"
+                      >
+                        {etiquetasSeleccionables.map((et) => (
+                          <option key={et} value={et} className="bg-gray-800 text-white">{et}</option>
+                        ))}
+                      </select>
                     </div>
+                    {errors.etiqueta && <span className="text-sm text-red-400 mt-1">{errors.etiqueta.message}</span>}
+                  </div>
 
-                    {/* --- Fila: Etiqueta y Color --- */}
-                    <div className="form-row">
-                      <div>
-                        <label htmlFor="etiqueta">Etiqueta</label>
-                        <select id="etiqueta" {...register('etiqueta')}>
-                          {etiquetasSeleccionables.map((et) => (
-                            <option key={et} value={et}>{et}</option>
-                          ))}
-                        </select>
-                        {errors.etiqueta && <span className="error-text">{errors.etiqueta.message}</span>}
-                      </div>
-                      <div>
-                         <label>Color</label>
-                         {/* Input oculto para guardar el valor */}
-                         <input type="hidden" {...register('color')} />
-                         {/* Indicador visual del color */}
-                         <div style={{
-                           display: 'flex',
-                           alignItems: 'center',
-                           padding: '0.65rem 0.8rem',
-                           border: '1px solid var(--border-color)',
-                           borderRadius: '0.5rem',
-                           background: 'var(--bg-card)',
-                           height: '43px' // Misma altura que otros inputs
-                         }}>
-                           <span style={{
-                             width: '20px',
-                             height: '20px',
-                             borderRadius: '50%',
-                             backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc',
-                             display: 'inline-block',
-                             marginRight: '0.5rem'
-                           }}></span>
-                           <span style={{ color: 'var(--muted)' }}>
-                             {watchedEtiqueta ? `(${etiquetaColorMap[watchedEtiqueta]})` : ''}
-                           </span>
-                         </div>
-                         {errors.color && <span className="error-text">{errors.color.message}</span>}
-                       </div>
+                  {/* Color */}
+                  <div className="space-y-2">
+                    <label htmlFor="color" className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                      <Palette size={16} /> Color
+                    </label>
+                    <input type="hidden" id="color" {...register('color')} />
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-bg-intermediate border border-white/10">
+                      <span
+                        className="w-6 h-6 rounded-full shadow-inner ring-2 ring-white/10 transition-colors duration-300"
+                        style={{ backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc' }}
+                      ></span>
+                      <span className="text-sm text-gray-400 font-mono">
+                        {watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#cccccc'}
+                      </span>
                     </div>
+                    {errors.color && <span className="text-sm text-red-400 mt-1">{errors.color.message}</span>}
+                  </div>
+                </div>
 
-                    {/* --- Fila: Fechas Inicio --- */}
-                    <div className="form-row">
-                      {/* Input Fecha Inicio */}
-                      <div>
-                        <label htmlFor="fecha_inicio_fecha">Fecha Inicio</label>
-                        <input
-                          id="fecha_inicio_fecha"
-                          type="date" // <-- CAMBIO A 'date'
-                          {...register('fecha_inicio_fecha')} // <-- CAMBIO DE NOMBRE
-                          className="input-fecha" // Clase opcional
-                          onClick={openPicker}
-                        />
-                        {/* Mostrar error específico */}
-                        {errors.fecha_inicio_fecha && <span className="error-text">{errors.fecha_inicio_fecha.message}</span>}
-                      </div>
-                      {/* Input Hora Inicio */}
-                      <div>
-                        <label htmlFor="fecha_inicio_hora">Hora Inicio</label>
-                        <input
-                          id="fecha_inicio_hora"
-                          type="time" // <-- NUEVO INPUT 'time'
-                          step="900" // Opcional: intervalos de 15 min
-                          {...register('fecha_inicio_hora')} // <-- NUEVO REGISTRO
-                          className="input-hora" // Clase opcional
-                          onClick={openPicker}
-                        />
-                        {/* Mostrar error específico */}
-                        {errors.fecha_inicio_hora && <span className="error-text">{errors.fecha_inicio_hora.message}</span>}
-                      </div>
+                <div className="h-px bg-white/10 my-6"></div>
+
+                {/* Fecha Inicio */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={16} /> Inicio
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Fecha</label>
+                      <input
+                        type="date"
+                        {...register('fecha_inicio_fecha')}
+                        className="glass-input w-full cursor-pointer"
+                        onClick={openPicker}
+                      />
+                      {errors.fecha_inicio_fecha && <span className="text-xs text-red-400">{errors.fecha_inicio_fecha.message}</span>}
                     </div>
-
-                    {/* --- Fila: Fechas Fin --- */}
-                    <div className="form-row">
-                       {/* Input Fecha Fin */}
-                       <div>
-                         <label htmlFor="fecha_fin_fecha">Fecha Fin (opcional)</label>
-                         <input
-                           id="fecha_fin_fecha"
-                           type="date" // <-- CAMBIO A 'date'
-                           {...register('fecha_fin_fecha')} // <-- CAMBIO DE NOMBRE
-                           className="input-fecha"
-                           onClick={openPicker}
-                         />
-                         {errors.fecha_fin_fecha && <span className="error-text">{errors.fecha_fin_fecha.message}</span>}
-                       </div>
-                       {/* Input Hora Fin */}
-                       <div>
-                         <label htmlFor="fecha_fin_hora">Hora Fin (opcional)</label>
-                         <input
-                           id="fecha_fin_hora"
-                           type="time" // <-- NUEVO INPUT 'time'
-                           step="900"
-                           {...register('fecha_fin_hora')} // <-- NUEVO REGISTRO
-                           className="input-hora"
-                           onClick={openPicker}
-                         />
-                         {/* Mostrar error específico */}
-                         {errors.fecha_fin_hora && <span className="error-text">{errors.fecha_fin_hora.message}</span>}
-                       </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Hora</label>
+                      <Controller
+                        name="fecha_inicio_hora"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            value={field.value || ''}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="glass-select w-full cursor-pointer"
+                          >
+                            <option value="" className="bg-gray-800">Seleccionar...</option>
+                            {TIME_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                      {errors.fecha_inicio_hora && <span className="text-xs text-red-400">{errors.fecha_inicio_hora.message}</span>}
                     </div>
                   </div>
                 </div>
-                // --- FIN DIV INTERMEDIO ---
-              )}
 
-              {/* --- Pie del Modal (Botones) - Fuera del div con scroll --- */}
-              {/* === INICIO SECCIÓN CORREGIDA === */}
-              <div style={{
-                  padding: '1rem',
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '1rem',
-                  borderTop: '1px solid var(--border-color)',
-                  flexShrink: 0 // Evita que el footer se encoja
-                 }}>
+                {/* Fecha Fin */}
+                <div className="space-y-4 pt-4 border-t border-bg-intermediate">
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={16} /> Fin <span className="text-xs normal-case text-gray-600">(Opcional)</span>
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Fecha</label>
+                      <input
+                        type="date"
+                        {...register('fecha_fin_fecha')}
+                        className="glass-input w-full cursor-pointer"
+                        onClick={openPicker}
+                      />
+                      {errors.fecha_fin_fecha && <span className="text-xs text-red-400">{errors.fecha_fin_fecha.message}</span>}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Hora</label>
+                      <Controller
+                        name="fecha_fin_hora"
+                        control={control}
+                        render={({ field }) => (
+                          <select
+                            value={field.value || ''}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="glass-select w-full cursor-pointer"
+                          >
+                            <option value="" className="bg-gray-800">Seleccionar...</option>
+                            {TIME_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                      {errors.fecha_fin_hora && <span className="text-xs text-red-400">{errors.fecha_fin_hora.message}</span>}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </form>
+        </div>
 
-                  {/* Botones dentro del div */}
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={onClose}
-                    disabled={saveMutation.isPending}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!isDirty || saveMutation.isPending || isLoadingEvento}
-                  >
-                    {saveMutation.isPending ? <Loader2 className="animate-spin" /> : 'Guardar'}
-                  </button>
-
-              </div>
-              {/* === FIN SECCIÓN CORREGIDA === */}
-            </form>
-          </div>
+        {/* Footer */}
+        <div className="p-6 border-t border-bg-intermediate bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
+          <button
+            type="button"
+            className="btn-secondary cursor-pointer"
+            onClick={onClose}
+            disabled={saveMutation.isPending}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="evento-form"
+            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium shadow-lg shadow-fenix-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={!isDirty || saveMutation.isPending || isLoadingEvento}
+          >
+            {saveMutation.isPending ? <Loader2 className="animate-spin w-5 h-5" /> : 'Guardar Evento'}
+          </button>
         </div>
       </div>
 
-      {/* --- Modal de Confirmación para Borrar --- */}
       {isDeleting && (
         <ConfirmationModal
-          isOpen={isDeleting} // <--- AÑADIR ESTA LÍNEA
+          isOpen={isDeleting}
           title="Eliminar Evento"
           message={`¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.`}
           confirmText="Eliminar"
@@ -439,6 +437,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Even
           confirmButtonClass="danger"
         />
       )}
-    </>
+    </div>
   )
 }
+

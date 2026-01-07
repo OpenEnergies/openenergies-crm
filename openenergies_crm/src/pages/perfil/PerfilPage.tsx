@@ -8,11 +8,10 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
-import { User, Phone, Lock, Loader2 } from 'lucide-react';
+import { User, Phone, Loader2, Settings } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
 
-// Schema de validación para el formulario de perfil
 const profileSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
@@ -20,7 +19,6 @@ const profileSchema = z.object({
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
 
-// --- Schema para el cambio de contraseña ---
 const passwordSchema = z.object({
   password: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
   confirmPassword: z.string(),
@@ -30,23 +28,19 @@ const passwordSchema = z.object({
 });
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
-// Tipado extendido para el perfil
 type PerfilUsuario = UsuarioApp & { empresas: { nombre: string } | null };
 
-// Función para obtener el perfil completo
 async function fetchUserProfile(userId: string): Promise<PerfilUsuario> {
   const { data, error } = await supabase.from('usuarios_app').select('*, empresas(nombre)').eq('user_id', userId).single();
   if (error) throw error;
   return data as PerfilUsuario;
 }
 
-// Función para actualizar el perfil
 async function updateUserProfile({ userId, updates }: { userId: string, updates: ProfileFormData }) {
   const { error } = await supabase.from('usuarios_app').update(updates).eq('user_id', userId);
   if (error) throw error;
 }
 
-// --- Función para cambiar la contraseña ---
 async function updateUserPassword(newPassword: string) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
@@ -66,7 +60,6 @@ export default function PerfilPage() {
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-    // Cargamos los datos del perfil en el formulario cuando estén disponibles
     values: perfil ? {
       nombre: perfil.nombre ?? '',
       apellidos: perfil.apellidos ?? '',
@@ -74,7 +67,6 @@ export default function PerfilPage() {
     } : undefined
   });
 
-  // --- NUEVO: Formulario para la contraseña ---
   const passwordForm = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
   });
@@ -85,19 +77,18 @@ export default function PerfilPage() {
       toast.success('Perfil actualizado correctamente.');
       queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
       queryClient.invalidateQueries({ queryKey: ['sessionData'] });
-      setIsEditing(false); // Volvemos al modo vista
+      setIsEditing(false);
     },
     onError: (error) => {
       toast.error(`Error al actualizar el perfil: ${error.message}`);
     },
   });
 
-  // --- NUEVA: Mutación para la contraseña ---
   const updatePasswordMutation = useMutation({
     mutationFn: updateUserPassword,
     onSuccess: () => {
       toast.success('Contraseña actualizada correctamente.');
-      passwordForm.reset(); // Limpiamos el formulario de contraseña
+      passwordForm.reset();
     },
     onError: (error) => {
       toast.error(`Error al actualizar la contraseña: ${error.message}`);
@@ -106,138 +97,234 @@ export default function PerfilPage() {
 
   const onSubmit = (formData: ProfileFormData) => {
     if (!userId) return;
-    updateProfileMutation.mutate({ userId, updates: formData });
+    // Sanitize telefono to null if empty to avoid 400 errors or constraint issues
+    const updates = {
+      ...formData,
+      telefono: formData.telefono || null,
+    };
+    updateProfileMutation.mutate({ userId, updates });
   };
 
-  // --- NUEVA: Función de envío para la contraseña ---
   const onPasswordSubmit = (formData: PasswordFormData) => {
     updatePasswordMutation.mutate(formData.password);
   };
 
   const handleAvatarUploadSuccess = (newUrl: string) => {
-    setLocalAvatarUrl(newUrl); 
+    setLocalAvatarUrl(newUrl);
   };
 
-  if (isLoading) return <div className="card">Cargando perfil...</div>;
-  if (isError) return <div className="card" role="alert">Error al cargar el perfil.</div>;
-  if (!perfil) return <div className="card" role="alert">No se encontró el perfil.</div>;
+  if (isLoading) {
+    return (
+      <div className="glass-card p-12 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="glass-card p-6 text-red-400" role="alert">
+        Error al cargar el perfil.
+      </div>
+    );
+  }
+
+  if (!perfil) {
+    return (
+      <div className="glass-card p-6 text-red-400" role="alert">
+        No se encontró el perfil.
+      </div>
+    );
+  }
 
   const displayNombre = perfil?.nombre ?? sessionNombre;
   const displayAvatarUrl = localAvatarUrl ?? perfil?.avatar_url ?? sessionAvatarUrl;
 
   return (
-    // --- NUEVA ESTRUCTURA DE COLUMNAS ---
-    <div className="profile-layout-grid">
-      
-      {/* --- COLUMNA IZQUIERDA: AVATAR Y DATOS CLAVE --- */}
-      <div className="grid" style={{ gap: '1.5rem', alignContent: 'start' }}>
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          {userId && (
-            <Avatar 
-              userId={userId}
-              url={displayAvatarUrl} // Pasa la URL a mostrar
-              onUpload={handleAvatarUploadSuccess} // Pasa el callback
-              nombre={displayNombre} // Pasa el nombre para el fallback
-              size={150}
-            />
-          )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+          <Settings className="w-5 h-5 text-fenix-500" />
         </div>
-        <div className="card">
-          <div className="profile-summary">
-            <h4>{displayNombre} {perfil?.apellidos ?? ''}</h4>
-            <p>{perfil?.email ?? 'No disponible'}</p>
-            <span className="badge" style={{textTransform: 'capitalize'}}>{perfil?.rol ?? '...'}</span>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-white">Mi Perfil</h1>
       </div>
 
-      {/* --- COLUMNA DERECHA: FORMULARIOS Y ACCIONES --- */}
-      <div className="profile-forms-column">
-        
-        {/* --- TARJETA DE DATOS PERSONALES --- */}
-        <form onSubmit={handleSubmit(onSubmit)} className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ margin: 0 }}>Datos Personales</h3>
-            {!isEditing && <button type="button" onClick={() => setIsEditing(true)}>Editar</button>}
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Left Column: Avatar and Summary */}
+        <div className="space-y-6">
+          <div className="glass-card p-6 flex flex-col items-center">
+            {userId && (
+              <Avatar
+                userId={userId}
+                url={displayAvatarUrl}
+                onUpload={handleAvatarUploadSuccess}
+                nombre={displayNombre}
+                size={150}
+              />
+            )}
           </div>
-
-          <div className="grid" style={{ gap: '2rem' }}>
-            <div className="form-row">
-              <div>
-                <label htmlFor="nombre">Nombre</label>
-                <div className="input-icon-wrapper">
-                  <User size={18} className="input-icon" />
-                  {isEditing ? <input id="nombre" {...register('nombre')} /> : <p className="profile-data-text">{perfil?.nombre}</p>}
-                </div>
-                 {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
-              </div>
-              <div>
-                <label htmlFor="apellidos">Apellidos</label>
-                <div className="input-icon-wrapper">
-                  <User size={18} className="input-icon" />
-                  {isEditing ? <input id="apellidos" {...register('apellidos')} /> : <p className="profile-data-text">{perfil?.apellidos}</p>}
-                </div>
-                 {errors.apellidos && <p className="error-text">{errors.apellidos.message}</p>}
-              </div>
-            </div>
-            <div>
-              <label htmlFor="telefono">Teléfono</label>
-              <div className="input-icon-wrapper">
-                <Phone size={18} className="input-icon" />
-                {isEditing ? <input id="telefono" type="tel" {...register('telefono')} /> : <p className="profile-data-text">{perfil?.telefono || 'No especificado'}</p>}
-              </div>
-            </div>
+          <div className="glass-card p-6 text-center">
+            <h3 className="text-xl font-semibold text-white">
+              {displayNombre} {perfil?.apellidos ?? ''}
+            </h3>
+            <p className="text-gray-400 mt-1">{perfil?.email ?? 'No disponible'}</p>
+            <span className="inline-block mt-3 px-3 py-1 text-sm font-medium rounded-full bg-fenix-500/20 text-fenix-400 capitalize">
+              {perfil?.rol ?? '...'}
+            </span>
           </div>
-
-          {isEditing && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
-              <button type="button" className="secondary" onClick={() => { setIsEditing(false); reset(); }}>Cancelar</button>
-              <button type="submit" disabled={isSubmitting || !isDirty}>
-                {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          )}
-        </form>
-
-        {/* --- TARJETA DE 2FA --- */}
-        <div style={{ marginBottom: '1.5rem' }}>
-            <TwoFactorAuthManager />
         </div>
 
-        {/* --- TARJETA DE CAMBIAR CONTRASEÑA --- */}
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Cambiar Contraseña</h3>
-          <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="grid" style={{ gap: '1.5rem' }}>
-            <div className="form-row">
-              {/* --- 👇 2. Campo Nueva Contraseña MODIFICADO --- */}
-              <div>
-                <label htmlFor="password">Nueva Contraseña</label>
-                <PasswordInput
-                  id="password"
-                  {...passwordForm.register('password')}
-                />
-                {passwordForm.formState.errors.password && <p className="error-text">{passwordForm.formState.errors.password.message}</p>}
-              </div>
-              
-              {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
-              <div>
-                <label htmlFor="confirmPassword">Confirmar Nueva Contraseña</label>
-                <PasswordInput
-                  id="confirmPassword"
-                  {...passwordForm.register('confirmPassword')}
-                />
-                {passwordForm.formState.errors.confirmPassword && <p className="error-text">{passwordForm.formState.errors.confirmPassword.message}</p>}
-              </div>
-              {/* --- Fin Modificaciones --- */}
+        {/* Right Column: Forms */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Personal Info Card */}
+          <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Datos Personales</h3>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white text-sm font-medium transition-colors cursor-pointer"
+                >
+                  Editar
+                </button>
+              )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="submit" disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}>
-                {passwordForm.formState.isSubmitting ? 'Actualizando...' : 'Actualizar Contraseña'}
-              </button>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="nombre" className="block text-sm font-medium text-gray-300 mb-2">
+                    Nombre
+                  </label>
+                  {isEditing ? (
+                    <div className="relative">
+                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="nombre"
+                        {...register('nombre')}
+                        className="glass-input pl-10 w-full"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-white py-2">{perfil?.nombre}</p>
+                  )}
+                  {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
+                </div>
+                <div>
+                  <label htmlFor="apellidos" className="block text-sm font-medium text-gray-300 mb-2">
+                    Apellidos
+                  </label>
+                  {isEditing ? (
+                    <div className="relative">
+                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="apellidos"
+                        {...register('apellidos')}
+                        className="glass-input pl-10 w-full"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-white py-2">{perfil?.apellidos}</p>
+                  )}
+                  {errors.apellidos && <p className="text-sm text-red-400 mt-1">{errors.apellidos.message}</p>}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="telefono" className="block text-sm font-medium text-gray-300 mb-2">
+                  Teléfono
+                </label>
+                {isEditing ? (
+                  <div className="relative">
+                    <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      id="telefono"
+                      type="tel"
+                      {...register('telefono')}
+                      className="glass-input pl-10 w-full"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-white py-2">{perfil?.telefono || 'No especificado'}</p>
+                )}
+              </div>
             </div>
+
+            {isEditing && (
+              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-bg-intermediate">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-white/20 text-gray-300 transition-colors cursor-pointer"
+                  onClick={() => { setIsEditing(false); reset(); }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !isDirty}
+                  className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                  {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            )}
           </form>
+
+          {/* 2FA Card */}
+          <TwoFactorAuthManager />
+
+          {/* Change Password Card */}
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-white mb-6">Cambiar Contraseña</h3>
+            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                    Nueva Contraseña
+                  </label>
+                  <PasswordInput
+                    id="password"
+                    {...passwordForm.register('password')}
+                  />
+                  {passwordForm.formState.errors.password && (
+                    <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                    Confirmar Nueva Contraseña
+                  </label>
+                  <PasswordInput
+                    id="confirmPassword"
+                    {...passwordForm.register('confirmPassword')}
+                  />
+                  {passwordForm.formState.errors.confirmPassword && (
+                    <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end pt-4">
+                <button
+                  type="submit"
+                  disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}
+                  className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {passwordForm.formState.isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                  {passwordForm.formState.isSubmitting ? 'Actualizando...' : 'Actualizar Contraseña'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

@@ -45,11 +45,11 @@ interface PuntoConCliente {
   current_comercializadora_id: string | null;
   creado_en: string | null;
   // Relaciones
-  clientes: { id: string; nombre: string }[] | null;
-  comercializadora: { id: string; nombre: string }[] | null;
+  clientes: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
+  comercializadora: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
   asignaciones_comercial_punto: Array<{
     comercial_user_id: string;
-    usuarios_app: { nombre: string; apellidos: string | null }[] | null;
+    usuarios_app: { nombre: string; apellidos: string | null } | { nombre: string; apellidos: string | null }[] | null;
   }>;
 }
 
@@ -102,7 +102,12 @@ async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoCon
       fv_compensacion,
       current_comercializadora_id,
       creado_en,
-      clientes (id, nombre)
+      clientes (id, nombre),
+      comercializadora:empresas!current_comercializadora_id (id, nombre),
+      asignaciones_comercial_punto (
+        comercial_user_id,
+        usuarios_app (nombre, apellidos)
+      )
     `)
     .is('eliminado_en', null)
     .order('creado_en', { ascending: false });
@@ -147,7 +152,10 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
     .reduce((sum, p) => sum + (p || 0), 0);
 
   const comercialesAsignados = punto.asignaciones_comercial_punto
-    ?.map(a => a.usuarios_app?.[0] ? `${a.usuarios_app[0].nombre} ${a.usuarios_app[0].apellidos || ''}`.trim() : null)
+    ?.map(a => {
+      const user = Array.isArray(a.usuarios_app) ? a.usuarios_app[0] : a.usuarios_app;
+      return user ? `${user.nombre} ${user.apellidos || ''}`.trim() : null;
+    })
     .filter(Boolean)
     .join(', ') || 'Ninguno';
 
@@ -426,7 +434,10 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
     initialSortKey: 'creado_en',
     initialSortDirection: 'desc',
     sortValueAccessors: {
-      cliente_nombre: (item: PuntoConCliente) => item.clientes?.[0]?.nombre,
+      cliente_nombre: (item: PuntoConCliente) => {
+        const c = item.clientes;
+        return Array.isArray(c) ? c[0]?.nombre : (c as any)?.nombre;
+      },
       cups: (item: PuntoConCliente) => item.cups,
       estado: (item: PuntoConCliente) => item.estado,
       tarifa: (item: PuntoConCliente) => item.tarifa,

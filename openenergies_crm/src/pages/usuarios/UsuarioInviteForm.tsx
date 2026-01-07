@@ -5,27 +5,23 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useNavigate } from '@tanstack/react-router';
-// Importamos useState
 import { useEffect, useState } from 'react';
 import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
-import { User, Mail, Phone, Shield, Building2, Lock } from 'lucide-react';
+import { User, Mail, Phone, Shield, ArrowLeft, Users, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
 
-// El Schema ahora recibe 'editing' para saber si la contraseña es opcional
 const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
   apellidos: z.string().min(2, 'Los apellidos son obligatorios'),
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
-  // Hacemos el rol opcional en el schema base para poder deshabilitarlo
   rol: z.enum(['comercial', 'administrador', 'cliente']).optional(),
   empresa_id: z.string().uuid('Debes seleccionar una empresa').optional().or(z.literal('')),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').optional().or(z.literal('')),
   confirmPassword: z.string().optional().or(z.literal('')),
 }).refine(data => {
-  // En modo edición, la validación de contraseña no aplica
   if (editing) return true;
   if (!isAdmin || createWithPass) return !!data.password;
   return true;
@@ -47,25 +43,21 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const { rol: currentUserRol } = useSession();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
-  // --- (1) Añadir estado para el rol original ---
   const [originalRol, setOriginalRol] = useState<RolUsuario | null>(null);
 
   const editing = Boolean(userId);
-
   const isAdmin = currentUserRol === 'administrador';
   const [createWithPassword, setCreateWithPassword] = useState(!isAdmin);
   const schema = createUserSchema(isAdmin, createWithPassword, editing);
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, control, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
-    // Cambiamos el default a comercial si es admin, si no, no ponemos default aquí
     defaultValues: isAdmin ? { rol: 'comercial' } : {},
   });
 
   const selectedRol = useWatch({ control, name: 'rol' });
   const isInternalRol = selectedRol === 'comercial' || selectedRol === 'administrador';
 
-  // Efecto para cargar datos en modo edición
   useEffect(() => {
     if (editing) {
       async function fetchUsuario() {
@@ -79,7 +71,6 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           setServerError('No se pudo cargar el usuario para editar.');
           console.error(error);
         } else if (data) {
-          // --- (2) Guardar el rol original ---
           setOriginalRol(data.rol as RolUsuario);
           reset(data);
         }
@@ -88,43 +79,36 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
     }
   }, [editing, userId, reset]);
 
-  // Tu efecto para cargar empresas
   useEffect(() => {
     if (isAdmin) {
       supabase.from('empresas').select('*').order('nombre').then(({ data }) => setEmpresas(data ?? []));
     }
   }, [isAdmin]);
 
-  // Roles disponibles para administradores (excluye cliente)
   const rolesDisponiblesAdmin: RolUsuario[] = ['administrador', 'comercial'];
-
-  // Determinar si el campo de rol debe estar deshabilitado
   const isRolDisabled = editing && originalRol === 'cliente';
 
   async function onSubmit(values: FormData) {
     setServerError(null);
     try {
       if (editing) {
-        // --- MODO EDICIÓN ---
         const updatePayload: Partial<FormData> = {
-            nombre: values.nombre,
-            apellidos: values.apellidos,
-            telefono: values.telefono,
-            // Solo incluimos el rol si NO está deshabilitado
-            ...( !isRolDisabled && { rol: values.rol }),
-            empresa_id: isInternalRol ? undefined : values.empresa_id,
+          nombre: values.nombre,
+          apellidos: values.apellidos,
+          telefono: values.telefono,
+          ...(!isRolDisabled && { rol: values.rol }),
+          empresa_id: isInternalRol ? undefined : values.empresa_id,
         };
 
         const { error } = await supabase
           .from('usuarios_app')
-          .update(updatePayload) // Usamos el payload condicional
+          .update(updatePayload)
           .eq('user_id', userId!);
 
         if (error) throw error;
         toast.success('¡Usuario actualizado con éxito!');
 
       } else {
-        // --- MODO CREACIÓN (Tu lógica original) ---
         const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
         const bodyPayload = {
           action: 'create',
@@ -132,7 +116,6 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
             creationType: creationType,
             userData: {
               ...values,
-              // Asegurarse de que el rol se envía correctamente al crear
               rol: values.rol,
               empresa_id: values.empresa_id || undefined,
             }
@@ -152,130 +135,201 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const creationType = !isAdmin || createWithPassword ? 'create_with_password' : 'invite';
 
   return (
-    <div className="page-layout">
-      <div className="page-header">
-        <h2 style={{ margin: 0 }}>{editing ? 'Editar Usuario' : 'Nuevo Colaborador'}</h2>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate({ to: '/app/usuarios' })}
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-fenix-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-fenix-600">
+            {editing ? 'Editar Usuario' : 'Nuevo Colaborador'}
+          </h1>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="card">
-        <div className="grid" style={{ gap: '1.5rem' }}>
-          {serverError && <div role="alert" style={{ color: '#b91c1c' }}>{serverError}</div>}
+      {/* Form Card */}
+      <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6">
+        <div className="space-y-6">
+          {serverError && (
+            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+              {serverError}
+            </div>
+          )}
 
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+          {/* Row: Nombre + Apellidos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="nombre">Nombre</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input id="nombre" {...register('nombre')} />
-              </div>
-              {errors.nombre && <p className="error-text">{errors.nombre.message}</p>}
+              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <User size={16} />
+                Nombre
+              </label>
+              <input
+                id="nombre"
+                {...register('nombre')}
+                className="glass-input w-full"
+              />
+              {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
             </div>
             <div>
-              <label htmlFor="apellidos">Apellidos</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input id="apellidos" {...register('apellidos')} />
-              </div>
-              {errors.apellidos && <p className="error-text">{errors.apellidos.message}</p>}
+              <label htmlFor="apellidos" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <User size={16} />
+                Apellidos
+              </label>
+              <input
+                id="apellidos"
+                {...register('apellidos')}
+                className="glass-input w-full"
+              />
+              {errors.apellidos && <p className="text-sm text-red-400 mt-1">{errors.apellidos.message}</p>}
             </div>
           </div>
 
+          {/* Email */}
           <div>
-            <label htmlFor="email">Email de acceso</label>
-            <div className="input-icon-wrapper">
-              <Mail size={18} className="input-icon" />
-              <input id="email" type="email" {...register('email')} disabled={editing} />
-            </div>
-            {editing && <p className="info-text">El email de acceso no se puede modificar.</p>}
-            {errors.email && <p className="error-text">{errors.email.message}</p>}
+            <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <Mail size={16} />
+              Email de acceso
+            </label>
+            <input
+              id="email"
+              type="email"
+              {...register('email')}
+              disabled={editing}
+              className="glass-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            {editing && <p className="text-sm text-gray-400 mt-1">El email de acceso no se puede modificar.</p>}
+            {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>}
           </div>
 
-          <div className="form-row" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem'}}>
+          {/* Row: Teléfono + Rol */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="telefono">Teléfono (opcional)</label>
-              <div className="input-icon-wrapper">
-                <Phone size={18} className="input-icon" />
-                <input id="telefono" type="tel" {...register('telefono')} />
-              </div>
+              <label htmlFor="telefono" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <Phone size={16} />
+                Teléfono (opcional)
+              </label>
+              <input
+                id="telefono"
+                type="tel"
+                {...register('telefono')}
+                className="glass-input w-full"
+              />
             </div>
             <div>
-              {/* --- (3) Modificar Campo Rol --- */}
-              <label htmlFor="rol">Rol del Usuario</label>
-              <div className="input-icon-wrapper">
-                <Shield size={18} className="input-icon" />
-                <select
-                  id="rol"
-                  {...register('rol')}
-                  disabled={isRolDisabled} // Deshabilitar condicionalmente
-                  style={isRolDisabled ? { cursor: 'not-allowed', backgroundColor: 'var(--bg-muted)' } : {}} // Estilo visual
-                >
-                  {/* Si está deshabilitado, solo mostramos la opción 'cliente' */}
-                  {isRolDisabled ? (
-                    <option value="cliente">cliente</option>
-                  ) : (
-                    // Si es admin, mostramos admin y comercial
-                    isAdmin ? (
-                      rolesDisponiblesAdmin.map(r => <option key={r} value={r}>{r}</option>)
-                    ) : (
-                      // Si no es admin (y no es cliente), debería ser comercial (aunque este caso no debería darse en edición)
-                      <option value="comercial">comercial</option>
-                    )
-                  )}
-                </select>
-              </div>
-              {/* --- (4) Añadir Mensaje Informativo --- */}
+              <label htmlFor="rol" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                <Shield size={16} />
+                Rol del Usuario
+              </label>
+              <select
+                id="rol"
+                {...register('rol')}
+                disabled={isRolDisabled}
+                className="glass-input w-full appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isRolDisabled ? (
+                  <option value="cliente">cliente</option>
+                ) : isAdmin ? (
+                  rolesDisponiblesAdmin.map(r => <option key={r} value={r}>{r}</option>)
+                ) : (
+                  <option value="comercial">comercial</option>
+                )}
+              </select>
               {isRolDisabled && (
-                <p className="info-text" style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+                <p className="text-sm text-gray-400 mt-1">
                   El rol de un usuario 'cliente' no se puede modificar.
                 </p>
               )}
-              {errors.rol && <p className="error-text">{errors.rol.message}</p>}
+              {errors.rol && <p className="text-sm text-red-400 mt-1">{errors.rol.message}</p>}
             </div>
           </div>
-          {!editing && (
-          <>
-            {isAdmin && (
-              <div style={{ padding: '1rem', borderRadius: '0.5rem' }}>
-                <label style={{marginBottom: '0.5rem'}}>Método de creación</label>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={!createWithPassword} onChange={() => setCreateWithPassword(false)} /> Enviar invitación por email</label>
-                  <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><input type="radio" name="creation_method" checked={createWithPassword} onChange={() => setCreateWithPassword(true)} /> Establecer contraseña manual</label>
-                </div>
-              </div>
-            )}
 
-            {(!isAdmin || createWithPassword) && (
+          {/* Creation Method (only when creating) */}
+          {!editing && (
             <>
-              <p style={{color: 'var(--muted)', /* ... */}}>Define una contraseña inicial...</p>
-              <div className="form-row" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                {/* --- 👇 2. Campo Contraseña MODIFICADO --- */}
-                <div>
-                  <label htmlFor="password">Contraseña</label>
-                  <PasswordInput
-                    id="password"
-                    {...register('password')}
-                  />
-                  {errors.password && <p className="error-text">{errors.password.message}</p>}
+              {isAdmin && (
+                <div className="p-4 rounded-lg bg-bg-intermediate border border-bg-intermediate">
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Método de creación
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                      <input
+                        type="radio"
+                        name="creation_method"
+                        checked={!createWithPassword}
+                        onChange={() => setCreateWithPassword(false)}
+                        className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      />
+                      Enviar invitación por email
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                      <input
+                        type="radio"
+                        name="creation_method"
+                        checked={createWithPassword}
+                        onChange={() => setCreateWithPassword(true)}
+                        className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      />
+                      Establecer contraseña manual
+                    </label>
+                  </div>
                 </div>
-                {/* --- 👇 3. Campo Confirmar Contraseña MODIFICADO --- */}
-                <div>
-                  <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                  <PasswordInput
-                    id="confirmPassword"
-                    {...register('confirmPassword')}
-                  />
-                  {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
+              )}
+
+              {(!isAdmin || createWithPassword) && (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-400">
+                    Define una contraseña inicial para el usuario.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-medium text-fenix-500 mb-2">
+                        Contraseña
+                      </label>
+                      <PasswordInput
+                        id="password"
+                        {...register('password')}
+                      />
+                      {errors.password && <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>}
+                    </div>
+                    <div>
+                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-fenix-500 mb-2">
+                        Confirmar Contraseña
+                      </label>
+                      <PasswordInput
+                        id="confirmPassword"
+                        {...register('confirmPassword')}
+                      />
+                      {errors.confirmPassword && <p className="text-sm text-red-400 mt-1">{errors.confirmPassword.message}</p>}
+                    </div>
+                  </div>
                 </div>
-                {/* --- Fin Modificaciones --- */}
-              </div>
+              )}
             </>
           )}
-          </>
-          )}
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem'}}>
-            <button type="button" className="secondary" onClick={() => navigate({ to: '/app/usuarios' })}>Cancelar</button>
-            <button type="submit" disabled={isSubmitting}>
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-6 border-t border-bg-intermediate">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => navigate({ to: '/app/usuarios' })}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting && <Loader2 size={16} className="animate-spin" />}
               {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : (creationType === 'invite' ? 'Invitar Usuario' : 'Crear Usuario'))}
             </button>
           </div>
@@ -284,3 +338,4 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
     </div>
   );
 }
+

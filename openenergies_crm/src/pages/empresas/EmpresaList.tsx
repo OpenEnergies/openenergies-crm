@@ -8,6 +8,7 @@ import { fmtDate } from '@lib/utils';
 import { Edit, HousePlus, Building2, Loader2, XCircle, Archive, RotateCcw, ArrowLeft } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { toast } from 'react-hot-toast';
+import EmpresaLogo from '@components/EmpresaLogo';
 
 async function fetchEmpresas(archived: boolean) {
   const query = supabase
@@ -202,6 +203,9 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                       className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                     />
                   </th>
+                  <th className="w-14 p-4 text-left">
+                    <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">Logo</span>
+                  </th>
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('nombre')}
@@ -255,6 +259,13 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                           onChange={() => handleRowSelect(e.id)}
                           aria-label={`Seleccionar ${e.nombre}`}
                           className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                        />
+                      </td>
+                      <td className="p-4">
+                        <EmpresaLogo
+                          logoUrl={e.logo_url}
+                          nombre={e.nombre}
+                          size="sm"
                         />
                       </td>
                       <td className="p-4">

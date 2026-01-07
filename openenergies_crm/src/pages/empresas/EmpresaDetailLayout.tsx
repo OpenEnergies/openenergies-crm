@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { empresaDetailRoute } from '@router/routes';
 import { Building2, FileText, Users, Zap, ArrowLeft, Pencil, Loader2 } from 'lucide-react';
+import EmpresaLogo from '@components/EmpresaLogo';
 
 interface EmpresaDetallada {
   id: string;
@@ -10,6 +11,7 @@ interface EmpresaDetallada {
   cif: string | null;
   tipo: 'comercializadora' | 'fenixnewenergy';
   creado_en: string | null;
+  logo_url: string | null;
   clientes_count: number;
   puntos_count: number;
   contratos_count: number;
@@ -42,7 +44,7 @@ async function fetchEmpresa(empresaId: string): Promise<EmpresaDetallada> {
     .from('contratos')
     .select('id', { count: 'exact', head: true })
     .eq('comercializadora_id', empresaId)
-    .not('estado', 'in', '("Baja","Desiste","Rechazado")')
+    .not('estado', 'in', '(Baja,Desiste,Bloqueado)')
     .is('eliminado_en', null);
 
   const { data: clientesData } = await supabase
@@ -119,16 +121,23 @@ export default function EmpresaDetailLayout() {
       {/* Header Card */}
       <div className="glass-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-          {/* Left: Icon + Name */}
+          {/* Left: Logo + Name */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-fenix-500/20 to-fenix-600/20 flex items-center justify-center shrink-0 ring-1 ring-fenix-500/20">
-              <Building2 className="w-7 h-7 text-fenix-500" />
-            </div>
+            <EmpresaLogo
+              logoUrl={empresa.logo_url}
+              nombre={empresa.nombre}
+              size="lg"
+            />
             <div>
               <h2 className="text-2xl font-bold text-white">{empresa.nombre}</h2>
               <p className="text-sm text-gray-400 mt-0.5">
                 {empresa.tipo === 'comercializadora' ? 'Comercializadora' : 'Fenix New Energy'}
               </p>
+              {empresa.cif && (
+                <p className="text-sm text-gray-500 mt-1">
+                  CIF: {empresa.cif}
+                </p>
+              )}
             </div>
           </div>
 

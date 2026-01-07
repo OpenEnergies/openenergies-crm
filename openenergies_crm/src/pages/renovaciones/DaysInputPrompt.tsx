@@ -1,16 +1,14 @@
 // src/pages/renovaciones/DaysInputPrompt.tsx
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Search } from 'lucide-react';
 
 interface Props {
   onSubmit: (days: number) => void;
 }
 
-// Este componente reemplaza al antiguo DaysInputModal
-// No tiene 'modal-overlay', por lo que no bloqueará la página.
 export default function DaysInputPrompt({ onSubmit }: Props) {
-  const [days, setDays] = useState('90'); // Valor por defecto
+  const [days, setDays] = useState('90');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,51 +21,47 @@ export default function DaysInputPrompt({ onSubmit }: Props) {
   };
 
   return (
-    // Se renderiza como una tarjeta normal, centrada
-    <div className="card renovation-prompt-card" style={{ maxWidth: '450px', margin: '3rem auto 0' }}> {/* Clase específica y más margen superior */}
+    <div className="glass-card max-w-md mx-auto mt-12 p-8">
       <form onSubmit={handleSubmit}>
-        {/* --- 👇 2. Título con icono --- */}
-        <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}>
-          <CalendarClock size={24} style={{ color: 'var(--primary)' }} />
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+            <CalendarClock className="w-6 h-6 text-amber-400" />
+          </div>
+        </div>
+
+        <h3 className="text-xl font-bold text-white text-center mb-2">
           Próximas Renovaciones
         </h3>
-        {/* --------------------------- */}
-        <p style={{ color: 'var(--muted)', textAlign: 'center', marginBottom: '2rem' }}> {/* Texto centrado y más margen inferior */}
+        <p className="text-gray-400 text-center mb-6">
           ¿Cuántos días hacia adelante quieres consultar?
         </p>
 
-        {/* --- 👇 3. Input destacado --- */}
-        <div style={{ margin: '1rem 0 2rem' }}> {/* Ajuste de márgenes */}
-          <label htmlFor="days" style={{ textAlign: 'center', display: 'block', marginBottom: '0.5rem', color: 'var(--muted)'}}>Días a consultar</label>
+        <div className="mb-6">
+          <label htmlFor="days" className="block text-sm font-medium text-gray-400 text-center mb-2">
+            Días a consultar
+          </label>
           <input
             id="days"
             type="number"
             value={days}
             onChange={(e) => setDays(e.target.value)}
             autoFocus
-            min="1" // Añadimos mínimo
-            // Estilos para hacerlo más prominente
-            style={{
-                textAlign: 'center',
-                fontSize: '2rem', // Más grande
-                fontWeight: 'bold',
-                padding: '0.8rem', // Más padding
-                borderWidth: '2px', // Borde más grueso
-                borderColor: 'var(--border-color)',
-                boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)', // Sombra interior
-             }}
+            min="1"
+            className="glass-input w-full text-center text-3xl font-bold py-4"
           />
         </div>
-        {/* ------------------------- */}
 
-        {/* --- 👇 4. Botón principal y centrado --- */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}> {/* Botón centrado */}
-          <button type="submit" className="renovation-submit-button" style={{ padding: '0.8rem 1.5rem', fontSize: '1rem' }}> {/* Clase y estilo */}
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-6 py-3 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer"
+          >
+            <Search size={18} />
             Consultar Renovaciones
           </button>
         </div>
-        {/* ------------------------------------ */}
       </form>
     </div>
   );
 }
+

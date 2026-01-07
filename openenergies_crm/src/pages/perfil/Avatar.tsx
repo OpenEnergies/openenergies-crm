@@ -21,11 +21,11 @@ async function uploadAvatar({ userId, file }: { userId: string; file: File }) {
 }
 
 interface AvatarProps {
-   userId: string;
-   url: string | null;
-   onUpload: (newUrl: string) => void; // Cambiado para recibir la nueva URL
-   nombre?: string | null; // Nombre del usuario para el fallback
-   size?: number; // Tamaño opcional
+  userId: string;
+  url: string | null;
+  onUpload: (newUrl: string) => void;
+  nombre?: string | null;
+  size?: number;
 }
 
 export default function Avatar({ userId, url, onUpload, nombre, size = 150 }: AvatarProps) {
@@ -40,8 +40,8 @@ export default function Avatar({ userId, url, onUpload, nombre, size = 150 }: Av
     onSuccess: async (newPublicUrl) => {
       queryClient.invalidateQueries({ queryKey: ['sessionData'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
-      await queryClient.refetchQueries({ queryKey: ['sessionData'], exact: true }); 
-      onUpload(newPublicUrl); // Llama al callback con la nueva URL
+      await queryClient.refetchQueries({ queryKey: ['sessionData'], exact: true });
+      onUpload(newPublicUrl);
       toast.success('Avatar actualizado correctamente.');
     },
     onError: (error) => {
@@ -56,75 +56,61 @@ export default function Avatar({ userId, url, onUpload, nombre, size = 150 }: Av
   }, [url]);
 
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Usamos encadenamiento opcional para más seguridad al obtener el archivo
     const file = event.target.files?.[0];
 
-    // ¡CAMBIO CLAVE! Solo continuamos si 'file' realmente existe.
     if (file && userId) {
       uploadMutation.mutate({ userId, file });
     } else {
-        console.error("No se seleccionó ningún archivo o falta el ID de usuario.");
-        toast.error("Selecciona un archivo para subir.");
+      console.error("No se seleccionó ningún archivo o falta el ID de usuario.");
+      toast.error("Selecciona un archivo para subir.");
     }
   };
 
   return (
-    <div style={{ width: size, position: 'relative', margin: 'auto' }}>
+    <div className="relative mx-auto" style={{ width: size }}>
       {avatarUrl ? (
         <img
           src={avatarUrl}
           alt="Avatar"
-          className="avatar image"
-          style={{ height: size, width: size, borderRadius: '50%', objectFit: 'cover' }}
+          className="rounded-full object-cover border-4 border-bg-intermediate"
+          style={{ height: size, width: size }}
         />
       ) : (
-        // --- USA EL FALLBACK CORREGIDO ---
         <div
-            className="avatar no-image"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: size,
-                width: size,
-                borderRadius: '50%',
-                backgroundColor: 'var(--muted)', // Color de fondo
-                color: 'white',
-                fontSize: size / 2.5, // Tamaño de letra proporcional
-                fontWeight: 'bold',
-                lineHeight: 1, // Ajuste para centrar verticalmente
-            }}
+          className="flex items-center justify-center rounded-full bg-fenix-500/30 text-white font-bold"
+          style={{
+            height: size,
+            width: size,
+            fontSize: size / 2.5,
+          }}
         >
-            {fallbackInitial}
+          {fallbackInitial}
         </div>
       )}
-      {/* Botón flotante para subir archivo */}
-      <div style={{ position: 'absolute', bottom: 0, right: 0 }}>
-          <label htmlFor="avatar-upload" style={{
-              display: 'inline-flex', // Cambiado a inline-flex
-              alignItems: 'center',    // Centra el icono verticalmente
-              justifyContent: 'center', // Centra el icono horizontalmente
-              padding: '6px',
-              backgroundColor: 'var(--primary)',
-              color: 'white',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              border: '2px solid white',
-              lineHeight: 0,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)' // Añade sombra
-          }} title="Cambiar avatar">
-            {/* Muestra icono de carga o de subida */}
-            {uploading ? <Loader2 size={size * 0.15} className="animate-spin" /> : <Upload size={size * 0.15} />}
-          </label>
-          <input
-            style={{ visibility: 'hidden', position: 'absolute' }} // Mejor ocultarlo así
-            type="file"
-            id="avatar-upload"
-            accept="image/*"
-            onChange={handleUpload}
-            disabled={uploading} // Usa el estado 'uploading'
-          />
-        </div>
+
+      {/* Upload Button */}
+      <div className="absolute bottom-0 right-0">
+        <label
+          htmlFor="avatar-upload"
+          className="flex items-center justify-center p-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-full cursor-pointer border-2 border-white/20 shadow-lg transition-colors"
+          title="Cambiar avatar"
+        >
+          {uploading ? (
+            <Loader2 size={size * 0.15} className="animate-spin" />
+          ) : (
+            <Upload size={size * 0.15} />
+          )}
+        </label>
+        <input
+          type="file"
+          id="avatar-upload"
+          accept="image/*"
+          onChange={handleUpload}
+          disabled={uploading}
+          className="hidden"
+        />
       </div>
-    );
-  }
+    </div>
+  );
+}
+

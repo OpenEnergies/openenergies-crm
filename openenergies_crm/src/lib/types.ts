@@ -77,6 +77,7 @@ export interface Empresa {
   creada_en: string | null;
   is_archived: boolean;
   archived_at: string | null;
+  logo_url: string | null;
 }
 
 export interface Cliente {

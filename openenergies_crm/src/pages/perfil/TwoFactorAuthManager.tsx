@@ -3,29 +3,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { Shield, Loader2 } from 'lucide-react';
 
-// --- Funciones de API ---
-// Obtiene los factores 2FA que el usuario ya tiene activos
 async function getMfaFactors() {
   const { data, error } = await supabase.auth.mfa.listFactors();
   if (error) throw error;
   return data;
 }
 
-// Inicia el proceso y obtiene el QR
 async function enrollMfa() {
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
   if (error) throw error;
   return data;
 }
 
-// Verifica el código y activa el 2FA
 async function challengeAndVerify(payload: { factorId: string, code: string }) {
-  // Primero, creamos un "desafío"
   const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: payload.factorId });
   if (challengeError) throw challengeError;
 
-  // Luego, verificamos el código contra ese desafío
   const { error: verifyError } = await supabase.auth.mfa.verify({
     factorId: payload.factorId,
     challengeId: challenge.id,
@@ -34,10 +29,7 @@ async function challengeAndVerify(payload: { factorId: string, code: string }) {
   if (verifyError) throw verifyError;
 }
 
-// Desactiva un factor 2FA
 async function unenrollMfa(payload: { factorId: string }) {
-  // Primero, nos aseguramos de que el usuario está "verificado" recientemente
-  // Esto es un requisito de seguridad de Supabase
   const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: payload.factorId });
   if (challengeError) throw new Error(`No se pudo verificar la sesión para desactivar 2FA: ${challengeError.message}`);
 
@@ -51,7 +43,6 @@ async function unenrollMfa(payload: { factorId: string }) {
   });
   if (verifyError) throw new Error(`Código de verificación incorrecto: ${verifyError.message}`);
 
-  // Ahora que el usuario está verificado, puede desactivar el factor
   const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: payload.factorId });
   if (unenrollError) throw new Error(unenrollError.message);
 }
@@ -59,20 +50,18 @@ async function unenrollMfa(payload: { factorId: string }) {
 
 export default function TwoFactorAuthManager() {
   const queryClient = useQueryClient();
-  const [enrollData, setEnrollData] = useState<any>(null); // Guardará el QR y el factorId
+  const [enrollData, setEnrollData] = useState<any>(null);
   const { register, handleSubmit, formState: { errors } } = useForm<{ code: string }>();
 
-  // Query para saber si el 2FA ya está activo
   const { data: factorsData, isLoading } = useQuery({
     queryKey: ['mfaFactors'],
     queryFn: getMfaFactors,
   });
 
-  const activeFactor = factorsData?.totp[0]; // Nos centramos en el primer factor TOTP
+  const activeFactor = factorsData?.totp[0];
 
-  // Mutaciones para las diferentes acciones
   const enrollMutation = useMutation({ mutationFn: enrollMfa, onSuccess: setEnrollData });
-  const verifyMutation = useMutation({ 
+  const verifyMutation = useMutation({
     mutationFn: challengeAndVerify,
     onSuccess: () => {
       toast.success('2FA activado con éxito.');
@@ -81,7 +70,7 @@ export default function TwoFactorAuthManager() {
     },
     onError: (e) => toast.error(e.message)
   });
-  const unenrollMutation = useMutation({ 
+  const unenrollMutation = useMutation({
     mutationFn: unenrollMfa,
     onSuccess: () => {
       toast.success('2FA desactivado.');
@@ -93,21 +82,31 @@ export default function TwoFactorAuthManager() {
   const onVerifySubmit = (formData: { code: string }) => {
     verifyMutation.mutate({ factorId: enrollData.id, code: formData.code });
   };
-  
+
   if (isLoading) {
-    return <p>Comprobando estado de 2FA...</p>;
+    return (
+      <div className="glass-card p-6 flex items-center gap-3">
+        <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
+        <span className="text-gray-400">Comprobando estado de 2FA...</span>
+      </div>
+    );
   }
 
   return (
-    <div className="card">
-      <h3 style={{ marginTop: 0 }}>Autenticación de Dos Factores (2FA)</h3>
-      
+    <div className="glass-card p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Shield className="w-5 h-5 text-green-400" />
+        <h3 className="text-lg font-semibold text-white">Autenticación de Dos Factores (2FA)</h3>
+      </div>
+
       {activeFactor ? (
-        // --- VISTA CUANDO EL 2FA ESTÁ ACTIVO ---
-        <div>
-          <p style={{ color: 'var(--primary)', fontWeight: 500 }}>El 2FA está ACTIVO en tu cuenta.</p>
-          <button 
-            className="danger" 
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <p className="text-green-400 font-medium">El 2FA está ACTIVO en tu cuenta.</p>
+          </div>
+          <button
+            className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
             onClick={() => unenrollMutation.mutate({ factorId: activeFactor.id })}
             disabled={unenrollMutation.isPending}
           >
@@ -115,32 +114,59 @@ export default function TwoFactorAuthManager() {
           </button>
         </div>
       ) : (
-        // --- VISTA CUANDO EL 2FA ESTÁ INACTIVO ---
-        <div>
-          <p style={{ color: 'var(--muted)' }}>Añade una capa extra de seguridad a tu cuenta.</p>
-          <button onClick={() => enrollMutation.mutate()} disabled={enrollMutation.isPending}>
+        <div className="space-y-4">
+          <p className="text-gray-400">Añade una capa extra de seguridad a tu cuenta.</p>
+          <button
+            onClick={() => enrollMutation.mutate()}
+            disabled={enrollMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {enrollMutation.isPending && <Loader2 size={16} className="animate-spin" />}
             {enrollMutation.isPending ? 'Generando QR...' : 'Activar 2FA'}
           </button>
         </div>
       )}
 
-      {/* --- MODAL PARA ESCANEAR EL QR Y VERIFICAR --- */}
+      {/* QR Modal */}
       {enrollData && (
-        <div className="modal-overlay">
-          <div className="modal-content card">
-            <h3 style={{ marginTop: 0 }}>Activar 2FA</h3>
-            <p>1. Escanea este código QR con tu app de autenticación (Google Authenticator, Authy, etc.).</p>
-            <img src={enrollData.totp.qr_code} alt="Código QR para 2FA" style={{ display: 'block', margin: '1rem auto' }} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="glass-modal max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Activar 2FA</h3>
 
-            <p>2. Introduce el código de 6 dígitos que aparece en tu app para verificar.</p>
-            <form onSubmit={handleSubmit(onVerifySubmit)} className="grid" style={{ gap: '1rem' }}>
+            <p className="text-gray-300 mb-4">
+              1. Escanea este código QR con tu app de autenticación (Google Authenticator, Authy, etc.).
+            </p>
+            <div className="bg-white p-4 rounded-lg mx-auto w-fit mb-4">
+              <img src={enrollData.totp.qr_code} alt="Código QR para 2FA" />
+            </div>
+
+            <p className="text-gray-300 mb-4">
+              2. Introduce el código de 6 dígitos que aparece en tu app para verificar.
+            </p>
+            <form onSubmit={handleSubmit(onVerifySubmit)} className="space-y-4">
               <div>
-                <input {...register('code', { required: true, minLength: 6, maxLength: 6 })} placeholder="123456" />
-                {errors.code && <p className="error-text">El código debe tener 6 dígitos.</p>}
+                <input
+                  {...register('code', { required: true, minLength: 6, maxLength: 6 })}
+                  placeholder="123456"
+                  className="glass-input w-full text-center text-2xl tracking-widest font-mono"
+                  maxLength={6}
+                />
+                {errors.code && <p className="text-sm text-red-400 mt-1">El código debe tener 6 dígitos.</p>}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                <button type="button" className="secondary" onClick={() => setEnrollData(null)}>Cancelar</button>
-                <button type="submit" disabled={verifyMutation.isPending}>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-white/20 text-gray-300 transition-colors cursor-pointer"
+                  onClick={() => setEnrollData(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {verifyMutation.isPending && <Loader2 size={16} className="animate-spin" />}
                   {verifyMutation.isPending ? 'Verificando...' : 'Verificar y Activar'}
                 </button>
               </div>
@@ -151,3 +177,4 @@ export default function TwoFactorAuthManager() {
     </div>
   );
 }
+

@@ -45,7 +45,7 @@ function getPotenciasActivas(tarifa: TipoTarifa | null): number {
 // ============ SCHEMA DE VALIDACIÓN ============
 const schema = z.object({
   // Fila 1: Comercializadora, Cliente, Estado
-  current_comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }).nullable().optional(),
+  current_comercializadora_id: z.string().uuid({ message: 'Comercializadora obligatoria' }).nullable().optional().or(z.literal('')),
   cliente_id: z.string().uuid({ message: 'Cliente obligatorio' }),
   estado: z.enum(['Nueva Oportunidad', 'Solicitar Doc.', 'Doc. OK', 'Estudio enviado', 'Aceptado', 'Permanencia', 'Standby', 'Desiste'] as const),
 
@@ -65,7 +65,7 @@ const schema = z.object({
   cups: z.string().min(5, 'CUPS obligatorio (mín. 5 caracteres)'),
   consumo_anual_kwh: z.number().nullable().optional(),
   tiene_fv: z.boolean().optional(),
-  fv_compensacion: z.enum(['activa', 'no', 'pendiente'] as const).nullable().optional(),
+  fv_compensacion: z.enum(['activa', 'no', 'pendiente'] as const).nullable().optional().or(z.literal('')),
 
   // Fila 5: Dirección Suministro
   direccion_sum: z.string().min(1, 'Dirección de suministro obligatoria'),
@@ -167,6 +167,12 @@ export default function PuntoForm({ id }: { id?: string }) {
       estado: 'Nueva Oportunidad',
       tipo_factura: 'Luz',
       tiene_fv: false,
+      fv_compensacion: '',
+      tarifa: '',
+      cups: '',
+      direccion_sum: '',
+      current_comercializadora_id: '',
+      // Initialize other text fields to empty string if needed for controlled inputs
     },
   });
 
@@ -348,6 +354,13 @@ export default function PuntoForm({ id }: { id?: string }) {
     }
   };
 
+  // Debug de errores de validación
+  const onInvalid = (errors: any) => {
+    console.error("Errores de validación:", errors);
+    const camposConError = Object.keys(errors).join(", ");
+    toast.error(`Faltan campos por completar: ${camposConError}`);
+  };
+
   const isLoading = loadingComercializadoras || loadingClientes || loadingComerciales;
 
   return (
@@ -373,7 +386,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       )}
 
       {!isLoading && (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
 
           {/* ===== SECCIÓN 1: DATOS GENERALES ===== */}
           <div className="glass-card p-6 relative z-50">
@@ -400,6 +413,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                     allowEmpty={true}
                     emptyLabel="Sin comercializadora"
                     labelClassName="text-sm font-medium text-emerald-400"
+                    error={errors.current_comercializadora_id?.message}
                   />
                 )}
               />

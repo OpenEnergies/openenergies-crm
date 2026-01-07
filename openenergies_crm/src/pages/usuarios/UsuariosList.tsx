@@ -5,18 +5,13 @@ import { Link } from '@tanstack/react-router';
 import type { UsuarioApp } from '@lib/types';
 import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
-import { clsx } from '@lib/utils';
 import { toast } from 'react-hot-toast';
-// ¡Importamos los nuevos iconos!
-import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil, UserRoundPlus } from 'lucide-react';
-import ConfirmationModal from '@components/ConfirmationModal'; // Ajusta la ruta si es necesario
+import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil, UserRoundPlus, Users, Loader2 } from 'lucide-react';
+import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { useSortableTable } from '@hooks/useSortableTable';
 
-// Tipado extendido para incluir el nombre de la empresa
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
-// Usamos keyof UsuarioConEmpresa para las claves reales y añadimos las virtuales
-type SortableUserKey = keyof UsuarioConEmpresa | 'nombre_completo' | 'empresa_nombre';
 
 const initialColumnFilters = {
   rol: [] as string[],
@@ -32,7 +27,6 @@ async function fetchUsuarios(): Promise<UsuarioConEmpresa[]> {
   return data as UsuarioConEmpresa[];
 }
 
-// --- Lógica para las acciones ---
 async function toggleUserActive({ userId, newActiveState }: { userId: string; newActiveState: boolean }) {
   const { error } = await supabase.functions.invoke('manage-user', {
     body: { action: 'toggle-active', payload: { userId, newActiveState } }
@@ -56,224 +50,272 @@ async function deleteUser({ userId }: { userId: string }) {
 
 export default function UsuariosList() {
   const queryClient = useQueryClient();
-  const { userId: currentUserId } = useSession(); // Para no poder bloquearse a uno mismo
+  const { userId: currentUserId } = useSession();
   const { data: fetchedData, isLoading, isError } = useQuery({ queryKey: ['usuarios'], queryFn: fetchUsuarios });
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
-
-  // Estado para controlar el modal
   const [userToDelete, setUserToDelete] = useState<UsuarioConEmpresa | null>(null);
   const [userToReset, setUserToReset] = useState<{ email: string } | null>(null);
 
-  // Mutación para cambiar el estado de activo/inactivo
   const toggleActiveMutation = useMutation({
     mutationFn: toggleUserActive,
     onSuccess: () => {
       toast.success('Estado del usuario actualizado.');
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
     },
     onError: (error) => toast.error(`Error: ${error.message}`),
   });
 
-  // Mutación para resetear la contraseña
   const resetPasswordMutation = useMutation({
     mutationFn: resetUserPassword,
     onSuccess: () => toast.success('Correo de restablecimiento enviado.'),
     onError: (error) => {
-      // No mostramos el error si el usuario canceló la acción
       if (error.message !== 'Acción cancelada') {
         toast.error(`Error: ${error.message}`);
       }
     },
   });
 
-  // NUEVA Mutación para eliminar usuario
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
       toast.success('Usuario eliminado correctamente.');
-      setUserToDelete(null); // Cierra el modal
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // Refresca la lista
+      setUserToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
     },
     onError: (error) => toast.error(`Error al eliminar: ${error.message}`),
   });
 
-  const filterOptions = useMemo(() => {
-    return {
-      rol: ['administrador', 'comercial', 'cliente'],
-    };
-  }, []);
+  const filterOptions = useMemo(() => ({
+    rol: ['administrador', 'comercial', 'cliente'],
+  }), []);
 
   const handleColumnFilterChange = (column: keyof typeof initialColumnFilters, selected: string[]) => {
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
-  // --- 👇 2. Filtra primero los datos ---
   const filteredData = useMemo(() => {
     if (!fetchedData) return [];
-    return fetchedData.filter(item => {
-      return (
-        (columnFilters.rol.length === 0 || columnFilters.rol.includes(item.rol))
-      );
-    });
+    return fetchedData.filter(item => (
+      columnFilters.rol.length === 0 || columnFilters.rol.includes(item.rol)
+    ));
   }, [fetchedData, columnFilters]);
 
-  // --- 👇 3. Usa el hook useSortableTable con los datos filtrados ---
   const {
     sortedData: displayedData,
     handleSort,
     renderSortIcon
-    // --- 👇 Tipamos el hook explícitamente con las claves posibles ---
   } = useSortableTable<UsuarioConEmpresa>(filteredData, {
-    // ---------------------------------------------------------------
     sortValueAccessors: {
-      // --- 👇 2. TIPOS EXPLÍCITOS para 'item' ---
       nombre_completo: (item: UsuarioConEmpresa) => `${item.nombre ?? ''} ${item.apellidos ?? ''}`.trim(),
       empresa_nombre: (item: UsuarioConEmpresa) => item.empresas?.nombre,
-      // -------------------------------------------
     } as unknown as Partial<Record<string, (item: UsuarioConEmpresa) => any>>
   });
 
   const isFiltered = columnFilters.rol.length > 0;
 
   return (
-    <div className="page-layout">
-      <div className="page-header">
-        <h2>Gestión de Usuarios</h2>
-        <div className="page-actions">
-          <Link to="/app/usuarios/invitar" ><button><UserRoundPlus /></button></Link>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-fenix-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-fenix-500">Gestión de Usuarios</h1>
         </div>
+
+        <Link to="/app/usuarios/invitar">
+          <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
+            <UserRoundPlus size={18} />
+            <span className="hidden sm:inline">Invitar</span>
+          </button>
+        </Link>
       </div>
-      <div className="card">
-        {isLoading && <div className="card">Cargando usuarios...</div>}
-        {isError && <div className="card" role="alert">Error al cargar los usuarios.</div>}
+
+      {/* Table Card */}
+      <div className="glass-card overflow-hidden">
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
+          </div>
+        )}
+
+        {isError && (
+          <div className="text-center py-12">
+            <p className="text-red-400">Error al cargar los usuarios.</p>
+          </div>
+        )}
 
         {fetchedData && fetchedData.length === 0 && !isLoading && !isFiltered && (
-          <EmptyState 
+          <EmptyState
             title="No hay usuarios"
             description="Invita a tu primer colaborador o da de alta a un cliente."
           />
         )}
+
         {fetchedData && fetchedData.length > 0 && (
-          <div className="table-wrapper">
-            <table className="table">
+          <div className="overflow-x-auto">
+            <table className="w-full">
               <thead>
-                <tr>
-                  <th>{/* Usa la clave 'nombre_completo' definida en los accessors */}
-                    <button onClick={() => handleSort('nombre_completo' as unknown as any)} className="sortable-header">
+                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('nombre_completo' as unknown as any)}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
                       Nombre {renderSortIcon('nombre_completo' as unknown as any)}
-                    </button></th>
-                  <th>
-                    <button onClick={() => handleSort('email' as unknown as any)} className="sortable-header">
+                    </button>
+                  </th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('email' as unknown as any)}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
                       Email {renderSortIcon('email' as unknown as any)}
-                    </button></th>
-                  <th>
-                    <button onClick={() => handleSort('rol' as unknown as any)} className="sortable-header">
-                       Rol {renderSortIcon('rol' as unknown as any)}
-                     </button>
-                    <ColumnFilterDropdown
-                      columnName="Rol"
-                      options={filterOptions.rol}
-                      selectedOptions={columnFilters.rol}
-                      onChange={(selected) => handleColumnFilterChange('rol', selected as string[])}
-                    />
+                    </button>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('empresa_nombre' as unknown as any)} className="sortable-header">
-                       Empresa {renderSortIcon('empresa_nombre' as unknown as any)}
-                     </button>
+                  <th className="p-4 text-left">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSort('rol' as unknown as any)}
+                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      >
+                        Rol {renderSortIcon('rol' as unknown as any)}
+                      </button>
+                      <ColumnFilterDropdown
+                        columnName="Rol"
+                        options={filterOptions.rol}
+                        selectedOptions={columnFilters.rol}
+                        onChange={(selected) => handleColumnFilterChange('rol', selected as string[])}
+                      />
+                    </div>
                   </th>
-                  <th>
-                    <button onClick={() => handleSort('activo')} className="sortable-header">
-                       Estado {renderSortIcon('activo')}
-                     </button>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('empresa_nombre' as unknown as any)}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      Empresa {renderSortIcon('empresa_nombre' as unknown as any)}
+                    </button>
                   </th>
-                  <th style={{ textAlign: 'right' }}>Acciones</th>
+                  <th className="p-4 text-left">
+                    <button
+                      onClick={() => handleSort('activo')}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                    >
+                      Estado {renderSortIcon('activo')}
+                    </button>
+                  </th>
+                  <th className="p-4 text-right">
+                    <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">Acciones</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-fenix-500/10">
                 {displayedData.length > 0 ? (
                   displayedData.map(u => (
-                  <tr key={u.user_id}>
-                    <td>{u.nombre} {u.apellidos}</td>
-                    <td>{u.email}</td>
-                    <td><span className="kbd">{u.rol}</span></td>
-                    <td>{u.empresas?.nombre ?? '—'}</td>
-                    <td>
-                      <span className={`badge ${u.activo ? 'active' : 'inactive'}`}>
-                        {u.activo ? 'Activo' : 'Bloqueado'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                        {/* --- ¡NUEVO BOTÓN AÑADIDO! --- */}
-                        <Link
-                          to="/app/usuarios/$id/editar"
-                          params={{ id: u.user_id }}
-                          className="icon-button secondary"
-                          title="Editar usuario"
-                        >
-                          <Pencil size={18} />
-                        </Link>
-                        <button 
-                          className={clsx('icon-button', u.activo ? 'secondary' : 'success')}
-                          onClick={() => toggleActiveMutation.mutate({ userId: u.user_id, newActiveState: !u.activo })}
-                          disabled={u.user_id === currentUserId || toggleActiveMutation.isPending}
-                          title={u.user_id === currentUserId ? "No puedes bloquearte a ti mismo" : (u.activo ? "Bloquear usuario" : "Activar usuario")}
-                        >
-                          {u.activo ? <ShieldOff size={18} /> : <ShieldCheck size={18} />}
-                        </button>
-                        
-                        <button 
-                          // --- ¡CAMBIO AQUÍ! ---
-                          className="icon-button warning" // Cambiamos 'secondary' por 'warning'
-                          onClick={() => setUserToReset({ email: u.email! })}
-                          disabled={resetPasswordMutation.isPending}
-                          title="Enviar correo de restablecimiento de contraseña"
-                        >
-                          <KeyRound size={18} />
-                        </button>
-                        
-                        <button 
-                          className="icon-button danger"
-                          onClick={() => setUserToDelete(u)}
-                          disabled={u.user_id === currentUserId || deleteMutation.isPending}
-                          title={u.user_id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                    <tr key={u.user_id} className="hover:bg-fenix-500/8 transition-colors">
+                      <td className="p-4 font-medium text-white">{u.nombre} {u.apellidos}</td>
+                      <td className="p-4 text-gray-400">{u.email}</td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 text-xs font-medium rounded-md bg-bg-intermediate text-gray-300">
+                          {u.rol}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-400">{u.empresas?.nombre ?? '—'}</td>
+                      <td className="p-4">
+                        <span className={`
+                          px-2 py-1 text-xs font-medium rounded-full
+                          ${u.activo
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-red-500/20 text-red-400'}
+                        `}>
+                          {u.activo ? 'Activo' : 'Bloqueado'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Link
+                            to="/app/usuarios/$id/editar"
+                            params={{ id: u.user_id }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                            title="Editar usuario"
+                          >
+                            <Pencil size={16} />
+                          </Link>
+                          <button
+                            className={`
+                              p-1.5 rounded-lg transition-colors
+                              ${u.activo
+                                ? 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
+                                : 'text-gray-400 hover:text-green-400 hover:bg-green-500/10'}
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400
+                            `}
+                            onClick={() => toggleActiveMutation.mutate({ userId: u.user_id, newActiveState: !u.activo })}
+                            disabled={u.user_id === currentUserId || toggleActiveMutation.isPending}
+                            title={u.user_id === currentUserId ? "No puedes bloquearte a ti mismo" : (u.activo ? "Bloquear usuario" : "Activar usuario")}
+                          >
+                            <span className={u.user_id === currentUserId ? "cursor-not-allowed" : "cursor-pointer"}>
+
+                              {u.activo ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
+                            </span>
+                          </button>
+
+                          <button
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            onClick={() => setUserToReset({ email: u.email! })}
+                            disabled={resetPasswordMutation.isPending}
+                            title="Enviar correo de restablecimiento de contraseña"
+                          >
+                            <KeyRound size={16} />
+                          </button>
+
+                          <button
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                            onClick={() => setUserToDelete(u)}
+                            disabled={u.user_id === currentUserId || deleteMutation.isPending}
+                            title={u.user_id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
+                          >
+                            <span className={u.user_id === currentUserId ? "cursor-not-allowed" : "cursor-pointer"}>
+                              <Trash2 size={16} />
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-400">
+                      Sin resultados que coincidan con los filtros.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} style={{textAlign: 'center', padding: '2rem', color: 'var(--muted)'}}>
-                    Sin resultados que coincidan con los filtros.
-                  </td>
-                </tr>
-              )}
+                )}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* --- NUEVO: Modal de Confirmación --- */}
+      {/* Delete Modal */}
       {userToDelete && (
-        <div className="modal-overlay">
-          <div className="modal-content card">
-            <h3 style={{marginTop: 0}}>Confirmar Eliminación</h3>
-            <p>
-              ¿Estás seguro de que quieres eliminar al usuario <strong>{userToDelete.nombre} {userToDelete.apellidos}</strong>?
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-gray-900 border border-bg-intermediate rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-xl font-semibold text-white mb-4">Confirmar Eliminación</h3>
+            <p className="text-gray-300 mb-6">
+              ¿Estás seguro de que quieres eliminar al usuario <strong className="text-white">{userToDelete.nombre} {userToDelete.apellidos}</strong>?
               <br />
-              Esta acción es irreversible.
+              <span className="text-red-400 text-sm">Esta acción es irreversible.</span>
             </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
-              <button className="secondary" onClick={() => setUserToDelete(null)}>
+            <div className="flex justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-white/20 border border-transparent text-gray-300 transition-colors cursor-pointer"
+                onClick={() => setUserToDelete(null)}
+              >
                 Cancelar
               </button>
-              <button 
-                className="danger" 
+              <button
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white transition-colors disabled:opacity-50 cursor-pointer"
                 onClick={() => deleteMutation.mutate({ userId: userToDelete.user_id })}
                 disabled={deleteMutation.isPending}
               >
@@ -283,23 +325,25 @@ export default function UsuariosList() {
           </div>
         </div>
       )}
+
+      {/* Reset Password Modal */}
       {userToReset && (
         <ConfirmationModal
-          isOpen={!!userToReset} // Abierto si userToReset tiene datos
-          onClose={() => setUserToReset(null)} // Cierra al cancelar
+          isOpen={!!userToReset}
+          onClose={() => setUserToReset(null)}
           onConfirm={() => {
-            // Llama a la mutación al confirmar
             resetPasswordMutation.mutate({ email: userToReset.email });
-            setUserToReset(null); // Cierra el modal
+            setUserToReset(null);
           }}
           title="Confirmar Restablecimiento"
           message={`¿Estás seguro de que quieres enviar un correo de restablecimiento de contraseña a ${userToReset.email}?`}
           confirmText="Sí, Enviar Correo"
           cancelText="Cancelar"
-          confirmButtonClass="warning" // Botón amarillo/naranja
-          isConfirming={resetPasswordMutation.isPending} // Estado de carga
+          confirmButtonClass="warning"
+          isConfirming={resetPasswordMutation.isPending}
         />
       )}
     </div>
   );
 }
+

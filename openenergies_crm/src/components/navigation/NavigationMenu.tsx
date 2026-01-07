@@ -11,9 +11,11 @@ import {
     CalendarCheck,
     CalendarDays,
     BriefcaseBusiness,
+    User, // Moved User here
     LogOut,
     X,
-    User
+    Layers,
+    Radio
 } from 'lucide-react';
 
 interface NavigationMenuProps {
@@ -33,12 +35,14 @@ export function NavigationMenu({
 }: NavigationMenuProps) {
     const { location } = useRouterState();
 
+
     const navItems = [
         { to: '/app', label: 'Inicio', icon: Home, module: 'inicio' },
         { to: '/app/clientes', label: 'Clientes', icon: Handshake, module: 'clientes' },
         { to: '/app/puntos', label: 'Puntos', icon: Zap, module: 'puntos' },
         { to: '/app/contratos', label: 'Contratos', icon: BriefcaseBusiness, module: 'contratos' },
         { to: '/app/empresas', label: 'Empresas', icon: Building2, module: 'empresas' },
+        { to: '/app/canales', label: 'Canales', icon: Radio, module: 'canales' },
         { to: '/app/renovaciones', label: 'Renovaciones', icon: CalendarCheck, module: 'renovaciones' },
         { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
         { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, module: 'agenda' },

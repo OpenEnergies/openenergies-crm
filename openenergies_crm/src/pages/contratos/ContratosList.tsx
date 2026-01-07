@@ -145,6 +145,15 @@ interface ContratoModalProps {
 }
 
 function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   const cliente = contrato.puntos_suministro?.clientes;
   const punto = contrato.puntos_suministro;
 

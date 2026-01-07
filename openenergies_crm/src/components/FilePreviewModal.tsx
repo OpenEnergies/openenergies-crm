@@ -1,5 +1,6 @@
 // src/components/FilePreviewModal.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DocViewer, { DocViewerRenderers, IDocument } from 'react-doc-viewer';
 import { Loader2, X } from 'lucide-react';
 import { Document as PdfDocument, Page, pdfjs } from 'react-pdf';
@@ -102,6 +103,17 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     }
   }, [isOpen, fileUrl, isPdf, isTxt]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   // PDF: ajustar ancho de página al contenedor y scroll interno
   useEffect(() => {
     if (!isOpen || !fileUrl || !isPdf) return;
@@ -120,7 +132,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
     : null;
 
-  return (
+  return createPortal(
     <div style={modalOverlayStyle} onClick={onClose} role="dialog" aria-modal="true">
       <div id="file-preview-modal" style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
@@ -205,7 +217,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

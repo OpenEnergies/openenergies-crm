@@ -14,7 +14,7 @@ type EmpresaRaw = EmpresaRawUnit | EmpresaRawUnit[] | null;
 
 type ContratoPorVencerRaw = {
   id: string;
-  fecha_fin: string | null;
+  fecha_renovacion: string | null;
   puntos_suministro: PuntoRaw;
   empresas: EmpresaRaw;
 };
@@ -22,7 +22,7 @@ type ContratoPorVencerRaw = {
 // -------- Tipo NORMALIZADO (lo que usa tu UI) --------
 type ContratoPorVencer = {
   id: string;
-  fecha_fin: string | null;
+  fecha_renovacion: string | null;
   puntos_suministro: {
     cups: string;
     clientes: { id: string; nombre: string } | null;
@@ -53,7 +53,7 @@ async function fetchProximosContratosPorVencer(
     .select(
       `
       id,
-      fecha_fin,
+      fecha_renovacion,
       puntos_suministro!inner (
         cups,
         clientes ( id, nombre )
@@ -61,10 +61,9 @@ async function fetchProximosContratosPorVencer(
       empresas ( nombre )
       `
     )
-    .eq('estado', 'activo')
-    .gte('fecha_fin', todayISO)
-    .lte('fecha_fin', futureDateISO)
-    .order('fecha_fin', { ascending: true })
+    .gte('fecha_renovacion', todayISO)
+    .lte('fecha_renovacion', futureDateISO)
+    .order('fecha_renovacion', { ascending: true })
     .limit(limit)
     .returns<ContratoPorVencerRaw[]>();
 
@@ -81,7 +80,7 @@ async function fetchProximosContratosPorVencer(
 
     return {
       id: row.id,
-      fecha_fin: row.fecha_fin,
+      fecha_renovacion: row.fecha_renovacion,
       puntos_suministro: ps
         ? {
           cups: ps.cups,
@@ -177,7 +176,7 @@ export default function ContratosPorVencerWidget() {
                     <div className="text-right ml-3">
                       <span className="text-xs text-gray-400">Vence</span>
                       <span className="block text-sm font-semibold text-amber-400">
-                        {fmtDate(contrato.fecha_fin)}
+                        {fmtDate(contrato.fecha_renovacion)}
                       </span>
                     </div>
                   </li>

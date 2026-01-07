@@ -9,11 +9,9 @@ type Props = {
   onChange: (selected: string[]) => void;
 };
 
-// Hook auxiliar para detectar clics fuera
 function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
-      // No hacer nada si se hace clic en el ref o en sus descendientes
       if (!ref.current || ref.current.contains(event.target as Node)) {
         return;
       }
@@ -30,94 +28,101 @@ function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: M
 
 export default function ColumnFilterDropdown({ columnName, options, selectedOptions, onChange }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  // Ref para el botón, para posicionar el menú
   const buttonRef = useRef<HTMLButtonElement>(null);
-  // Ref para el menú, para detectar clics fuera
   const menuRef = useRef<HTMLDivElement>(null);
+  const hasOptions = options.length > 0;
 
-  // Null safety for arrays
-  const safeOptions = options || [];
-  const safeSelectedOptions = selectedOptions || [];
-  const hasOptions = safeOptions.length > 0;
-
-  // Usa el hook para cerrar al hacer clic fuera del menú
   useOnClickOutside(menuRef, () => setIsOpen(false));
 
   const handleOptionToggle = (option: string) => {
-    const newSelected = safeSelectedOptions.includes(option)
-      ? safeSelectedOptions.filter(item => item !== option)
-      : [...safeSelectedOptions, option];
+    const newSelected = selectedOptions.includes(option)
+      ? selectedOptions.filter(item => item !== option)
+      : [...selectedOptions, option];
     onChange(newSelected);
   };
 
   const handleSelectAll = () => {
-    if (safeSelectedOptions.length === safeOptions.length) {
-      onChange([]); // Deseleccionar todo
+    if (selectedOptions.length === options.length) {
+      onChange([]);
     } else {
-      onChange(safeOptions); // Seleccionar todo
+      onChange(options);
     }
-    // Opcional: cerrar el menú después de seleccionar/limpiar todo
     setIsOpen(false);
   };
 
-  // Calcula la posición del menú relativo al botón
   const getMenuPosition = () => {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
+    const menuWidth = 200;
+
+    // Check if menu would go off-screen on the right
+    let left = rect.left;
+    if (rect.left + menuWidth > window.innerWidth) {
+      left = window.innerWidth - menuWidth - 16;
+    }
+
     return {
-      // Posiciona el menú debajo del botón
-      top: `${rect.bottom + window.scrollY + 4}px`, // +4px de margen
-      // Intenta alinear a la derecha del botón
-      right: `${window.innerWidth - rect.right - window.scrollX}px`,
-      // Asegúrate de que no se salga por la izquierda (si es necesario)
-      // left: `${rect.left + window.scrollX}px`, // Descomentar si prefieres alinear a la izquierda
-      position: 'absolute' as React.CSSProperties['position'], // Necesario para posicionamiento absoluto
+      top: `${rect.bottom + 4}px`,
+      left: `${left}px`,
+      position: 'fixed' as React.CSSProperties['position'],
     };
   };
 
   return (
-    // Contenedor relativo solo para el botón
-    <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
+    <div className="relative inline-block ml-2">
       <button
-        ref={buttonRef} // Asigna la ref al botón
+        ref={buttonRef}
         onClick={() => {
           if (hasOptions) setIsOpen(!isOpen);
         }}
-        className={`icon-button secondary small ${safeSelectedOptions.length > 0 ? 'active' : ''}`}
+        className={`
+          w-8 h-8 rounded-md flex items-center justify-center
+          transition-all duration-150
+          ${selectedOptions.length > 0
+            ? 'bg-fenix-500/20 text-fenix-400'
+            : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+          disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer
+        `}
         title={hasOptions ? `Filtrar por ${columnName}` : 'No hay opciones para filtrar'}
         disabled={!hasOptions}
       >
         <Filter size={14} />
       </button>
 
-      {/* 2. Usa createPortal para renderizar el menú */}
       {isOpen && hasOptions && createPortal(
         <div
-          ref={menuRef} // Asigna ref al menú
-          className="dropdown-menu card" // Tus clases existentes
-          // 3. Aplica estilos de posicionamiento calculados y z-index alto
-          style={{ ...getMenuPosition(), zIndex: 1050 /* Asegura que esté por encima de otros elementos */ }}
+          ref={menuRef}
+          className="glass-modal p-2 min-w-[200px] max-w-[280px] animate-fade-in shadow-2xl"
+          style={{ ...getMenuPosition(), zIndex: 9999 }}
         >
-          {/* Contenido del menú sin cambios */}
-          <div className="dropdown-item">
-            <button onClick={handleSelectAll} style={{ width: '100%', textAlign: 'left' }}>
-              {safeSelectedOptions.length === safeOptions.length ? 'Limpiar selección' : 'Seleccionar todo'}
-            </button>
+          {/* Seleccionar todo */}
+          <button
+            onClick={handleSelectAll}
+            className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+          >
+            {selectedOptions.length === options.length ? 'Limpiar selección' : 'Seleccionar todo'}
+          </button>
+
+          <hr className="my-2 border-bg-intermediate" />
+
+          {/* Opciones */}
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {options.map(option => (
+              <label
+                key={option}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-bg-intermediate rounded-md cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedOptions.includes(option)}
+                  onChange={() => handleOptionToggle(option)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-fenix-500 focus:ring-fenix-500 focus:ring-offset-0"
+                />
+                <span>{option}</span>
+              </label>
+            ))}
           </div>
-          <hr style={{ margin: '4px 0' }} />
-          {safeOptions.map(option => (
-            <label key={option} className="dropdown-item checkbox-label">
-              <input
-                type="checkbox"
-                checked={safeSelectedOptions.includes(option)}
-                onChange={() => handleOptionToggle(option)}
-              />
-              {/* Añade un span para asegurar que el texto se alinea correctamente */}
-              <span>{option}</span>
-            </label>
-          ))}
         </div>,
-        // 4. Renderiza el portal directamente en el body
         document.body
       )}
     </div>

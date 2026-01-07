@@ -118,8 +118,9 @@ export interface Contrato {
   punto_id: UUID;
   comercializadora_id: UUID;
   oferta: string | null;
-  fecha_inicio: string | null; // date
-  fecha_fin: string | null; // date
+  fecha_firma: string | null; // date
+  fecha_activacion: string | null; // date
+  fecha_renovacion: string | null; // date
   aviso_renovacion: boolean;
   fecha_aviso: string | null; // date
   estado: string; // 'activo'...

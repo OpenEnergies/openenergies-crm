@@ -8,6 +8,7 @@ import ClienteForm from '@pages/clientes/ClienteForm';
 import ClienteDetailLayout from '@pages/clientes/ClienteDetailLayout';
 import ClienteDocumentos from '@pages/clientes/ClienteDocumentos';
 import ClienteActividad from '@pages/clientes/ClienteActividad';
+import ClienteFacturas from '@pages/clientes/ClienteFacturas';
 // Puntos
 import PuntosList from '@pages/puntos/PuntosList';
 import PuntoForm from '@pages/puntos/PuntoForm';
@@ -39,6 +40,7 @@ import VacacionesPage from '@pages/agenda/VacacionesPage';
 import RenovacionesPage from '@pages/renovaciones/RenovacionesPage';
 import { RequireAuth, RequireRole } from '@components/RouteGuards';
 import NotificacionesPage from '@pages/notificaciones/NotificacionesPage';
+import FacturasList from '@pages/facturas/FacturasList';
 
 
 // --- 1. RUTA RAÍZ ---
@@ -91,6 +93,7 @@ const clienteDetailIndexRoute = createRoute({ getParentRoute: () => clienteDetai
 const clientePuntosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'puntos', component: () => { const { id } = useParams({ from: clientePuntosRoute.id }); return <PuntosList clienteId={id} />; } });
 const clienteContratosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'contratos', component: () => { const { id } = useParams({ from: clienteContratosRoute.id }); return <ContratosList clienteId={id} />; } });
 export const clienteDocumentosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'documentos/$', component: ClienteDocumentos, });
+const clienteFacturasRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'facturas', component: ClienteFacturas });
 const clienteActividadRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'actividad', component: ClienteActividad });
 const puntosRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos', component: PuntosList });
 const puntoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/nuevo', component: () => <PuntoForm /> });
@@ -103,6 +106,11 @@ const documentosRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/documentos',
   component: DocumentosPageWrapper
+});
+const facturasGlobalRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/facturas',
+  component: FacturasList
 });
 
 // --- CORRECCIÓN AQUÍ ---
@@ -181,6 +189,7 @@ const routeTree = rootRoute.addChildren([
       clientePuntosRoute,
       clienteContratosRoute,
       clienteDocumentosRoute,
+      clienteFacturasRoute,
       clienteActividadRoute
     ]),
     puntosRoute,
@@ -191,6 +200,7 @@ const routeTree = rootRoute.addChildren([
     contratoEditRoute,
     renovacionesRoute,
     documentosRoute,
+    facturasGlobalRoute,
     documentosClienteRoute, // Añadida
     documentoUploadRoute,
   ]),

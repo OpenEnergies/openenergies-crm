@@ -70,6 +70,7 @@ export default function ClienteDetailLayout() {
     { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
     { path: `${basePath}/contratos`, label: 'Contratos' },
     { path: `${basePath}/documentos`, label: 'Documentos' },
+    { path: `${basePath}/facturas`, label: 'Facturas' },
     { path: `${basePath}/actividad`, label: 'Actividad' },
   ];
 

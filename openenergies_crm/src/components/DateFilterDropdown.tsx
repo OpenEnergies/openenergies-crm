@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Filter } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-// Tipo para definir las partes de la fecha seleccionada
 export type DateParts = {
   year: string | null;
   month: string | null;
@@ -11,15 +10,11 @@ export type DateParts = {
 
 type Props = {
   columnName: string;
-  // Recibe un array de todas las fechas disponibles para generar las opciones
-  options: Date[]; 
-  // El estado actual de la selección
+  options: Date[];
   selectedDate: DateParts;
-  // Callback para notificar cambios
   onChange: (selected: DateParts) => void;
 };
 
-// Hook auxiliar para detectar clics fuera (igual que antes)
 function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
@@ -39,36 +34,26 @@ function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: M
 
 export default function DateFilterDropdown({ columnName, options, selectedDate, onChange }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  // Ref para el botón
   const buttonRef = useRef<HTMLButtonElement>(null);
-  // Ref para el menú
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Estados para las opciones de los 3 selectores
   const [years, setYears] = useState<string[]>([]);
   const [months, setMonths] = useState<string[]>([]);
   const [days, setDays] = useState<string[]>([]);
 
-  // Lógica para poblar dinámicamente las opciones de los filtros
   useEffect(() => {
-    // Años: se extraen de todas las fechas
     const uniqueYears = Array.from(new Set(options.map(d => d.getFullYear().toString()))).sort((a, b) => Number(b) - Number(a));
     setYears(uniqueYears);
 
-    // Meses: se filtran por el año seleccionado
     const filteredByYear = selectedDate.year ? options.filter(d => d.getFullYear().toString() === selectedDate.year) : options;
     const uniqueMonths = Array.from(new Set(filteredByYear.map(d => (d.getMonth() + 1).toString().padStart(2, '0')))).sort();
     setMonths(uniqueMonths);
 
-    // Días: se filtran por el año y mes seleccionados
     const filteredByMonth = selectedDate.month ? filteredByYear.filter(d => (d.getMonth() + 1).toString().padStart(2, '0') === selectedDate.month) : filteredByYear;
     const uniqueDays = Array.from(new Set(filteredByMonth.map(d => d.getDate().toString().padStart(2, '0')))).sort();
     setDays(uniqueDays);
-
   }, [options, selectedDate]);
 
-
-  // Cierra al hacer clic fuera del menú
   useOnClickOutside(menuRef, () => setIsOpen(false));
 
   const handleClear = () => {
@@ -78,7 +63,6 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
 
   const hasFilter = selectedDate.year || selectedDate.month || selectedDate.day;
 
-  // Calcula posición (igual que antes)
   const getMenuPosition = () => {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
@@ -90,62 +74,75 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
   };
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}>
+    <div className="relative inline-block ml-2">
       <button
-        ref={buttonRef} // Asigna ref al botón
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`icon-button secondary small ${hasFilter ? 'active' : ''}`}
+        className={`
+          w-8 h-8 rounded-md flex items-center justify-center
+          transition-all duration-150
+          ${hasFilter
+            ? 'bg-fenix-500/20 text-fenix-400'
+            : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+          cursor-pointer
+        `}
         title={`Filtrar por ${columnName}`}
       >
         <Filter size={14} />
       </button>
 
-      {/* 2. Usa createPortal */}
       {isOpen && createPortal(
         <div
-          ref={menuRef} // Asigna ref al menú
-          className="dropdown-menu card"
-          // 3. Aplica estilos
-          style={{
-            ...getMenuPosition(),
-            zIndex: 1050,
-            padding: '1rem', // Tus estilos originales
-            display: 'grid',
-            gap: '0.75rem',
-            minWidth: '250px'
-          }}
+          ref={menuRef}
+          className="glass-card p-4 min-w-[220px] animate-slide-down"
+          style={{ ...getMenuPosition(), zIndex: 1050 }}
         >
-          {/* Contenido del menú sin cambios */}
-          <p style={{ margin: 0, fontWeight: 500 }}>Filtrar por {columnName}</p>
-          <select
-            value={selectedDate.year ?? ''}
-            onChange={e => onChange({ year: e.target.value || null, month: null, day: null })}
+          <p className="text-sm font-medium text-white mb-3">Filtrar por {columnName}</p>
+
+          <div className="space-y-3">
+            {/* Año */}
+            <select
+              value={selectedDate.year ?? ''}
+              onChange={e => onChange({ year: e.target.value || null, month: null, day: null })}
+              className="glass-input text-sm"
+            >
+              <option value="">Cualquier Año</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+
+            {/* Mes */}
+            <select
+              value={selectedDate.month ?? ''}
+              onChange={e => onChange({ ...selectedDate, month: e.target.value || null, day: null })}
+              disabled={!selectedDate.year}
+              className="glass-input text-sm disabled:opacity-50"
+            >
+              <option value="">Cualquier Mes</option>
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+
+            {/* Día */}
+            <select
+              value={selectedDate.day ?? ''}
+              onChange={e => onChange({ ...selectedDate, day: e.target.value || null })}
+              disabled={!selectedDate.month}
+              className="glass-input text-sm disabled:opacity-50"
+            >
+              <option value="">Cualquier Día</option>
+              {days.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+
+          <hr className="my-3 border-bg-intermediate" />
+
+          <button
+            onClick={handleClear}
+            className="btn-secondary w-full text-sm py-2"
+            disabled={!hasFilter}
           >
-            <option value="">Cualquier Año</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <select
-            value={selectedDate.month ?? ''}
-            onChange={e => onChange({ ...selectedDate, month: e.target.value || null, day: null })}
-            disabled={!selectedDate.year}
-          >
-            <option value="">Cualquier Mes</option>
-            {months.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select
-            value={selectedDate.day ?? ''}
-            onChange={e => onChange({ ...selectedDate, day: e.target.value || null })}
-            disabled={!selectedDate.month}
-          >
-            <option value="">Cualquier Día</option>
-            {days.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <hr style={{ margin: '4px 0'}} />
-          <button onClick={handleClear} className="secondary small" disabled={!hasFilter}>
             Limpiar filtro
           </button>
         </div>,
-        // 4. Renderiza en el body
         document.body
       )}
     </div>

@@ -147,6 +147,15 @@ interface PuntoModalProps {
 }
 
 function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   const potenciaTotal = [punto.p1_kw, punto.p2_kw, punto.p3_kw, punto.p4_kw, punto.p5_kw, punto.p6_kw]
     .filter(p => p != null)
     .reduce((sum, p) => sum + (p || 0), 0);

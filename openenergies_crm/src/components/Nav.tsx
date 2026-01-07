@@ -1,7 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { canSeeModule } from '@lib/permissions';
 import { useSession } from '@hooks/useSession';
-import { Home, Users, Building2, Handshake, Files, Zap, ChartNoAxesCombined, CalendarCheck, CalendarDays, BriefcaseBusiness, Layers, Radio } from 'lucide-react';
+import { Home, Users, Building2, Handshake, Files, Zap, ChartNoAxesCombined, CalendarCheck, CalendarDays, BriefcaseBusiness, Layers, Radio, Receipt } from 'lucide-react';
 
 export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
@@ -19,6 +19,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, module: 'agenda' },
     { to: '/app/comparativas/nueva', label: 'Comparativas', icon: ChartNoAxesCombined, module: 'comparativas' },
     { to: '/app/documentos', label: 'Documentos', icon: Files, module: 'documentos' },
+    { to: '/app/facturas', label: 'Facturas', icon: Receipt, module: 'facturas' },
   ];
 
   const visibleItems = navItems.filter(item => {

@@ -10,11 +10,12 @@ type SortConfig<T> = {
   direction: SortDirection;
 };
 
-// Opciones para el hook
+// Opciones para el hook - SortKey allows custom keys beyond just keyof T
+type SortKey<T> = keyof T | (string & {});
 type UseSortableTableOptions<T> = {
-  initialSortKey?: keyof T;
+  initialSortKey?: SortKey<T>;
   initialSortDirection?: SortDirection;
-  sortValueAccessors?: Partial<Record<keyof T, (item: T) => any>>;
+  sortValueAccessors?: Partial<Record<SortKey<T>, (item: T) => any>>;
 };
 
 export function useSortableTable<T extends Record<string, any>>(

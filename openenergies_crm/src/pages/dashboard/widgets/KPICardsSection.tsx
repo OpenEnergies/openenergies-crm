@@ -13,7 +13,7 @@ async function fetchKPIData(): Promise<KPIData> {
     const { count: contratosActivos } = await supabase
         .from('contratos')
         .select('*', { count: 'exact', head: true })
-        .eq('estado', 'activo');
+        .eq('estado', 'En curso');
 
     // Fetch puntos con contrato activo para calcular energía gestionada
     const { data: puntosActivos } = await supabase
@@ -22,7 +22,7 @@ async function fetchKPIData(): Promise<KPIData> {
       consumo_anual_kwh,
       contratos!inner(estado)
     `)
-        .eq('contratos.estado', 'activo');
+        .eq('contratos.estado', 'En curso');
 
     const totalKwh = puntosActivos?.reduce((sum, p) => sum + (p.consumo_anual_kwh || 0), 0) || 0;
     const energiaGestionadaGWh = totalKwh / 1_000_000;
@@ -31,7 +31,7 @@ async function fetchKPIData(): Promise<KPIData> {
     const { count: puntosEnProceso } = await supabase
         .from('puntos_suministro')
         .select('*', { count: 'exact', head: true })
-        .not('estado', 'in', '("activo","desistido")');
+        .not('estado', 'in', '(Aceptado,Desiste)');
 
     return {
         contratosActivos: contratosActivos || 0,

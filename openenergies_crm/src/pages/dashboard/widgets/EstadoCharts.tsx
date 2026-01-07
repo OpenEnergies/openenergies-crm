@@ -10,6 +10,7 @@ type ChartData = {
 
 const ESTADO_PUNTO_COLORS: Record<string, string> = {
     'activo': 'bg-green-500',
+    'Aceptado': 'bg-emerald-500', // Added missing state
     'procesando': 'bg-yellow-500',
     'stand by': 'bg-gray-400',
     'desistido': 'bg-red-500',
@@ -26,7 +27,7 @@ const ESTADO_CONTRATO_COLORS: Record<string, string> = {
 async function fetchChartData(): Promise<ChartData> {
     // Fetch clientes agrupados por estado (for supply points)
     const { data: clientes } = await supabase
-        .from('clientes')
+        .from('puntos_suministro')
         .select('estado');
 
     const puntosEstados: Record<string, number> = {};

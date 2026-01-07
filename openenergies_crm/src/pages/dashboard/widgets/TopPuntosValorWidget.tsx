@@ -7,7 +7,7 @@ type TopPunto = {
     id: string;
     cups: string;
     consumo_anual_kwh: number | null;
-    potencia_contratada_kw: number | null;
+    p1_kw: number | null;
     clientes: {
         id: string;
         nombre: string;
@@ -21,7 +21,7 @@ async function fetchTopPuntos(): Promise<TopPunto[]> {
       id,
       cups,
       consumo_anual_kwh,
-      potencia_contratada_kw,
+      p1_kw,
       clientes!inner(id, nombre)
     `)
         .not('consumo_anual_kwh', 'is', null)
@@ -33,12 +33,7 @@ async function fetchTopPuntos(): Promise<TopPunto[]> {
 }
 
 function formatKwh(kwh: number): string {
-    if (kwh >= 1_000_000) {
-        return `${(kwh / 1_000_000).toFixed(2)} GWh`;
-    } else if (kwh >= 1_000) {
-        return `${(kwh / 1_000).toFixed(1)} MWh`;
-    }
-    return `${kwh.toLocaleString()} kWh`;
+    return `${(kwh).toFixed(1)} kWh`;
 }
 
 export default function TopPuntosValorWidget() {
@@ -121,8 +116,8 @@ export default function TopPuntosValorWidget() {
                                     <Zap className="w-4 h-4" />
                                     <span>{punto.consumo_anual_kwh ? formatKwh(punto.consumo_anual_kwh) : '—'}</span>
                                 </div>
-                                {punto.potencia_contratada_kw && (
-                                    <p className="text-xs text-gray-500">{punto.potencia_contratada_kw} kW</p>
+                                {punto.p1_kw && (
+                                    <p className="text-xs text-gray-500">{punto.p1_kw} kW</p>
                                 )}
                             </div>
                         </div>

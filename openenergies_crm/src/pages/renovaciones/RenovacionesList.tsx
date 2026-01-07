@@ -155,13 +155,16 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="flex items-center gap-2 flex-1 sm:w-64">
+            <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+              <Search size={16} />
+              Buscar
+            </label>
             <input
-              placeholder="Buscar por Comercializadora o CUPS..."
+              placeholder="Comercializadora o CUPS..."
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              className="glass-input w-full pl-10"
+              className="glass-input w-full"
             />
           </div>
 

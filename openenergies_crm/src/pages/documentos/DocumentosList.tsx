@@ -151,14 +151,17 @@ export default function DocumentosList() {
 
         <div className="flex items-center gap-3">
           {canSearch && (
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                <Search size={16} />
+                Buscar
+              </label>
               <input
                 type="text"
-                placeholder="Buscar por nombre o cliente..."
+                placeholder="Nombre o cliente..."
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
-                className="glass-input pl-9 pr-4 py-2 min-w-[250px]"
+                className="glass-input pr-4 py-2 min-w-[200px]"
               />
             </div>
           )}

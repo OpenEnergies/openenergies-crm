@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { clienteDetailRoute } from '@router/routes';
 import { useSession } from '@hooks/useSession';
 import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, IdCard, UserCircle } from 'lucide-react';
+import { formatIBAN } from '@lib/utils';
 
 interface ClienteDetallado {
   id: string;
@@ -36,6 +37,17 @@ async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
     .eq('cliente_id', clienteId)
     .is('eliminado_en', null);
 
+  // Obtener IBAN real desde vault (desencriptado para admins)
+  let ibanReal = cliente.numero_cuenta;
+  try {
+    const { data: ibanVault } = await supabase.rpc('obtener_iban_vault', { p_cliente_id: clienteId });
+    if (ibanVault) {
+      ibanReal = ibanVault;
+    }
+  } catch (e) {
+    console.warn('No se pudo obtener IBAN del vault:', e);
+  }
+
   const puntosCount = puntos?.length || 0;
   const totalKwh = (puntos || []).reduce((acc, p) => {
     return acc +
@@ -49,6 +61,7 @@ async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
 
   return {
     ...cliente,
+    numero_cuenta: ibanReal,
     puntos_count: puntosCount,
     total_kwh: totalKwh,
   } as ClienteDetallado;
@@ -214,8 +227,8 @@ export default function ClienteDetailLayout() {
             <div className="flex items-center gap-2 text-sm">
               <CreditCard size={14} className="text-gray-500" />
               <span className="text-gray-400">IBAN:</span>
-              <span className="text-white font-mono">
-                {cliente.numero_cuenta}
+              <span className="text-white font-mono italic">
+                {formatIBAN(cliente.numero_cuenta)}
               </span>
             </div>
           )}

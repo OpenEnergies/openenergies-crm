@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
-import { Radio, Plus, Trash2, Loader2, XCircle, X, Layers } from 'lucide-react';
+import { Radio, Plus, Trash2, Loader2, XCircle, X, Layers, Search } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { toast } from 'react-hot-toast';
 
@@ -138,13 +138,19 @@ export default function CanalesList() {
 
                 <div className="flex items-center gap-3">
                     {/* Search */}
-                    <input
-                        type="text"
-                        placeholder="Buscar canal..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-11 px-4 rounded-lg bg-bg-intermediate border border-bg-intermediate text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
-                    />
+                    <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                            <Search size={16} />
+                            Buscar
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Nombre de canal..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="h-11 px-4 rounded-lg bg-bg-intermediate border border-bg-intermediate text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
+                        />
+                    </div>
 
                     {selectedIds.length > 0 ? (
                         /* Selection action bar */

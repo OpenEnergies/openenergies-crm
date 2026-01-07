@@ -592,12 +592,15 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
             <>
               {!clienteId && (
                 <>
-                  <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <div className="flex items-center gap-2 flex-1 sm:w-64">
+                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                      <Search size={16} />
+                      Buscar
+                    </label>
                     <input
                       type="text"
-                      placeholder="Buscar por CUPS o dirección"
-                      className="glass-input w-full pl-10"
+                      placeholder="CUPS o dirección..."
+                      className="glass-input w-full"
                       value={filter}
                       onChange={e => setFilter(e.target.value)}
                     />

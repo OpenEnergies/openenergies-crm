@@ -199,16 +199,19 @@ export default function ClientesList() {
             </div>
           ) : (
             <>
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                  <Search size={16} />
+                  Buscar
+                </label>
                 <input
-                  placeholder="Buscar por nombre, DNI o CIF..."
+                  placeholder="Nombre, DNI o CIF..."
                   value={filter}
                   onChange={e => {
                     setFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="glass-input pl-9 w-64"
+                  className="glass-input w-64"
                 />
               </div>
               <Link to="/app/clientes/nuevo">

@@ -400,14 +400,17 @@ export default function FacturasList() {
                 </div>
 
                 {/* Search */}
-                <div className="relative w-full sm:w-64">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                        <Search size={16} />
+                        Buscar
+                    </label>
                     <input
                         type="text"
-                        placeholder="Buscar por cliente, factura, CUPS..."
+                        placeholder="Cliente, factura, CUPS..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="glass-input pl-10 w-full"
+                        className="glass-input w-full sm:w-64"
                     />
                 </div>
             </div>

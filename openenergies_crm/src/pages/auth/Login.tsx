@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Mail, ShieldCheck, Loader2 } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import PasswordInput from '@components/PasswordInput';
 
 const schema = z.object({
@@ -138,23 +138,18 @@ export default function Login() {
           {/* Email */}
           {!isMfaStep && (
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                <Mail size={16} />
                 Email
               </label>
-              <div className="relative">
-                <Mail
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...register('email')}
-                  placeholder="tu.email@ejemplo.com"
-                  className="glass-input pl-10"
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                {...register('email')}
+                placeholder="tu.email@ejemplo.com"
+                className="glass-input"
+              />
               {errors.email && (
                 <p className="text-sm text-red-400" role="alert">{errors.email.message}</p>
               )}
@@ -164,14 +159,16 @@ export default function Login() {
           {/* Password */}
           {!isMfaStep && (
             <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                Contraseña <span className="text-gray-500">(opcional)</span>
+              <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                <Lock size={16} />
+                Contraseña <span className="text-gray-500 ml-1">(opcional)</span>
               </label>
               <PasswordInput
                 id="password"
                 autoComplete="current-password"
                 {...register('password')}
                 placeholder="********"
+                showIcon={false}
               />
               {errors.password && (
                 <p className="text-sm text-red-400" role="alert">{errors.password.message}</p>

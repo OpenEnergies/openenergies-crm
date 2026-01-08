@@ -9,17 +9,18 @@ type Props = {
 export default function MessageBubble({ role, children }: Props) {
   const isUser = role === 'user';
   const isError = role === 'error';
-  const alignClass = isUser ? 'chat-bubble-align-user' : 'chat-bubble-align-other';
-  const bubbleClass = `chat-bubble ${
-      isUser ? 'chat-bubble-user' :
-      isError ? 'chat-bubble-error' :
-      'chat-bubble-assistant' // Asumimos assistant si no es user o error
-  }`;
+
+  const alignClass = isUser ? 'flex justify-end' : 'flex justify-start';
+
+  const bubbleClass = isUser
+    ? 'max-w-xs md:max-w-sm rounded-2xl px-4 py-2.5 bg-fenix-500 text-white'
+    : isError
+      ? 'max-w-xs md:max-w-sm rounded-2xl px-4 py-2.5 bg-red-500/20 text-red-400 border border-red-500/30'
+      : 'max-w-xs md:max-w-sm rounded-2xl px-4 py-2.5 bg-bg-intermediate text-gray-200';
+
   return (
     <div className={alignClass}>
       <div className={bubbleClass}>{children}</div>
     </div>
   );
 }
-
-

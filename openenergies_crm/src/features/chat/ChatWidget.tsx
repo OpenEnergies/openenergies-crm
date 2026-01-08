@@ -36,10 +36,10 @@ export default function ChatWidget() {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const canSend = !!userId && !!nombre && !pending && input.trim().length > 0;
-  
+
   useEffect(() => { setMessages([]); }, [userId]);
   useEffect(() => {
-    if (open) { setTimeout(() => inputRef.current?.focus(), 0); } 
+    if (open) { setTimeout(() => inputRef.current?.focus(), 0); }
     else {
       abortRef.current?.abort();
       abortRef.current = null;
@@ -55,7 +55,7 @@ export default function ChatWidget() {
 
     const trimmed = input.trim().slice(0, 2000);
     const userMsg = createTextMessage('user', trimmed);
-    
+
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setPending(true);
@@ -67,7 +67,7 @@ export default function ChatWidget() {
       // ✅ LÓGICA DE RESPUESTA ACTUALIZADA
       // 'replies' es ahora un array con todas las partes del mensaje.
       const replies = await postToWebhook({ user_id: userId!, name: nombre!, message: trimmed }, { signal: controller.signal });
-      
+
       const newAssistantMessages: ChatMessage[] = [];
       // Iteramos sobre cada parte y creamos un mensaje para ella.
       for (const reply of replies) {
@@ -77,7 +77,7 @@ export default function ChatWidget() {
           newAssistantMessages.push(createFileMessage('assistant', reply.content));
         }
       }
-      
+
       // Añadimos todos los nuevos mensajes del asistente de una sola vez.
       setMessages((prev) => [...prev, ...newAssistantMessages]);
 
@@ -101,52 +101,77 @@ export default function ChatWidget() {
   // El resto del componente (el JSX) no necesita cambios.
   return (
     <>
-      <button onClick={toggle} className="chat-fab shadow-lg hover:shadow-xl transition-shadow" aria-expanded={open} aria-controls="chat-panel" title={open ? 'Cerrar chat' : 'Abrir chat'}>
-        <span className="chat-fab-initials"><MessagesSquare /></span>
+      {/* Floating Action Button - Fixed position bottom right */}
+      <button
+        onClick={toggle}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-fenix-500 hover:bg-fenix-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center hover:scale-105 cursor-pointer"
+        aria-expanded={open}
+        aria-controls="chat-panel"
+        title={open ? 'Cerrar chat' : 'Abrir chat'}
+      >
+        <MessagesSquare size={24} />
       </button>
 
+      {/* Chat Panel - Fixed position */}
       {open && (
-        <div id="chat-panel" className="chat-panel shadow-xl border border-gray-200 rounded-lg" role="dialog" aria-label="Chat">
-          <div className="chat-inner-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem' }}> {/* Añade clase y padding */}
-            <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
-              <h3 style={{ margin: 0 }}> Pepe</h3>
-              <button onClick={toggle} className="icon-button secondary small">✕</button>
-            </div>
+        <div
+          id="chat-panel"
+          className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-8rem)] glass-modal flex flex-col overflow-hidden"
+          role="dialog"
+          aria-label="Chat"
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b border-bg-intermediate">
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <MessagesSquare size={20} className="text-fenix-400" />
+              Asistente Pepe
+            </h3>
+            <button
+              onClick={toggle}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
 
-            <div ref={listRef} className="chat-message-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem 0.25rem' }}>
-              {messages.map((m) => (
-                <MessageBubble key={m.id} role={m.role}>
-                  {m.type === 'text' && <MarkdownText text={m.content as string} />}
-                  {m.type === 'file' && <FileDisplay {...m.content as { name: string, url: string }} />}
-                </MessageBubble>
-              ))}
-              {pending && (
-                <MessageBubble role="assistant">
-                  <TypingIndicator />
-                </MessageBubble>
-              )}
-            </div>
+          {/* Messages */}
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto p-4 space-y-3"
+          >
+            {messages.map((m) => (
+              <MessageBubble key={m.id} role={m.role}>
+                {m.type === 'text' && <MarkdownText text={m.content as string} />}
+                {m.type === 'file' && <FileDisplay {...m.content as { name: string, url: string }} />}
+              </MessageBubble>
+            ))}
+            {pending && (
+              <MessageBubble role="assistant">
+                <TypingIndicator />
+              </MessageBubble>
+            )}
+          </div>
 
-            <div className="chat-input-area" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Escribe tu mensaje..."
-                rows={1}
-                disabled={pending || !userId || !nombre}
-                className="chat-textarea" style={{ flex: 1, minHeight: '40px', maxHeight: '150px', borderRadius: '6px', border: '1px solid var(--border-color)', padding: '8px 12px' }}
-              />
-              <button 
-                onClick={handleSend} 
-                disabled={!canSend}
-                className="icon-button chat-send-button" style={{ height: '40px', width: '40px' }}
-                title="Enviar mensaje"
-              >
-                <Send size={18} />
-              </button>
-            </div>
+          {/* Input Area */}
+          <div className="p-4 border-t border-bg-intermediate flex gap-3 items-end">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Escribe tu mensaje..."
+              rows={1}
+              disabled={pending || !userId || !nombre}
+              className="flex-1 glass-input resize-none min-h-[40px] max-h-[120px]"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!canSend}
+              className="w-10 h-10 rounded-lg bg-fenix-500 hover:bg-fenix-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors flex-shrink-0 cursor-pointer"
+              title="Enviar mensaje"
+            >
+              <Send size={18} />
+            </button>
           </div>
         </div>
       )}

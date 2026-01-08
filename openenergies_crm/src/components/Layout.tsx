@@ -226,7 +226,8 @@ export default function Layout() {
       </div>
 
       {/* Floating Chat Widget - visible for admin and comercial */}
-      {(rol === 'administrador' || rol === 'comercial') && <ChatWidget />}
+      {/* TODO: Re-enable ChatWidget after improvements */}
+      {/* {(rol === 'administrador' || rol === 'comercial') && <ChatWidget />} */}
     </div>
   );
 }

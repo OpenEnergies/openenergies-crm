@@ -112,6 +112,8 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
     email,
     activo: true,
     forzar_cambio_password: creationType === 'create_with_password',
+    // Campos de auditoría (securización BBDD)
+    creado_en: new Date().toISOString(),
   };
 
   const { error: profileError } = await supabaseAdmin.from('usuarios_app').insert(profileData);
@@ -184,19 +186,8 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
       throw error;
     }
   }
-  // --- Lógica de Auto-asignación para Comerciales (SIN CAMBIOS) ---
-  // Esta lógica sigue siendo válida y funciona perfectamente.
-  if (creatingUser?.rol === 'comercial' && creatingUser?.id) {
-    const { error: assignError } = await supabaseAdmin
-      .from('asignaciones_comercial')
-      .insert({ cliente_id: newClient.id, comercial_user_id: creatingUser.id });
-    
-    if (assignError) {
-      if (newAuthUser) await supabaseAdmin.auth.admin.deleteUser(newAuthUser.id);
-      await supabaseAdmin.from('clientes').delete().eq('id', newClient.id);
-      throw new Error(`El cliente se creó, pero falló la auto-asignación: ${assignError.message}`);
-    }
-  }
+  // Auto-asignación de comerciales: gestionada por trigger en BBDD (trg_auto_assign_comercial)
+  // Cuando un comercial crea un punto de suministro, se auto-asigna automáticamente.
 
   return { newClientId: newClient.id };
 }
@@ -208,11 +199,16 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
 // Las incluyo aquí para que el fichero esté completo.
 
 async function handleToggleActive(payload: any, supabaseAdmin: SupabaseClient) {
-  const { userId, newActiveState } = payload;
+  const { userId, newActiveState, modifiedBy } = payload;
   if (!userId || typeof newActiveState !== 'boolean') {
     throw new Error('Faltan datos para cambiar el estado del usuario.');
   }
-  const { error } = await supabaseAdmin.from('usuarios_app').update({ activo: newActiveState }).eq('user_id', userId);
+  const { error } = await supabaseAdmin.from('usuarios_app').update({ 
+    activo: newActiveState,
+    // Campos de auditoría (securización BBDD)
+    modificado_en: new Date().toISOString(),
+    modificado_por: modifiedBy || null
+  }).eq('user_id', userId);
   if (error) throw error;
 }
 

@@ -11,7 +11,7 @@ async function fetchPuntosAsignadosCount(comercialUserId: string | null): Promis
   }
 
   const { count, error } = await supabase
-    .from('asignaciones_comercial')
+    .from('asignaciones_comercial_punto')
     .select('*', { count: 'exact', head: true })
     .eq('comercial_user_id', comercialUserId);
 

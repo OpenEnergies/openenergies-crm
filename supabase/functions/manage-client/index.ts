@@ -38,15 +38,15 @@ async function listAllFilesRecursively(
   return filePaths;
 }
 
-async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient) {
+async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient, deletedByUserId: string | null) {
   const { clienteId } = payload;
   if (!clienteId) {
     throw new Error('El ID del cliente es obligatorio para la eliminación.');
   }
 
-  // --- BORRADO EN CASCADA SEGURO ---
+  // --- SOFT DELETE SEGURO (cumplimiento GDPR) ---
 
-  // 1. Borrar el usuario de autenticación (si existe)
+  // 1. Desactivar el usuario de autenticación (si existe)
   // Buscamos si el cliente tiene un usuario de portal asociado en 'contactos_cliente'
   const { data: contacto, error: contactoError } = await supabaseAdmin
     .from('contactos_cliente')
@@ -56,40 +56,60 @@ async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient) {
 
   if (contactoError) console.error('Error buscando contacto de cliente:', contactoError.message);
 
-  // Si encontramos un usuario asociado, lo eliminamos de Auth
+  // Si encontramos un usuario asociado, lo desactivamos en usuarios_app (soft delete)
   if (contacto?.user_id) {
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(contacto.user_id);
-    if (authError) {
-      // No lanzamos un error fatal, pero lo registramos.
-      console.error(`Error al eliminar el usuario de Auth (${contacto.user_id}):`, authError.message);
+    const { error: userError } = await supabaseAdmin
+      .from('usuarios_app')
+      .update({
+        activo: false,
+        eliminado_en: new Date().toISOString(),
+        eliminado_por: deletedByUserId
+      })
+      .eq('user_id', contacto.user_id);
+    
+    if (userError) {
+      console.error(`Error al desactivar usuario (${contacto.user_id}):`, userError.message);
+    }
+
+    // Soft delete en contactos_cliente
+    const { error: contactoUpdateError } = await supabaseAdmin
+      .from('contactos_cliente')
+      .update({
+        eliminado_en: new Date().toISOString(),
+        eliminado_por: deletedByUserId
+      })
+      .eq('cliente_id', clienteId);
+
+    if (contactoUpdateError) {
+      console.error('Error al marcar contacto como eliminado:', contactoUpdateError.message);
     }
   }
 
-  // 2. Borrar todos los archivos del Storage
-  const clientFolderPath = `clientes/${clienteId}`;
-  
-  // Usamos la nueva función auxiliar
-  const allPathsToDelete = await listAllFilesRecursively(supabaseAdmin, clientFolderPath);
+  // 2. Los archivos del Storage se mantienen (retención legal)
+  // Solo se marcan los documentos como eliminados en la tabla 'documentos'
+  const { error: docsError } = await supabaseAdmin
+    .from('documentos')
+    .update({
+      eliminado_en: new Date().toISOString(),
+      eliminado_por: deletedByUserId
+    })
+    .eq('cliente_id', clienteId);
 
-  if (allPathsToDelete.length > 0) {
-    const { error: removeError } = await supabaseAdmin.storage
-      .from('documentos')
-      .remove(allPathsToDelete);
-      
-    if (removeError) {
-      // No lanzar error fatal, solo log
-      console.error(`Error al borrar archivos del storage en ${clientFolderPath}:`, removeError.message);
-    }
+  if (docsError) {
+    console.error('Error al marcar documentos como eliminados:', docsError.message);
   }
 
-  // 3. Borrar el cliente de la base de datos (Sin cambios)
+  // 3. Soft delete del cliente (cumplimiento GDPR Art. 17 + retención fiscal)
   const { error: dbError } = await supabaseAdmin
     .from('clientes')
-    .delete()
+    .update({
+      eliminado_en: new Date().toISOString(),
+      eliminado_por: deletedByUserId
+    })
     .eq('id', clienteId);
 
   if (dbError) {
-    throw new Error(`Error al borrar el cliente de la base de datos: ${dbError.message}`);
+    throw new Error(`Error al marcar el cliente como eliminado: ${dbError.message}`);
   }
 }
 
@@ -105,12 +125,21 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Obtener el usuario que realiza la acción (para auditoría)
+    let currentUserId: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice('Bearer '.length);
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      if (!error && user) currentUserId = user.id;
+    }
+
     let responseMessage = 'Acción completada con éxito';
     
     switch (action) {
       case 'delete':
-        await handleDeleteClient(payload, supabaseAdmin);
-        responseMessage = 'Cliente eliminado correctamente y todos sus datos asociados.';
+        await handleDeleteClient(payload, supabaseAdmin, currentUserId);
+        responseMessage = 'Cliente marcado como eliminado correctamente (soft delete).';
         break;
 
       default:

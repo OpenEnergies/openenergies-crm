@@ -50,7 +50,9 @@ Deno.serve(async (req)=>{
         estado: 'pendiente',
         leida: false,
         user_id_destinatario: ev.user_id,
-        agenda_evento_id: ev.id
+        agenda_evento_id: ev.id,
+        // Campos de auditoría (securización BBDD)
+        creado_en: new Date().toISOString()
       });
     }
     // 3. Insertar todas las notificaciones en lote

@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
     // Paso 1: Crear un cliente NORMAL para obtener el usuario de forma segura.
     // Este cliente usará el token 'Authorization' que viene en la petición.
-    const supabase = createClient(supabaseUrl, Deno.env.get('ANON_KEY')!, {
+    const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
         global: { headers: { Authorization: req.headers.get('Authorization')! } },
     });
     const { data: { user }, error: userError } = await supabase.auth.getUser();

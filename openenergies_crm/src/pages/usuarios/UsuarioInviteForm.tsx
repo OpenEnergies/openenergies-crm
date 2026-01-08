@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { Empresa, RolUsuario } from '@lib/types';
 import { useSession } from '@hooks/useSession';
-import { User, Mail, Phone, Shield, ArrowLeft, Users, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Shield, ArrowLeft, Users, Loader2, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
 
@@ -290,21 +290,25 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                        <Lock size={16} />
                         Contraseña
                       </label>
                       <PasswordInput
                         id="password"
+                        showIcon={false}
                         {...register('password')}
                       />
                       {errors.password && <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>}
                     </div>
                     <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                        <Lock size={16} />
                         Confirmar Contraseña
                       </label>
                       <PasswordInput
                         id="confirmPassword"
+                        showIcon={false}
                         {...register('confirmPassword')}
                       />
                       {errors.confirmPassword && <p className="text-sm text-red-400 mt-1">{errors.confirmPassword.message}</p>}

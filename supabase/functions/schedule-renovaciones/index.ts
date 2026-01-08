@@ -85,7 +85,10 @@ Deno.serve(async (req) => {
         canal: 'email',
         programada_para: programada.toISOString(),
         estado: 'pendiente',
-        creada_por_user_id: userId
+        creada_por_user_id: userId,
+        // Campos de auditoría (securización BBDD)
+        creado_por: userId,
+        creado_en: new Date().toISOString()
       }).select('id').maybeSingle();
 
       if (!errN && ins?.id) createdIds.push(ins.id);

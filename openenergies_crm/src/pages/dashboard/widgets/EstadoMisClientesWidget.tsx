@@ -23,7 +23,7 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
   }
 
   const { data: asignaciones, error: asignError } = await supabase
-    .from('asignaciones_comercial')
+    .from('asignaciones_comercial_punto')
     .select('cliente_id')
     .eq('comercial_user_id', comercialUserId);
 

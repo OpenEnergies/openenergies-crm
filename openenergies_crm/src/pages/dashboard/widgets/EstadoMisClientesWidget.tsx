@@ -8,6 +8,14 @@ import type { EstadoCliente } from '@lib/types';
 // Tipo para almacenar los conteos por estado
 type EstadoClientesSummary = Record<EstadoCliente | 'total', number>;
 
+// Tipo para la respuesta de la consulta con JOIN
+type AsignacionConCliente = {
+  punto_id: string;
+  puntos_suministro: {
+    cliente_id: string;
+  };
+};
+
 // Función para obtener los estados de los clientes asignados
 async function fetchEstadoClientesAsignados(comercialUserId: string | null): Promise<EstadoClientesSummary> {
   const summary: EstadoClientesSummary = {
@@ -24,15 +32,20 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
 
   const { data: asignaciones, error: asignError } = await supabase
     .from('asignaciones_comercial_punto')
-    .select('cliente_id')
-    .eq('comercial_user_id', comercialUserId);
+    .select(`
+      punto_id,
+      puntos_suministro!inner(
+        cliente_id
+      )
+    `)
+    .eq('comercial_user_id', comercialUserId) as { data: AsignacionConCliente[] | null; error: any };
 
   if (asignError) {
     console.error("Error fetching asignaciones:", asignError);
     throw new Error(asignError.message);
   }
 
-  const clienteIds = asignaciones?.map(a => a.cliente_id) ?? [];
+  const clienteIds = asignaciones?.map(a => a.puntos_suministro.cliente_id) ?? [];
 
   if (clienteIds.length === 0) {
     return summary;

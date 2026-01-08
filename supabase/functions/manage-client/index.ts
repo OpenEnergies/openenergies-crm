@@ -38,13 +38,23 @@ async function listAllFilesRecursively(
   return filePaths;
 }
 
-async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient, deletedByUserId: string | null) {
+async function handleDeleteClient(
+  payload: any, 
+  supabaseAdmin: SupabaseClient, 
+  supabaseUser: SupabaseClient | null,
+  deletedByUserId: string | null
+) {
   const { clienteId } = payload;
   if (!clienteId) {
     throw new Error('El ID del cliente es obligatorio para la eliminación.');
   }
 
-  // --- SOFT DELETE SEGURO (cumplimiento GDPR) ---
+  // --- SOFT DELETE CON ANONIMIZACIÓN AUTOMÁTICA (cumplimiento GDPR) ---
+  
+  // Verificar que el usuario está autenticado
+  if (!supabaseUser || !deletedByUserId) {
+    throw new Error('Se requiere autenticación para eliminar clientes.');
+  }
 
   // 1. Desactivar el usuario de autenticación (si existe)
   // Buscamos si el cliente tiene un usuario de portal asociado en 'contactos_cliente'
@@ -70,47 +80,37 @@ async function handleDeleteClient(payload: any, supabaseAdmin: SupabaseClient, d
     if (userError) {
       console.error(`Error al desactivar usuario (${contacto.user_id}):`, userError.message);
     }
-
-    // Soft delete en contactos_cliente
-    const { error: contactoUpdateError } = await supabaseAdmin
-      .from('contactos_cliente')
-      .update({
-        eliminado_en: new Date().toISOString(),
-        eliminado_por: deletedByUserId
-      })
-      .eq('cliente_id', clienteId);
-
-    if (contactoUpdateError) {
-      console.error('Error al marcar contacto como eliminado:', contactoUpdateError.message);
-    }
   }
 
-  // 2. Los archivos del Storage se mantienen (retención legal)
-  // Solo se marcan los documentos como eliminados en la tabla 'documentos'
-  const { error: docsError } = await supabaseAdmin
-    .from('documentos')
-    .update({
-      eliminado_en: new Date().toISOString(),
-      eliminado_por: deletedByUserId
-    })
-    .eq('cliente_id', clienteId);
-
-  if (docsError) {
-    console.error('Error al marcar documentos como eliminados:', docsError.message);
-  }
-
-  // 3. Soft delete del cliente (cumplimiento GDPR Art. 17 + retención fiscal)
-  const { error: dbError } = await supabaseAdmin
+  // 2. Soft delete del cliente USANDO EL CLIENTE DEL USUARIO
+  // Esto permite que el trigger verifique is_admin() y ejecute la anonimización automática
+  const { error: dbError } = await supabaseUser
     .from('clientes')
     .update({
-      eliminado_en: new Date().toISOString(),
-      eliminado_por: deletedByUserId
+      eliminado_en: new Date().toISOString()
+      // eliminado_por y la anonimización se manejan automáticamente por el trigger
     })
     .eq('id', clienteId);
 
   if (dbError) {
-    throw new Error(`Error al marcar el cliente como eliminado: ${dbError.message}`);
+    // Si el error es de autorización, dar mensaje claro
+    if (dbError.code === 'AUTHZ' || dbError.message.includes('Solo administradores')) {
+      throw new Error('Solo los administradores pueden eliminar clientes.');
+    }
+    throw new Error(`Error al eliminar el cliente: ${dbError.message}`);
   }
+
+  // Nota: El trigger 'trg_auto_anonimizar_cliente' se encarga automáticamente de:
+  // - Anonimizar datos del cliente (nombre, dni, cif, email, telefonos, numero_cuenta, representante)
+  // - Soft delete de contactos_cliente
+  // - Anonimizar y soft delete de puntos_suministro
+  // - Soft delete de contratos (y anonimizar numero_cuenta)
+  // - Soft delete de documentos
+  // - Soft delete de comparativas
+  // - Soft delete de notificaciones
+  // - Soft delete de facturacion_clientes
+  // - Eliminar client_secrets (IBAN en vault)
+  // - Registrar evento de auditoría
 }
 
 // Handler Principal que dirige las acciones
@@ -121,25 +121,36 @@ Deno.serve(async (req) => {
 
   try {
     const { action, payload } = await req.json();
+    
+    // Cliente admin para operaciones que necesitan bypasear RLS
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Obtener el usuario que realiza la acción (para auditoría)
+    // Cliente con el token del usuario para operaciones con RLS
+    let supabaseUser: SupabaseClient | null = null;
     let currentUserId: string | null = null;
+    
     const authHeader = req.headers.get('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice('Bearer '.length);
       const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      if (!error && user) currentUserId = user.id;
+      if (!error && user) {
+        currentUserId = user.id;
+        // Crear cliente con el token del usuario (respeta RLS y auth.uid())
+        supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+      }
     }
 
     let responseMessage = 'Acción completada con éxito';
     
     switch (action) {
       case 'delete':
-        await handleDeleteClient(payload, supabaseAdmin, currentUserId);
-        responseMessage = 'Cliente marcado como eliminado correctamente (soft delete).';
+        await handleDeleteClient(payload, supabaseAdmin, supabaseUser, currentUserId);
+        responseMessage = 'Cliente eliminado y anonimizado correctamente (GDPR compliant).';
         break;
 
       default:

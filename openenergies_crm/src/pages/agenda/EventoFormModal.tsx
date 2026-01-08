@@ -290,12 +290,17 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <select
                         id="etiqueta"
                         {...register('etiqueta')}
-                        className="glass-select w-full appearance-none cursor-pointer"
+                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
                       >
                         {etiquetasSeleccionables.map((et) => (
                           <option key={et} value={et} className="bg-gray-800 text-white">{et}</option>
                         ))}
                       </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
                     {errors.etiqueta && <span className="text-sm text-red-400 mt-1">{errors.etiqueta.message}</span>}
                   </div>
@@ -306,14 +311,11 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <Palette size={16} /> Color
                     </label>
                     <input type="hidden" id="color" {...register('color')} />
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-bg-intermediate border border-white/10">
+                    <div className="flex items-center p-3 rounded-lg bg-gray-800/80 border border-gray-700">
                       <span
-                        className="w-6 h-6 rounded-full shadow-inner ring-2 ring-white/10 transition-colors duration-300"
+                        className="w-8 h-8 rounded-full shadow-lg ring-2 ring-white/20 transition-colors duration-300"
                         style={{ backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc' }}
                       ></span>
-                      <span className="text-sm text-gray-400 font-mono">
-                        {watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#cccccc'}
-                      </span>
                     </div>
                     {errors.color && <span className="text-sm text-red-400 mt-1">{errors.color.message}</span>}
                   </div>
@@ -332,7 +334,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <input
                         type="date"
                         {...register('fecha_inicio_fecha')}
-                        className="glass-input w-full cursor-pointer"
+                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer [color-scheme:dark]"
                         onClick={openPicker}
                       />
                       {errors.fecha_inicio_fecha && <span className="text-xs text-red-400">{errors.fecha_inicio_fecha.message}</span>}
@@ -343,16 +345,23 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                         name="fecha_inicio_hora"
                         control={control}
                         render={({ field }) => (
-                          <select
-                            value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            className="glass-select w-full cursor-pointer"
-                          >
-                            <option value="" className="bg-gray-800">Seleccionar...</option>
-                            {TIME_OPTIONS.map(opt => (
-                              <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
+                            >
+                              <option value="" className="bg-gray-800">Seleccionar...</option>
+                              {TIME_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                              ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
                         )}
                       />
                       {errors.fecha_inicio_hora && <span className="text-xs text-red-400">{errors.fecha_inicio_hora.message}</span>}
@@ -371,7 +380,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <input
                         type="date"
                         {...register('fecha_fin_fecha')}
-                        className="glass-input w-full cursor-pointer"
+                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer [color-scheme:dark]"
                         onClick={openPicker}
                       />
                       {errors.fecha_fin_fecha && <span className="text-xs text-red-400">{errors.fecha_fin_fecha.message}</span>}
@@ -382,16 +391,23 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                         name="fecha_fin_hora"
                         control={control}
                         render={({ field }) => (
-                          <select
-                            value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
-                            className="glass-select w-full cursor-pointer"
-                          >
-                            <option value="" className="bg-gray-800">Seleccionar...</option>
-                            {TIME_OPTIONS.map(opt => (
-                              <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
+                            >
+                              <option value="" className="bg-gray-800">Seleccionar...</option>
+                              {TIME_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                              ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
                         )}
                       />
                       {errors.fecha_fin_hora && <span className="text-xs text-red-400">{errors.fecha_fin_hora.message}</span>}

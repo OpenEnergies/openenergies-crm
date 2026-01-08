@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { supabase } from '@lib/supabase';
 import { useSession } from '@hooks/useSession';
-import { Loader2, Plus, Trash2, ArrowLeft, Calendar, User, Clock, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Trash2, ArrowLeft, Calendar, User, Clock, X, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ConfirmationModal from '@components/ConfirmationModal';
 
@@ -407,12 +407,23 @@ export default function VacacionesPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 cursor-pointer"
-        >
-          <Plus size={18} /> Añadir Vacaciones
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/app/agenda"
+            search={{ showVacaciones: 'true' }}
+            className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 hover:text-orange-200 rounded-lg border border-orange-500/30 transition-colors cursor-pointer"
+            title="Ver vacaciones en el calendario"
+          >
+            <Eye size={16} />
+            <span className="text-sm font-medium">Ver en Calendario</span>
+          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 cursor-pointer"
+          >
+            <Plus size={18} /> Añadir Vacaciones
+          </button>
+        </div>
       </div>
 
       {/* Contenido */}

@@ -188,44 +188,31 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
 
   return (
     // --- (REQ 4 y 8) Estilo de Tarjeta/Bloque ---
-    <div style={{
-      backgroundColor: 'var(--bg-muted)', // Fondo gris muy pálido
-      borderRadius: '12px',
-      overflow: 'hidden',
+    <div className="rounded-xl overflow-hidden border border-gray-700/50 bg-bg-intermediate/50" style={{
       borderTop: `4px solid ${accentColor}`,
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
     }}>
 
       {/* --- (REQ 4) Título con icono --- */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1rem', // Más padding
-          color: 'var(--fg)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+      <div className="flex justify-between items-center p-4 border-b border-gray-700/50">
+        <div className="flex items-center gap-2">
           <span style={{ color: accentColor }}>{icon}</span>
-          <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+          <span className="font-semibold text-white text-sm">
             {titulo}
             {/* Añadir el span (Actual) si existe */}
-            {tituloActual && <span style={suffixStyle}>{tituloActual}</span>}
+            {tituloActual && <span className="ml-2 text-xs font-medium" style={{ color: accentColor }}>{tituloActual}</span>}
           </span>
         </div>
 
         {esTablaMensual && (onAddColumn || onRemoveColumn) && (
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="flex gap-1">
             {onRemoveColumn && (
               <button
                 type="button"
                 onClick={onRemoveColumn}
                 title="Retroceder un mes"
-                className="p-1 rounded-full hover:bg-slate-200"
-                style={{ ...buttonStyle, color: 'var(--muted)' }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors cursor-pointer"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="w-4 h-4 stroke-current stroke-2">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
               </button>
@@ -235,10 +222,9 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                 type="button"
                 onClick={onAddColumn}
                 title="Avanzar un mes"
-                className="p-1 rounded-full hover:bg-slate-200"
-                style={{ ...buttonStyle, color: 'var(--muted)' }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors cursor-pointer"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={svgIconStyle}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="w-4 h-4 stroke-current stroke-2">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
@@ -249,31 +235,32 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
       </div>
 
       {/* Contenedor de la tabla con overflow */}
-      <div className="overflow-auto" style={{ padding: '0 0.5rem 0.5rem 0.5rem' }}>
-        <table className="min-w-full text-xs" style={{ borderCollapse: 'collapse' }}>
-          <thead style={{ backgroundColor: 'transparent' }}>
-            <tr>
+      <div className="overflow-auto p-2">
+        <table className="min-w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-gray-800/50">
               {mostrarPrimeraColumnaComoFila ? (
-                <th className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)' }}>Periodo</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 border border-gray-700">Periodo</th>
               ) : null}
               {columnas.map((col, index) => (
-                <th key={`${col}-${index}`} className="px-2 py-1 text-left" style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)' }}>
+                <th key={`${col}-${index}`} className="px-3 py-2 text-left text-xs font-medium text-gray-400 border border-gray-700">
                   {col}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white" style={{ backgroundColor: 'var(--bg-card)' }}>
+          <tbody>
             {filas.map((fila, filaIndex) => (
               <tr
                 key={filaIndex}
+                className="bg-bg-card hover:bg-gray-800/30 transition-colors"
                 // --- (REQ 6) Borde de color por periodo ---
                 style={mostrarPrimeraColumnaComoFila ? {
                   borderLeft: `4px solid ${periodColors[filaIndex % periodColors.length]}`
                 } : {}}
               >
                 {mostrarPrimeraColumnaComoFila ? (
-                  <td className="px-2 py-1 font-semibold" style={{ padding: '0.5rem', fontWeight: 600, border: '1px solid var(--border-color)' }}>
+                  <td className="px-3 py-2 font-semibold text-white border border-gray-700">
                     {String(fila[0])}
                   </td>
                 ) : null}
@@ -302,7 +289,7 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                   const value = valores[key] !== undefined ? valores[key] : originalCeldaValue;
 
                   return (
-                    <td key={colIndex} className="px-2 py-1" style={{ padding: '0', border: '1px solid var(--border-color)' }}>
+                    <td key={colIndex} className="border border-gray-700 p-0">
                       {editable ? (
                         <input
                           value={value}
@@ -318,21 +305,11 @@ const TablaGenerica: React.FC<TablaGenericaProps> = ({
                             )
                           }
                           // --- (REQ 4) Estilo de celda ---
-                          className="w-full border rounded-sm px-1 py-0.5 text-xs" // Mantenemos clases base
-                          style={{
-                            fontSize: '0.8rem',
-                            padding: '0.4rem 0.5rem', // Ajustamos padding vertical
-                            textAlign: 'right',
-                            backgroundColor: 'transparent', // Fondo transparente
-                            border: 'none', // Quitamos el borde del input
-                            boxShadow: 'none', // Quitamos cualquier sombra
-                            borderRadius: '0', // Quitamos el redondeo del input
-                            width: '100%',
-                            height: '100%' // Hacemos que ocupe toda la celda
-                          }}
+                          className="w-full h-full px-3 py-2 text-xs text-right text-white bg-transparent border-0 focus:bg-gray-700/50 focus:outline-none focus:ring-1 focus:ring-fenix-500/50 transition-colors placeholder-gray-500"
+                          placeholder="0"
                         />
                       ) : (
-                        value
+                        <span className="block px-3 py-2 text-xs text-right text-gray-300">{value}</span>
                       )}
                     </td>
                   );
@@ -369,45 +346,28 @@ const PotenciaAnualInputBox: React.FC<PotenciaAnualInputBoxProps> = ({
   const baseTitulo = "Potencia €/kW/año";
 
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-muted)',
-      borderRadius: '12px',
-      overflow: 'hidden',
+    <div className="rounded-xl overflow-hidden border border-gray-700/50 bg-bg-intermediate/50 h-full" style={{
       borderTop: `4px solid ${accentColor}`,
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-      height: '100%' // Para que alinee con la tabla de energía
     }}>
       {/* Titulo */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.6rem',
-        padding: '1rem',
-        color: 'var(--fg)',
-      }}>
+      <div className="flex items-center gap-2 p-4 border-b border-gray-700/50">
         <span style={{ color: accentColor }}><Euro size={18} /></span>
-        <span style={{ fontWeight: 600, fontSize: '1rem' }}>
-          {baseTitulo} {/* Usamos el título base */}
-          <span style={{
-            color: accentColor,
-            fontSize: '0.9em',
-            fontWeight: 500,
-            marginLeft: '0.4rem'
-          }}></span>
+        <span className="font-semibold text-white text-sm">
+          {baseTitulo}
         </span>
       </div>
 
       {/* --- (INICIO) SECCIÓN MODIFICADA: Usar <table> en lugar de <div> grid --- */}
-      <div className="overflow-auto" style={{ padding: '0 0.5rem 0.5rem 0.5rem' }}>
-        <table className="min-w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+      <div className="overflow-auto p-2">
+        <table className="min-w-full text-xs border-collapse">
           {/* Cabecera de la tabla (Peaje | Valor) */}
-          <thead style={{ backgroundColor: 'transparent' }}>
-            <tr>
-              <th style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)', textAlign: 'left' }}>Periodo</th>
-              <th style={{ padding: '0.5rem', color: 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border-color)', textAlign: 'left' }}>Valor</th>
+          <thead>
+            <tr className="bg-gray-800/50">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 border border-gray-700">Periodo</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 border border-gray-700">Valor</th>
             </tr>
           </thead>
-          <tbody className="bg-white" style={{ backgroundColor: 'var(--bg-card)' }}>
+          <tbody>
             {potPeriodKeys.map((pKey, index) => {
               // Clave del estado (fila siempre 0 para tabla anual)
               const key = `${baseTitulo}__0__${pKey}`;
@@ -416,15 +376,16 @@ const PotenciaAnualInputBox: React.FC<PotenciaAnualInputBoxProps> = ({
               return (
                 <tr
                   key={pKey}
+                  className="bg-bg-card hover:bg-gray-800/30 transition-colors"
                   // Borde de color lateral, igual que la tabla de energía
                   style={{ borderLeft: `4px solid ${periodColors[index % periodColors.length]}` }}
                 >
                   {/* Celda del Peaje (P1, P2...) */}
-                  <td style={{ padding: '0.5rem', fontWeight: 600, border: '1px solid var(--border-color)' }}>
+                  <td className="px-3 py-2 font-semibold text-white border border-gray-700">
                     {pKey}
                   </td>
                   {/* Celda del Input */}
-                  <td style={{ padding: '0', border: '1px solid var(--border-color)' }}>
+                  <td className="border border-gray-700 p-0">
                     <input
                       id={key}
                       value={value}
@@ -438,17 +399,8 @@ const PotenciaAnualInputBox: React.FC<PotenciaAnualInputBoxProps> = ({
                       }
                       type="number"
                       step="0.000001" // Alta precisión
-                      style={{
-                        fontSize: '0.8rem',
-                        padding: '0.4rem 0.5rem',
-                        textAlign: 'right',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        boxShadow: 'none',
-                        borderRadius: '0',
-                        width: '100%',
-                        height: '100%'
-                      }}
+                      className="w-full h-full px-3 py-2 text-xs text-right text-white bg-transparent border-0 focus:bg-gray-700/50 focus:outline-none focus:ring-1 focus:ring-fenix-500/50 transition-colors placeholder-gray-500"
+                      placeholder="0"
                     />
                   </td>
                 </tr>
@@ -494,70 +446,72 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
   const { potPeriodKeys, engTableKeys } = getPeriodKeys(tarifa);
 
   return (
-    <div style={{ display: 'grid', gap: '1.5rem', borderTop: '2px dashed var(--border-color)', paddingTop: '1.5rem' }}>
+    <div className="grid gap-6 border-t-2 border-dashed border-gray-700 pt-6">
 
       {/* --- Título y Selectores de Modo --- */}
-      <h3 className="section-title" style={{ marginTop: 0, borderBottom: 'none', paddingBottom: 0, color: warningColor }}>
+      <h3 className="text-lg font-semibold" style={{ color: warningColor }}>
         Precios de Propuesta
       </h3>
 
       {/* Encabezado: radios + selector de empresa (siempre visible) */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '1rem',
-        paddingLeft: '0.5rem',
-        flexWrap: 'wrap'
-      }}>
+      <div className="flex flex-wrap justify-between items-center gap-4">
         {/* Izquierda: radios */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem' }}>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-gray-800/50">
             <input
               type="radio"
               name="pricing_mode"
               value="manual_unico"
               checked={pricingMode === 'manual_unico'}
               onChange={(e) => setPricingMode(e.target.value as any)}
+              className="w-4 h-4 text-fenix-500 bg-gray-700 border-gray-600 focus:ring-fenix-500 focus:ring-offset-0"
             />
             Fijos
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem' }}>
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-gray-800/50">
             <input
               type="radio"
               name="pricing_mode"
               value="manual_mensual"
               checked={pricingMode === 'manual_mensual'}
               onChange={(e) => setPricingMode(e.target.value as any)}
+              className="w-4 h-4 text-fenix-500 bg-gray-700 border-gray-600 focus:ring-fenix-500 focus:ring-offset-0"
             />
             Variables mensualmente
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, padding: '0.5rem' }}>
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-gray-800/50">
             <input
               type="radio"
               name="pricing_mode"
               value="historico"
               checked={pricingMode === 'historico'}
               onChange={(e) => setPricingMode(e.target.value as any)}
+              className="w-4 h-4 text-fenix-500 bg-gray-700 border-gray-600 focus:ring-fenix-500 focus:ring-offset-0"
             />
             Según histórico guardado
           </label>
         </div>
 
         {/* Derecha: selector de empresa (siempre visible) */}
-        <div style={{ minWidth: 280 }}>
-          <label htmlFor="empresa_precios" className="block text-sm font-medium">Empresa (opcional)</label>
-          <div className="input-icon-wrapper">
-            <Building2 size={18} className="input-icon" />
+        <div className="min-w-[280px]">
+          <label htmlFor="empresa_precios" className="block text-sm font-medium text-gray-300">Empresa (opcional)</label>
+          <div className="relative mt-1">
+            <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <select
               id="empresa_precios"
               value={selectedEmpresaPrecios}
               onChange={(e) => setSelectedEmpresaPrecios(e.target.value)}
               disabled={loadingEmpresasPrecios}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 transition-all duration-200 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Sin empresa'}</option>
-              {empresasConPrecios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              <option value="" className="bg-gray-800 text-white">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Sin empresa'}</option>
+              {empresasConPrecios.map(e => <option key={e.id} value={e.id} className="bg-gray-800 text-white">{e.nombre}</option>)}
             </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
@@ -1708,45 +1662,6 @@ const ComparativaForm: React.FC = () => {
     return null;
   };
 
-  // --- (REQ 1) Estilo para los chips de modo ---
-  const chipStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '999px',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-    lineHeight: 1.4
-  };
-
-  const inputGroupStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    border: '1px solid var(--border-color)', // Borde estándar
-    borderRadius: '0.5rem', // Borde redondeado estándar
-    backgroundColor: 'white', // Fondo blanco estándar
-    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)', // Sombra interna sutil
-  };
-
-  const inputInGroupStyle: React.CSSProperties = {
-    border: 'none',
-    background: 'transparent',
-    padding: '0.65rem 0.8rem', // Padding estándar
-    width: '100%',
-    flex: 1,
-    boxShadow: 'none',
-    outline: 'none',
-    fontSize: '0.95rem', // Tamaño de fuente estándar
-  };
-
-  const suffixStyle: React.CSSProperties = {
-    paddingRight: '0.8rem',
-    color: 'var(--muted)',
-    fontWeight: 500,
-    fontSize: '0.9rem',
-  };
-
   const fileToDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
       const r = new FileReader();
@@ -1895,36 +1810,44 @@ const ComparativaForm: React.FC = () => {
   };
 
   return (
-    <div className="grid p-6 space-y-6">
+    <div className="space-y-6">
 
       {/* Título estándar de la página */}
-      <div className="page-header">
-        <h2 style={{ margin: 0 }}>Comparativas</h2>
-        <div className="page-actions"></div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <Zap className="w-5 h-5 text-fenix-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-fenix-500">Comparativas</h1>
+            <p className="text-fenix-500/70 text-sm">Genera estudios comparativos de tarifas eléctricas</p>
+          </div>
+        </div>
       </div>
 
       {/* --- (4) INICIO: RENDERIZADO CONDICIONAL INICIAL --- */}
       {formMode === 'initial' && (
-        <div className="card">
-          <h3 className="section-title" style={{ marginTop: 0, borderBottom: 'none', paddingBottom: 0, marginBottom: '0.5rem' }}>
-            Iniciar Comparativa
-          </h3>
-          <p style={{ color: 'var(--muted)', marginTop: 0, marginBottom: '1.5rem' }}>
-            Importa una factura PDF para intentar autocompletar o rellena los datos manualmente.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-fenix-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Iniciar Comparativa</h3>
+              <p className="text-sm text-gray-400">
+                Importa una factura PDF para autocompletar o rellena los datos manualmente.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
 
             {/* Botón para subir archivo (usando label) */}
             <label
               htmlFor="pdf-upload"
-              // Usamos clases de 'button' para que parezca un botón
-              className={`button secondary ${isUploadingPdf ? 'disabled' : ''}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: isUploadingPdf ? 'wait' : 'pointer'
-              }}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer
+                ${isUploadingPdf 
+                  ? 'bg-gray-600 text-gray-400 cursor-wait' 
+                  : 'bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 hover:scale-[1.02]'}`}
             >
               {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
               {isUploadingPdf ? 'Importando...' : 'Importar PDF'}
@@ -1932,10 +1855,10 @@ const ComparativaForm: React.FC = () => {
             <input
               type="file"
               id="pdf-upload"
-              accept="application/pdf,.pdf" // Aceptar solo PDF
+              accept="application/pdf,.pdf"
               onChange={handleFileImport}
               disabled={isUploadingPdf}
-              style={{ display: 'none' }} // Ocultamos el input real
+              className="hidden"
             />
 
             {/* Botón manual */}
@@ -1943,8 +1866,10 @@ const ComparativaForm: React.FC = () => {
               type="button"
               onClick={() => setFormMode('form_visible')}
               disabled={isUploadingPdf}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-bg-intermediate hover:bg-bg-muted text-gray-300 border border-gray-600 hover:border-fenix-500/50 transition-all cursor-pointer"
             >
-              Rellenar campos manualmente
+              <Pencil size={18} />
+              Rellenar manualmente
             </button>
           </div>
         </div>
@@ -1956,23 +1881,21 @@ const ComparativaForm: React.FC = () => {
       {formMode === 'form_visible' && (
         <>
           {/* 3. Envuelve los datos del suministro en su propia tarjeta 'card' */}
-          <div className="card">
+          <div className="glass-card p-6">
 
             {/* 4. Usa un título de sección (h3) para "Datos del suministro" */}
-            <h3 className="section-title" style={{
-              marginTop: 0,
-              borderBottom: 'none',
-              paddingBottom: 0,
-              marginBottom: '1.5rem'
-            }}>
-              Datos del suministro
-            </h3>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-fenix-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">Datos del suministro</h3>
+            </div>
 
-            <div style={{ display: 'grid', gap: '1rem' }}>
+            <div className="grid gap-4">
               {/* Fila 1: Titular y DNI/CIF */}
-              <div className="form-row" style={{ gap: '1rem' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="titular">
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="titular">
                     Titular
                   </label>
                   <input
@@ -1980,12 +1903,12 @@ const ComparativaForm: React.FC = () => {
                     name="titular"
                     value={datosSuministro.titular}
                     onChange={handleChangeSuministro}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    className="glass-input w-full"
                     placeholder="Nombre del titular"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="dniCif">
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="dniCif">
                     DNI/CIF
                   </label>
                   <input
@@ -1993,16 +1916,16 @@ const ComparativaForm: React.FC = () => {
                     name="dniCif"
                     value={datosSuministro.dniCif}
                     onChange={handleChangeSuministro}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    className="glass-input w-full"
                     placeholder="DNI o CIF del titular"
                   />
                 </div>
               </div>
 
               {/* Fila 2: Dirección y Población */}
-              <div className="form-row" style={{ gap: '1rem' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="direccion">
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="direccion">
                     Dirección (Calle y Número)
                   </label>
                   <input
@@ -2010,12 +1933,12 @@ const ComparativaForm: React.FC = () => {
                     name="direccion"
                     value={datosSuministro.direccion}
                     onChange={handleChangeSuministro}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    className="glass-input w-full"
                     placeholder="Calle, número, piso..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="poblacion">
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="poblacion">
                     Población (CP y Municipio)
                   </label>
                   <input
@@ -2023,28 +1946,28 @@ const ComparativaForm: React.FC = () => {
                     name="poblacion"
                     value={datosSuministro.poblacion}
                     onChange={handleChangeSuministro}
-                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    className="glass-input w-full"
                     placeholder="Ej: 28001 Madrid"
                   />
                 </div>
               </div>
 
               {/* Fila 3: CUPS y Fecha de Estudio */}
-              <div className="form-row" style={{ gap: '1rem' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="cups">CUPS</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="cups">CUPS</label>
                   <input
                     type="text"
                     id="cups"
                     name="cups"
                     value={datosSuministro.cups}
                     onChange={handleChangeSuministro}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    className="glass-input w-full font-mono"
                     placeholder="ES00XXXXXXXXXXXXXX"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="fechaEstudio">
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="fechaEstudio">
                     Fecha de estudio
                   </label>
                   <input
@@ -2053,20 +1976,16 @@ const ComparativaForm: React.FC = () => {
                     name="fechaEstudio"
                     value={datosSuministro.fechaEstudio}
                     onChange={handleChangeSuministro}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    className="glass-input w-full"
                   />
                 </div>
               </div>
 
               {/* Fila 4: Impuestos y Otros */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: '1rem'
-              }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="iva">IVA</label>
-                  <div style={inputGroupStyle}>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="iva">IVA</label>
+                  <div className="relative">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -2075,14 +1994,14 @@ const ComparativaForm: React.FC = () => {
                       value={datosSuministro.iva}
                       onChange={handleChangeSuministro}
                       placeholder="21.00"
-                      style={inputInGroupStyle}
+                      className="glass-input w-full pr-8"
                     />
-                    <span style={suffixStyle}>%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="impuestoElectrico">Impuesto eléctrico</label>
-                  <div style={inputGroupStyle}>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="impuestoElectrico">Impuesto eléctrico</label>
+                  <div className="relative">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -2091,14 +2010,14 @@ const ComparativaForm: React.FC = () => {
                       value={datosSuministro.impuestoElectrico}
                       onChange={handleChangeSuministro}
                       placeholder="5.1127"
-                      style={inputInGroupStyle}
+                      className="glass-input w-full pr-8"
                     />
-                    <span style={suffixStyle}>%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="otrosConceptos">Otros conceptos</label>
-                  <div style={inputGroupStyle}>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="otrosConceptos">Otros conceptos</label>
+                  <div className="relative">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -2107,9 +2026,9 @@ const ComparativaForm: React.FC = () => {
                       value={datosSuministro.otrosConceptos}
                       onChange={handleChangeSuministro}
                       placeholder="0.00"
-                      style={inputInGroupStyle}
+                      className="glass-input w-full pr-8"
                     />
-                    <span style={suffixStyle}>€</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
                   </div>
                 </div>
               </div>
@@ -2117,44 +2036,38 @@ const ComparativaForm: React.FC = () => {
           </div>
 
           {/* BOTONES SIPS / MANUAL */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '1rem',
-              marginTop: '1rem',
-              marginBottom: '1.5rem',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="flex flex-wrap gap-4 items-center justify-between py-2">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => handleAutocompletar()}
                 disabled={cargando || !datosSuministro.cups}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
               >
-                {cargando && modo === "auto" ? "Consultando..." : "Autocompletar"}
+                {cargando && modo === "auto" ? (
+                  <><Loader2 size={16} className="animate-spin" /> Consultando...</>
+                ) : (
+                  <><Zap size={16} /> Autocompletar SIPS</>
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleRellenarManual}
                 disabled={cargando}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm px-4 py-2 rounded-md disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium bg-bg-intermediate hover:bg-bg-muted text-gray-300 border border-gray-600 hover:border-fenix-500/50 disabled:opacity-50 transition-all cursor-pointer"
               >
-                Rellenar manualmente
+                <Pencil size={16} /> Rellenar manual
               </button>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div className="flex gap-3">
               {modo === 'auto' && (
-                <span style={{ ...chipStyle, backgroundColor: 'var(--primary-light)', color: 'var(--primary-600)' }}>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-fenix-500/20 text-fenix-400 border border-fenix-500/30">
                   <Zap size={14} /> Autocompletado
                 </span>
               )}
               {modo === 'manual' && (
-                <span style={{ ...chipStyle, backgroundColor: '#FFFBEB', color: '#B45309' }}>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   <Pencil size={14} /> Manual
                 </span>
               )}
@@ -2165,21 +2078,17 @@ const ComparativaForm: React.FC = () => {
 
           {/* Interfaz de selección MODO MANUAL */}
           {modo === "manual" ? (
-            <div className="card">
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: '1rem',
-                alignItems: 'flex-end'
-              }}>
+            <div className="glass-card p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
-                  <label className="block text-sm font-medium" htmlFor="manual-tarifa">1. Selecciona la tarifa</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="manual-tarifa">
+                    1. Selecciona la tarifa
+                  </label>
                   <select
                     id="manual-tarifa"
                     value={tarifa}
                     onChange={(e) => setTarifa(e.target.value as Tarifa)}
-                    className="border rounded-md px-3 py-2 text-sm mt-1"
-                    style={{ width: '100%' }}
+                    className="glass-input w-full"
                   >
                     <option value="">-- Selecciona --</option>
                     <option value="2.0TD">2.0TD</option>
@@ -2188,59 +2097,65 @@ const ComparativaForm: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium" htmlFor="manual-mes">2. Último mes (MM)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="manual-mes">
+                    2. Último mes (MM)
+                  </label>
                   <select
                     id="manual-mes"
                     value={manualLastMonth}
                     onChange={(e) => setManualLastMonth(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm mt-1"
+                    className="glass-input w-full disabled:opacity-50"
                     disabled={!tarifa}
                     title={!tarifa ? "Selecciona una tarifa primero" : "Mes"}
-                    style={{ width: '100%' }}
                   >
                     <option value="">Mes</option>
                     {dynamicMonthOptions.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium" htmlFor="manual-ano">3. Último año (YY)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="manual-ano">
+                    3. Último año (YY)
+                  </label>
                   <select
                     id="manual-ano"
                     value={manualLastYear}
                     onChange={(e) => setManualLastYear(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm mt-1"
+                    className="glass-input w-full disabled:opacity-50"
                     disabled={!tarifa}
                     title={!tarifa ? "Selecciona una tarifa primero" : "Año"}
-                    style={{ width: '100%' }}
                   >
                     <option value="">Año</option>
                     {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2" style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+              <p className="text-xs text-gray-500 mt-3">
                 En función de la tarifa y el mes se mostrarán las tablas.
               </p>
             </div>
           ) : (modo === "auto" && tarifa) ? (
-            <div className="card" style={{ padding: '1rem' }}>
-              <p className="text-sm font-medium text-gray-700" style={{ margin: 0, fontSize: '0.9rem' }}>
-                Tarifa detectada (SIPS): <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>{tarifa}</span>
+            <div className="glass-card p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-fenix-500" />
+              </div>
+              <p className="text-sm font-medium text-gray-300">
+                Tarifa detectada (SIPS): <span className="text-fenix-500 font-bold text-base">{tarifa}</span>
               </p>
             </div>
           ) : null}
 
           {/* TABLAS */}
-          <div className="comparativa-tablas-layout">{renderZonaTablas()}</div>
+          <div className="comparativa-tablas-layout mt-4">{renderZonaTablas()}</div>
 
           {/* BOTÓN PDF */}
-          <div className="flex justify-end" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
+          <div className="flex justify-end items-center gap-4 mt-6 pt-4 border-t border-gray-700/50">
             {tarifa && tarifa !== '2.0TD' && (
-              <label className="text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none hover:text-fenix-400 transition-colors">
                 <input
                   type="checkbox"
                   checked={optimizacion}
                   onChange={(e) => setOptimizacion(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-bg-muted text-fenix-500 focus:ring-fenix-500 focus:ring-offset-0"
                 />
                 Optimización de Potencia
               </label>
@@ -2250,8 +2165,7 @@ const ComparativaForm: React.FC = () => {
               type="button"
               onClick={handleGeneratePdf}
               disabled={isGeneratingPdf}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-md"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
             >
               {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
               {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}

@@ -1,14 +1,14 @@
 // src/pages/agenda/AgendaPage.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useNavigate, Link } from '@tanstack/react-router'
+import { useNavigate, Link, useSearch } from '@tanstack/react-router'
 import FullCalendar from '@fullcalendar/react'
 import type { EventMountArg } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import esLocale from '@fullcalendar/core/locales/es';
-import { Calendar as CalendarIcon, List, Loader2, CalendarPlus, Umbrella, Plus } from 'lucide-react'
+import { Calendar as CalendarIcon, List, Loader2, CalendarPlus, Umbrella, Plus, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@lib/supabase'
 import { AgendaItem } from '@lib/types'
 import EventoFormModal from './EventoFormModal'
@@ -17,14 +17,17 @@ import AgendaListView from './AgendaListView'
 import { toast } from 'react-hot-toast'
 import { clsx } from '@lib/utils';
 import { etiquetaColorMap } from '@lib/agendaConstants';
+import { useSession } from '@hooks/useSession';
 
 function AgendaLegend() {
   const legendItems = Object.entries(etiquetaColorMap);
+  // Agregar vacaciones a la leyenda
+  const legendItemsWithVacaciones = [...legendItems, ['Vacaciones', '#F5A962']];
 
   return (
     <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-bg-intermediate border border-bg-intermediate mt-6">
       <span className="text-sm font-medium text-gray-400 mr-2">Leyenda:</span>
-      {legendItems.map(([label, color]) => (
+      {legendItemsWithVacaciones.map(([label, color]) => (
         <div key={label} className="flex items-center gap-2">
           <span
             className="w-3 h-3 rounded-full shadow-sm"
@@ -38,8 +41,98 @@ function AgendaLegend() {
   );
 }
 
+// Tipo para vacación formateada para FullCalendar
+type VacacionCalendar = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  color: string;
+  borderColor: string;
+  extendedProps: {
+    tipo_evento: 'vacacion';
+    usuario_nombre: string;
+    descripcion?: string;
+  };
+};
+
+// Función para obtener vacaciones para el calendario
+async function fetchVacacionesForCalendar(fechaInicio: string, fechaFin: string): Promise<VacacionCalendar[]> {
+  // 1. Obtener vacaciones sin JOIN (no hay FK directa)
+  const { data: vacacionesData, error } = await supabase
+    .from('vacaciones')
+    .select(`
+      id,
+      user_id,
+      fecha_inicio,
+      fecha_fin,
+      descripcion
+    `)
+    .is('eliminado_en', null)
+    .gte('fecha_fin', fechaInicio.split('T')[0])  // Vacaciones que terminan después del inicio del rango
+    .lte('fecha_inicio', fechaFin.split('T')[0]); // Vacaciones que empiezan antes del fin del rango
+
+  if (error) {
+    console.error('Error fetching vacaciones:', error);
+    throw error;
+  }
+
+  if (!vacacionesData || vacacionesData.length === 0) {
+    return [];
+  }
+
+  // 2. Obtener los usuarios correspondientes
+  const userIds = [...new Set(vacacionesData.map(v => v.user_id))];
+  const { data: usuariosData, error: usuariosError } = await supabase
+    .from('usuarios_app')
+    .select('user_id, nombre, apellidos')
+    .in('user_id', userIds);
+
+  if (usuariosError) {
+    console.error('Error fetching usuarios:', usuariosError);
+    // Continuar sin nombres si falla
+  }
+
+  // 3. Crear un mapa de user_id -> nombre completo
+  const usuariosMap = new Map<string, string>();
+  (usuariosData || []).forEach((u: any) => {
+    const nombreCompleto = `${u.nombre} ${u.apellidos || ''}`.trim();
+    usuariosMap.set(u.user_id, nombreCompleto);
+  });
+
+  // 4. Mapear vacaciones con nombres de usuario
+  return vacacionesData.map((v: any) => {
+    const nombreCompleto = usuariosMap.get(v.user_id) || 'Usuario desconocido';
+    return {
+      id: `vacacion-${v.id}`,
+      title: `🏖️ ${nombreCompleto}`,
+      start: v.fecha_inicio,
+      end: v.fecha_fin,
+      allDay: true,
+      color: 'rgba(245, 169, 98, 0.6)',
+      borderColor: 'rgba(230, 140, 60, 0.8)',
+      extendedProps: {
+        tipo_evento: 'vacacion' as const,
+        usuario_nombre: nombreCompleto,
+        descripcion: v.descripcion,
+      },
+    };
+  });
+}
+
 export default function AgendaPage() {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
+  const [showVacaciones, setShowVacaciones] = useState(false)
+  const { userId, empresaId } = useSession()
+  const searchParams = useSearch({ strict: false }) as { showVacaciones?: string }
+
+  // Activar toggle de vacaciones si viene del parámetro URL
+  useEffect(() => {
+    if (searchParams.showVacaciones === 'true') {
+      setShowVacaciones(true)
+    }
+  }, [searchParams.showVacaciones])
 
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -91,31 +184,68 @@ export default function AgendaPage() {
         fecha_query_fin: viewRange.fin,
       })
       if (error) throw new Error(error.message)
-      return data as AgendaItem[]
+      return data as any[] // Usar any[] temporalmente para manejar ambas estructuras de respuesta
     },
     retry: false,
     refetchOnWindowFocus: false,
     select: (data) =>
-      data.map((item: AgendaItem) => ({
-        id: item.id,
-        title: item.titulo,
-        start: item.fecha_inicio,
-        end: item.fecha_fin ?? undefined,
-        color: item.color || (item.tipo_evento === 'renovacion' ? '#DC2626' : '#2E87E5'),
-        borderColor: item.color || (item.tipo_evento === 'renovacion' ? '#DC2626' : '#2E87E5'),
-        extendedProps: {
-          etiqueta: item.etiqueta,
-          tipo_evento: item.tipo_evento,
-          es_editable: item.es_editable,
-          cliente_id: item.cliente_id_relacionado,
-          source: item.tipo_evento === 'renovacion' ? 'renovacion' : 'crm',
-          creadorNombre: item.creador_nombre || null,
-        },
-      })),
+      data.map((item: any) => {
+        // Manejar tanto la estructura actual como la nueva (después de migración)
+        // Campos que pueden tener nombres diferentes según versión de la función
+        const tipoEvento = item.tipo_evento || 'evento';
+        const esEditable = item.es_editable ?? (item.user_id === userId);
+        const clienteIdRelacionado = item.cliente_id_relacionado || null;
+        const creadorNombre = item.creador_nombre || item.creado_por_nombre || null;
+        
+        return {
+          id: item.id,
+          title: item.titulo,
+          start: item.fecha_inicio,
+          end: item.fecha_fin ?? undefined,
+          color: item.color || (tipoEvento === 'renovacion' ? '#DC2626' : '#2E87E5'),
+          borderColor: item.color || (tipoEvento === 'renovacion' ? '#DC2626' : '#2E87E5'),
+          extendedProps: {
+            etiqueta: item.etiqueta,
+            tipo_evento: tipoEvento,
+            es_editable: esEditable,
+            cliente_id: clienteIdRelacionado,
+            source: tipoEvento === 'renovacion' ? 'renovacion' : 'crm',
+            creadorNombre: creadorNombre,
+          },
+        };
+      }),
   })
+
+  // Consulta de vacaciones (solo cuando está habilitada)
+  const { data: vacacionesItems = [] } = useQuery({
+    queryKey: ['vacaciones-calendar', viewRange.inicio, viewRange.fin],
+    queryFn: () => fetchVacacionesForCalendar(viewRange.inicio, viewRange.fin),
+    enabled: showVacaciones && !!userId && !!empresaId,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+
+  // Combinar eventos y vacaciones
+  const allCalendarEvents = [
+    ...(agendaItems || []),
+    ...(showVacaciones ? vacacionesItems : []),
+  ]
 
   const handleEventClick = (clickInfo: any) => {
     const { es_editable, tipo_evento, cliente_id } = clickInfo.event.extendedProps
+
+    if (tipo_evento === 'vacacion') {
+      const { usuario_nombre, descripcion } = clickInfo.event.extendedProps
+      const fechas = `${clickInfo.event.startStr} - ${clickInfo.event.endStr}`
+      const mensaje = descripcion 
+        ? `${usuario_nombre}: ${fechas}\n\"${descripcion}\"`
+        : `${usuario_nombre}: ${fechas}`
+      toast(mensaje, { 
+        icon: '🏖️',
+        duration: 4000
+      })
+      return
+    }
 
     if (tipo_evento === 'renovacion') {
       if (cliente_id) {
@@ -174,8 +304,8 @@ export default function AgendaPage() {
   const handleEventDrop = (dropInfo: any) => {
     const { es_editable, tipo_evento } = dropInfo.event.extendedProps
 
-    if (tipo_evento === 'renovacion' || !es_editable) {
-      toast.error('Las renovaciones no se pueden mover.')
+    if (tipo_evento === 'renovacion' || tipo_evento === 'vacacion' || !es_editable) {
+      toast.error('Las renovaciones y vacaciones no se pueden mover.')
       dropInfo.revert()
       return
     }
@@ -225,6 +355,24 @@ export default function AgendaPage() {
               <List size={20} />
             </button>
           </div>
+
+          {/* Toggle Vacaciones */}
+          <button
+            className={clsx(
+              "flex items-center gap-2 px-3 py-2 rounded-lg transition-all border cursor-pointer",
+              showVacaciones 
+                ? "bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30" 
+                : "bg-bg-intermediate text-gray-400 border-bg-intermediate hover:text-white hover:bg-orange-500/10"
+            )}
+            onClick={() => setShowVacaciones(!showVacaciones)}
+            title={showVacaciones ? 'Ocultar vacaciones' : 'Mostrar vacaciones'}
+          >
+            {showVacaciones ? <Eye size={18} /> : <EyeOff size={18} />}
+            <Umbrella size={16} />
+            <span className="hidden sm:inline text-sm">
+              {showVacaciones ? 'Ocultar' : 'Mostrar'} Vacaciones
+            </span>
+          </button>
 
           <div className="h-8 w-px bg-bg-intermediate hidden sm:block"></div>
 
@@ -298,6 +446,21 @@ export default function AgendaPage() {
           .fc-day-other .fc-daygrid-day-number { color: #4b5563 !important; }
           .fc-popover { background-color: #1f2937 !important; border-color: rgba(255,255,255,0.1) !important; }
           .fc-popover-header { background-color: rgba(0,0,0,0.3) !important; color: #e2e8f0 !important; }
+          /* Estilos específicos para vacaciones */
+          .vacation-event { 
+            background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%) !important;
+            border: 2px solid #FF8C00 !important;
+            box-shadow: 0 3px 8px rgba(255, 165, 0, 0.4) !important;
+            border-radius: 8px !important;
+          }
+          .vacation-event:hover {
+            box-shadow: 0 4px 12px rgba(255, 165, 0, 0.6) !important;
+            transform: scale(1.02);
+          }
+          .vacation-event .fc-event-title {
+            font-weight: 700 !important;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6) !important;
+          }
         `}</style>
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -307,7 +470,7 @@ export default function AgendaPage() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek',
           }}
-          events={agendaItems || []}
+          events={allCalendarEvents || []}
           eventClick={handleEventClick}
           selectable={true}
           select={handleDateSelect}
@@ -375,7 +538,7 @@ export default function AgendaPage() {
         style={{ opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.7 : 1 }}
       >
         <AgendaListView
-          items={agendaItems || []}
+          items={allCalendarEvents || []}
           isLoading={isLoading}
           onEdit={handleEditRequest}
           onDelete={handleDeleteRequest}

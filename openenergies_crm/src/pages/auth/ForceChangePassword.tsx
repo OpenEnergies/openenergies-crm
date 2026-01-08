@@ -59,7 +59,7 @@ export default function ForceChangePassword() {
   return (
     <main className="
       min-h-screen flex items-center justify-center p-4
-      bg-gradient-to-br from-fenix-950 via-bg-primary to-bg-secondary
+      bg-linear-to-br from-fenix-950 via-bg-primary to-bg-secondary
     ">
       {/* Password Change Card */}
       <div
@@ -135,7 +135,7 @@ export default function ForceChangePassword() {
             disabled={isSubmitting}
             className="
               w-full py-3 rounded-xl font-medium
-              bg-gradient-to-r from-fenix-500 to-fenix-600
+              bg-linear-to-r from-fenix-500 to-fenix-600
               hover:from-fenix-400 hover:to-fenix-500
               text-white shadow-lg shadow-fenix-500/25
               transition-all duration-200

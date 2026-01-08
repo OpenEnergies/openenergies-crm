@@ -493,7 +493,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
         </div>
 
         {/* Derecha: selector de empresa (siempre visible) */}
-        <div className="min-w-[280px]">
+        <div className="min-w-70">
           <label htmlFor="empresa_precios" className="block text-sm font-medium text-gray-300">Empresa (opcional)</label>
           <div className="relative mt-1">
             <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -1847,7 +1847,7 @@ const ComparativaForm: React.FC = () => {
               className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer
                 ${isUploadingPdf 
                   ? 'bg-gray-600 text-gray-400 cursor-wait' 
-                  : 'bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 hover:scale-[1.02]'}`}
+                  : 'bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 hover:scale-[1.02]'}`}
             >
               {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
               {isUploadingPdf ? 'Importando...' : 'Importar PDF'}
@@ -2042,7 +2042,7 @@ const ComparativaForm: React.FC = () => {
                 type="button"
                 onClick={() => handleAutocompletar()}
                 disabled={cargando || !datosSuministro.cups}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
                 title={!datosSuministro.cups ? "Introduce un CUPS para autocompletar" : ""}
               >
                 {cargando && modo === "auto" ? (
@@ -2165,7 +2165,7 @@ const ComparativaForm: React.FC = () => {
               type="button"
               onClick={handleGeneratePdf}
               disabled={isGeneratingPdf}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
             >
               {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
               {isGeneratingPdf ? 'Generando...' : 'Generar PDF'}

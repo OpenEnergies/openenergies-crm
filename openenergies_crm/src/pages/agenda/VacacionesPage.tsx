@@ -454,7 +454,7 @@ export default function VacacionesPage() {
                   className="w-full p-4 flex items-center justify-between hover:bg-fenix-500/8 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-fenix-500 to-fenix-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-fenix-500/20 cursor-pointer">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-fenix-500 to-fenix-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-fenix-500/20 cursor-pointer">
                       {userData.nombre.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left">

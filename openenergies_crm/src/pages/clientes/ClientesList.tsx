@@ -215,7 +215,7 @@ export default function ClientesList() {
                 />
               </div>
               <Link to="/app/clientes/nuevo">
-                <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
                   <Plus size={18} />
                   <span className="hidden sm:inline">Nuevo Cliente</span>
                 </button>

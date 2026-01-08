@@ -334,7 +334,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <input
                         type="date"
                         {...register('fecha_inicio_fecha')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer [color-scheme:dark]"
+                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer scheme-dark"
                         onClick={openPicker}
                       />
                       {errors.fecha_inicio_fecha && <span className="text-xs text-red-400">{errors.fecha_inicio_fecha.message}</span>}
@@ -380,7 +380,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       <input
                         type="date"
                         {...register('fecha_fin_fecha')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer [color-scheme:dark]"
+                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer scheme-dark"
                         onClick={openPicker}
                       />
                       {errors.fecha_fin_fecha && <span className="text-xs text-red-400">{errors.fecha_fin_fecha.message}</span>}

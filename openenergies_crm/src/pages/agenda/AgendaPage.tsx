@@ -410,7 +410,7 @@ export default function AgendaPage() {
       {/* Calendar View */}
       <div
         className={clsx(
-          "glass-card p-6 flex-grow overflow-hidden transition-all duration-300",
+          "glass-card p-6 grow overflow-hidden transition-all duration-300",
           viewMode === 'calendar' ? 'block' : 'hidden'
         )}
         style={{ opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.7 : 1 }}
@@ -532,7 +532,7 @@ export default function AgendaPage() {
       {/* List View */}
       <div
         className={clsx(
-          "flex-grow transition-all duration-300",
+          "grow transition-all duration-300",
           viewMode === 'list' ? 'flex flex-col' : 'hidden'
         )}
         style={{ opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.7 : 1 }}

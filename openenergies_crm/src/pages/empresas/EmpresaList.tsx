@@ -89,21 +89,21 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isArchivedMode ? 'bg-gray-500/20' : 'bg-fenix-500/20'}`}>
-            {isArchivedMode ? <Archive className="w-5 h-5 text-gray-400" /> : <Building2 className="w-5 h-5 text-fenix-400" />}
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isArchivedMode ? 'bg-bg-intermediate' : 'bg-fenix-500/20'}`}>
+            {isArchivedMode ? <Archive className="w-5 h-5 text-secondary" /> : <Building2 className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />}
           </div>
           <div>
-            <h1 className={`text-2xl font-bold ${isArchivedMode ? 'text-gray-400' : 'text-fenix-500'}`}>
+            <h1 className={`text-2xl font-bold ${isArchivedMode ? 'text-secondary' : 'text-fenix-600 dark:text-fenix-500'}`}>
               {isArchivedMode ? 'Empresas Archivadas' : 'Gestión de Empresas'}
             </h1>
-            {isArchivedMode && <p className="text-sm text-gray-500">Empresas que han sido archivadas</p>}
+            {isArchivedMode && <p className="text-sm text-secondary opacity-70">Empresas que han sido archivadas</p>}
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {isArchivedMode && (
             <Link to="/app/empresas">
-              <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-bg-intermediate hover:bg-bg-intermediate/80 text-gray-300 font-medium transition-colors cursor-pointer">
+              <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-bg-intermediate hover:bg-bg-intermediate/80 text-primary font-medium transition-colors cursor-pointer">
                 <ArrowLeft size={18} />
                 <span className="hidden sm:inline">Volver</span>
               </button>
@@ -120,7 +120,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   <Link
                     to="/app/empresas/$id/editar"
                     params={{ id: selectedIds[0] }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                     title="Editar Empresa"
                   >
                     <Edit size={16} />
@@ -129,7 +129,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                 {selectedIds.length === 1 && selectedIds[0] && isArchivedMode && (
                   <button
                     onClick={() => restoreMutation.mutate(selectedIds[0]!)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-fenix-400 hover:bg-fenix-500/10 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 hover:bg-fenix-500/10 transition-colors cursor-pointer"
                     title="Restaurar Empresa"
                     disabled={restoreMutation.isPending}
                   >
@@ -137,7 +137,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   </button>
                 )}
                 <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                   title="Cancelar selección"
                   onClick={() => setSelectedIds([])}
                 >
@@ -190,8 +190,8 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
-                  <th className="w-10 p-4 text-left">
+                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                  <th className="p-4 w-10 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -200,16 +200,16 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                       }}
                       onChange={handleSelectAll}
                       aria-label="Seleccionar todas"
-                      className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                     />
                   </th>
                   <th className="w-14 p-4 text-left">
-                    <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">Logo</span>
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider">Logo</span>
                   </th>
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('nombre')}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Nombre {renderSortIcon('nombre')}
                     </button>
@@ -217,7 +217,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('cif')}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       CIF {renderSortIcon('cif')}
                     </button>
@@ -225,7 +225,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('tipo')}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Tipo {renderSortIcon('tipo')}
                     </button>
@@ -233,7 +233,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('creada_en')}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Creada en {renderSortIcon('creada_en')}
                     </button>
@@ -258,7 +258,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                           checked={isSelected}
                           onChange={() => handleRowSelect(e.id)}
                           aria-label={`Seleccionar ${e.nombre}`}
-                          className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                          className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                         />
                       </td>
                       <td className="p-4">
@@ -272,18 +272,18 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                         <Link
                           to="/app/empresas/$id"
                           params={{ id: e.id }}
-                          className="text-fenix-400 hover:text-fenix-300 font-medium transition-colors cursor-pointer"
+                          className="text-fenix-600 dark:text-fourth font-bold hover:underline transition-colors cursor-pointer"
                         >
                           {e.nombre}
                         </Link>
                       </td>
-                      <td className="p-4 text-gray-400">{e.cif ?? '—'}</td>
+                      <td className="p-4 text-secondary font-medium">{e.cif ?? '—'}</td>
                       <td className="p-4">
-                        <span className="px-2 py-1 text-xs font-medium rounded-md bg-bg-intermediate text-gray-300">
+                        <span className="px-2 py-1 text-xs font-bold rounded-md bg-bg-intermediate text-secondary">
                           {e.tipo}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-400">{fmtDate(e.creada_en)}</td>
+                      <td className="p-4 text-secondary text-sm font-medium">{fmtDate(e.creada_en)}</td>
                     </tr>
                   );
                 })}

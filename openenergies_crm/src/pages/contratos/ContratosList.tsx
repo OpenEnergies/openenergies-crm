@@ -11,6 +11,7 @@ import {
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
+import { Pagination } from '@components/Pagination';
 import { toast } from 'react-hot-toast';
 import { fmtDate, clsx } from '@lib/utils';
 import { EmptyState } from '@components/EmptyState';
@@ -112,30 +113,30 @@ async function fetchContratos(filter: string, clienteId?: string): Promise<Contr
 // ============ HELPERS DE COLOR ============
 const getEstadoColorClass = (estado: EstadoContrato) => {
   const map: Record<EstadoContrato, string> = {
-    'Aceptado': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    'En curso': 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    'Bloqueado': 'bg-red-500/20 text-red-400 border border-red-500/30',
-    'Pendiente Doc.': 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-    'Pendiente firma': 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-    'Firmado': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    'Contratado': 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
-    'Pendiente renovacion': 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
-    'Baja': 'bg-bg-intermediate text-gray-400 border border-gray-500/30',
-    'Standby': 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-    'Desiste': 'bg-red-500/20 text-red-400 border border-red-500/30',
+    'Aceptado': 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30',
+    'En curso': 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 dark:border-blue-500/30',
+    'Bloqueado': 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 dark:border-red-500/30',
+    'Pendiente Doc.': 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/30',
+    'Pendiente firma': 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/30',
+    'Firmado': 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30',
+    'Contratado': 'bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 dark:border-purple-500/30',
+    'Pendiente renovacion': 'bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 dark:border-orange-500/30',
+    'Baja': 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20',
+    'Standby': 'bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20 dark:border-yellow-500/30',
+    'Desiste': 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 dark:border-red-500/30',
   };
-  return map[estado] || 'bg-bg-intermediate text-gray-400 border border-gray-500/30';
+  return map[estado] || 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20';
 };
 
 const getFVColorClass = (estado: string) => {
   const map: Record<string, string> = {
-    'Pendiente de instalar': 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-    'Activa': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    'Pendiente de activar': 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    'Duda': 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
-    'No': 'bg-bg-intermediate text-gray-400 border border-gray-500/30',
+    'Pendiente de instalar': 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/30',
+    'Activa': 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30',
+    'Pendiente de activar': 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 dark:border-blue-500/30',
+    'Duda': 'bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 dark:border-purple-500/30',
+    'No': 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20',
   };
-  return map[estado] || 'bg-bg-intermediate text-gray-400 border border-gray-500/30';
+  return map[estado] || 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20';
 };
 
 // ============ MODAL DETALLE CONTRATO ============
@@ -160,10 +161,10 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-2xl glass-modal overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
-          <h3 className="text-xl font-bold text-fenix-400">Detalle del Contrato</h3>
+        <div className="flex items-center justify-between p-6 border-b border-primary">
+          <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400">Detalle del Contrato</h3>
           <button
-            className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-secondary hover:text-primary hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
             onClick={onClose}
             title="Cerrar"
           >
@@ -176,77 +177,77 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
 
             {/* Columna Izquierda - Info Principal */}
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider mb-2">Información General</h4>
+              <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-2">Información General</h4>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Cliente</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Cliente</span>
                 {cliente ? (
-                  <span className="text-gray-300 font-medium">
+                  <span className="text-secondary font-bold">
                     {cliente.nombre}
                   </span>
-                ) : <span className="text-gray-400">—</span>}
+                ) : <span className="text-secondary opacity-40">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">CUPS</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">CUPS</span>
                 {punto ? (
-                  <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-gray-300 font-mono w-fit">
+                  <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-secondary font-mono w-fit border border-primary/20">
                     {punto.cups}
                   </code>
-                ) : <span className="text-gray-400">—</span>}
+                ) : <span className="text-secondary opacity-40">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Dirección</span>
-                <span className="text-gray-300">{punto?.direccion_sum || '—'}</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Dirección</span>
+                <span className="text-secondary font-medium">{punto?.direccion_sum || '—'}</span>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Comercializadora</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Comercializadora</span>
                 {contrato.comercializadoras ? (
-                  <span className="text-gray-300">
+                  <span className="text-secondary font-medium">
                     {contrato.comercializadoras.nombre}
                   </span>
-                ) : <span className="text-gray-400">—</span>}
+                ) : <span className="text-secondary opacity-40">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Canal</span>
-                <span className="text-gray-300">{contrato.canales?.nombre || '—'}</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Canal</span>
+                <span className="text-secondary font-medium">{contrato.canales?.nombre || '—'}</span>
               </div>
             </div>
 
             {/* Columna Derecha - Estado y Detalles */}
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider mb-2">Estado y Servicios</h4>
+              <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-2">Estado y Servicios</h4>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Estado</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Estado</span>
                 <div>
-                  <span className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getEstadoColorClass(contrato.estado)}`}>
+                  <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${getEstadoColorClass(contrato.estado)}`}>
                     {contrato.estado}
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Fotovoltaica</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Fotovoltaica</span>
                 <div>
-                  <span className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${getFVColorClass(contrato.fotovoltaica || 'No')}`}>
+                  <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${getFVColorClass(contrato.fotovoltaica || 'No')}`}>
                     {contrato.fotovoltaica || '—'}
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Cobrado</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Cobrado</span>
                 <div>
                   {contrato.cobrado ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       <CheckCircle size={12} /> Sí
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gray-500/20 text-gray-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-bg-intermediate text-secondary border border-primary/20">
                       <Circle size={12} /> No
                     </span>
                   )}
@@ -254,79 +255,79 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Tarifa</span>
-                <span className="font-mono text-gray-300 bg-bg-intermediate px-2 py-0.5 rounded w-fit">{punto?.tarifa || '—'}</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Tarifa</span>
+                <span className="font-mono text-secondary font-bold bg-bg-intermediate px-2 py-0.5 rounded w-fit border border-primary/20">{punto?.tarifa || '—'}</span>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs text-white mb-1">Consumo anual</span>
-                <span className="text-gray-300">{punto?.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Consumo anual</span>
+                <span className="text-secondary font-bold">{punto?.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-bg-intermediate">
-            <h4 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <div className="mt-8 pt-6 border-t border-primary">
+            <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Calendar size={16} /> Fechas Importantes
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               <div>
-                <span className="block text-xs text-white mb-1">Aceptación</span>
-                <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_aceptacion)}</span>
+                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Aceptación</span>
+                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_aceptacion)}</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Firma</span>
-                <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_firma)}</span>
+                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Firma</span>
+                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_firma)}</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Activación</span>
-                <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_activacion)}</span>
+                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Activación</span>
+                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_activacion)}</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Renovación</span>
-                <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_renovacion)}</span>
+                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Renovación</span>
+                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_renovacion)}</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Baja</span>
-                <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_baja)}</span>
+                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Baja</span>
+                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_baja)}</span>
               </div>
             </div>
 
             {(contrato.permanencia || contrato.aviso_renovacion) && (
-              <div className="mt-4 pt-4 border-t border-bg-intermediate grid grid-cols-2 gap-4">
+              <div className="mt-4 pt-4 border-t border-primary grid grid-cols-2 gap-4">
                 {contrato.permanencia && (
                   <div>
-                    <span className="block text-xs text-white mb-1">Permanencia hasta</span>
-                    <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_permanencia)}</span>
+                    <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Permanencia hasta</span>
+                    <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_permanencia)}</span>
                   </div>
                 )}
                 {contrato.aviso_renovacion && (
                   <div>
-                    <span className="block text-xs text-gray-200 flex items-center gap-1 mb-1">
-                      <AlertCircle size={10} className="text-amber-400" /> Aviso renovación
+                    <span className="block text-xs font-bold text-primary uppercase tracking-tight flex items-center gap-1 mb-1">
+                      <AlertCircle size={10} className="text-amber-500" /> Aviso renovación
                     </span>
-                    <span className="text-sm text-gray-300">{fmtDate(contrato.fecha_aviso)}</span>
+                    <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_aviso)}</span>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-bg-intermediate">
-              <span className="block text-xs text-gray-200 mb-1">Creado el</span>
-              <span className="text-sm text-gray-400">{fmtDate(contrato.creado_en)}</span>
+            <div className="mt-4 pt-4 border-t border-primary">
+              <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Creado el</span>
+              <span className="text-sm text-secondary opacity-60 font-medium">{fmtDate(contrato.creado_en)}</span>
             </div>
           </div>
         </div>
 
-        <div className="p-6 border-t border-bg-intermediate bg-black/20 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="p-6 border-t border-primary bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl">
           <Link to="/app/contratos/$id" params={{ id: contrato.id }}>
-            <button className="px-4 py-2.5 rounded-xl bg-fenix-500 hover:bg-fenix-600 text-white font-medium shadow-lg shadow-fenix-500/25 transition-all cursor-pointer">
+            <button className="px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
               Editar contrato
             </button>
           </Link>
           <button
             onClick={onClose}
-            className="btn-secondary"
+            className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200 cursor-pointer"
           >
             Cerrar
           </button>
@@ -406,8 +407,8 @@ function EstadoDropdown({ contratoId, currentEstado, onUpdate }: EstadoDropdownP
                 key={estado}
                 className={clsx(
                   'w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 cursor-pointer',
-                  'hover:bg-fenix-500/15 text-gray-300',
-                  estado === currentEstado ? 'font-medium bg-fenix-500/15 text-fenix-400' : ''
+                  'hover:bg-bg-intermediate text-secondary hover:text-primary',
+                  estado === currentEstado ? 'font-bold bg-bg-intermediate/50 text-fenix-600 dark:text-fenix-400' : ''
                 )}
                 onClick={() => handleChange(estado)}
               >
@@ -494,8 +495,8 @@ function FVDropdown({ contratoId, currentFV, onUpdate }: FVDropdownProps) {
                 key={fv}
                 className={clsx(
                   'w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 cursor-pointer',
-                  'hover:bg-fenix-500/15 text-gray-300',
-                  fv === currentFV ? 'font-medium bg-fenix-500/15 text-fenix-400' : ''
+                  'hover:bg-bg-intermediate text-secondary hover:text-primary',
+                  fv === currentFV ? 'font-bold bg-bg-intermediate/50 text-fenix-600 dark:text-fenix-400' : ''
                 )}
                 onClick={() => handleChange(fv)}
               >
@@ -548,13 +549,13 @@ function CobradoCheckbox({ contratoId, checked, onUpdate }: CobradoCheckboxProps
         disabled={isUpdating}
         className="hidden"
       />
-      {checked ? <CheckCircle size={18} className="text-emerald-400" /> : <Circle size={18} className="text-gray-500" />}
+      {checked ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-secondary opacity-40" />}
     </label>
   );
 }
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function ContratosList({ clienteId }: { clienteId?: string }) {
+export default function ContratosList({ clienteId, hideClienteColumn }: { clienteId?: string; hideClienteColumn?: boolean }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -706,12 +707,13 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {!clienteId && (
-          <div>
-            <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2">
-              <FileText size={24} className="text-emerald-400" />
-              Contratos
-            </h2>
-            <p className="text-gray-400">Gestiona todos los contratos energéticos.</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Contratos</h1>
+            </div>
           </div>
         )}
 
@@ -756,23 +758,24 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
             <>
               {!clienteId && (
                 <>
-                  <div className="flex items-center gap-2 flex-1 sm:w-64">
-                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
                       <Search size={16} />
                       Buscar
                     </label>
                     <input
                       type="text"
                       placeholder="CUPS o comercializadora..."
-                      className="glass-input w-full"
+                      className="glass-input w-64"
                       value={filter}
                       onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
                     />
                   </div>
                   {canCreate && (
                     <Link to="/app/contratos/nuevo">
-                      <button className="flex items-center gap-2 px-4 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 whitespace-nowrap cursor-pointer">
-                        <BadgePlus size={18} /> <span className="hidden sm:inline">Nuevo Contrato</span>
+                      <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                        <BadgePlus size={18} />
+                        <span className="hidden sm:inline">Nuevo Contrato</span>
                       </button>
                     </Link>
                   )}
@@ -792,7 +795,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
       )}
 
       {isError && (
-        <div className="glass-card p-6 bg-red-500/10 border-red-500/20 text-red-200">
+        <div className="glass-card p-6 bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400 font-medium">
           <p>Error al cargar contratos. Por favor intenta de nuevo.</p>
         </div>
       )}
@@ -803,22 +806,31 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
           <EmptyState
             title="Sin contratos"
             description="Aún no hay contratos registrados."
-            cta={canCreate ? <Link to="/app/contratos/nuevo"><button className="mt-4 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg cursor-pointer">Crear el primero</button></Link> : null}
+            cta={canCreate ? (
+              <Link to="/app/contratos/nuevo">
+                <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 transition-all duration-200 cursor-pointer">
+                  <BadgePlus size={18} />
+                  Crear el primero
+                </button>
+              </Link>
+            ) : null}
           />
         )}
         {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (
-          <div className="p-12 text-center text-gray-400">
-            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-bg-intermediate mx-auto">
-              <ExternalLink size={32} className="opacity-50" />
+          <div className="p-12 text-center text-secondary">
+            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-bg-intermediate mx-auto border border-primary/20">
+              <ExternalLink size={32} className="opacity-40" />
             </div>
-            <p>Este cliente no tiene contratos asignados.</p>
+            <p className="font-medium">Este cliente no tiene contratos asignados.</p>
           </div>
         )}
         {!isLoading && !isError && fetchedData && fetchedData.length > 0 && displayedData.length === 0 && isFiltered && (
-          <div className="p-12 text-center text-gray-400">
-            <Search size={32} className="mx-auto mb-4 opacity-50" />
-            <p>No se encontraron contratos que coincidan con los filtros.</p>
-            <button onClick={() => { setFilter(''); setColumnFilters(initialColumnFilters); }} className="mt-2 text-fenix-400 hover:text-fenix-400 cursor-pointer">Limpiar filtros</button>
+          <div className="p-12 text-center text-secondary">
+            <Search size={32} className="mx-auto mb-4 opacity-40" />
+            <p className="font-medium">No se encontraron contratos que coincidan con los filtros.</p>
+            <button onClick={() => { setFilter(''); setColumnFilters(initialColumnFilters); }} className="mt-4 text-fenix-600 dark:text-fourth font-bold hover:underline cursor-pointer">
+              Limpiar filtros
+            </button>
           </div>
         )}
 
@@ -827,30 +839,32 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate text-xs text-gray-200 uppercase tracking-wider font-semibold">
-                  <th className="p-4 w-10">
+                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                  <th className="p-4 w-10 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
                       ref={input => { if (input) input.indeterminate = isIndeterminate; }}
                       onChange={handleSelectAll}
                       aria-label="Seleccionar todos"
-                      className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                     />
                   </th>
-                  <th className="p-4">
-                    <button onClick={() => handleSort('cliente' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
-                      Cliente {renderSortIcon('cliente' as any)}
-                    </button>
-                  </th>
-                  <th className="p-4">
-                    <button onClick={() => handleSort('cups' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                  {!hideClienteColumn && (
+                    <th className="p-4 text-left">
+                      <button onClick={() => handleSort('cliente' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                        Cliente {renderSortIcon('cliente' as any)}
+                      </button>
+                    </th>
+                  )}
+                  <th className="p-4 text-left">
+                    <button onClick={() => handleSort('cups' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                       CUPS {renderSortIcon('cups' as any)}
                     </button>
                   </th>
-                  <th className="p-4">
+                  <th className="p-4 text-left">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('estado')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         Estado {renderSortIcon('estado')}
                       </button>
                       <ColumnFilterDropdown
@@ -861,14 +875,14 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                       />
                     </div>
                   </th>
-                  <th className="p-4">
-                    <button onClick={() => handleSort('comercializadoras' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                  <th className="p-4 text-left">
+                    <button onClick={() => handleSort('comercializadoras' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                       Comercializadora {renderSortIcon('comercializadoras' as any)}
                     </button>
                   </th>
-                  <th className="p-4">
+                  <th className="p-4 text-left">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('fotovoltaica')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('fotovoltaica')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         FV {renderSortIcon('fotovoltaica')}
                       </button>
                       <ColumnFilterDropdown
@@ -881,7 +895,7 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                   </th>
                   <th className="p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => handleSort('cobrado')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('cobrado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         Cobrado {renderSortIcon('cobrado')}
                       </button>
                       <ColumnFilterDropdown
@@ -892,9 +906,9 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                       />
                     </div>
                   </th>
-                  <th className="p-4">
+                  <th className="p-4 text-left">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('fecha_renovacion')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('fecha_renovacion')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         Renovación {renderSortIcon('fecha_renovacion')}
                       </button>
                       <DateFilterDropdown
@@ -918,15 +932,19 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                           checked={isSelected}
                           onChange={() => handleRowSelect(c.id)}
                           aria-label={`Seleccionar contrato ${c.id}`}
-                          className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                          className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                         />
                       </td>
-                      <td className="p-4 font-medium text-white max-w-[150px] truncate" title={c.puntos_suministro?.clientes?.nombre}>
-                        {c.puntos_suministro?.clientes?.nombre ?? '—'}
-                      </td>
+                      {!hideClienteColumn && (
+                        <td className="p-4">
+                          <span className="font-bold text-secondary truncate max-w-[150px] inline-block" title={c.puntos_suministro?.clientes?.nombre}>
+                            {c.puntos_suministro?.clientes?.nombre ?? '—'}
+                          </span>
+                        </td>
+                      )}
                       <td className="p-4">
                         <button
-                          className="font-mono text-sm text-fenix-400 hover:text-fenix-300 text-left transition-colors cursor-pointer"
+                          className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm"
                           onClick={() => setSelectedContrato(c)}
                           title="Ver detalle"
                         >
@@ -940,8 +958,10 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                           onUpdate={handleInlineUpdate}
                         />
                       </td>
-                      <td className="p-4 text-gray-300 text-sm max-w-[150px] truncate" title={c.comercializadoras?.nombre}>
-                        {c.comercializadoras?.nombre ?? '—'}
+                      <td className="p-4">
+                        <span className="text-secondary font-medium text-sm truncate max-w-[150px] inline-block" title={c.comercializadoras?.nombre}>
+                          {c.comercializadoras?.nombre ?? '—'}
+                        </span>
                       </td>
                       <td className="p-4">
                         <FVDropdown
@@ -957,16 +977,16 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
                           onUpdate={handleInlineUpdate}
                         />
                       </td>
-                      <td className="p-4 text-gray-300 text-sm whitespace-nowrap">
+                      <td className="p-4 whitespace-nowrap">
                         {c.fecha_renovacion ? (
                           <span className={clsx(
-                            new Date(c.fecha_renovacion) < new Date() ? 'text-red-400' : 'text-gray-300',
-                            c.aviso_renovacion && 'font-bold'
+                            'text-sm font-bold',
+                            new Date(c.fecha_renovacion) < new Date() ? 'text-red-500' : 'text-secondary',
                           )}>
                             {fmtDate(c.fecha_renovacion)}
-                            {c.aviso_renovacion && <span className="ml-1 text-xs text-amber-500 inline-block font-normal" title="Aviso activo">⚠️</span>}
+                            {c.aviso_renovacion && <span className="ml-1 text-xs text-amber-500 inline-block font-normal animate-pulse" title="Aviso activo">⚠️</span>}
                           </span>
-                        ) : '—'}
+                        ) : <span className="text-secondary opacity-40">—</span>}
                       </td>
                     </tr>
                   );
@@ -978,23 +998,13 @@ export default function ContratosList({ clienteId }: { clienteId?: string }) {
 
         {/* Paginación */}
         {!isLoading && !isError && totalPages > 1 && (
-          <div className="p-4 border-t border-bg-intermediate flex items-center justify-center gap-4">
-            <button
-              className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <span className="text-sm text-gray-400">Página <span className="text-white font-medium">{currentPage}</span> de {totalPages}</span>
-            <button
-              className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredData.length}
+            onPageChange={setCurrentPage}
+            isLoading={isLoading}
+          />
         )}
       </div>
 

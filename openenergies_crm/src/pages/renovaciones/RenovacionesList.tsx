@@ -145,12 +145,12 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2">
-            <CalendarClock size={24} className="text-emerald-400" />
+          <h2 className="text-2xl font-bold text-fenix-600 dark:text-emerald-400 flex items-center gap-2">
+            <CalendarClock size={24} className="text-fenix-600 dark:text-emerald-400" />
             Renovaciones
           </h2>
-          <p className="text-gray-400">
-            Contratos que vencen en los próximos <span className="font-semibold text-fenix-400">{daysToExpiry} días</span>.
+          <p className="text-secondary">
+            Contratos que vencen en los próximos <span className="font-bold text-fenix-600 dark:text-fenix-400">{daysToExpiry} días</span>.
           </p>
         </div>
 
@@ -170,7 +170,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
 
           <button
             onClick={onReset}
-            className="p-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors border border-bg-intermediate glass shadow-sm cursor-pointer"
+            className="p-2.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors border border-primary glass shadow-sm cursor-pointer"
             title="Cambiar filtro de días"
           >
             <CalendarCheck size={20} />
@@ -182,7 +182,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
         {isLoading && (
           <div className="p-12 flex items-center justify-center">
             <div className="animate-spin text-fenix-500 mr-3"><Calendar size={24} /></div>
-            <span className="text-gray-400">Cargando renovaciones...</span>
+            <span className="text-secondary font-medium">Cargando renovaciones...</span>
           </div>
         )}
 
@@ -195,24 +195,24 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
         {fetchedData && fetchedData.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-200 uppercase bg-bg-intermediate border-b border-bg-intermediate">
+              <thead className="text-xs text-primary uppercase bg-bg-intermediate border-b-2 border-primary">
                 <tr>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <button onClick={() => handleSort('puntos_suministro')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                       CUPS {renderSortIcon('puntos_suministro')}
                     </button>
                   </th>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <button onClick={() => handleSort('comercializadoras')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                       Comercializadora {renderSortIcon('comercializadoras')}
                     </button>
                   </th>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <button onClick={() => handleSort('estado')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                       Estado {renderSortIcon('estado')}
                     </button>
                   </th>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleSort('fecha_activacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                         Activación {renderSortIcon('fecha_activacion')}
@@ -225,7 +225,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
                       />
                     </div>
                   </th>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleSort('fecha_renovacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                         Renovación {renderSortIcon('fecha_renovacion')}
@@ -238,7 +238,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
                       />
                     </div>
                   </th>
-                  <th className="px-6 py-3 font-medium">
+                  <th className="px-6 py-3 font-bold">
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleSort('aviso_renovacion')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
                         Aviso {renderSortIcon('aviso_renovacion')}
@@ -256,25 +256,25 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
               <tbody className="divide-y divide-fenix-500/10">
                 {displayedData.map(c => (
                   <tr key={c.id} className="hover:bg-bg-intermediate transition-colors cursor-pointer">
-                    <td className="px-6 py-4 font-mono text-gray-300">
+                    <td className="px-6 py-4 font-mono text-secondary">
                       {c.puntos_suministro?.cups
                         ? <span className="bg-bg-intermediate px-2 py-0.5 rounded text-xs">{c.puntos_suministro.cups}</span>
                         : '—'}
                     </td>
-                    <td className="px-6 py-4 font-medium text-white">{c.comercializadoras?.nombre ?? '—'}</td>
-                    <td className="px-6 py-4 text-gray-300">
+                    <td className="px-6 py-4 font-bold text-primary">{c.comercializadoras?.nombre ?? '—'}</td>
+                    <td className="px-6 py-4 text-secondary">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/30 text-blue-300">
                         {c.estado}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-300">{fmtDate(c.fecha_activacion)}</td>
+                    <td className="px-6 py-4 text-secondary">{fmtDate(c.fecha_activacion)}</td>
                     <td className="px-6 py-4">
-                      <span className="font-medium text-amber-400">{fmtDate(c.fecha_renovacion)}</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">{fmtDate(c.fecha_renovacion)}</span>
                     </td>
-                    <td className="px-6 py-4 text-gray-300">
+                    <td className="px-6 py-4 text-secondary">
                       {c.aviso_renovacion
-                        ? <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">Sí ({fmtDate(c.fecha_aviso)})</span>
-                        : <span className="text-gray-400">No</span>
+                        ? <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">Sí ({fmtDate(c.fecha_aviso)})</span>
+                        : <span className="text-secondary opacity-60">No</span>
                       }
                     </td>
                   </tr>
@@ -286,10 +286,10 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
         {displayedData && displayedData.length === 0 && !isLoading && (
           <div className="p-12 text-center">
             <div className="w-16 h-16 bg-bg-intermediate rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-gray-400" />
+              <Search className="w-8 h-8 text-secondary" />
             </div>
-            <p className="text-lg font-medium text-white mb-1">No se encontraron renovaciones</p>
-            <p className="text-gray-400">
+            <p className="text-lg font-bold text-primary mb-1">No se encontraron renovaciones</p>
+            <p className="text-secondary">
               No hay contratos que venzan en los próximos {daysToExpiry} días con los filtros actuales.
             </p>
           </div>

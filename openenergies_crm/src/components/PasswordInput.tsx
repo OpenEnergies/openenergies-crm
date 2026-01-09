@@ -22,7 +22,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         {showIcon && (
           <Lock
             size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none"
           />
         )}
 
@@ -45,7 +45,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           className="
             absolute right-2 top-1/2 -translate-y-1/2
             p-1.5 rounded-md
-            text-gray-400 hover:text-white
+            text-secondary hover:text-primary
             hover:bg-bg-intermediate
             transition-colors duration-150
             focus:outline-none focus-visible:ring-2 focus-visible:ring-fenix-500

@@ -8,7 +8,8 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
-import { User, Phone, Loader2, Settings } from 'lucide-react';
+import { User, Phone, Loader2, Settings, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
 
@@ -48,6 +49,7 @@ async function updateUserPassword(newPassword: string) {
 
 export default function PerfilPage() {
   const { userId, nombre: sessionNombre, avatar_url: sessionAvatarUrl } = useSession();
+  const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
@@ -145,9 +147,9 @@ export default function PerfilPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-          <Settings className="w-5 h-5 text-fenix-500" />
+          <Settings className="w-5 h-5 text-fenix-600 dark:text-fenix-500" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Mi Perfil</h1>
+        <h1 className="text-2xl font-bold text-primary">Mi Perfil</h1>
       </div>
 
       {/* Two Column Layout */}
@@ -167,11 +169,11 @@ export default function PerfilPage() {
             )}
           </div>
           <div className="glass-card p-6 text-center">
-            <h3 className="text-xl font-semibold text-white">
+            <h3 className="text-xl font-bold text-primary">
               {displayNombre} {perfil?.apellidos ?? ''}
             </h3>
-            <p className="text-gray-400 mt-1">{perfil?.email ?? 'No disponible'}</p>
-            <span className="inline-block mt-3 px-3 py-1 text-sm font-medium rounded-full bg-fenix-500/20 text-fenix-400 capitalize">
+            <p className="text-secondary mt-1">{perfil?.email ?? 'No disponible'}</p>
+            <span className="inline-block mt-3 px-3 py-1 text-sm font-bold rounded-full bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 capitalize">
               {perfil?.rol ?? '...'}
             </span>
           </div>
@@ -183,7 +185,7 @@ export default function PerfilPage() {
           {/* Personal Info Card */}
           <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">Datos Personales</h3>
+              <h3 className="text-lg font-bold text-primary">Datos Personales</h3>
               {!isEditing && (
                 <button
                   type="button"
@@ -198,12 +200,12 @@ export default function PerfilPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="nombre" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="nombre" className="block text-sm font-bold text-secondary uppercase tracking-tight mb-2">
                     Nombre
                   </label>
                   {isEditing ? (
                     <div className="relative">
-                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
                       <input
                         id="nombre"
                         {...register('nombre')}
@@ -211,7 +213,7 @@ export default function PerfilPage() {
                       />
                     </div>
                   ) : (
-                    <p className="text-white py-2">{perfil?.nombre}</p>
+                    <p className="text-primary font-medium py-2">{perfil?.nombre}</p>
                   )}
                   {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
                 </div>
@@ -221,7 +223,7 @@ export default function PerfilPage() {
                   </label>
                   {isEditing ? (
                     <div className="relative">
-                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
                       <input
                         id="apellidos"
                         {...register('apellidos')}
@@ -229,7 +231,7 @@ export default function PerfilPage() {
                       />
                     </div>
                   ) : (
-                    <p className="text-white py-2">{perfil?.apellidos}</p>
+                    <p className="text-primary font-medium py-2">{perfil?.apellidos}</p>
                   )}
                   {errors.apellidos && <p className="text-sm text-red-400 mt-1">{errors.apellidos.message}</p>}
                 </div>
@@ -241,7 +243,7 @@ export default function PerfilPage() {
                 </label>
                 {isEditing ? (
                   <div className="relative">
-                    <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
                     <input
                       id="telefono"
                       type="tel"
@@ -250,16 +252,16 @@ export default function PerfilPage() {
                     />
                   </div>
                 ) : (
-                  <p className="text-white py-2">{perfil?.telefono || 'No especificado'}</p>
+                  <p className="text-primary font-medium py-2">{perfil?.telefono || 'No especificado'}</p>
                 )}
               </div>
             </div>
 
             {isEditing && (
-              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-bg-intermediate">
+              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-primary">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-white/20 text-gray-300 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-bg-secondary text-secondary font-medium transition-colors cursor-pointer"
                   onClick={() => { setIsEditing(false); reset(); }}
                 >
                   Cancelar
@@ -276,16 +278,52 @@ export default function PerfilPage() {
             )}
           </form>
 
+          {/* Aspecto Card */}
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Aspecto</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${theme === 'light'
+                  ? 'border-fenix-500 bg-fenix-500/10 text-slate-900 dark:text-white'
+                  : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sun size={20} className={theme === 'light' ? 'text-fenix-500' : ''} />
+                  <span className="font-medium">Modo Claro</span>
+                </div>
+                {theme === 'light' && <div className="w-2 h-2 rounded-full bg-fenix-500 shadow-[0_0_8px_#10B981]" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${theme === 'dark'
+                  ? 'border-fenix-500 bg-fenix-500/10 text-slate-900 dark:text-white'
+                  : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Moon size={20} className={theme === 'dark' ? 'text-fenix-500' : ''} />
+                  <span className="font-medium">Modo Oscuro</span>
+                </div>
+                {theme === 'dark' && <div className="w-2 h-2 rounded-full bg-fenix-500 shadow-[0_0_8px_#10B981]" />}
+              </button>
+            </div>
+          </div>
+
           {/* 2FA Card */}
           <TwoFactorAuthManager />
 
           {/* Change Password Card */}
           <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-white mb-6">Cambiar Contraseña</h3>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Cambiar Contraseña</h3>
             <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="password" className="block text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight mb-2">
                     Nueva Contraseña
                   </label>
                   <PasswordInput
@@ -298,7 +336,7 @@ export default function PerfilPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight mb-2">
                     Confirmar Nueva Contraseña
                   </label>
                   <PasswordInput

@@ -61,19 +61,19 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     >
       {/* Modal content con glassmorphism */}
       <div
-        className="bg-gray-900 border border-bg-intermediate rounded-2xl w-full max-w-md p-6 animate-slide-up shadow-2xl"
+        className="glass-modal w-full max-w-md p-6 animate-slide-up shadow-2xl"
         onClick={handleContentClick}
       >
         {/* Título */}
         <h3
           id="confirmation-modal-title"
-          className="text-xl font-semibold text-white mb-4"
+          className="text-xl font-semibold text-primary mb-4"
         >
           {title}
         </h3>
 
         {/* Mensaje */}
-        <p className="text-gray-400 leading-relaxed mb-6">
+        <p className="text-secondary leading-relaxed mb-6">
           {message}
         </p>
 

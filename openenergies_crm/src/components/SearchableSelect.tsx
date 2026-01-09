@@ -138,7 +138,7 @@ export default function SearchableSelect({
                     }}
                 >
                     <div className="flex-1 flex items-center gap-2">
-                        {icon && <span className="text-gray-400">{icon}</span>}
+                        {icon && <span className="text-secondary">{icon}</span>}
                         {isOpen ? (
                             <input
                                 ref={inputRef}
@@ -147,11 +147,11 @@ export default function SearchableSelect({
                                 onChange={e => setSearchTerm(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder={placeholder}
-                                className="flex-1 bg-transparent border-0 outline-none text-gray-200"
+                                className="flex-1 bg-transparent border-0 outline-none text-primary"
                                 disabled={disabled}
                             />
                         ) : (
-                            <span className={`flex-1 ${!selectedOption ? 'text-gray-500' : 'text-gray-200'}`}>
+                            <span className={`flex-1 ${!selectedOption ? 'text-secondary opacity-60' : 'text-primary'}`}>
                                 {selectedOption ? selectedOption.label : placeholder}
                             </span>
                         )}
@@ -162,7 +162,7 @@ export default function SearchableSelect({
                             <button
                                 type="button"
                                 onClick={handleClear}
-                                className="text-gray-400 hover:text-red-400 transition-colors"
+                                className="text-secondary hover:text-red-500 transition-colors"
                             >
                                 <X size={16} />
                             </button>
@@ -176,13 +176,13 @@ export default function SearchableSelect({
 
                 {/* Dropdown de opciones */}
                 {isOpen && !disabled && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-bg-intermediate rounded-xl py-2 shadow-2xl z-[9999] max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-bg-secondary border border-primary rounded-xl py-2 shadow-2xl z-[9999] max-h-60 overflow-y-auto">
                         {allowEmpty && (
                             <button
                                 type="button"
                                 className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${value === ''
-                                    ? 'bg-fenix-500/20 text-fenix-400'
-                                    : 'text-gray-400 hover:bg-bg-intermediate hover:text-white'
+                                    ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-medium'
+                                    : 'text-secondary hover:bg-bg-intermediate hover:text-primary'
                                     }`}
                                 onClick={() => handleSelect('')}
                             >
@@ -191,7 +191,7 @@ export default function SearchableSelect({
                         )}
 
                         {filteredOptions.length === 0 ? (
-                            <div className="px-4 py-3 text-gray-500 text-sm text-center">
+                            <div className="px-4 py-3 text-secondary text-sm text-center">
                                 No se encontraron resultados
                             </div>
                         ) : (
@@ -200,17 +200,17 @@ export default function SearchableSelect({
                                     key={option.value}
                                     type="button"
                                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${option.value === value
-                                        ? 'bg-fenix-500/20 text-fenix-400'
+                                        ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-medium'
                                         : index === highlightedIndex
-                                            ? 'bg-bg-intermediate text-white'
-                                            : 'text-gray-300 hover:bg-bg-intermediate hover:text-white'
+                                            ? 'bg-bg-intermediate text-primary'
+                                            : 'text-secondary hover:bg-bg-intermediate hover:text-primary'
                                         }`}
                                     onClick={() => handleSelect(option.value)}
                                     onMouseEnter={() => setHighlightedIndex(index)}
                                 >
                                     <div className="font-medium">{option.label}</div>
                                     {option.subtitle && (
-                                        <div className="text-xs text-gray-500 mt-0.5">{option.subtitle}</div>
+                                        <div className="text-xs text-secondary mt-0.5">{option.subtitle}</div>
                                     )}
                                 </button>
                             ))

@@ -144,9 +144,9 @@ export default function DocumentosList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-            <FolderOpen className="w-5 h-5 text-blue-400" />
+            <FolderOpen className="w-5 h-5 text-blue-500 dark:text-blue-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Documentos Globales</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Documentos Globales</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -181,7 +181,7 @@ export default function DocumentosList() {
         {isLoading && (
           <div className="flex items-center justify-center gap-3 py-12">
             <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
-            <span className="text-gray-400">Cargando...</span>
+            <span className="text-slate-500 dark:text-slate-400">Cargando...</span>
           </div>
         )}
         {isError && (
@@ -204,14 +204,14 @@ export default function DocumentosList() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-bg-intermediate bg-bg-intermediate">
-                  <th className="p-4 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                <tr className="border-b-2 border-primary bg-bg-intermediate">
+                  <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                     Nombre del Archivo / Carpeta
                   </th>
-                  <th className="p-4 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                  <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                     Cliente Propietario
                   </th>
-                  <th className="p-4 text-right text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                  <th className="p-4 text-right text-xs font-bold text-primary uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -246,7 +246,7 @@ export default function DocumentosList() {
                         ) : (
                           <button
                             onClick={() => handlePreview(item.full_path, item.item_name)}
-                            className="flex items-center gap-3 text-white hover:text-fenix-400 transition-colors w-full text-left cursor-pointer"
+                            className="flex items-center gap-3 text-slate-900 dark:text-white hover:text-fenix-500 dark:hover:text-fenix-400 transition-colors w-full text-left cursor-pointer"
                             title={`Vista previa de ${item.item_name}`}
                           >
                             {getFileIcon(item.item_name)}
@@ -254,13 +254,13 @@ export default function DocumentosList() {
                           </button>
                         )}
                       </td>
-                      <td className="p-4 text-gray-400">{item.cliente_nombre}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-400">{item.cliente_nombre}</td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {!item.is_folder && (
                             <button
                               onClick={() => handlePreview(item.full_path, item.item_name)}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors cursor-pointer"
                               title="Vista previa"
                             >
                               <EyeIcon size={16} />
@@ -278,7 +278,7 @@ export default function DocumentosList() {
                           )}
                           {!item.is_folder && (
                             <button
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors cursor-pointer"
                               title="Descargar documento"
                               onClick={async () => {
                                 const fullPath = item.full_path

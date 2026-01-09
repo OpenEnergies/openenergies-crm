@@ -208,15 +208,15 @@ export default function ClienteForm({ id }: ClienteFormProps) {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate({ to: '/app/clientes' })}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+          className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} />
         </button>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-fenix-500" />
+            <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-fenix-500">
+          <h1 className="text-2xl font-bold text-primary">
             {editing ? 'Editar Cliente' : 'Nuevo Cliente'}
           </h1>
         </div>
@@ -229,7 +229,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           {/* Row 1: Nombre + Tipo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <HardHat size={16} />
                 Nombre o Razón Social *
               </label>
@@ -243,7 +243,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
 
             <div>
-              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Tags size={16} />
                 Tipo de cliente
               </label>
@@ -263,7 +263,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           {/* Row 2: DNI + CIF */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={isDniDisabled ? 'opacity-50' : ''}>
-              <label htmlFor="dni" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="dni" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <FileText size={16} />
                 DNI
               </label>
@@ -278,7 +278,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
 
             <div className={isCifDisabled ? 'opacity-50' : ''}>
-              <label htmlFor="cif" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="cif" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <FileText size={16} />
                 CIF
               </label>
@@ -296,7 +296,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           {/* Row 3: IBAN + Representante */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="numero_cuenta" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="numero_cuenta" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <CreditCard size={16} />
                 Número de cuenta (IBAN)
               </label>
@@ -310,7 +310,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
 
             <div>
-              <label htmlFor="representante" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="representante" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <UserCircle size={16} />
                 Representante
               </label>
@@ -327,7 +327,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           {/* Row 4: Teléfonos + Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="telefonos" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="telefonos" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Phone size={16} />
                 Teléfono(s)
               </label>
@@ -346,7 +346,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
 
             <div>
-              <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="email" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Mail size={16} />
                 Email
               </label>
@@ -363,10 +363,15 @@ export default function ClienteForm({ id }: ClienteFormProps) {
 
           {/* Portal Access Section (only on create) */}
           {!editing && (
-            <div className="border-t border-bg-intermediate pt-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Acceso al Portal de Cliente</h3>
+            <div className="border-t border-primary/20 pt-8 pb-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2">
+                  <Lock size={20} />
+                  Acceso al Portal de Cliente
+                </h3>
+              </div>
 
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <div className="relative">
                   <input
                     type="checkbox"
@@ -374,21 +379,21 @@ export default function ClienteForm({ id }: ClienteFormProps) {
                     onChange={(e) => setCreatePortalAccess(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-bg-primary border border-fenix-500/30 rounded-full peer peer-checked:bg-fenix-500 peer-checked:border-fenix-500 transition-colors cursor-pointer"></div>
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-fenix-500/30 peer-checked:bg-white rounded-full transition-all peer-checked:translate-x-5 shadow-sm"></div>
+                  <div className="w-11 h-6 bg-bg-intermediate border border-primary/20 rounded-full peer peer-checked:bg-fenix-500 peer-checked:border-fenix-500 transition-all duration-300"></div>
+                  <div className="absolute left-1 top-1 w-4 h-4 bg-secondary/40 peer-checked:bg-white rounded-full transition-all duration-300 peer-checked:translate-x-5 shadow-sm"></div>
                 </div>
-                <span className="text-gray-300">Crear usuario para acceso al portal</span>
+                <span className="text-secondary font-bold group-hover:text-primary transition-colors">Crear usuario para acceso al portal</span>
               </label>
 
               {createPortalAccess && (
-                <div className="mt-4 p-4 rounded-lg bg-bg-intermediate border border-bg-intermediate space-y-4">
-                  <p className="text-sm text-gray-400">
+                <div className="mt-4 p-5 rounded-xl bg-bg-intermediate/30 border border-primary/10 space-y-4">
+                  <p className="text-sm text-secondary font-medium opacity-70">
                     Se creará un usuario con rol 'cliente'. Comunícale sus credenciales de acceso.
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="portal_email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="portal_email" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                         <Mail size={16} />
                         Email de acceso *
                       </label>
@@ -403,7 +408,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
                     </div>
 
                     <div>
-                      <label htmlFor="portal_password" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="portal_password" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                         <Lock size={16} />
                         Contraseña inicial *
                       </label>
@@ -428,10 +433,10 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           )}
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-bg-intermediate">
+          <div className="flex justify-end gap-3 pt-6 border-t border-primary/20">
             <button
               type="button"
-              className="btn-secondary"
+              className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200"
               onClick={() => navigate({ to: '/app/clientes' })}
             >
               Cancelar
@@ -439,14 +444,14 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting && <Loader2 size={16} className="animate-spin" />}
               {isSubmitting ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Cliente')}
             </button>
           </div>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }

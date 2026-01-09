@@ -132,7 +132,7 @@ export default function ClienteDetailLayout() {
       {/* Back Link */}
       <Link
         to="/app/clientes"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+        className="inline-flex items-center gap-2 text-secondary hover:text-primary transition-colors font-medium"
       >
         <ArrowLeft size={16} />
         Volver a Clientes
@@ -148,8 +148,8 @@ export default function ClienteDetailLayout() {
               <Users className="w-7 h-7 text-fenix-500" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-white truncate">{cliente.nombre}</h1>
-              <p className="text-sm text-gray-400 mt-0.5">
+              <h1 className="text-2xl font-bold text-primary truncate">{cliente.nombre}</h1>
+              <p className="text-sm text-secondary opacity-70 mt-0.5 font-medium">
                 {cliente.dni || cliente.cif || 'Sin identificador'}
               </p>
             </div>
@@ -163,8 +163,8 @@ export default function ClienteDetailLayout() {
                 <MapPin size={20} className="text-fenix-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{cliente.puntos_count}</p>
-                <p className="text-xs text-fenix-200 font-medium">Puntos</p>
+                <p className="text-2xl font-bold text-primary">{cliente.puntos_count}</p>
+                <p className="text-xs text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">Puntos</p>
               </div>
             </div>
 
@@ -174,8 +174,8 @@ export default function ClienteDetailLayout() {
                 <Zap size={20} className="text-fenix-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{cliente.total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</p>
-                <p className="text-xs text-fenix-200 font-medium">kWh</p>
+                <p className="text-2xl font-bold text-primary">{cliente.total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</p>
+                <p className="text-xs text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">kWh</p>
               </div>
             </div>
           </div>
@@ -189,11 +189,11 @@ export default function ClienteDetailLayout() {
           {/* DNI o CIF */}
           {(cliente.dni || cliente.cif) && (
             <div className="flex items-center gap-2 text-sm">
-              <IdCard size={14} className="text-gray-500" />
-              <span className="text-gray-400">
+              <IdCard size={14} className="text-secondary opacity-60" />
+              <span className="text-secondary opacity-70 font-medium">
                 {cliente.tipo === 'Persona fisica' ? 'DNI:' : 'CIF:'}
               </span>
-              <span className="text-white font-medium">
+              <span className="text-primary font-bold">
                 {cliente.dni || cliente.cif}
               </span>
             </div>
@@ -202,10 +202,10 @@ export default function ClienteDetailLayout() {
           {/* Email */}
           {cliente.email && (
             <div className="flex items-center gap-2 text-sm">
-              <Mail size={14} className="text-gray-500" />
+              <Mail size={14} className="text-secondary opacity-70" />
               <a
                 href={`mailto:${cliente.email}`}
-                className="text-fenix-500 hover:text-fenix-400 transition-colors"
+                className="text-fenix-600 dark:text-fourth font-bold hover:underline transition-colors"
               >
                 {cliente.email}
               </a>
@@ -215,8 +215,8 @@ export default function ClienteDetailLayout() {
           {/* Teléfonos */}
           {cliente.telefonos && (
             <div className="flex items-center gap-2 text-sm">
-              <Phone size={14} className="text-gray-500" />
-              <span className="text-white">
+              <Phone size={14} className="text-secondary opacity-70" />
+              <span className="text-primary font-bold">
                 {cliente.telefonos.split(' / ').join(' / ')}
               </span>
             </div>
@@ -225,9 +225,9 @@ export default function ClienteDetailLayout() {
           {/* Número de cuenta (IBAN) */}
           {cliente.numero_cuenta && (
             <div className="flex items-center gap-2 text-sm">
-              <CreditCard size={14} className="text-gray-500" />
-              <span className="text-gray-400">IBAN:</span>
-              <span className="text-white font-mono italic">
+              <CreditCard size={14} className="text-secondary opacity-70" />
+              <span className="text-secondary opacity-70 font-medium">IBAN:</span>
+              <span className="text-primary font-mono font-bold">
                 {formatIBAN(cliente.numero_cuenta)}
               </span>
             </div>
@@ -236,9 +236,9 @@ export default function ClienteDetailLayout() {
           {/* Representante */}
           {cliente.representante && (
             <div className="flex items-center gap-2 text-sm">
-              <UserCircle size={14} className="text-gray-500" />
-              <span className="text-gray-400">Representante:</span>
-              <span className="text-white">
+              <UserCircle size={14} className="text-secondary opacity-60" />
+              <span className="text-secondary opacity-70 font-medium">Representante:</span>
+              <span className="text-primary font-medium">
                 {cliente.representante}
               </span>
             </div>
@@ -247,7 +247,7 @@ export default function ClienteDetailLayout() {
       </div>
 
       {/* Tabs Navigation - iOS Style */}
-      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-bg-intermediate overflow-x-auto">
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-primary overflow-x-auto">
         {navLinks.map(link => {
           const isActive = location.pathname.startsWith(link.path);
           return (
@@ -255,10 +255,10 @@ export default function ClienteDetailLayout() {
               key={link.path}
               to={link.path}
               className={`
-                px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200
+                px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all duration-200
                 ${isActive
-                  ? 'bg-fenix-500/15 text-fenix-400 shadow-sm border border-fenix-500/30 ring-1 ring-fenix-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+                  ? 'bg-fenix-500/20 text-fenix-600 dark:text-fourth shadow-sm border-2 border-fenix-500/40'
+                  : 'text-secondary hover:text-primary hover:bg-bg-intermediate opacity-70 hover:opacity-100'}
               `}
             >
               {link.label}

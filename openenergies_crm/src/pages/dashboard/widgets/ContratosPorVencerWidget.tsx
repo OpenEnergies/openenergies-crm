@@ -111,10 +111,10 @@ export default function ContratosPorVencerWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Contratos por Vencer</h3>
-        <span className="ml-auto text-xs text-gray-400 bg-bg-intermediate px-2 py-1 rounded-full">
+        <h3 className="text-base font-bold text-primary">Contratos por Vencer</h3>
+        <span className="ml-auto text-xs text-secondary opacity-70 bg-bg-intermediate px-2 py-1 rounded-full font-bold uppercase tracking-tight">
           {days} días
         </span>
       </div>
@@ -128,16 +128,16 @@ export default function ContratosPorVencerWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium italic">Error al cargar.</p>
       )}
 
       {/* Content */}
       {!isLoading && !isError && contratos && (
         <>
           {count > 0 && (
-            <p className="text-3xl font-bold text-white text-center mb-4">
+            <p className="text-3xl font-bold text-secondary text-center mb-4">
               {count}{count >= displayLimit ? '+' : ''}
-              <span className="text-lg font-normal text-gray-400 ml-2">contratos</span>
+              <span className="text-lg font-normal text-secondary opacity-60 ml-2">contratos</span>
             </p>
           )}
 
@@ -160,22 +160,22 @@ export default function ContratosPorVencerWidget() {
                         <Link
                           to="/app/clientes/$id"
                           params={{ id: clienteId }}
-                          className="text-sm font-medium text-gray-200 hover:text-fenix-400 transition-colors truncate block cursor-pointer"
+                          className="text-sm font-bold text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors truncate block cursor-pointer"
                           title={cups}
                         >
                           {clienteNombre}
                         </Link>
                       ) : (
-                        <span className="text-sm font-medium text-gray-200 truncate block" title={cups}>
+                        <span className="text-sm font-bold text-secondary truncate block" title={cups}>
                           {clienteNombre}
                         </span>
                       )}
-                      <span className="text-xs text-gray-500">{comercializadoraNombre}</span>
+                      <span className="text-xs text-secondary opacity-60 font-mono italic">{comercializadoraNombre}</span>
                     </div>
 
                     <div className="text-right ml-3">
-                      <span className="text-xs text-gray-400">Vence</span>
-                      <span className="block text-sm font-semibold text-amber-400">
+                      <span className="text-xs text-secondary opacity-60 font-medium">Vence</span>
+                      <span className="block text-sm font-bold text-amber-600 dark:text-amber-400">
                         {fmtDate(contrato.fecha_renovacion)}
                       </span>
                     </div>
@@ -184,7 +184,7 @@ export default function ContratosPorVencerWidget() {
               })}
             </ul>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-4">No hay contratos venciendo pronto.</p>
+            <p className="text-sm text-secondary opacity-60 text-center py-4 italic">No hay contratos venciendo pronto.</p>
           )}
 
           {count > 0 && (

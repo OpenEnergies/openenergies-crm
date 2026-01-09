@@ -367,12 +367,12 @@ export default function PuntoForm({ id }: { id?: string }) {
     <div className="animate-fade-in space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <MapPin className="text-fenix-500" size={28} />
+        <MapPin className="text-fenix-600 dark:text-fenix-400" size={28} />
         <div>
-          <h2 className="text-2xl font-bold text-fenix-500">
+          <h2 className="text-2xl font-bold text-primary">
             {editing ? 'Editar Punto de Suministro' : 'Nuevo Punto de Suministro'}
           </h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-secondary opacity-70 text-sm font-medium">
             {editing ? 'Modifica los datos del punto de suministro' : 'Registra un nuevo punto de suministro (CUPS)'}
           </p>
         </div>
@@ -381,7 +381,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       {isLoading && (
         <div className="glass-card p-12 flex items-center justify-center">
           <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
-          <p className="ml-3 text-gray-400 font-medium">Cargando datos...</p>
+          <p className="ml-3 text-secondary font-bold">Cargando datos...</p>
         </div>
       )}
 
@@ -390,7 +390,7 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 1: DATOS GENERALES ===== */}
           <div className="glass-card p-6 relative z-50">
-            <h3 className="text-lg font-semibold text-fenix-400 flex items-center gap-2 mb-6 pb-3 border-b border-bg-intermediate">
+            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
               <Building size={20} />
               Datos Generales
             </h3>
@@ -412,7 +412,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                     icon={<Building size={16} />}
                     allowEmpty={true}
                     emptyLabel="Sin comercializadora"
-                    labelClassName="text-sm font-medium text-emerald-400"
+                    labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                     error={errors.current_comercializadora_id?.message}
                   />
                 )}
@@ -436,14 +436,14 @@ export default function PuntoForm({ id }: { id?: string }) {
                     icon={<Users size={16} />}
                     error={errors.cliente_id?.message}
                     allowEmpty={false}
-                    labelClassName="text-sm font-medium text-emerald-400"
+                    labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                   />
                 )}
               />
 
               {/* Estado */}
               <div className="form-group">
-                <label htmlFor="estado" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="estado" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <FileText size={16} />
                   Estado *
                 </label>
@@ -451,7 +451,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                   id="estado"
                   {...register('estado')}
                   className="glass-input appearance-none bg-no-repeat bg-right pr-10 cursor-pointer hover:border-fenix-400 focus:border-fenix-500 transition-colors"
-                  style={{ backgroundImage: "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%2310B981\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"6 9 12 15 18 9\"></polyline></svg>')", backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px' }}
+                  style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\")", backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px' }}
                 >
                   {ESTADOS_PUNTO.map(e => (
                     <option key={e} value={e}>{e}</option>
@@ -464,7 +464,7 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 2: DATOS ESPECÍFICOS ===== */}
           <div className="glass-card p-6 relative z-40">
-            <h3 className="text-lg font-semibold text-fenix-400 flex items-center gap-2 mb-6 pb-3 border-b border-bg-intermediate">
+            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
               <Zap size={20} />
               Datos Específicos
             </h3>
@@ -472,7 +472,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             {/* Fila: Tipo Factura y Tarifa */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="form-group">
-                <label htmlFor="tipo_factura" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="tipo_factura" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <Zap size={16} />
                   Tipo Factura *
                 </label>
@@ -480,7 +480,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                   id="tipo_factura"
                   {...register('tipo_factura')}
                   className="glass-input appearance-none bg-no-repeat bg-right pr-10 cursor-pointer hover:border-fenix-400 focus:border-fenix-500 transition-colors"
-                  style={{ backgroundImage: "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%2310B981\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"6 9 12 15 18 9\"></polyline></svg>')", backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px' }}
+                  style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233B82F6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\")", backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px' }}
                 >
                   <option value="Luz">Luz</option>
                   <option value="Gas">Gas</option>
@@ -489,7 +489,7 @@ export default function PuntoForm({ id }: { id?: string }) {
               </div>
 
               <div className="form-group">
-                <label htmlFor="tarifa" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="tarifa" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <TrendingUp size={16} />
                   Tarifa de Acceso *
                 </label>
@@ -511,7 +511,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             {/* Potencias - visibles solo si NO es Gas */}
             {watchedTipoFactura !== 'Gas' && (
               <div className="mb-6">
-                <label className="text-sm font-medium text-emerald-400 flex items-center gap-2 mb-3 block">
+                <label className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2 mb-3 block">
                   <Zap size={16} />
                   Potencias Contratadas (kW)
                 </label>
@@ -524,7 +524,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                     return (
                       <div key={`p${i}`} className="form-group">
                         <div className="relative">
-                          <Zap size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDisabled ? 'text-gray-600' : 'text-gray-400'}`} />
+                          <Zap size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDisabled ? 'text-secondary/30' : 'text-secondary/60'}`} />
                           <input
                             type="number"
                             step="0.001"
@@ -546,7 +546,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             {/* Fila: CUPS, Consumo, FV, Compensación */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="form-group md:col-span-2">
-                <label htmlFor="cups" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="direccion_sum" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <Barcode size={16} />
                   CUPS *
                 </label>
@@ -561,7 +561,7 @@ export default function PuntoForm({ id }: { id?: string }) {
               </div>
 
               <div className="form-group">
-                <label htmlFor="consumo_anual_kwh" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="consumo_anual_kwh" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <TrendingUp size={16} />
                   Consumo Anual (kWh)
                 </label>
@@ -577,7 +577,7 @@ export default function PuntoForm({ id }: { id?: string }) {
               </div>
 
               <div className="form-group">
-                <label className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <Sun size={16} />
                   Fotovoltaica
                 </label>
@@ -587,10 +587,10 @@ export default function PuntoForm({ id }: { id?: string }) {
                       type="checkbox"
                       id="tiene_fv"
                       {...register('tiene_fv')}
-                      className="w-5 h-5 rounded border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 cursor-pointer"
+                      className="w-5 h-5 rounded border-2 border-primary/40 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 cursor-pointer"
                     />
-                    <Sun size={18} className={watchedTieneFV ? 'text-fenix-400' : 'text-gray-500'} />
-                    <span className="text-sm text-gray-300">{watchedTieneFV ? 'Sí' : 'No'}</span>
+                    <Sun size={18} className={watchedTieneFV ? 'text-fenix-600 dark:text-fenix-400' : 'text-secondary opacity-40'} />
+                    <span className="text-sm text-secondary font-medium">{watchedTieneFV ? 'Sí' : 'No'}</span>
                   </label>
                 </div>
               </div>
@@ -599,7 +599,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             {/* Compensación FV - siempre visible, bloqueada si no tiene FV */}
             <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="form-group">
-                <label htmlFor="fv_compensacion" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <label htmlFor="fv_compensacion" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <Sun size={16} />
                   Compensación FV
                 </label>
@@ -621,20 +621,20 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 3: DIRECCIONES ===== */}
           <div className="glass-card p-6 relative z-30">
-            <h3 className="text-lg font-semibold text-fenix-400 flex items-center gap-2 mb-6 pb-3 border-b border-bg-intermediate">
+            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
               <MapPin size={20} />
               Direcciones
             </h3>
 
             {/* Dirección de Suministro */}
             <div className="mb-6">
-              <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 bg-fenix-500 rounded-full"></span>
+              <h4 className="text-sm font-bold text-secondary flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 bg-fenix-500 rounded-full shadow-[0_0_8px_rgba(244,114,182,0.4)]"></span>
                 Dirección de Suministro *
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-group md:col-span-1">
-                  <label htmlFor="direccion_sum" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="cups" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Dirección
                   </label>
@@ -642,14 +642,14 @@ export default function PuntoForm({ id }: { id?: string }) {
                   {errors.direccion_sum && <p className="form-error">{errors.direccion_sum.message}</p>}
                 </div>
                 <div className="form-group">
-                  <label htmlFor="localidad_sum" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="localidad_sum" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Localidad
                   </label>
                   <input type="text" id="localidad_sum" {...register('localidad_sum')} className="glass-input" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="provincia_sum" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="provincia_sum" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Provincia
                   </label>
@@ -660,27 +660,27 @@ export default function PuntoForm({ id }: { id?: string }) {
 
             {/* Dirección Fiscal */}
             <div className="mb-6">
-              <h4 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 bg-bg-intermediate0 rounded-full"></span>
+              <h4 className="text-sm font-bold text-secondary opacity-60 flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 bg-primary/20 rounded-full"></span>
                 Dirección Fiscal (opcional)
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-group md:col-span-1">
-                  <label htmlFor="direccion_fisc" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="direccion_fisc" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Dirección
                   </label>
                   <input type="text" id="direccion_fisc" {...register('direccion_fisc')} className="glass-input" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="localidad_fisc" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="localidad_fisc" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Localidad
                   </label>
                   <input type="text" id="localidad_fisc" {...register('localidad_fisc')} className="glass-input" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="provincia_fisc" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="provincia_fisc" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Provincia
                   </label>
@@ -690,28 +690,28 @@ export default function PuntoForm({ id }: { id?: string }) {
             </div>
 
             {/* Dirección Postal */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 bg-bg-intermediate0 rounded-full"></span>
+            <div className="mb-6 opacity-60">
+              <h4 className="text-sm font-bold text-secondary flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 bg-primary/40 rounded-full"></span>
                 Dirección Postal (opcional)
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-group md:col-span-1">
-                  <label htmlFor="direccion_post" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="direccion_post" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Dirección
                   </label>
                   <input type="text" id="direccion_post" {...register('direccion_post')} className="glass-input" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="localidad_post" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="localidad_post" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Localidad
                   </label>
                   <input type="text" id="localidad_post" {...register('localidad_post')} className="glass-input" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="provincia_post" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <label htmlFor="provincia_post" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                     <MapPin size={16} />
                     Provincia
                   </label>
@@ -723,7 +723,7 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 4: COMERCIALES ===== */}
           <div className="glass-card p-6 relative z-20">
-            <h3 className="text-lg font-semibold text-fenix-400 flex items-center gap-2 mb-6 pb-3 border-b border-bg-intermediate">
+            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
               <Users size={20} />
               Comerciales Asignados
             </h3>
@@ -731,7 +731,7 @@ export default function PuntoForm({ id }: { id?: string }) {
             {/* Tags de comerciales seleccionados */}
             <div className="flex flex-wrap gap-2 mb-4">
               {selectedComerciales.length === 0 && (
-                <span className="text-sm text-gray-500">Sin comerciales asignados</span>
+                <span className="text-sm text-secondary opacity-40 italic">Sin comerciales asignados</span>
               )}
               {selectedComerciales.map(userId => {
                 const comercial = comerciales.find(c => c.user_id === userId);
@@ -739,7 +739,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                 return (
                   <span
                     key={userId}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-fenix-500/20 text-fenix-400 rounded-full text-sm font-medium"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-fenix-500/15 border border-fenix-500/30 text-fenix-600 dark:text-fourth rounded-full text-sm font-bold"
                   >
                     {comercial.nombre} {comercial.apellidos}
                     <button
@@ -758,21 +758,21 @@ export default function PuntoForm({ id }: { id?: string }) {
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-bg-intermediate hover:bg-bg-intermediate border border-bg-intermediate rounded-lg text-gray-300 text-sm transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-bg-intermediate hover:bg-bg-intermediate/80 border border-primary/20 rounded-lg text-primary text-sm font-bold transition-colors cursor-pointer"
                 onClick={() => setShowComercialDropdown(!showComercialDropdown)}
               >
                 <Plus size={16} /> Añadir comercial <ChevronDown size={14} className={`transition-transform ${showComercialDropdown ? 'rotate-180' : ''}`} />
               </button>
 
               {showComercialDropdown && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-bg-intermediate rounded-xl py-2 shadow-2xl z-50 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-64 glass-modal py-2 shadow-2xl z-50 max-h-60 overflow-y-auto">
                   {comerciales
                     .filter(c => !selectedComerciales.includes(c.user_id))
                     .map(c => (
                       <button
                         key={c.user_id}
                         type="button"
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-bg-intermediate hover:text-white transition-colors cursor-pointer"
+                        className="w-full text-left px-4 py-2.5 text-sm text-secondary hover:bg-bg-intermediate hover:text-primary font-medium transition-colors cursor-pointer"
                         onClick={() => {
                           handleToggleComercial(c.user_id);
                           setShowComercialDropdown(false);
@@ -782,7 +782,7 @@ export default function PuntoForm({ id }: { id?: string }) {
                       </button>
                     ))}
                   {comerciales.filter(c => !selectedComerciales.includes(c.user_id)).length === 0 && (
-                    <div className="px-4 py-2 text-gray-500 text-sm">
+                    <div className="px-4 py-2 text-secondary opacity-40 text-sm italic">
                       No hay más comerciales disponibles
                     </div>
                   )}

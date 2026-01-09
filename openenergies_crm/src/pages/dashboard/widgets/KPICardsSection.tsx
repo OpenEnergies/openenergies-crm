@@ -61,9 +61,9 @@ function KPICard({
                 <Icon className={`w-6 h-6 ${iconColor}`} />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-400 mb-1">{label}</p>
-                <p className="text-2xl font-bold text-fenix-500">{value}</p>
-                {subValue && <p className="text-xs text-gray-500 mt-0.5">{subValue}</p>}
+                <p className="text-sm text-secondary font-bold uppercase tracking-tight mb-1">{label}</p>
+                <p className="text-2xl font-bold text-fenix-600 dark:text-fourth">{value}</p>
+                {subValue && <p className="text-xs text-secondary opacity-70 mt-0.5">{subValue}</p>}
             </div>
         </div>
     );
@@ -90,7 +90,7 @@ export default function KPICardsSection() {
 
     if (isError || !data) {
         return (
-            <div className="glass-card p-5 text-center text-red-400">
+            <div className="glass-card p-5 text-center text-red-600 dark:text-red-400 font-medium">
                 Error al cargar los indicadores
             </div>
         );
@@ -98,28 +98,32 @@ export default function KPICardsSection() {
 
     return (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            <KPICard
-                icon={FileCheck}
-                label="Contratos Activos"
-                value={data.contratosActivos}
-                subValue="Firmados, contratados o en curso"
-            />
-            <KPICard
-                icon={Zap}
-                label="Energía Gestionada"
-                value={`${data.energiaGestionadaGWh.toFixed(2)} GWh`}
-                subValue="Consumo anual de contratos activos"
-                iconColor="text-amber-400"
-                iconBgColor="bg-amber-500/20"
-            />
-            <KPICard
-                icon={Clock}
-                label="Puntos en Proceso"
-                value={data.puntosEnProceso}
-                subValue="Pendientes de firma"
-                iconColor="text-blue-400"
-                iconBgColor="bg-blue-500/20"
-            />
+            {data && (
+                <>
+                    <KPICard
+                        icon={FileCheck}
+                        label="Contratos Activos"
+                        value={data.contratosActivos}
+                        subValue="Firmados, contratados o en curso"
+                    />
+                    <KPICard
+                        icon={Zap}
+                        label="Energía Gestionada"
+                        value={`${data.energiaGestionadaGWh.toFixed(2)} GWh`}
+                        subValue="Consumo anual de contratos activos"
+                        iconColor="text-amber-400"
+                        iconBgColor="bg-amber-500/20"
+                    />
+                    <KPICard
+                        icon={Clock}
+                        label="Puntos en Proceso"
+                        value={data.puntosEnProceso}
+                        subValue="Pendientes de firma"
+                        iconColor="text-blue-400"
+                        iconBgColor="bg-blue-500/20"
+                    />
+                </>
+            )}
         </div>
     );
 }

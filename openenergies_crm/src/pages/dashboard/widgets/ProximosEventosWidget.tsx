@@ -54,9 +54,9 @@ export default function ProximosEventosWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
-          <CalendarDays className="w-4 h-4 text-fenix-500" />
+          <CalendarDays className="w-4 h-4 text-fenix-600 dark:text-fenix-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Próximos Eventos</h3>
+        <h3 className="text-base font-bold text-primary">Próximos Eventos</h3>
       </div>
 
       {/* Loading */}
@@ -68,12 +68,12 @@ export default function ProximosEventosWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar eventos.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium italic">Error al cargar eventos.</p>
       )}
 
       {/* Empty */}
       {!isLoading && !isError && eventos && eventos.length === 0 && (
-        <p className="text-sm text-gray-400 text-center py-4">No hay eventos próximos.</p>
+        <p className="text-sm text-secondary opacity-60 text-center py-4 italic">No hay eventos próximos.</p>
       )}
 
       {/* Content */}
@@ -84,10 +84,10 @@ export default function ProximosEventosWidget() {
               key={evento.id}
               className="flex items-center justify-between pb-3 border-b border-bg-intermediate last:border-0"
             >
-              <span className="text-sm font-medium text-gray-200 truncate pr-3">
+              <span className="text-sm font-bold text-secondary truncate pr-3">
                 {evento.titulo}
               </span>
-              <span className="text-xs text-gray-400 whitespace-nowrap">
+              <span className="text-xs text-secondary opacity-60 whitespace-nowrap font-medium">
                 {format(parseISO(evento.fecha_inicio), 'dd MMM HH:mm', { locale: es })}
               </span>
             </li>

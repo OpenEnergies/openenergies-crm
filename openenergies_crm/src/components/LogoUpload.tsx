@@ -231,7 +231,7 @@ export default function LogoUpload({
                             className="w-full h-full object-contain p-1"
                         />
                     ) : (
-                        <Upload className="w-6 h-6 text-gray-400" />
+                        <Upload className="w-6 h-6 text-secondary opacity-50" />
                     )}
                 </div>
 
@@ -273,7 +273,7 @@ export default function LogoUpload({
                 </div>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-secondary opacity-70">
                 Formatos: PNG, JPG, JPEG, SVG. Se convertirá a PNG. Máx: 5MB
             </p>
         </div>

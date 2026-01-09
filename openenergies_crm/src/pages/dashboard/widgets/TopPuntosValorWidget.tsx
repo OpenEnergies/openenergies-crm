@@ -49,13 +49,13 @@ export default function TopPuntosValorWidget() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-fenix-500" />
+                        <TrendingUp className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
                     </div>
-                    <h3 className="text-base font-semibold text-white">Puntos de Alto Valor</h3>
+                    <h3 className="text-base font-bold text-primary">Puntos de Alto Valor</h3>
                 </div>
                 <Link
                     to="/app/puntos"
-                    className="text-sm text-fenix-500 hover:text-fenix-400 transition-colors"
+                    className="text-sm font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer"
                 >
                     Ver todos →
                 </Link>
@@ -75,7 +75,7 @@ export default function TopPuntosValorWidget() {
             )}
 
             {data && data.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-secondary opacity-60 font-medium italic">
                     No hay puntos con consumo registrado
                 </div>
             )}
@@ -90,10 +90,10 @@ export default function TopPuntosValorWidget() {
                             {/* Rank */}
                             <div className={`
                 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-                ${index === 0 ? 'bg-amber-500/20 text-amber-400' :
-                                    index === 1 ? 'bg-gray-400/20 text-gray-300' :
-                                        index === 2 ? 'bg-orange-500/20 text-orange-400' :
-                                            'bg-bg-intermediate text-gray-400'}
+                ${index === 0 ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' :
+                                    index === 1 ? 'bg-slate-400/20 text-slate-600 dark:text-slate-400' :
+                                        index === 2 ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400' :
+                                            'bg-bg-intermediate text-secondary opacity-50'}
               `}>
                                 {index + 1}
                             </div>
@@ -103,21 +103,21 @@ export default function TopPuntosValorWidget() {
                                 <Link
                                     to="/app/clientes/$id"
                                     params={{ id: punto.clientes?.id || '' }}
-                                    className="text-sm font-medium text-white hover:text-fenix-400 transition-colors truncate block"
+                                    className="text-sm font-bold text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors truncate block"
                                 >
                                     {punto.clientes?.nombre || 'Sin cliente'}
                                 </Link>
-                                <p className="text-xs text-gray-500 font-mono truncate">{punto.cups}</p>
+                                <p className="text-xs text-secondary opacity-60 font-mono truncate">{punto.cups}</p>
                             </div>
 
                             {/* Value */}
                             <div className="text-right flex-shrink-0">
-                                <div className="flex items-center gap-1 text-fenix-500 font-semibold">
+                                <div className="flex items-center gap-1 text-fenix-600 dark:text-fourth font-bold">
                                     <Zap className="w-4 h-4" />
                                     <span>{punto.consumo_anual_kwh ? formatKwh(punto.consumo_anual_kwh) : '—'}</span>
                                 </div>
                                 {punto.p1_kw && (
-                                    <p className="text-xs text-gray-500">{punto.p1_kw} kW</p>
+                                    <p className="text-xs text-secondary opacity-60 font-medium">{punto.p1_kw} kW</p>
                                 )}
                             </div>
                         </div>

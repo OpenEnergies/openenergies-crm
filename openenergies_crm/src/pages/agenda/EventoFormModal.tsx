@@ -233,16 +233,16 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="glass-modal w-full max-w-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Calendar className="text-fenix-400" />
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-bg-intermediate">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Calendar className="text-fenix-600 dark:text-fenix-400" />
             {isEditMode ? 'Editar Evento' : 'Crear Evento'}
           </h2>
           <div className="flex items-center gap-2">
             {isEditMode && (
               <button
                 type="button"
-                className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
                 title="Eliminar Evento"
                 onClick={() => setIsDeleting(true)}
                 disabled={deleteMutation.isPending}
@@ -252,7 +252,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
             )}
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
             >
               <X size={20} />
             </button>
@@ -270,7 +270,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
               <>
                 {/* Título */}
                 <div className="space-y-2">
-                  <label htmlFor="titulo" className="text-sm font-medium text-gray-300">Título del evento</label>
+                  <label htmlFor="titulo" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">Título del evento</label>
                   <input
                     id="titulo"
                     {...register('titulo')}
@@ -283,7 +283,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Etiqueta */}
                   <div className="space-y-2">
-                    <label htmlFor="etiqueta" className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <label htmlFor="etiqueta" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-2">
                       <Tag size={16} /> Etiqueta
                     </label>
                     <div className="relative">
@@ -307,7 +307,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
 
                   {/* Color */}
                   <div className="space-y-2">
-                    <label htmlFor="color" className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <label htmlFor="color" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-2">
                       <Palette size={16} /> Color
                     </label>
                     <input type="hidden" id="color" {...register('color')} />
@@ -330,7 +330,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500">Fecha</label>
+                      <label className="text-xs text-slate-500 dark:text-slate-500">Fecha</label>
                       <input
                         type="date"
                         {...register('fecha_inicio_fecha')}
@@ -340,7 +340,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       {errors.fecha_inicio_fecha && <span className="text-xs text-red-400">{errors.fecha_inicio_fecha.message}</span>}
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500">Hora</label>
+                      <label className="text-xs text-slate-500 dark:text-slate-500">Hora</label>
                       <Controller
                         name="fecha_inicio_hora"
                         control={control}
@@ -376,7 +376,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500">Fecha</label>
+                      <label className="text-xs text-slate-500 dark:text-slate-500">Fecha</label>
                       <input
                         type="date"
                         {...register('fecha_fin_fecha')}
@@ -386,7 +386,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                       {errors.fecha_fin_fecha && <span className="text-xs text-red-400">{errors.fecha_fin_fecha.message}</span>}
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500">Hora</label>
+                      <label className="text-xs text-slate-500 dark:text-slate-500">Hora</label>
                       <Controller
                         name="fecha_fin_hora"
                         control={control}
@@ -420,7 +420,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-bg-intermediate bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
+        <div className="p-6 border-t border-slate-200 dark:border-bg-intermediate bg-slate-50 dark:bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
           <button
             type="button"
             className="btn-secondary cursor-pointer"

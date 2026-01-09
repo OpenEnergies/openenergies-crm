@@ -119,15 +119,18 @@ export default function UsuariosList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-fenix-500" />
+            <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-fenix-500">Gestión de Usuarios</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Gestión de Usuarios</h1>
+            <p className="text-secondary opacity-70">Administra los accesos y roles de la plataforma.</p>
+          </div>
         </div>
 
         <Link to="/app/usuarios/invitar">
-          <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
+          <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 transition-all duration-200 cursor-pointer">
             <UserRoundPlus size={18} />
-            <span className="hidden sm:inline">Invitar</span>
+            Invitar
           </button>
         </Link>
       </div>
@@ -157,11 +160,11 @@ export default function UsuariosList() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
+                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('nombre_completo' as unknown as any)}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Nombre {renderSortIcon('nombre_completo' as unknown as any)}
                     </button>
@@ -169,7 +172,7 @@ export default function UsuariosList() {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('email' as unknown as any)}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Email {renderSortIcon('email' as unknown as any)}
                     </button>
@@ -178,7 +181,7 @@ export default function UsuariosList() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleSort('rol' as unknown as any)}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         Rol {renderSortIcon('rol' as unknown as any)}
                       </button>
@@ -193,7 +196,7 @@ export default function UsuariosList() {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('empresa_nombre' as unknown as any)}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Empresa {renderSortIcon('empresa_nombre' as unknown as any)}
                     </button>
@@ -201,34 +204,36 @@ export default function UsuariosList() {
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('activo')}
-                      className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
                       Estado {renderSortIcon('activo')}
                     </button>
                   </th>
                   <th className="p-4 text-right">
-                    <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">Acciones</span>
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider">Acciones</span>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-fenix-500/10">
                 {displayedData.length > 0 ? (
                   displayedData.map(u => (
-                    <tr key={u.user_id} className="hover:bg-fenix-500/8 transition-colors">
-                      <td className="p-4 font-medium text-white">{u.nombre} {u.apellidos}</td>
-                      <td className="p-4 text-gray-400">{u.email}</td>
+                    <tr key={u.user_id} className="hover:bg-bg-intermediate/50 transition-colors">
+                      <td className="p-4 font-bold text-secondary">
+                        {u.nombre} {u.apellidos}
+                      </td>
+                      <td className="p-4 text-secondary font-medium">{u.email}</td>
                       <td className="p-4">
-                        <span className="px-2 py-1 text-xs font-medium rounded-md bg-bg-intermediate text-gray-300">
+                        <span className="px-2 py-1 text-xs font-bold rounded-md bg-bg-intermediate text-secondary">
                           {u.rol}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-400">{u.empresas?.nombre ?? '—'}</td>
+                      <td className="p-4 text-secondary font-medium">{u.empresas?.nombre ?? '—'}</td>
                       <td className="p-4">
                         <span className={`
-                          px-2 py-1 text-xs font-medium rounded-full
+                          px-2 py-1 text-xs font-bold rounded-full
                           ${u.activo
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'}
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-red-500/10 text-red-600 dark:text-red-400'}
                         `}>
                           {u.activo ? 'Activo' : 'Bloqueado'}
                         </span>
@@ -238,7 +243,7 @@ export default function UsuariosList() {
                           <Link
                             to="/app/usuarios/$id/editar"
                             params={{ id: u.user_id }}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                             title="Editar usuario"
                           >
                             <Pencil size={16} />
@@ -247,8 +252,8 @@ export default function UsuariosList() {
                             className={`
                               p-1.5 rounded-lg transition-colors
                               ${u.activo
-                                ? 'text-gray-400 hover:text-amber-400 hover:bg-amber-500/10'
-                                : 'text-gray-400 hover:text-green-400 hover:bg-green-500/10'}
+                                ? 'text-secondary hover:text-amber-500 hover:bg-amber-500/10'
+                                : 'text-secondary hover:text-green-500 hover:bg-green-500/10'}
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400
                             `}
                             onClick={() => toggleActiveMutation.mutate({ userId: u.user_id, newActiveState: !u.activo })}
@@ -262,7 +267,7 @@ export default function UsuariosList() {
                           </button>
 
                           <button
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-secondary hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                             onClick={() => setUserToReset({ email: u.email! })}
                             disabled={resetPasswordMutation.isPending}
                             title="Enviar correo de restablecimiento de contraseña"
@@ -271,7 +276,7 @@ export default function UsuariosList() {
                           </button>
 
                           <button
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                            className="p-1.5 rounded-lg text-secondary hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             onClick={() => setUserToDelete(u)}
                             disabled={u.user_id === currentUserId || deleteMutation.isPending}
                             title={u.user_id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
@@ -300,12 +305,12 @@ export default function UsuariosList() {
       {/* Delete Modal */}
       {userToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-gray-900 border border-bg-intermediate rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-xl font-semibold text-white mb-4">Confirmar Eliminación</h3>
-            <p className="text-gray-300 mb-6">
-              ¿Estás seguro de que quieres eliminar al usuario <strong className="text-white">{userToDelete.nombre} {userToDelete.apellidos}</strong>?
+          <div className="w-full max-w-md glass-modal p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-primary mb-4">Confirmar Eliminación</h3>
+            <p className="text-secondary mb-6">
+              ¿Estás seguro de que quieres eliminar al usuario <strong className="text-primary">{userToDelete.nombre} {userToDelete.apellidos}</strong>?
               <br />
-              <span className="text-red-400 text-sm">Esta acción es irreversible.</span>
+              <span className="text-red-500 font-medium text-sm">Esta acción es irreversible.</span>
             </p>
             <div className="flex justify-end gap-3">
               <button

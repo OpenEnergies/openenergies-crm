@@ -1,10 +1,14 @@
 // src/pages/empresas/EmpresaPuntos.tsx
+import { useState } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { empresaDetailRoute } from '@router/routes';
 import { EmptyState } from '@components/EmptyState';
+import { Pagination } from '@components/Pagination';
 import { ExternalLink, Loader2 } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 20;
 
 interface PuntoDeEmpresa {
   id: string;
@@ -53,6 +57,7 @@ async function fetchPuntosDeEmpresa(empresaId: string): Promise<PuntoDeEmpresa[]
 
 export default function EmpresaPuntos() {
   const { id: empresaId } = useParams({ from: empresaDetailRoute.id });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: puntos, isLoading, isError } = useQuery({
     queryKey: ['empresa-puntos', empresaId],
@@ -60,11 +65,19 @@ export default function EmpresaPuntos() {
     enabled: !!empresaId,
   });
 
+  // Pagination logic
+  const totalItems = puntos?.length || 0;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const paginatedPuntos = puntos?.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  ) || [];
+
   if (isLoading) {
     return (
       <div className="glass-card p-6 flex items-center justify-center gap-3">
         <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
-        <span className="text-gray-400">Cargando puntos de suministro...</span>
+        <span className="text-secondary font-medium">Cargando puntos de suministro...</span>
       </div>
     );
   }
@@ -89,23 +102,23 @@ export default function EmpresaPuntos() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-bg-intermediate">
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">CUPS</th>
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Cliente</th>
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Dirección</th>
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Tarifa</th>
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Consumo Anual</th>
-              <th className="p-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Estado</th>
+            <tr className="border-b-2 border-primary bg-bg-intermediate">
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">CUPS</th>
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Cliente</th>
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Dirección</th>
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Tarifa</th>
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Consumo Anual</th>
+              <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
             </tr>
           </thead>
           <tbody>
-            {puntos.map((punto) => (
-              <tr key={punto.id} className="border-b border-bg-intermediate hover:bg-bg-intermediate transition-colors cursor-pointer">
+            {paginatedPuntos.map((punto) => (
+              <tr key={punto.id} className="border-b border-primary/10 hover:bg-bg-intermediate/50 transition-colors cursor-pointer">
                 <td className="p-4">
                   <Link
                     to="/app/puntos/$id"
                     params={{ id: punto.id }}
-                    className="inline-flex items-center gap-2 text-fenix-400 hover:text-fenix-300 transition-colors"
+                    className="inline-flex items-center gap-2 text-fenix-600 dark:text-fourth hover:text-fenix-500 transition-colors"
                   >
                     <code className="font-mono text-sm">{punto.cups}</code>
                     <ExternalLink size={14} />
@@ -116,28 +129,28 @@ export default function EmpresaPuntos() {
                     <Link
                       to="/app/clientes/$id"
                       params={{ id: punto.cliente.id }}
-                      className="text-gray-300 hover:text-white transition-colors"
+                      className="text-primary font-bold hover:text-fenix-600 dark:hover:text-fourth transition-colors"
                     >
                       {punto.cliente.nombre}
                     </Link>
-                  ) : <span className="text-gray-500">—</span>}
+                  ) : <span className="text-secondary opacity-50">—</span>}
                 </td>
-                <td className="p-4 text-gray-400">{punto.direccion_sum || '—'}</td>
+                <td className="p-4 text-secondary">{punto.direccion_sum || '—'}</td>
                 <td className="p-4">
                   {punto.tarifa && (
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-bg-intermediate text-gray-300">
+                    <span className="px-2 py-1 rounded text-xs font-medium bg-bg-intermediate text-secondary">
                       {punto.tarifa}
                     </span>
                   )}
                 </td>
-                <td className="p-4 text-gray-400">
+                <td className="p-4 text-secondary">
                   {punto.consumo_anual_kwh
                     ? `${punto.consumo_anual_kwh.toLocaleString('es-ES')} kWh`
                     : '—'}
                 </td>
                 <td className="p-4">
                   {punto.estado && (
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-bg-intermediate text-gray-300">
+                    <span className="px-2 py-1 rounded text-xs font-medium bg-bg-intermediate text-secondary">
                       {punto.estado}
                     </span>
                   )}
@@ -147,6 +160,15 @@ export default function EmpresaPuntos() {
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setCurrentPage}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
 }

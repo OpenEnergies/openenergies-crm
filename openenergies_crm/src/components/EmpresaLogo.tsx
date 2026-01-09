@@ -88,7 +88,7 @@ export default function EmpresaLogo({
                     {nombre.charAt(0).toUpperCase()}
                 </span>
             ) : (
-                <Building2 size={config.icon} className="text-gray-400" />
+                <Building2 size={config.icon} className="text-secondary opacity-50" />
             )}
         </div>
     );

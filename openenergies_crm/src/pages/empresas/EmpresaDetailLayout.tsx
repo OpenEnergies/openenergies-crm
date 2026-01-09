@@ -2,7 +2,7 @@ import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { empresaDetailRoute } from '@router/routes';
-import { Building2, FileText, Users, Zap, ArrowLeft, Pencil, Loader2 } from 'lucide-react';
+import { Building2, FileText, Users, Zap, ArrowLeft, Pencil, Loader2, Receipt, Activity } from 'lucide-react';
 import EmpresaLogo from '@components/EmpresaLogo';
 
 interface EmpresaDetallada {
@@ -79,6 +79,8 @@ export default function EmpresaDetailLayout() {
     { path: `${basePath}/clientes`, label: 'Clientes' },
     { path: `${basePath}/puntos`, label: 'Puntos' },
     { path: `${basePath}/contratos`, label: 'Contratos' },
+    { path: `${basePath}/facturas`, label: 'Facturas' },
+    { path: `${basePath}/actividad`, label: 'Actividad' },
   ];
 
   if (!empresaId) {
@@ -93,7 +95,7 @@ export default function EmpresaDetailLayout() {
     return (
       <div className="glass-card p-6 flex items-center justify-center gap-3">
         <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
-        <span className="text-gray-400">Cargando ficha de empresa...</span>
+        <span className="text-secondary opacity-70 font-medium">Cargando ficha de empresa...</span>
       </div>
     );
   }
@@ -111,7 +113,7 @@ export default function EmpresaDetailLayout() {
       {/* Back Link */}
       <Link
         to="/app/empresas"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+        className="inline-flex items-center gap-2 text-secondary hover:text-primary transition-colors font-medium text-sm"
       >
         <ArrowLeft size={16} />
         Volver a Empresas
@@ -129,12 +131,12 @@ export default function EmpresaDetailLayout() {
               size="lg"
             />
             <div>
-              <h2 className="text-2xl font-bold text-white">{empresa.nombre}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">
+              <h2 className="text-2xl font-bold text-primary">{empresa.nombre}</h2>
+              <p className="text-sm text-secondary opacity-70 mt-0.5 font-medium">
                 {empresa.tipo === 'comercializadora' ? 'Comercializadora' : 'Fenix New Energy'}
               </p>
               {empresa.cif && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-secondary opacity-50 mt-1 font-mono">
                   CIF: {empresa.cif}
                 </p>
               )}
@@ -147,7 +149,7 @@ export default function EmpresaDetailLayout() {
             <Link
               to="/app/empresas/$id/editar"
               params={{ id: empresaId }}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors"
+              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
               title="Editar empresa"
             >
               <Pencil size={18} />
@@ -159,11 +161,11 @@ export default function EmpresaDetailLayout() {
               {/* Contratos Activos */}
               <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
                 <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
-                  <FileText size={16} className="text-fenix-400" />
+                  <FileText size={16} className="text-fenix-600 dark:text-fenix-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-white">{empresa.contratos_activos_count}</p>
-                  <p className="text-xs text-fenix-200 font-medium">Contratos Activos</p>
+                  <p className="text-xl font-bold text-primary">{empresa.contratos_activos_count}</p>
+                  <p className="text-xs text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">Contratos Activos</p>
                 </div>
               </div>
 
@@ -171,11 +173,11 @@ export default function EmpresaDetailLayout() {
               {/* Clientes */}
               <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
                 <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
-                  <Users size={16} className="text-fenix-400" />
+                  <Users size={16} className="text-fenix-600 dark:text-fenix-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-white">{empresa.clientes_count}</p>
-                  <p className="text-xs text-fenix-200 font-medium">Cliente{empresa.clientes_count === 1 ? '' : 's'}</p>
+                  <p className="text-xl font-bold text-primary">{empresa.clientes_count}</p>
+                  <p className="text-xs text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">Cliente{empresa.clientes_count === 1 ? '' : 's'}</p>
                 </div>
               </div>
 
@@ -183,11 +185,11 @@ export default function EmpresaDetailLayout() {
               {/* Puntos */}
               <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-fenix-500/10 border-2 border-fenix-500/20 shadow-sm">
                 <div className="w-8 h-8 rounded-lg bg-fenix-500/20 flex items-center justify-center">
-                  <Zap size={16} className="text-fenix-400" />
+                  <Zap size={16} className="text-fenix-600 dark:text-fenix-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-white">{empresa.puntos_count}</p>
-                  <p className="text-xs text-fenix-200 font-medium">Punto{empresa.puntos_count === 1 ? '' : 's'}</p>
+                  <p className="text-xl font-bold text-primary">{empresa.puntos_count}</p>
+                  <p className="text-xs text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">Punto{empresa.puntos_count === 1 ? '' : 's'}</p>
                 </div>
               </div>
             </div>
@@ -196,7 +198,7 @@ export default function EmpresaDetailLayout() {
       </div>
 
       {/* Tab Navigation - iOS Style */}
-      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-bg-intermediate overflow-x-auto">
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-primary overflow-x-auto">
         {navLinks.map(link => {
           const isActive = location.pathname.startsWith(link.path);
           return (
@@ -204,10 +206,10 @@ export default function EmpresaDetailLayout() {
               key={link.path}
               to={link.path}
               className={`
-                px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200
+                px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all duration-200
                 ${isActive
-                  ? 'bg-fenix-500/15 text-fenix-400 shadow-sm border border-fenix-500/30 ring-1 ring-fenix-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+                  ? 'bg-fenix-500/20 text-fenix-600 dark:text-fourth shadow-sm border-2 border-fenix-500/40'
+                  : 'text-secondary hover:text-primary hover:bg-bg-intermediate opacity-70 hover:opacity-100'}
               `}
             >
               {link.label}

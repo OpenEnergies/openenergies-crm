@@ -115,14 +115,14 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="glass-modal w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Calendar className="text-fenix-400" />
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-bg-intermediate">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Calendar className="text-fenix-600 dark:text-fenix-400" />
             Añadir Vacaciones
           </h3>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -133,11 +133,11 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
           {/* Selector de usuario (solo para admin) */}
           {isAdmin && (
             <div className="space-y-2">
-              <label htmlFor="usuario" className="text-sm font-medium text-gray-300">
+              <label htmlFor="usuario" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">
                 Usuario *
               </label>
               {loadingUsuarios ? (
-                <div className="flex items-center gap-2 p-3 text-gray-500">
+                <div className="flex items-center gap-2 p-3 text-slate-500 dark:text-slate-500">
                   <Loader2 className="animate-spin w-4 h-4" />
                   <span>Cargando usuarios...</span>
                 </div>
@@ -160,7 +160,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
                 </div>
               )}
               {selectedUser && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {selectedUser.email}
                 </p>
               )}
@@ -225,7 +225,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-bg-intermediate bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
+        <div className="p-6 border-t border-slate-200 dark:border-bg-intermediate bg-slate-50 dark:bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
           <button
             type="button"
             className="btn-secondary"
@@ -395,14 +395,14 @@ export default function VacacionesPage() {
         <div className="flex items-center gap-4">
           <Link
             to="/app/agenda"
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors cursor-pointer"
             title="Volver a Agenda"
           >
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-white">Gestión de Vacaciones</h2>
-            <p className="text-gray-400">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Vacaciones</h2>
+            <p className="text-slate-600 dark:text-slate-400">
               {isAdmin ? 'Gestiona las vacaciones de todos los usuarios' : 'Gestiona tus períodos de vacaciones'}
             </p>
           </div>
@@ -430,13 +430,13 @@ export default function VacacionesPage() {
       {isLoading ? (
         <div className="glass-card p-12 flex flex-col items-center justify-center gap-4">
           <Loader2 className="animate-spin text-fenix-500" size={32} />
-          <p className="text-gray-400">Cargando vacaciones...</p>
+          <p className="text-slate-500 dark:text-slate-400">Cargando vacaciones...</p>
         </div>
       ) : !vacaciones || vacaciones.length === 0 ? (
         <div className="glass-card p-12 flex flex-col items-center justify-center gap-4 text-center">
-          <Calendar size={48} className="text-gray-600 mb-2" />
-          <h3 className="text-xl font-medium text-white">No hay vacaciones registradas</h3>
-          <p className="text-gray-400">Haz clic en "Añadir Vacaciones" para crear tu primer período.</p>
+          <Calendar size={48} className="text-slate-400 dark:text-slate-600 mb-2" />
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">No hay vacaciones registradas</h3>
+          <p className="text-slate-500 dark:text-slate-400">Haz clic en "Añadir Vacaciones" para crear tu primer período.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -459,29 +459,29 @@ export default function VacacionesPage() {
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">{userData.nombre}</span>
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-bg-intermediate text-gray-400 capitalize">
+                        <span className="font-semibold text-slate-900 dark:text-white">{userData.nombre}</span>
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-bg-intermediate text-slate-500 dark:text-slate-400 capitalize">
                           {userData.rol}
                         </span>
                         {tieneVacacionEnCurso && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-400 font-medium">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">
                             En vacaciones
                           </span>
                         )}
                         {tieneVacacionProxima && !tieneVacacionEnCurso && (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-400 font-medium">
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium">
                             Próximamente
                           </span>
                         )}
                       </div>
-                      <span className="text-sm text-gray-400">{userData.email}</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">{userData.email}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <div className="text-xl font-bold text-fenix-400">{userData.totalDias}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xl font-bold text-fenix-600 dark:text-fenix-400">{userData.totalDias}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         {userData.periodos.length} período{userData.periodos.length !== 1 ? 's' : ''}
                       </div>
                     </div>
@@ -520,22 +520,22 @@ export default function VacacionesPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-white">
+                                  <span className="font-medium text-slate-900 dark:text-white">
                                     {formatFecha(v.fecha_inicio)} - {formatFecha(v.fecha_fin)}
                                   </span>
                                   {enCurso && (
-                                    <span className="text-xs text-emerald-400 font-medium">
+                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                                       (En curso)
                                     </span>
                                   )}
                                   {proximo && (
-                                    <span className="text-xs text-amber-400 font-medium">
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                                       (Próximo)
                                     </span>
                                   )}
                                 </div>
                                 {v.descripcion && (
-                                  <p className="text-sm text-gray-400 italic mt-0.5">
+                                  <p className="text-sm text-slate-500 dark:text-slate-400 italic mt-0.5">
                                     {v.descripcion}
                                   </p>
                                 )}

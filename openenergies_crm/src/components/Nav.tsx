@@ -1,7 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { canSeeModule } from '@lib/permissions';
 import { useSession } from '@hooks/useSession';
-import { Home, Users, Building2, Handshake, Files, Zap, ChartNoAxesCombined, CalendarCheck, CalendarDays, BriefcaseBusiness, Layers, Radio, Receipt } from 'lucide-react';
+import { Home, Users, Building2, Handshake, Files, Zap, ChartNoAxesCombined, CalendarCheck, CalendarDays, BriefcaseBusiness, Layers, Radio, Receipt, Scale } from 'lucide-react';
 
 export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
   const { location } = useRouterState();
@@ -17,9 +17,10 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     { to: '/app/renovaciones', label: 'Renovaciones', icon: CalendarCheck, module: 'renovaciones' },
     { to: '/app/usuarios', label: 'Usuarios', icon: Users, module: 'usuarios' },
     { to: '/app/agenda', label: 'Agenda', icon: CalendarDays, module: 'agenda' },
-    { to: '/app/comparativas/nueva', label: 'Comparativas', icon: ChartNoAxesCombined, module: 'comparativas' },
+    { to: '/app/comparativas/nueva', label: 'Comparativas', icon: Scale, module: 'comparativas' },
     { to: '/app/documentos', label: 'Documentos', icon: Files, module: 'documentos' },
     { to: '/app/facturas', label: 'Facturas', icon: Receipt, module: 'facturas' },
+    { to: '/app/analiticas', label: 'Analíticas', icon: ChartNoAxesCombined, module: 'estadisticas' },
   ];
 
   const visibleItems = navItems.filter(item => {
@@ -40,8 +41,8 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
                   flex items-center gap-3 px-3 py-2.5 rounded-lg
                   transition-all duration-200
                   ${isActive
-                    ? 'bg-fenix-500/15 text-fenix-400 border-l-2 border-fenix-500 ml-0'
-                    : 'text-gray-400 hover:text-white hover:bg-fenix-500/8'}
+                    ? 'bg-fenix-500/15 text-fenix-600 dark:text-fenix-400 border-l-2 border-fenix-500 ml-0'
+                    : 'text-secondary hover:text-primary hover:bg-fenix-500/8'}
                 `}
               >
                 <item.icon size={20} className="flex-shrink-0" />

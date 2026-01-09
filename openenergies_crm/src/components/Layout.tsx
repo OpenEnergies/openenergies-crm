@@ -43,7 +43,7 @@ export default function Layout() {
       <div className="min-h-screen bg-bg-primary flex items-center justify-center">
         <div className="glass-card p-8 flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          <span className="text-gray-400">Cargando sesión...</span>
+          <span className="text-secondary">Cargando sesión...</span>
         </div>
       </div>
     );
@@ -81,7 +81,7 @@ export default function Layout() {
         <div className="p-3 border-b border-bg-intermediate">
           <Link
             to="/app"
-            className="flex items-center gap-3 text-white hover:text-fenix-400 transition-colors"
+            className="flex items-center gap-3 text-primary hover:text-fenix-500 transition-colors"
           >
             <div className="w-9 h-9 rounded-lg bg-white/90 flex items-center justify-center flex-shrink-0">
               <img src="/logo_openenergies.png" alt="OE" className="w-9 h-9" />
@@ -101,7 +101,7 @@ export default function Layout() {
 
         {/* Copyright */}
         <div className={`
-          mt-auto px-3 py-2 text-xs text-gray-500 text-center border-t border-bg-intermediate
+          mt-auto px-3 py-2 text-xs text-secondary text-center border-t border-primary
           transition-opacity duration-200
           ${isCollapsed ? 'opacity-0' : 'opacity-100'}
         `}>
@@ -128,12 +128,12 @@ export default function Layout() {
               isOpen={isNavOpen}
               onClick={() => setIsNavOpen(!isNavOpen)}
             />
-            <span className="font-semibold text-white">CRM Open Energies</span>
+            <span className="font-semibold text-primary">CRM Open Energies</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
               to="/app/notificaciones"
-              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors"
+              className="relative p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
               title="Notificaciones"
             >
               <Bell size={20} />
@@ -158,7 +158,7 @@ export default function Layout() {
             {/* Notifications */}
             <Link
               to="/app/notificaciones"
-              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors"
+              className="relative p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
               title="Notificaciones"
             >
               <Bell size={20} />
@@ -177,7 +177,7 @@ export default function Layout() {
               to="/app/perfil"
               className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-intermediate transition-colors group"
             >
-              <div className="w-8 h-8 rounded-full bg-fenix-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden ring-2 ring-transparent group-hover:ring-fenix-400 transition-all">
+              <div className="w-8 h-8 rounded-full bg-fenix-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden ring-2 ring-transparent group-hover:ring-fenix-500 transition-all">
                 {avatar_url ? (
                   <img src={avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -185,8 +185,8 @@ export default function Layout() {
                 )}
               </div>
               <div className="hidden lg:flex flex-col">
-                <span className="text-sm text-white truncate max-w-[120px]">{nombre ?? 'Usuario'}</span>
-                <span className="text-xs text-gray-400 capitalize">{rol}</span>
+                <span className="text-sm text-primary truncate max-w-[120px]">{nombre ?? 'Usuario'}</span>
+                <span className="text-xs text-secondary capitalize">{rol}</span>
               </div>
             </Link>
 
@@ -194,7 +194,7 @@ export default function Layout() {
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                 title="Más opciones"
               >
                 <MoreVertical size={20} />
@@ -208,10 +208,10 @@ export default function Layout() {
                       setIsMenuOpen(false);
                       logout();
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-300 hover:text-red-400 hover:bg-red-500/15 rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-secondary hover:text-red-500 hover:bg-red-500/15 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut size={18} />
-                    <span className="text-sm">Cerrar sesión</span>
+                    <span className="text-sm font-medium">Cerrar sesión</span>
                   </button>
                 </div>
               )}

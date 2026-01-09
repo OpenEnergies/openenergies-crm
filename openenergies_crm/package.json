@@ -29,6 +29,7 @@
     "react-hook-form": "^7.53.0",
     "react-hot-toast": "^2.6.0",
     "react-pdf": "^10.2.0",
+    "recharts": "^3.6.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

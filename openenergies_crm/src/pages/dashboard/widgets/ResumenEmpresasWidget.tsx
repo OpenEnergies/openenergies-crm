@@ -47,9 +47,9 @@ export default function ResumenEmpresasWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-          <Building2 className="w-4 h-4 text-orange-400" />
+          <Building2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Empresas</h3>
+        <h3 className="text-base font-bold text-primary">Empresas</h3>
       </div>
 
       {/* Loading */}
@@ -61,7 +61,7 @@ export default function ResumenEmpresasWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar resumen.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium italic">Error al cargar resumen.</p>
       )}
 
       {/* Content */}
@@ -72,10 +72,10 @@ export default function ResumenEmpresasWidget() {
             className="flex flex-col items-center p-4 rounded-lg bg-bg-intermediate/50 hover:bg-bg-intermediate transition-colors"
           >
             <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-              <Store className="w-5 h-5 text-purple-400" />
+              <Store className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <p className="text-2xl font-bold text-white">{counts.tipos.comercializadora}</p>
-            <p className="text-xs text-gray-400">Comercializadoras</p>
+            <p className="text-2xl font-bold text-secondary">{counts.tipos.comercializadora}</p>
+            <p className="text-xs text-secondary opacity-70 font-semibold uppercase tracking-tight">Comercializadoras</p>
           </Link>
 
           {counts.tipos.openenergies > 0 && (
@@ -84,10 +84,10 @@ export default function ResumenEmpresasWidget() {
               className="flex flex-col items-center p-4 rounded-lg bg-bg-intermediate/50 hover:bg-bg-intermediate transition-colors"
             >
               <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center mb-2">
-                <Building2 className="w-5 h-5 text-orange-400" />
+                <Building2 className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
-              <p className="text-2xl font-bold text-white">{counts.tipos.openenergies}</p>
-              <p className="text-xs text-gray-400">Internas</p>
+              <p className="text-2xl font-bold text-secondary">{counts.tipos.openenergies}</p>
+              <p className="text-xs text-secondary opacity-70 font-semibold uppercase tracking-tight">Internas</p>
             </Link>
           )}
         </div>

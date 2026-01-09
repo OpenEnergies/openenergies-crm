@@ -39,9 +39,9 @@ export default function UltimosClientesWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-          <Users className="w-4 h-4 text-violet-400" />
+          <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Últimos Clientes</h3>
+        <h3 className="text-base font-bold text-primary">Últimos Clientes</h3>
       </div>
 
       {/* Loading */}
@@ -53,12 +53,12 @@ export default function UltimosClientesWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar clientes.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium">Error al cargar clientes.</p>
       )}
 
       {/* Empty */}
       {!isLoading && !isError && clientes && clientes.length === 0 && (
-        <p className="text-sm text-gray-400 text-center py-4">No hay clientes recientes.</p>
+        <p className="text-sm text-secondary opacity-60 text-center py-4">No hay clientes recientes.</p>
       )}
 
       {/* Content */}
@@ -72,11 +72,11 @@ export default function UltimosClientesWidget() {
               <Link
                 to="/app/clientes/$id"
                 params={{ id: cliente.id }}
-                className="text-sm font-medium text-gray-200 hover:text-fenix-400 transition-colors truncate pr-3 cursor-pointer"
+                className="text-sm font-bold text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors truncate pr-3 cursor-pointer"
               >
                 {cliente.nombre}
               </Link>
-              <span className="text-xs text-gray-400 whitespace-nowrap">
+              <span className="text-xs text-secondary opacity-70 whitespace-nowrap">
                 {fmtDate(cliente.creado_en)}
               </span>
             </li>

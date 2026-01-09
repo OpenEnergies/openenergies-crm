@@ -79,8 +79,8 @@ export default function ColumnFilterDropdown({ columnName, options, selectedOpti
           w-8 h-8 rounded-md flex items-center justify-center
           transition-all duration-150
           ${selectedOptions.length > 0
-            ? 'bg-fenix-500/20 text-fenix-400'
-            : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+            ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-bold shadow-lg shadow-fenix-500/10'
+            : 'text-secondary hover:text-primary hover:bg-bg-intermediate'}
           disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer
         `}
         title={hasOptions ? `Filtrar por ${columnName}` : 'No hay opciones para filtrar'}
@@ -98,25 +98,25 @@ export default function ColumnFilterDropdown({ columnName, options, selectedOpti
           {/* Seleccionar todo */}
           <button
             onClick={handleSelectAll}
-            className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
           >
             {selectedOptions.length === options.length ? 'Limpiar selección' : 'Seleccionar todo'}
           </button>
 
-          <hr className="my-2 border-bg-intermediate" />
+          <hr className="my-2 border-primary opacity-50" />
 
           {/* Opciones */}
           <div className="space-y-1 max-h-60 overflow-y-auto">
             {options.map(option => (
               <label
                 key={option}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-bg-intermediate rounded-md cursor-pointer transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md cursor-pointer transition-colors"
               >
                 <input
                   type="checkbox"
                   checked={selectedOptions.includes(option)}
                   onChange={() => handleOptionToggle(option)}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-fenix-500 focus:ring-fenix-500 focus:ring-offset-0"
+                  className="w-4 h-4 rounded border-primary bg-bg-intermediate text-fenix-500 focus:ring-fenix-500 focus:ring-offset-0"
                 />
                 <span>{option}</span>
               </label>

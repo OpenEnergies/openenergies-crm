@@ -38,9 +38,9 @@ export default function MisClientesAsignadosWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-          <Target className="w-4 h-4 text-cyan-400" />
+          <Target className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Mis Clientes Asignados</h3>
+        <h3 className="text-base font-bold text-primary">Mis Clientes Asignados</h3>
       </div>
 
       {/* Loading */}
@@ -52,20 +52,20 @@ export default function MisClientesAsignadosWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium italic">Error al cargar.</p>
       )}
 
       {/* Content */}
       {!isLoading && !isError && count !== undefined && count !== null && (
         <Link
           to="/app/clientes"
-          className="block text-center p-4 rounded-lg glass-card hover:bg-bg-intermediate transition-colors"
+          className="block text-center p-4 rounded-lg bg-bg-intermediate/30 hover:bg-bg-intermediate transition-colors"
         >
           <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center mx-auto mb-3">
-            <Zap className="w-6 h-6 text-cyan-400" />
+            <Zap className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{count}</p>
-          <p className="text-sm text-gray-400">Clientes Asignados</p>
+          <p className="text-3xl font-bold text-secondary mb-1">{count}</p>
+          <p className="text-sm text-secondary opacity-70 font-semibold uppercase tracking-tight">Clientes Asignados</p>
         </Link>
       )}
     </div>

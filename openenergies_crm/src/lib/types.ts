@@ -67,6 +67,7 @@ export interface UsuarioApp {
   activo: boolean;
   creado_en: string | null;
   avatar_url: string | null;
+  theme_preference: 'light' | 'dark';
 }
 
 export interface Empresa {

@@ -69,9 +69,9 @@ function HorizontalBarChart({
         <div className="glass-card p-5">
             <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-fenix-500" />
+                    <Icon className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
                 </div>
-                <h3 className="text-base font-semibold text-white">{title}</h3>
+                <h3 className="text-base font-bold text-primary">{title}</h3>
             </div>
 
             <div className="space-y-3">
@@ -82,8 +82,8 @@ function HorizontalBarChart({
                     return (
                         <div key={estado}>
                             <div className="flex justify-between items-center mb-1">
-                                <span className="text-sm text-gray-300 truncate capitalize">{estado}</span>
-                                <span className="text-sm font-medium text-fenix-500 ml-2">{count}</span>
+                                <span className="text-sm text-secondary font-medium truncate capitalize">{estado}</span>
+                                <span className="text-sm font-bold text-fenix-600 dark:text-fourth ml-2">{count}</span>
                             </div>
                             <div className="h-2 bg-bg-intermediate rounded-full overflow-hidden">
                                 <div
@@ -96,12 +96,12 @@ function HorizontalBarChart({
                 })}
 
                 {entries.length === 0 && (
-                    <p className="text-gray-400 text-sm text-center py-4">Sin datos disponibles</p>
+                    <p className="text-secondary opacity-60 text-sm text-center py-4 italic">Sin datos disponibles</p>
                 )}
             </div>
 
             {total > 0 && (
-                <p className="text-xs text-gray-500 mt-4 text-right">Total: {total}</p>
+                <p className="text-xs text-secondary opacity-60 mt-4 text-right italic font-medium">Total: {total}</p>
             )}
         </div>
     );
@@ -128,7 +128,7 @@ export default function EstadoCharts() {
 
     if (isError || !data) {
         return (
-            <div className="glass-card p-5 text-center text-red-400">
+            <div className="glass-card p-5 text-center text-red-600 dark:text-red-400 font-medium italic">
                 Error al cargar los gráficos
             </div>
         );

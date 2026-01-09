@@ -128,16 +128,16 @@ async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoCon
 // ============ HELPER COLOR ESTADO ============
 const getEstadoColorClass = (estado: EstadoPunto) => {
   const map: Record<EstadoPunto, string> = {
-    'Nueva Oportunidad': 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    'Solicitar Doc.': 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-    'Doc. OK': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    'Estudio enviado': 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
-    'Aceptado': 'bg-green-500/20 text-green-400 border border-green-500/30',
-    'Permanencia': 'bg-red-500/20 text-red-400 border border-red-500/30',
-    'Standby': 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-    'Desiste': 'bg-bg-intermediate text-gray-400 border border-gray-500/30',
+    'Nueva Oportunidad': 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-medium',
+    'Solicitar Doc.': 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-medium',
+    'Doc. OK': 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-medium',
+    'Estudio enviado': 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 font-medium',
+    'Aceptado': 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30 font-medium',
+    'Permanencia': 'bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 font-medium',
+    'Standby': 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30 font-medium',
+    'Desiste': 'bg-bg-intermediate text-secondary border border-primary font-medium',
   };
-  return map[estado] || 'bg-bg-intermediate text-gray-400 border border-gray-500/30';
+  return map[estado] || 'bg-bg-intermediate text-secondary border border-primary';
 };
 
 // ============ COMPONENTE MODAL CUPS ============
@@ -171,12 +171,12 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-2xl glass-modal overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
-          <h3 className="text-xl font-bold text-fenix-400 flex items-center gap-2">
+        <div className="flex items-center justify-between p-6 border-b border-primary">
+          <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400 flex items-center gap-2">
             <MapPin className="text-fenix-500" /> Detalle del Punto de Suministro
           </h3>
           <button
-            className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-secondary hover:text-primary hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
             onClick={onClose}
             title="Cerrar"
           >
@@ -191,11 +191,11 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
               <div>
                 <span className="block text-xs text-white mb-1">Cliente</span>
                 {punto.clientes && Array.isArray(punto.clientes) && punto.clientes[0] ? (
-                  <span className="text-gray-300 font-medium">
+                  <span className="text-primary font-medium">
                     {punto.clientes[0].nombre}
                   </span>
                 ) : (punto.clientes && !Array.isArray(punto.clientes) && (punto.clientes as any).nombre) ? (
-                  <span className="text-gray-300 font-medium">
+                  <span className="text-primary font-medium">
                     {(punto.clientes as any).nombre}
                   </span>
                 ) : <span className="text-gray-400">—</span>}
@@ -203,18 +203,18 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
               <div>
                 <span className="block text-xs text-white mb-1">Comercializadora</span>
                 {punto.comercializadora && Array.isArray(punto.comercializadora) && punto.comercializadora[0] ? (
-                  <span className="text-gray-300">
+                  <span className="text-primary text-sm">
                     {punto.comercializadora[0].nombre}
                   </span>
                 ) : (punto.comercializadora && !Array.isArray(punto.comercializadora) && (punto.comercializadora as any).nombre) ? (
-                  <span className="text-gray-300">
+                  <span className="text-primary text-sm">
                     {(punto.comercializadora as any).nombre}
                   </span>
                 ) : <span className="text-gray-400">—</span>}
               </div>
               <div>
                 <span className="block text-xs text-white mb-1">CUPS</span>
-                <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-gray-300 font-mono">{punto.cups}</code>
+                <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-primary font-mono">{punto.cups}</code>
               </div>
               <div>
                 <span className="block text-xs text-white mb-1">Comerciales asignados</span>
@@ -239,10 +239,10 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
               <div>
                 <span className="block text-xs text-white mb-1">Fotovoltaica</span>
                 <div className="flex items-center gap-2">
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${punto.tiene_fv ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${punto.tiene_fv ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-bg-intermediate text-secondary opacity-60'}`}>
                     {punto.tiene_fv ? 'Sí' : 'No'}
                   </span>
-                  {punto.tiene_fv && <span className="text-xs text-gray-400">({punto.fv_compensacion || 'Sin compensación'})</span>}
+                  {punto.tiene_fv && <span className="text-xs text-secondary opacity-70">({punto.fv_compensacion || 'Sin compensación'})</span>}
                 </div>
               </div>
             </div>
@@ -273,15 +273,15 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
             <div className="grid grid-cols-6 gap-2 text-center">
               {[punto.p1_kw, punto.p2_kw, punto.p3_kw, punto.p4_kw, punto.p5_kw, punto.p6_kw].map((val, idx) => (
                 <div key={idx} className="bg-bg-intermediate rounded p-2">
-                  <span className="block text-[10px] text-white uppercase">P{idx + 1}</span>
-                  <span className="block text-sm font-medium text-gray-300">{val ?? '-'}</span>
+                  <span className="block text-[10px] text-primary font-bold uppercase opacity-60">P{idx + 1}</span>
+                  <span className="block text-sm font-medium text-primary">{val ?? '-'}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="p-6 border-t border-bg-intermediate bg-black/20 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="p-6 border-t border-primary bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl">
           <Link to="/app/puntos/$id" params={{ id: punto.id }}>
             <button className="px-4 py-2.5 rounded-xl bg-fenix-500 hover:bg-fenix-600 text-white font-medium shadow-lg shadow-fenix-500/25 transition-all cursor-pointer">
               Editar punto
@@ -391,7 +391,7 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
 
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function PuntosList({ clienteId }: { clienteId?: string }) {
+export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId?: string; hideClienteColumn?: boolean }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -544,12 +544,11 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {!clienteId && (
-          <div>
-            <h2 className="text-2xl font-bold text-fenix-500 flex items-center gap-2">
-              <MapPin className="text-fenix-500" size={24} />
-              Puntos de Suministro
-            </h2>
-            <p className="text-gray-400">Gestiona todos los puntos de suministro (CUPS).</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h1>
           </div>
         )}
 
@@ -592,22 +591,23 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
             <>
               {!clienteId && (
                 <>
-                  <div className="flex items-center gap-2 flex-1 sm:w-64">
-                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
                       <Search size={16} />
                       Buscar
                     </label>
                     <input
                       type="text"
                       placeholder="CUPS o dirección..."
-                      className="glass-input w-full"
+                      className="glass-input w-64"
                       value={filter}
                       onChange={e => setFilter(e.target.value)}
                     />
                   </div>
                   <Link to="/app/puntos/nuevo">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 whitespace-nowrap cursor-pointer">
-                      <MapPinPlus size={18} /> <span className="hidden sm:inline">Nuevo Punto</span>
+                    <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                      <MapPinPlus size={18} />
+                      <span className="hidden sm:inline">Nuevo Punto</span>
                     </button>
                   </Link>
                 </>
@@ -621,7 +621,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
       {isLoading && (
         <div className="glass-card p-12 flex items-center justify-center">
           <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
-          <p className="ml-3 text-gray-400 font-medium">Cargando puntos de suministro...</p>
+          <p className="ml-3 text-secondary font-medium">Cargando puntos de suministro...</p>
         </div>
       )}
 
@@ -661,31 +661,33 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate text-xs text-gray-200 uppercase tracking-wider font-semibold">
-                  <th className="p-4 w-10">
+                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                  <th className="w-10 p-4 text-left">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
                       ref={input => { if (input) input.indeterminate = isIndeterminate; }}
                       onChange={handleSelectAll}
                       aria-label="Seleccionar todos los puntos"
-                      className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                     />
                   </th>
-                  <th className="p-4">
-                    <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
-                      Cliente {renderSortIcon('cliente_nombre')}
-                    </button>
-                  </th>
-                  <th className="p-4">
-                    <button onClick={() => handleSort('cups')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                  {!hideClienteColumn && (
+                    <th className="p-4 text-left">
+                      <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                        Cliente {renderSortIcon('cliente_nombre')}
+                      </button>
+                    </th>
+                  )}
+                  <th className="p-4 text-left">
+                    <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                       CUPS {renderSortIcon('cups')}
                     </button>
                   </th>
 
-                  <th className="p-4">
+                  <th className="p-4 text-left">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('estado')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         Estado {renderSortIcon('estado')}
                       </button>
                       <ColumnFilterDropdown
@@ -696,9 +698,9 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                       />
                     </div>
                   </th>
-                  <th className="p-4">
+                  <th className="p-4 text-left">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">
+                      <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                         Tarifa {renderSortIcon('tarifa')}
                       </button>
                       <ColumnFilterDropdown
@@ -710,12 +712,12 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                     </div>
                   </th>
                   <th className="p-4 text-right">
-                    <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                    <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
                       kWh/año {renderSortIcon('consumo_anual_kwh')}
                     </button>
                   </th>
                   <th className="p-4 text-right">
-                    <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                    <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
                       Creado {renderSortIcon('creado_en')}
                     </button>
                   </th>
@@ -732,23 +734,25 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                           checked={isSelected}
                           onChange={() => handleRowSelect(p.id)}
                           aria-label={`Seleccionar punto ${p.cups}`}
-                          className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                          className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                         />
                       </td>
-                      <td className="p-4">
-                        {p.clientes && Array.isArray(p.clientes) && p.clientes[0] ? (
-                          <Link to="/app/clientes/$id" params={{ id: p.clientes[0].id }} className="font-medium text-white hover:text-fenix-400 transition-colors cursor-pointer">
-                            {p.clientes[0].nombre}
-                          </Link>
-                        ) : (p.clientes && !Array.isArray(p.clientes) && (p.clientes as any).nombre) ? (
-                          <Link to="/app/clientes/$id" params={{ id: (p.clientes as any).id }} className="font-medium text-white hover:text-fenix-400 transition-colors cursor-pointer">
-                            {(p.clientes as any).nombre}
-                          </Link>
-                        ) : <span className="text-gray-500">—</span>}
-                      </td>
+                      {!hideClienteColumn && (
+                        <td className="p-4">
+                          {p.clientes && Array.isArray(p.clientes) && p.clientes[0] ? (
+                            <Link to="/app/clientes/$id" params={{ id: p.clientes[0].id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
+                              {p.clientes[0].nombre}
+                            </Link>
+                          ) : (p.clientes && !Array.isArray(p.clientes) && (p.clientes as any).nombre) ? (
+                            <Link to="/app/clientes/$id" params={{ id: (p.clientes as any).id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
+                              {(p.clientes as any).nombre}
+                            </Link>
+                          ) : <span className="text-secondary opacity-60">—</span>}
+                        </td>
+                      )}
                       <td className="p-4">
                         <button
-                          className="font-mono text-sm text-fenix-400 hover:text-fenix-300 text-left transition-colors cursor-pointer"
+                          className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm"
                           onClick={() => setSelectedPunto(p)}
                           title="Ver detalle del punto"
                         >
@@ -766,14 +770,14 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                         />
                       </td>
                       <td className="p-4">
-                        <span className="font-mono text-xs bg-bg-intermediate px-1.5 py-0.5 rounded text-gray-300">
+                        <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
                           {p.tarifa || '—'}
                         </span>
                       </td>
-                      <td className="p-4 text-right text-gray-300">
+                      <td className="p-4 text-right text-secondary font-bold">
                         {p.consumo_anual_kwh?.toLocaleString() || '—'}
                       </td>
-                      <td className="p-4 text-right text-sm text-gray-500">
+                      <td className="p-4 text-right text-sm text-secondary opacity-60 font-medium">
                         {p.creado_en ? new Date(p.creado_en).toLocaleDateString('es-ES') : '—'}
                       </td>
                     </tr>
@@ -786,13 +790,13 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
 
         {/* Paginación */}
         {!isLoading && !isError && totalItems > 0 && (
-          <div className="p-4 border-t border-bg-intermediate flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm text-gray-400">
-              Total: <span className="text-white font-medium">{totalItems}</span> registros • Página <span className="text-white font-medium">{currentPage}</span> de {totalPages}
-            </span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary">
+            <div className="text-sm text-secondary">
+              Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
+            </div>
+            <div className="flex items-center gap-1">
               <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
                 title="Primera página"
@@ -800,7 +804,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                 <ChevronsLeft size={18} />
               </button>
               <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 title="Página anterior"
@@ -808,7 +812,7 @@ export default function PuntosList({ clienteId }: { clienteId?: string }) {
                 <ChevronLeft size={18} />
               </button>
               <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 title="Página siguiente"

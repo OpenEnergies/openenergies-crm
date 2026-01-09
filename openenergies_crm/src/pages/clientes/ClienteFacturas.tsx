@@ -10,6 +10,7 @@ import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
 import FilePreviewModal from '@components/FilePreviewModal';
+import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import toast from 'react-hot-toast';
 
 // ============ STORAGE HELPERS ============
@@ -108,6 +109,16 @@ const formatNumber = (value: number | null): string => {
     return value.toLocaleString('es-ES', { maximumFractionDigits: 2 });
 };
 
+const formatPricePerKwh = (value: number | null): string => {
+    if (value === null || value === undefined) return '—';
+    return value.toLocaleString('es-ES', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
+    });
+};
+
 // ============ DETAIL MODAL ============
 interface FacturaModalProps {
     factura: FacturaCliente;
@@ -124,13 +135,15 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
         };
     }, []);
 
-    const renderField = (label: string, value: string | number | null | undefined, isPrice = false) => {
+    const renderField = (label: string, value: string | number | null | undefined, formatType: 'text' | 'currency' | 'price' = 'text') => {
         if (value === null || value === undefined || value === '') return null;
         return (
             <div className="flex justify-between py-2 border-b border-white/5 last:border-0">
                 <span className="text-gray-400 text-sm">{label}</span>
                 <span className="text-white font-medium text-sm">
-                    {isPrice ? formatCurrency(value as number) : String(value)}
+                    {formatType === 'currency' ? formatCurrency(value as number) :
+                        formatType === 'price' ? formatPricePerKwh(value as number) :
+                            String(value)}
                 </span>
             </div>
         );
@@ -198,9 +211,9 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                     {(factura.base_impuesto_principal || factura.tipo_impuesto_principal_pct || factura.importe_impuesto_principal) && (
                         <div className="glass-card p-4 space-y-1">
                             <h4 className="text-sm font-semibold text-fenix-400 mb-3">Impuesto Principal</h4>
-                            {renderField('Base Imponible', factura.base_impuesto_principal, true)}
+                            {renderField('Base Imponible', factura.base_impuesto_principal, 'currency')}
                             {renderField('Tipo (%)', factura.tipo_impuesto_principal_pct ? `${factura.tipo_impuesto_principal_pct}%` : null)}
-                            {renderField('Importe', factura.importe_impuesto_principal, true)}
+                            {renderField('Importe', factura.importe_impuesto_principal, 'currency')}
                         </div>
                     )}
 
@@ -208,18 +221,18 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                     {(factura.base_impuesto_secundario || factura.tipo_impuesto_secundario_pct || factura.importe_impuesto_secundario) && (
                         <div className="glass-card p-4 space-y-1">
                             <h4 className="text-sm font-semibold text-fenix-400 mb-3">Impuesto Secundario</h4>
-                            {renderField('Base Imponible', factura.base_impuesto_secundario, true)}
+                            {renderField('Base Imponible', factura.base_impuesto_secundario, 'currency')}
                             {renderField('Tipo (%)', factura.tipo_impuesto_secundario_pct ? `${factura.tipo_impuesto_secundario_pct}%` : null)}
-                            {renderField('Importe', factura.importe_impuesto_secundario, true)}
+                            {renderField('Importe', factura.importe_impuesto_secundario, 'currency')}
                         </div>
                     )}
 
                     {/* Totals Section */}
                     <div className="glass-card p-4 space-y-1">
                         <h4 className="text-sm font-semibold text-fenix-400 mb-3">Totales</h4>
-                        {renderField('Total', factura.total, true)}
+                        {renderField('Total', factura.total, 'currency')}
                         {renderField('Consumo (kWh)', factura.consumo_kwh ? `${formatNumber(factura.consumo_kwh)} kWh` : null)}
-                        {renderField('Precio (€/kWh)', factura.precio_eur_kwh, true)}
+                        {renderField('Precio (€/kWh)', factura.precio_eur_kwh, 'price')}
                     </div>
 
                     {/* Observations */}
@@ -248,6 +261,7 @@ export default function ClienteFacturas() {
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
+    const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
 
     const { data: facturas = [], isLoading, isError } = useQuery({
         queryKey: ['cliente-facturas', clienteId],
@@ -329,17 +343,30 @@ export default function ClienteFacturas() {
         }
     }, [getSignedUrl]);
 
-    // Filter by search term
+    // Filter by search term and date
     const filteredFacturas = useMemo(() => {
         if (!facturas) return [];
-        if (!searchTerm) return facturas;
+        let data = facturas;
+
+        // Date filter
+        if (dateFilter.year || dateFilter.month || dateFilter.day) {
+            data = data.filter(f => {
+                const date = new Date(f.fecha_emision);
+                if (dateFilter.year && date.getFullYear().toString() !== dateFilter.year) return false;
+                if (dateFilter.month && (date.getMonth() + 1).toString().padStart(2, '0') !== dateFilter.month) return false;
+                if (dateFilter.day && date.getDate().toString().padStart(2, '0') !== dateFilter.day) return false;
+                return true;
+            });
+        }
+
+        if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
-        return facturas.filter(f =>
+        return data.filter(f =>
             f.numero_factura.toLowerCase().includes(term) ||
             f.puntos_suministro?.cups?.toLowerCase().includes(term) ||
             f.direccion_suministro?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm]);
+    }, [facturas, searchTerm, dateFilter]);
 
     // Sorting with useSortableTable hook
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
@@ -363,10 +390,10 @@ export default function ClienteFacturas() {
         return sortedData.slice(start, start + ITEMS_PER_PAGE);
     }, [sortedData, currentPage]);
 
-    // Reset page when search changes
+    // Reset page when search or date filter changes
     useMemo(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, dateFilter]);
 
     if (isLoading) {
         return (
@@ -469,12 +496,20 @@ export default function ClienteFacturas() {
                                     </button>
                                 </th>
                                 <th className="p-4">
-                                    <button
-                                        onClick={() => handleSort('fecha_emision' as any)}
-                                        className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
-                                    >
-                                        Fecha Emisión {renderSortIcon('fecha_emision' as any)}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleSort('fecha_emision' as any)}
+                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
+                                        >
+                                            Fecha Emisión {renderSortIcon('fecha_emision' as any)}
+                                        </button>
+                                        <DateFilterDropdown
+                                            columnName="Emisión"
+                                            options={facturas.map(f => new Date(f.fecha_emision))}
+                                            selectedDate={dateFilter}
+                                            onChange={setDateFilter}
+                                        />
+                                    </div>
                                 </th>
                                 <th className="p-4 text-right">
                                     <span className="text-xs">PDF</span>

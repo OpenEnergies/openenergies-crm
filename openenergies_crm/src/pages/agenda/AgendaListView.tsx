@@ -54,12 +54,12 @@ export default function AgendaListView({ items, isLoading, onEdit, onDelete }: A
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-400">Cargando lista...</div>
+    return <div className="text-center py-12 text-secondary font-medium">Cargando lista...</div>
   }
 
   if (sortedDays.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-16 text-secondary">
         <Calendar size={48} className="mb-4 opacity-50" />
         <p>No hay eventos ni renovaciones en este rango.</p>
       </div>
@@ -77,8 +77,8 @@ export default function AgendaListView({ items, isLoading, onEdit, onDelete }: A
           <div key={dateKey} className="space-y-4">
             {/* Cabecera del Día */}
             <div className="flex items-center gap-4">
-              <h3 className={`text-lg font-semibold ${isToday ? 'text-fenix-400' : 'text-white'}`}>
-                {isToday && <span className="mr-2 px-2 py-0.5 rounded text-xs bg-fenix-500/20 text-fenix-400 font-bold uppercase tracking-wider">Hoy</span>}
+              <h3 className={`text-lg font-bold ${isToday ? 'text-fenix-600 dark:text-fenix-400' : 'text-primary'}`}>
+                {isToday && <span className="mr-2 px-2 py-0.5 rounded text-xs bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-bold uppercase tracking-wider">Hoy</span>}
                 {format(dayDate, 'EEEE, d \'de\' MMMM', { locale: es })}
               </h3>
               <div className="h-px bg-bg-intermediate flex-1"></div>
@@ -96,26 +96,26 @@ export default function AgendaListView({ items, isLoading, onEdit, onDelete }: A
                       className="w-3 h-3 rounded-full flex-shrink-0 shadow-lg"
                       style={{ backgroundColor: item.color || '#ccc' }}
                     ></span>
-                    <span className="text-gray-400 font-mono text-sm whitespace-nowrap">
+                    <span className="text-secondary font-mono text-sm whitespace-nowrap">
                       {format(parseISO(item.start), 'HH:mm')}
                       {item.end && ` - ${format(parseISO(item.end), 'HH:mm')}`}
                     </span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-bg-intermediate border border-bg-intermediate hidden sm:flex">
-                    {etiquetaIconMap[item.extendedProps?.etiqueta || ''] || <Tag size={16} className="text-gray-400" />}
+                  <div className="p-2 rounded-lg bg-bg-intermediate border border-primary hidden sm:flex">
+                    {etiquetaIconMap[item.extendedProps?.etiqueta || ''] || <Tag size={16} className="text-secondary" />}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-medium truncate pr-4">{item.title}</h4>
+                    <h4 className="text-primary font-bold truncate pr-4">{item.title}</h4>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       {item.extendedProps?.etiqueta && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-bg-intermediate text-gray-400">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-bg-intermediate text-secondary font-medium">
                           {item.extendedProps.etiqueta}
                         </span>
                       )}
                       {item.extendedProps?.tipo_evento === 'evento' && item.extendedProps?.creadorNombre && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-secondary opacity-60">
                           · Creado por {item.extendedProps.creadorNombre.split(' ')[0]}
                         </span>
                       )}
@@ -125,7 +125,7 @@ export default function AgendaListView({ items, isLoading, onEdit, onDelete }: A
                   <div className="flex items-center gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     {item.extendedProps?.tipo_evento === 'renovacion' ? (
                       <button
-                        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                        className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                         title="Ir a Ficha Cliente"
                         onClick={() => handleRenovacionClick(item.extendedProps?.cliente_id)}
                       >

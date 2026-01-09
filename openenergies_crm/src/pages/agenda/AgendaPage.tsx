@@ -25,8 +25,8 @@ function AgendaLegend() {
   const legendItemsWithVacaciones = [...legendItems, ['Vacaciones', '#F5A962']];
 
   return (
-    <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-bg-intermediate border border-bg-intermediate mt-6">
-      <span className="text-sm font-medium text-gray-400 mr-2">Leyenda:</span>
+    <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate mt-6">
+      <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mr-2">Leyenda:</span>
       {legendItemsWithVacaciones.map(([label, color]) => (
         <div key={label} className="flex items-center gap-2">
           <span
@@ -34,7 +34,7 @@ function AgendaLegend() {
             style={{ backgroundColor: color }}
             aria-hidden="true"
           ></span>
-          <span className="text-sm text-gray-300">{label}</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300">{label}</span>
         </div>
       ))}
     </div>
@@ -196,7 +196,7 @@ export default function AgendaPage() {
         const esEditable = item.es_editable ?? (item.user_id === userId);
         const clienteIdRelacionado = item.cliente_id_relacionado || null;
         const creadorNombre = item.creador_nombre || item.creado_por_nombre || null;
-        
+
         return {
           id: item.id,
           title: item.titulo,
@@ -237,10 +237,10 @@ export default function AgendaPage() {
     if (tipo_evento === 'vacacion') {
       const { usuario_nombre, descripcion } = clickInfo.event.extendedProps
       const fechas = `${clickInfo.event.startStr} - ${clickInfo.event.endStr}`
-      const mensaje = descripcion 
+      const mensaje = descripcion
         ? `${usuario_nombre}: ${fechas}\n\"${descripcion}\"`
         : `${usuario_nombre}: ${fechas}`
-      toast(mensaje, { 
+      toast(mensaje, {
         icon: '🏖️',
         duration: 4000
       })
@@ -327,17 +327,17 @@ export default function AgendaPage() {
     <div className="flex flex-col h-full space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold text-white">
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
           Agenda
         </h2>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* View Toggle */}
-          <div className="p-1 rounded-lg bg-bg-intermediate border border-bg-intermediate flex items-center">
+          <div className="p-1 rounded-lg bg-slate-100 dark:bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate flex items-center">
             <button
               className={clsx(
                 "p-2 rounded-md transition-all",
-                viewMode === 'calendar' ? "bg-fenix-500 text-white shadow-lg cursor-pointer" : "text-gray-400 hover:text-white hover:bg-fenix-500/8 cursor-pointer"
+                viewMode === 'calendar' ? "bg-fenix-500 text-white shadow-lg cursor-pointer" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-fenix-500/8 cursor-pointer"
               )}
               onClick={() => setViewMode('calendar')}
               title="Vista Calendario"
@@ -347,7 +347,7 @@ export default function AgendaPage() {
             <button
               className={clsx(
                 "p-2 rounded-md transition-all",
-                viewMode === 'list' ? "bg-fenix-500 text-white shadow-lg cursor-pointer" : "text-gray-400 hover:text-white hover:bg-fenix-500/8 cursor-pointer"
+                viewMode === 'list' ? "bg-fenix-500 text-white shadow-lg cursor-pointer" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-fenix-500/8 cursor-pointer"
               )}
               onClick={() => setViewMode('list')}
               title="Vista Lista"
@@ -360,9 +360,9 @@ export default function AgendaPage() {
           <button
             className={clsx(
               "flex items-center gap-2 px-3 py-2 rounded-lg transition-all border cursor-pointer",
-              showVacaciones 
-                ? "bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30" 
-                : "bg-bg-intermediate text-gray-400 border-bg-intermediate hover:text-white hover:bg-orange-500/10"
+              showVacaciones
+                ? "bg-orange-500/20 text-orange-600 dark:text-orange-300 border-orange-500/30 hover:bg-orange-500/30"
+                : "bg-slate-100 dark:bg-bg-intermediate text-slate-500 dark:text-slate-400 border-slate-200 dark:border-bg-intermediate hover:text-slate-900 dark:hover:text-white hover:bg-orange-500/10"
             )}
             onClick={() => setShowVacaciones(!showVacaciones)}
             title={showVacaciones ? 'Ocultar vacaciones' : 'Mostrar vacaciones'}
@@ -374,11 +374,11 @@ export default function AgendaPage() {
             </span>
           </button>
 
-          <div className="h-8 w-px bg-bg-intermediate hidden sm:block"></div>
+          <div className="h-8 w-px bg-slate-200 dark:bg-bg-intermediate hidden sm:block"></div>
 
           <Link
             to="/app/agenda/vacaciones"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-bg-intermediate hover:bg-fenix-500/8 text-gray-300 hover:text-white border border-bg-intermediate transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 dark:bg-bg-intermediate hover:bg-fenix-500/8 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-bg-intermediate transition-colors cursor-pointer"
           >
             <Umbrella size={18} />
             <span className="hidden sm:inline">Vacaciones</span>
@@ -403,7 +403,7 @@ export default function AgendaPage() {
       {(isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-fenix-400 mr-2" />
-          <span className="text-gray-400">Actualizando agenda...</span>
+          <span className="text-slate-500 dark:text-slate-400">Actualizando agenda...</span>
         </div>
       )}
 

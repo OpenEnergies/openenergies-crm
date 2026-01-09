@@ -47,8 +47,8 @@ function StatItem({ icon: Icon, label, value, color }: { icon: React.ElementType
         <Icon className="w-4 h-4 text-current" />
       </div>
       <div>
-        <p className="text-xl font-bold text-white">{value}</p>
-        <p className="text-xs text-gray-400">{label}</p>
+        <p className="text-xl font-bold text-secondary">{value}</p>
+        <p className="text-xs text-secondary opacity-70 font-medium uppercase tracking-tight">{label}</p>
       </div>
     </div>
   );
@@ -66,9 +66,9 @@ export default function ResumenUsuariosWidget() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-          <Users className="w-4 h-4 text-blue-400" />
+          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
         </div>
-        <h3 className="text-base font-semibold text-white">Resumen de Usuarios</h3>
+        <h3 className="text-base font-bold text-primary">Resumen de Usuarios</h3>
       </div>
 
       {/* Loading */}
@@ -80,18 +80,18 @@ export default function ResumenUsuariosWidget() {
 
       {/* Error */}
       {isError && (
-        <p className="text-sm text-red-400 text-center py-4">Error al cargar resumen.</p>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center py-4 font-medium italic">Error al cargar resumen.</p>
       )}
 
       {/* Content */}
       {!isLoading && !isError && counts && (
         <div className="grid grid-cols-2 gap-3">
-          <StatItem icon={Users} label="Total" value={counts.total} color="bg-fenix-500/20 text-fenix-400" />
-          <StatItem icon={UserCheck} label="Activos" value={counts.activos} color="bg-green-500/20 text-green-400" />
-          <StatItem icon={UserX} label="Bloqueados" value={counts.bloqueados} color="bg-red-500/20 text-red-400" />
-          <StatItem icon={ShieldCheck} label="Admins" value={counts.roles.administrador} color="bg-purple-500/20 text-purple-400" />
-          <StatItem icon={BriefcaseBusiness} label="Comerciales" value={counts.roles.comercial} color="bg-cyan-500/20 text-cyan-400" />
-          <StatItem icon={UserIcon} label="Clientes" value={counts.roles.cliente} color="bg-amber-500/20 text-amber-400" />
+          <StatItem icon={Users} label="Total" value={counts.total} color="bg-fenix-500/20 text-fenix-600 dark:text-fenix-400" />
+          <StatItem icon={UserCheck} label="Activos" value={counts.activos} color="bg-green-500/20 text-green-600 dark:text-green-400" />
+          <StatItem icon={UserX} label="Bloqueados" value={counts.bloqueados} color="bg-red-500/20 text-red-600 dark:text-red-400" />
+          <StatItem icon={ShieldCheck} label="Admins" value={counts.roles.administrador} color="bg-purple-500/20 text-purple-600 dark:text-purple-400" />
+          <StatItem icon={BriefcaseBusiness} label="Comerciales" value={counts.roles.comercial} color="bg-cyan-500/20 text-cyan-600 dark:text-cyan-400" />
+          <StatItem icon={UserIcon} label="Clientes" value={counts.roles.cliente} color="bg-amber-500/20 text-amber-600 dark:text-amber-400" />
         </div>
       )}
 

@@ -88,7 +88,7 @@ export default function Dashboard() {
           <div className="relative">
             <button
               onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-intermediate hover:bg-bg-intermediate text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-intermediate hover:bg-bg-intermediate/60 text-secondary hover:text-primary transition-colors cursor-pointer"
             >
               <Settings size={18} />
               <span className="text-sm hidden sm:inline">Ajustes de Vista</span>
@@ -100,8 +100,8 @@ export default function Dashboard() {
                   className="fixed inset-0 z-10"
                   onClick={() => setShowSettingsMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-gray-900 border border-bg-intermediate rounded-xl shadow-2xl p-2">
-                  <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-bg-secondary border border-primary rounded-xl shadow-2xl p-2">
+                  <p className="px-3 py-2 text-xs font-semibold text-secondary opacity-70 uppercase tracking-wider">
                     Mostrar/Ocultar Secciones
                   </p>
 
@@ -115,13 +115,13 @@ export default function Dashboard() {
                     <button
                       key={key}
                       onClick={() => toggleSetting(key)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-bg-intermediate transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                     >
                       <span>{label}</span>
                       {viewSettings[key] ? (
                         <Eye size={16} className="text-fenix-500" />
                       ) : (
-                        <EyeOff size={16} className="text-gray-500" />
+                        <EyeOff size={16} className="text-secondary opacity-50" />
                       )}
                     </button>
                   ))}

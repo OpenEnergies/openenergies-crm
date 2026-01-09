@@ -131,8 +131,8 @@ export default function CanalesList() {
                         <Radio className="w-5 h-5 text-fenix-500" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-fenix-500">Canales de Captación</h1>
-                        <p className="text-gray-400 text-sm">Gestiona los canales de entrada de los clientes.</p>
+                        <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Canales de Captación</h1>
+                        <p className="text-secondary opacity-70 text-sm">Gestiona los canales de entrada de los clientes.</p>
                     </div>
                 </div>
 
@@ -148,7 +148,7 @@ export default function CanalesList() {
                             placeholder="Nombre de canal..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-11 px-4 rounded-lg bg-bg-intermediate border border-bg-intermediate text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
+                            className="glass-input h-11"
                         />
                     </div>
 
@@ -172,7 +172,7 @@ export default function CanalesList() {
                                     </button>
                                 )}
                                 <button
-                                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                                     title="Cancelar selección"
                                     onClick={() => setSelectedIds([])}
                                 >
@@ -241,7 +241,7 @@ export default function CanalesList() {
                                     <th className="p-4 text-left">
                                         <button
                                             onClick={() => handleSort('nombre')}
-                                            className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                                            className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                                         >
                                             Nombre del Canal {renderSortIcon('nombre')}
                                         </button>
@@ -249,13 +249,13 @@ export default function CanalesList() {
                                     <th className="p-4 text-left">
                                         <button
                                             onClick={() => handleSort('creado_en')}
-                                            className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                                            className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                                         >
                                             Fecha de Creación {renderSortIcon('creado_en')}
                                         </button>
                                     </th>
                                     <th className="p-4 text-right">
-                                        <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                                        <span className="text-xs font-bold text-primary uppercase tracking-wider">
                                             Acciones
                                         </span>
                                     </th>
@@ -283,11 +283,11 @@ export default function CanalesList() {
                                                 />
                                             </td>
                                             <td className="p-4">
-                                                <span className="text-fenix-400 font-medium">
+                                                <span className="text-fenix-600 dark:text-fourth font-bold">
                                                     {c.nombre}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-gray-400">{fmtDate(c.creado_en)}</td>
+                                            <td className="p-4 text-secondary font-medium">{fmtDate(c.creado_en)}</td>
                                             <td className="p-4 text-right">
                                                 <button
                                                     onClick={() => setShowDeleteModal(c)}
@@ -311,10 +311,10 @@ export default function CanalesList() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="w-full max-w-md bg-bg-intermediate border border-bg-intermediate rounded-2xl p-6 shadow-2xl glass-modal">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-semibold text-white">Añadir Canal</h3>
+                            <h3 className="text-xl font-bold text-primary">Añadir Canal</h3>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                             >
                                 <X size={20} />
                             </button>
@@ -322,7 +322,7 @@ export default function CanalesList() {
 
                         <form onSubmit={handleCreateSubmit}>
                             <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-400 mb-2">
+                                <label className="block text-sm font-bold text-secondary uppercase tracking-tight mb-2">
                                     Nombre del canal
                                 </label>
                                 <input
@@ -330,7 +330,7 @@ export default function CanalesList() {
                                     value={newCanalName}
                                     onChange={(e) => setNewCanalName(e.target.value)}
                                     placeholder="Ej: Web, Referido, Campaña..."
-                                    className="w-full px-4 py-3 bg-bg-intermediate border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
+                                    className="glass-input"
                                     autoFocus
                                 />
                             </div>
@@ -360,15 +360,15 @@ export default function CanalesList() {
             {showDeleteModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="w-full max-w-md bg-bg-intermediate border border-bg-intermediate rounded-2xl p-6 shadow-2xl glass-modal">
-                        <h3 className="text-xl font-semibold text-white mb-4">Confirmar Eliminación</h3>
-                        <p className="text-gray-300 mb-6">
-                            ¿Estás seguro de que quieres eliminar el canal <strong className="text-white">{showDeleteModal.nombre}</strong>?
+                        <h3 className="text-xl font-bold text-primary mb-4">Confirmar Eliminación</h3>
+                        <p className="text-secondary mb-6">
+                            ¿Estás seguro de que quieres eliminar el canal <strong className="text-primary">{showDeleteModal.nombre}</strong>?
                             <br />
-                            <span className="text-red-400 text-sm">Esta acción es irreversible.</span>
+                            <span className="text-red-600 dark:text-red-400 text-sm">Esta acción es irreversible.</span>
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
-                                className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-white/20 border border-transparent text-gray-300 transition-colors cursor-pointer"
+                                className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-bg-secondary border border-primary text-secondary font-medium transition-colors cursor-pointer"
                                 onClick={() => setShowDeleteModal(null)}
                             >
                                 Cancelar

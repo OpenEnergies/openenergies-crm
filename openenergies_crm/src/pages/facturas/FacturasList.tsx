@@ -4,10 +4,12 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
-import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react';
+import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Pencil, FileUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
+import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
+import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
 import toast from 'react-hot-toast';
 
@@ -70,12 +72,8 @@ interface FacturaCliente {
 }
 
 // ============ FETCH FUNCTION ============
-async function fetchFacturas(): Promise<FacturaCliente[]> {
-    // Determine which query to build based on user role? 
-    // Assuming for now admins/comerciales can see all.
-    // If we needed RLS, supabase handles it, but this is a global list.
-
-    const { data, error } = await supabase
+async function fetchFacturas(dateFilter: DateParts): Promise<FacturaCliente[]> {
+    let query = supabase
         .from('facturacion_clientes')
         .select(`
       *,
@@ -84,8 +82,30 @@ async function fetchFacturas(): Promise<FacturaCliente[]> {
       comercializadora:empresas!comercializadora_id (nombre)
     `)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false })
-        .limit(1000); // Limit to 1000 latest invoices for performance
+        .order('fecha_emision', { ascending: false });
+
+    if (dateFilter.year) {
+        if (dateFilter.month) {
+            if (dateFilter.day) {
+                const dateStr = `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}`;
+                query = query.eq('fecha_emision', dateStr);
+            } else {
+                const start = `${dateFilter.year}-${dateFilter.month}-01`;
+                const y = parseInt(dateFilter.year);
+                const m = parseInt(dateFilter.month);
+                const nextY = m === 12 ? y + 1 : y;
+                const nextM = m === 12 ? 1 : m + 1;
+                const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
+                query = query.gte('fecha_emision', start).lt('fecha_emision', end);
+            }
+        } else {
+            const start = `${dateFilter.year}-01-01`;
+            const end = `${parseInt(dateFilter.year) + 1}-01-01`;
+            query = query.gte('fecha_emision', start).lt('fecha_emision', end);
+        }
+    }
+
+    const { data, error } = await query.limit(1000);
 
     if (error) throw error;
     return data as FacturaCliente[];
@@ -111,6 +131,16 @@ const formatNumber = (value: number | null): string => {
     return value.toLocaleString('es-ES', { maximumFractionDigits: 2 });
 };
 
+const formatPricePerKwh = (value: number | null): string => {
+    if (value === null || value === undefined) return '—';
+    return value.toLocaleString('es-ES', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
+    });
+};
+
 // ============ DETAIL MODAL ============
 interface FacturaModalProps {
     factura: FacturaCliente;
@@ -127,13 +157,15 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
         };
     }, []);
 
-    const renderField = (label: string, value: string | number | null | undefined, isPrice = false) => {
+    const renderField = (label: string, value: string | number | null | undefined, formatType: 'text' | 'currency' | 'price' = 'text') => {
         if (value === null || value === undefined || value === '') return null;
         return (
-            <div className="flex justify-between py-2 border-b border-white/5 last:border-0">
-                <span className="text-gray-400 text-sm">{label}</span>
-                <span className="text-white font-medium text-sm">
-                    {isPrice ? formatCurrency(value as number) : String(value)}
+            <div className="flex justify-between py-2 border-b border-primary/20 last:border-0 hover:bg-bg-intermediate/20 transition-colors">
+                <span className="text-secondary text-sm font-medium">{label}</span>
+                <span className="text-primary font-bold text-sm">
+                    {formatType === 'currency' ? formatCurrency(value as number) :
+                        formatType === 'price' ? formatPricePerKwh(value as number) :
+                            String(value)}
                 </span>
             </div>
         );
@@ -153,18 +185,18 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-bg-intermediate">
+                <div className="flex items-center justify-between p-6 border-b border-primary">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
                             <Receipt className="w-5 h-5 text-fenix-500" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Factura {factura.numero_factura}</h3>
-                            <p className="text-sm text-gray-400">{formatDate(factura.fecha_emision)}</p>
+                            <h3 className="text-lg font-bold text-primary">Factura {factura.numero_factura}</h3>
+                            <p className="text-sm text-secondary opacity-70">{formatDate(factura.fecha_emision)}</p>
                         </div>
                     </div>
                     <button
-                        className="p-2 text-gray-400 hover:text-white hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
+                        className="p-2 text-secondary hover:text-primary hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
                         onClick={onClose}
                         title="Cerrar"
                     >
@@ -176,7 +208,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                     {/* Basic Info Section */}
                     <div className="glass-card p-4 space-y-1">
-                        <h4 className="text-sm font-semibold text-fenix-400 mb-3">Información General</h4>
+                        <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-3">Información General</h4>
                         {renderField('CUPS', cups)}
                         {renderField('Cliente', nombreCliente)}
                         {renderField('Comercializadora', nombreComercializadora)}
@@ -201,9 +233,9 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                     {(factura.base_impuesto_principal || factura.tipo_impuesto_principal_pct || factura.importe_impuesto_principal) && (
                         <div className="glass-card p-4 space-y-1">
                             <h4 className="text-sm font-semibold text-fenix-400 mb-3">Impuesto Principal</h4>
-                            {renderField('Base Imponible', factura.base_impuesto_principal, true)}
+                            {renderField('Base Imponible', factura.base_impuesto_principal, 'currency')}
                             {renderField('Tipo (%)', factura.tipo_impuesto_principal_pct ? `${factura.tipo_impuesto_principal_pct}%` : null)}
-                            {renderField('Importe', factura.importe_impuesto_principal, true)}
+                            {renderField('Importe', factura.importe_impuesto_principal, 'currency')}
                         </div>
                     )}
 
@@ -211,25 +243,25 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                     {(factura.base_impuesto_secundario || factura.tipo_impuesto_secundario_pct || factura.importe_impuesto_secundario) && (
                         <div className="glass-card p-4 space-y-1">
                             <h4 className="text-sm font-semibold text-fenix-400 mb-3">Impuesto Secundario</h4>
-                            {renderField('Base Imponible', factura.base_impuesto_secundario, true)}
+                            {renderField('Base Imponible', factura.base_impuesto_secundario, 'currency')}
                             {renderField('Tipo (%)', factura.tipo_impuesto_secundario_pct ? `${factura.tipo_impuesto_secundario_pct}%` : null)}
-                            {renderField('Importe', factura.importe_impuesto_secundario, true)}
+                            {renderField('Importe', factura.importe_impuesto_secundario, 'currency')}
                         </div>
                     )}
 
                     {/* Totals Section */}
                     <div className="glass-card p-4 space-y-1">
-                        <h4 className="text-sm font-semibold text-fenix-400 mb-3">Totales</h4>
-                        {renderField('Total', factura.total, true)}
+                        <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-3">Totales</h4>
+                        {renderField('Total', factura.total, 'currency')}
                         {renderField('Consumo (kWh)', factura.consumo_kwh ? `${formatNumber(factura.consumo_kwh)} kWh` : null)}
-                        {renderField('Precio (€/kWh)', factura.precio_eur_kwh, true)}
+                        {renderField('Precio (€/kWh)', factura.precio_eur_kwh, 'price')}
                     </div>
 
                     {/* Observations */}
                     {factura.observaciones && (
                         <div className="glass-card p-4">
-                            <h4 className="text-sm font-semibold text-fenix-400 mb-3">Observaciones</h4>
-                            <p className="text-sm text-gray-300 whitespace-pre-wrap">{factura.observaciones}</p>
+                            <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-3">Observaciones</h4>
+                            <p className="text-sm text-primary whitespace-pre-wrap">{factura.observaciones}</p>
                         </div>
                     )}
                 </div>
@@ -246,15 +278,21 @@ export default function FacturasList() {
     // PDF Preview state
     const [previewModal, setPreviewModal] = useState<{ url: string; name: string } | null>(null);
     const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [signedUrlCache, setSignedUrlCache] = useState<Record<string, { url: string; expires: number }>>({});
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
+    const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
 
     const { data: facturas = [], isLoading, isError } = useQuery({
-        queryKey: ['facturas-global'],
-        queryFn: fetchFacturas,
+        queryKey: ['facturas-global', dateFilter],
+        queryFn: () => fetchFacturas(dateFilter),
     });
+
+    const dateOptions = useMemo(() => {
+        return facturas.map(f => new Date(f.fecha_emision));
+    }, [facturas]);
 
     // Get or create signed URL with caching
     const getSignedUrl = useCallback(async (facturaId: string, comercializadoraNombre: string | null | undefined, numeroFactura: string): Promise<string | null> => {
@@ -389,29 +427,47 @@ export default function FacturasList() {
 
     return (
         <div className="flex flex-col gap-6 animate-fade-in">
-            {/* Encabezado */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Receipt size={24} className="text-fenix-400" />
-                        Facturas Globales
-                    </h2>
-                    <p className="text-gray-400">Listado completo de todas las facturas emitidas.</p>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+                        <Receipt className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Facturas</h1>
+                        <p className="text-secondary opacity-70">Listado completo de todas las facturas emitidas.</p>
+                    </div>
                 </div>
 
-                {/* Search */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
-                        <Search size={16} />
-                        Buscar
-                    </label>
-                    <input
-                        type="text"
-                        placeholder="Cliente, factura, CUPS..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="glass-input w-full sm:w-64"
-                    />
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
+                            <Search size={16} />
+                            Buscar
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Factura, cliente o CUPS..."
+                            className="glass-input w-64"
+                            value={searchTerm}
+                            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                        />
+                    </div>
+                    <Link
+                        to="/app/facturas/importar"
+                        className="flex items-center justify-center h-11 px-4 bg-bg-intermediate border border-fenix-500/30 hover:border-fenix-500 text-primary rounded-lg transition-all shadow-lg shadow-black/20"
+                        title="Importar Facturas"
+                    >
+                        <FileUp size={20} className="text-fenix-400" />
+                        <span className="ml-2 hidden lg:inline">Importar</span>
+                    </Link>
+                    <Link
+                        to="/app/facturas/nuevo"
+                        className="flex items-center justify-center h-11 px-4 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20"
+                        title="Nueva Factura"
+                    >
+                        <Plus size={20} className="text-white" />
+                    </Link>
                 </div>
             </div>
 
@@ -427,111 +483,104 @@ export default function FacturasList() {
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate text-xs text-gray-200 uppercase tracking-wider font-semibold">
-                                    <th className="p-4">
-                                        <button
-                                            onClick={() => handleSort('cliente_id' as any)}
-                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
-                                        >
-                                            CLIENTE {renderSortIcon('cliente_id' as any)}
-                                        </button>
-                                    </th>
-                                    <th className="p-4">
-                                        <button
-                                            onClick={() => handleSort('numero_factura' as any)}
-                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
-                                        >
+                                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                                    <th className="p-4 text-left">
+                                        <button onClick={() => handleSort('numero_factura' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                                             Nº Factura {renderSortIcon('numero_factura' as any)}
                                         </button>
                                     </th>
-                                    <th className="p-4">
-                                        <button
-                                            onClick={() => handleSort('puntos_suministro')}
-                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
-                                        >
-                                            CUPS {renderSortIcon('puntos_suministro')}
+                                    <th className="p-4 text-left">
+                                        <button onClick={() => handleSort('cliente_id' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                            Cliente {renderSortIcon('cliente_id' as any)}
+                                        </button>
+                                    </th>
+                                    <th className="p-4 text-left">
+                                        <button onClick={() => handleSort('puntos_suministro' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                            CUPS {renderSortIcon('puntos_suministro' as any)}
                                         </button>
                                     </th>
                                     <th className="p-4 text-right">
-                                        <button
-                                            onClick={() => handleSort('total' as any)}
-                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer"
-                                        >
-                                            Total {renderSortIcon('total' as any)}
+                                        <button onClick={() => handleSort('total' as any)} className="flex items-center justify-end gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                            Importe {renderSortIcon('total' as any)}
                                         </button>
                                     </th>
-                                    <th className="p-4">
-                                        <button
-                                            onClick={() => handleSort('fecha_emision' as any)}
-                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
-                                        >
-                                            Fecha Emisión {renderSortIcon('fecha_emision' as any)}
-                                        </button>
+                                    <th className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1 group">
+                                            <button
+                                                onClick={() => handleSort('fecha_emision' as any)}
+                                                className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                                            >
+                                                Emisión {renderSortIcon('fecha_emision' as any)}
+                                            </button>
+                                            <DateFilterDropdown
+                                                columnName="Emisión"
+                                                options={dateOptions}
+                                                selectedDate={dateFilter}
+                                                onChange={setDateFilter}
+                                            />
+                                        </div>
                                     </th>
-                                    <th className="p-4 text-right">
-                                        <span className="text-xs">Acciones</span>
-                                    </th>
+                                    <th className="p-4 text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-fenix-500/10">
+                            <tbody className="divide-y divide-primary">
                                 {displayedData.map(factura => (
                                     <tr
                                         key={factura.id}
-                                        className="hover:bg-fenix-500/8 transition-colors"
+                                        className="hover:bg-bg-intermediate/50 transition-colors"
                                     >
-                                        {/* Cliente Column */}
+                                        <td className="p-4">
+                                            <button
+                                                className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm"
+                                                onClick={() => setSelectedFactura(factura)}
+                                                title="Ver detalle"
+                                            >
+                                                {factura.numero_factura || '—'}
+                                            </button>
+                                        </td>
                                         <td className="p-4">
                                             {factura.clientes ? (
                                                 <Link
                                                     to="/app/clientes/$id"
                                                     params={{ id: factura.clientes.id }}
-                                                    className="flex items-center gap-1 text-fenix-400 hover:text-fenix-300 font-medium transition-colors"
+                                                    className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors"
                                                 >
                                                     {factura.clientes.nombre}
                                                 </Link>
                                             ) : (
-                                                <span className="text-gray-500 italic">Eliminado</span>
+                                                <span className="text-secondary opacity-50 italic">Eliminado</span>
                                             )}
                                         </td>
-
-                                        {/* Numero Factura - Clickable */}
                                         <td className="p-4">
-                                            <button
-                                                onClick={() => setSelectedFactura(factura)}
-                                                className="text-fenix-400 hover:text-fenix-300 font-medium transition-colors cursor-pointer underline-offset-2 hover:underline"
-                                            >
-                                                {factura.numero_factura}
-                                            </button>
-                                        </td>
-
-                                        {/* CUPS */}
-                                        <td className="p-4">
-                                            <span className="text-gray-300 font-mono text-sm">
-                                                {factura.puntos_suministro?.cups || '—'}
+                                            <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs" title={factura.puntos_suministro?.cups}>
+                                                {factura.puntos_suministro?.cups ?? '—'}
                                             </span>
                                         </td>
-
-                                        {/* Total */}
                                         <td className="p-4 text-right">
-                                            <span className="text-white font-semibold">
+                                            <span className="font-bold text-secondary">
                                                 {formatCurrency(factura.total)}
                                             </span>
                                         </td>
-
-                                        {/* Fecha Emisión */}
-                                        <td className="p-4">
-                                            <span className="text-gray-400 text-sm">
+                                        <td className="p-4 text-center">
+                                            <span className="text-sm text-secondary font-medium">
                                                 {formatDate(factura.fecha_emision)}
                                             </span>
                                         </td>
-
                                         {/* Actions */}
                                         <td className="p-4">
                                             <div className="flex items-center justify-end gap-2">
+                                                <Link
+                                                    to="/app/facturas/$id"
+                                                    params={{ id: factura.id }}
+                                                    className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all cursor-pointer"
+                                                    title="Editar factura"
+                                                >
+                                                    <Pencil size={16} />
+                                                </Link>
                                                 <button
                                                     onClick={() => handlePreviewPdf(factura)}
                                                     disabled={loadingPdfId === factura.id}
-                                                    className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-all cursor-pointer disabled:opacity-50"
+                                                    className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-all cursor-pointer disabled:opacity-50"
                                                     title="Vista previa PDF"
                                                 >
                                                     {loadingPdfId === factura.id ? (
@@ -543,7 +592,7 @@ export default function FacturasList() {
                                                 <button
                                                     onClick={() => handleDownloadPdf(factura)}
                                                     disabled={loadingPdfId === factura.id}
-                                                    className="p-2 rounded-lg bg-fenix-500/10 hover:bg-fenix-500/20 text-fenix-400 hover:text-fenix-300 transition-all cursor-pointer disabled:opacity-50"
+                                                    className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all cursor-pointer disabled:opacity-50"
                                                     title="Descargar PDF"
                                                 >
                                                     <Download size={16} />
@@ -560,12 +609,12 @@ export default function FacturasList() {
                 {/* Pagination */}
                 {displayedData.length > 0 && (
                     <div className="p-4 border-t border-bg-intermediate flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <span className="text-sm text-gray-400">
-                            Total: <span className="text-white font-medium">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-white font-medium">{currentPage}</span> de {totalPages}
+                        <span className="text-sm text-secondary">
+                            Total: <span className="text-primary font-bold">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-primary font-bold">{currentPage}</span> de {totalPages}
                         </span>
                         <div className="flex items-center gap-2">
                             <button
-                                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}
                                 title="Primera página"
@@ -573,7 +622,7 @@ export default function FacturasList() {
                                 <ChevronsLeft size={18} />
                             </button>
                             <button
-                                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                                 title="Página anterior"
@@ -581,7 +630,7 @@ export default function FacturasList() {
                                 <ChevronLeft size={18} />
                             </button>
                             <button
-                                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                                 title="Página siguiente"
@@ -589,7 +638,7 @@ export default function FacturasList() {
                                 <ChevronRight size={18} />
                             </button>
                             <button
-                                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                                 onClick={() => setCurrentPage(totalPages)}
                                 disabled={currentPage === totalPages}
                                 title="Última página"

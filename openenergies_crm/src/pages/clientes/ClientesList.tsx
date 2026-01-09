@@ -155,9 +155,9 @@ export default function ClientesList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-fenix-500" />
+            <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-fenix-500">Clientes</h1>
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Clientes</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -172,7 +172,7 @@ export default function ClientesList() {
                   <Link
                     to="/app/clientes/$id/editar"
                     params={{ id: selectedIds[0] }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors"
+                    className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
                     title="Editar Cliente"
                   >
                     <Edit size={16} />
@@ -189,7 +189,7 @@ export default function ClientesList() {
                   </button>
                 )}
                 <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
                   title="Cancelar selección"
                   onClick={() => setSelectedIds([])}
                 >
@@ -252,7 +252,7 @@ export default function ClientesList() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
+                  <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
                     <th className="w-10 p-4 text-left">
                       <input
                         type="checkbox"
@@ -268,20 +268,20 @@ export default function ClientesList() {
                     <th className="p-4 text-left">
                       <button
                         onClick={() => handleSort('nombre')}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         Nombre {renderSortIcon('nombre')}
                       </button>
                     </th>
                     <th className="p-4 text-left">
-                      <span className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                      <span className="text-xs font-bold text-primary uppercase tracking-wider">
                         DNI/CIF
                       </span>
                     </th>
                     <th className="p-4 text-left">
                       <button
                         onClick={() => handleSort('creado_en')}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         Creado {renderSortIcon('creado_en')}
                       </button>
@@ -289,7 +289,7 @@ export default function ClientesList() {
                     <th className="p-4 text-left">
                       <button
                         onClick={() => handleSort('puntos_count')}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         Puntos {renderSortIcon('puntos_count')}
                       </button>
@@ -297,7 +297,7 @@ export default function ClientesList() {
                     <th className="p-4 text-left">
                       <button
                         onClick={() => handleSort('total_kwh')}
-                        className="flex items-center gap-1 text-xs font-semibold text-gray-200 uppercase tracking-wider hover:text-fenix-400 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         KWH {renderSortIcon('total_kwh')}
                       </button>
@@ -323,14 +323,14 @@ export default function ClientesList() {
                               checked={isSelected}
                               onChange={() => handleRowSelect(c.id)}
                               aria-label={`Seleccionar ${c.nombre}`}
-                              className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                              className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                             />
                           </td>
                           <td className="p-4">
                             <Link
                               to="/app/clientes/$id"
                               params={{ id: c.id }}
-                              className="font-medium text-white hover:text-fenix-400 transition-colors"
+                              className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors"
                             >
                               {c.nombre}
                             </Link>
@@ -354,14 +354,14 @@ export default function ClientesList() {
             </div>
 
             {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-bg-intermediate">
-              <div className="text-sm text-gray-400">
-                Total: <span className="text-white font-medium">{totalItems}</span> registros •
-                Página <span className="text-white font-medium">{currentPage}</span> de <span className="text-white font-medium">{totalPages || 1}</span>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary">
+              <div className="text-sm text-secondary">
+                Total: <span className="text-primary font-bold">{totalItems}</span> registros •
+                Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   onClick={() => goToPage(1)}
                   disabled={currentPage === 1}
                   title="Primera página"
@@ -369,7 +369,7 @@ export default function ClientesList() {
                   <ChevronsLeft size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   title="Página anterior"
@@ -377,7 +377,7 @@ export default function ClientesList() {
                   <ChevronLeft size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage >= totalPages}
                   title="Página siguiente"
@@ -385,7 +385,7 @@ export default function ClientesList() {
                   <ChevronRight size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   onClick={() => goToPage(totalPages)}
                   disabled={currentPage >= totalPages}
                   title="Última página"

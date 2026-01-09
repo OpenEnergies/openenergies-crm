@@ -82,8 +82,8 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
           w-8 h-8 rounded-md flex items-center justify-center
           transition-all duration-150
           ${hasFilter
-            ? 'bg-fenix-500/20 text-fenix-400'
-            : 'text-gray-400 hover:text-white hover:bg-bg-intermediate'}
+            ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400'
+            : 'text-secondary hover:text-primary hover:bg-bg-intermediate'}
           cursor-pointer
         `}
         title={`Filtrar por ${columnName}`}
@@ -97,7 +97,7 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
           className="glass-card p-4 min-w-[220px] animate-slide-down"
           style={{ ...getMenuPosition(), zIndex: 1050 }}
         >
-          <p className="text-sm font-medium text-white mb-3">Filtrar por {columnName}</p>
+          <p className="text-sm font-medium text-primary mb-3">Filtrar por {columnName}</p>
 
           <div className="space-y-3">
             {/* Año */}
@@ -133,7 +133,7 @@ export default function DateFilterDropdown({ columnName, options, selectedDate, 
             </select>
           </div>
 
-          <hr className="my-3 border-bg-intermediate" />
+          <hr className="my-3 border-primary" />
 
           <button
             onClick={handleClear}

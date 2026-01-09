@@ -4,12 +4,13 @@ import { supabase } from '@lib/supabase';
 import type { UsuarioApp, RolUsuario, UUID } from '@lib/types';
 
 type SessionData = {
-  userId: UUID | null;
-  rol: RolUsuario | null;
-  empresaId: UUID | null;
-  nombre: string | null;
-  apellidos: string | null;
-  avatar_url: string | null; // <-- Incluye avatar_url
+    userId: UUID | null;
+    rol: RolUsuario | null;
+    empresaId: UUID | null;
+    nombre: string | null;
+    apellidos: string | null;
+    avatar_url: string | null;
+    themePreference: 'light' | 'dark';
 };
 
 const fetchSessionData = async (): Promise<SessionData> => {
@@ -19,12 +20,12 @@ const fetchSessionData = async (): Promise<SessionData> => {
     if (sessionError) {
         console.error('[useSession] Error fetching session:', sessionError.message);
         // Devuelve estado "no logueado" pero sin lanzar error para no romper la app
-        return { userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null };
+        return { userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null, themePreference: 'dark' };
     }
 
     if (!session?.user?.id) {
         // No hay sesión activa
-        return { userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null };
+        return { userId: null, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null, themePreference: 'dark' };
     }
 
     const userId = session.user.id;
@@ -33,14 +34,14 @@ const fetchSessionData = async (): Promise<SessionData> => {
     try {
         const { data: profile, error: profileError } = await supabase
             .from('usuarios_app')
-            .select('user_id, rol, empresa_id, nombre, apellidos, avatar_url') // <-- Selecciona avatar_url
+            .select('user_id, rol, empresa_id, nombre, apellidos, avatar_url, theme_preference')
             .eq('user_id', userId)
             .single();
 
         if (profileError) {
             // Si el perfil no se encuentra o hay error, devuelve datos parciales
             console.error('[useSession] Error fetching profile:', profileError.message);
-            return { userId, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null };
+            return { userId, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null, themePreference: 'dark' };
         }
 
         // 3. Devuelve los datos combinados
@@ -50,12 +51,13 @@ const fetchSessionData = async (): Promise<SessionData> => {
             empresaId: profile?.empresa_id ?? null,
             nombre: profile?.nombre ?? null,
             apellidos: profile?.apellidos ?? null,
-            avatar_url: profile?.avatar_url ?? null, // <-- Devuelve avatar_url
+            avatar_url: profile?.avatar_url ?? null,
+            themePreference: (profile?.theme_preference as 'light' | 'dark') ?? 'dark',
         };
     } catch (dbError) {
         // Captura errores inesperados de la BBDD
         console.error('[useSession] Database error fetching profile:', dbError);
-        return { userId, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null };
+        return { userId, rol: null, empresaId: null, nombre: null, apellidos: null, avatar_url: null, themePreference: 'dark' };
     }
 };
 
@@ -77,7 +79,8 @@ export function useSession() {
         empresaId: data?.empresaId ?? null,
         nombre: data?.nombre ?? null,
         apellidos: data?.apellidos ?? null,
-        avatar_url: data?.avatar_url ?? null, // <-- Expone avatar_url
+        avatar_url: data?.avatar_url ?? null,
+        themePreference: data?.themePreference ?? 'dark',
         loading: isLoading,
         error: isError ? error : null,
         refetchSession: refetch // Expone la función refetch por si se necesita

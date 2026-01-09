@@ -140,7 +140,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate({ to: '/app/usuarios' })}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+          className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} />
         </button>
@@ -204,7 +204,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
               disabled={editing}
               className="glass-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            {editing && <p className="text-sm text-gray-400 mt-1">El email de acceso no se puede modificar.</p>}
+            {editing && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">El email de acceso no se puede modificar.</p>}
             {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>}
           </div>
 
@@ -242,7 +242,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
                 )}
               </select>
               {isRolDisabled && (
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   El rol de un usuario 'cliente' no se puede modificar.
                 </p>
               )}
@@ -254,28 +254,28 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           {!editing && (
             <>
               {isAdmin && (
-                <div className="p-4 rounded-lg bg-bg-intermediate border border-bg-intermediate">
-                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
                     Método de creación
                   </label>
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-300">
                       <input
                         type="radio"
                         name="creation_method"
                         checked={!createWithPassword}
                         onChange={() => setCreateWithPassword(false)}
-                        className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                        className="w-5 h-5 rounded-full border-2 border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                       />
                       Enviar invitación por email
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-300">
                       <input
                         type="radio"
                         name="creation_method"
                         checked={createWithPassword}
                         onChange={() => setCreateWithPassword(true)}
-                        className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                        className="w-5 h-5 rounded-full border-2 border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
                       />
                       Establecer contraseña manual
                     </label>
@@ -285,7 +285,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
 
               {(!isAdmin || createWithPassword) && (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Define una contraseña inicial para el usuario.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,7 +320,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           )}
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-bg-intermediate">
+          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-bg-intermediate">
             <button
               type="button"
               className="btn-secondary"

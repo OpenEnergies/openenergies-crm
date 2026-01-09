@@ -129,15 +129,15 @@ export default function EmpresaForm({ id }: { id?: string }) {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate({ to: '/app/empresas' })}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+          className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} />
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-emerald-500" />
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-emerald-400">
+          <h1 className="text-2xl font-bold text-primary">
             {editing ? 'Editar Empresa' : 'Nueva Empresa'}
           </h1>
         </div>
@@ -163,7 +163,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
 
           {/* Nombre */}
           <div>
-            <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-medium text-emerald-400 mb-2">
+            <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
               <Building2 size={16} />
               Nombre de la empresa
             </label>
@@ -178,7 +178,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
           {/* CIF + Tipo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="cif" className="flex items-center gap-2 text-sm font-medium text-emerald-400 mb-2">
+              <label htmlFor="cif" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <FileText size={16} />
                 CIF (opcional)
               </label>
@@ -189,7 +189,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
               />
             </div>
             <div>
-              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-medium text-emerald-400 mb-2">
+              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Tags size={16} />
                 Tipo de empresa
               </label>
@@ -206,10 +206,10 @@ export default function EmpresaForm({ id }: { id?: string }) {
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-bg-intermediate">
+          <div className="flex justify-end gap-3 pt-6 border-t border-primary/20">
             <button
               type="button"
-              className="btn-secondary"
+              className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200"
               onClick={() => navigate({ to: '/app/empresas' })}
             >
               Cancelar
@@ -217,10 +217,10 @@ export default function EmpresaForm({ id }: { id?: string }) {
             <button
               type="submit"
               disabled={isSubmitting || isUploadingLogo || !hasChanges}
-              className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {(isSubmitting || isUploadingLogo) && <Loader2 size={16} className="animate-spin" />}
-              {isSubmitting || isUploadingLogo ? 'Guardando...' : 'Guardar'}
+              {isSubmitting || isUploadingLogo ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Empresa')}
             </button>
           </div>
         </div>

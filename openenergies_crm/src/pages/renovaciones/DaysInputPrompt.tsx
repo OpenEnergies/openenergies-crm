@@ -29,15 +29,15 @@ export default function DaysInputPrompt({ onSubmit }: Props) {
           </div>
         </div>
 
-        <h3 className="text-xl font-bold text-white text-center mb-2">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white text-center mb-2">
           Próximas Renovaciones
         </h3>
-        <p className="text-gray-400 text-center mb-6">
+        <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
           ¿Cuántos días hacia adelante quieres consultar?
         </p>
 
         <div className="mb-6">
-          <label htmlFor="days" className="block text-sm font-medium text-gray-400 text-center mb-2">
+          <label htmlFor="days" className="block text-sm font-bold text-slate-600 dark:text-slate-400 text-center mb-2 uppercase tracking-tight">
             Días a consultar
           </label>
           <input

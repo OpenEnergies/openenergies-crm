@@ -23,11 +23,11 @@ export function EmptyState({ title, description, cta, icon }: EmptyStateProps) {
         )}
       </div>
 
-      <h3 className="text-lg font-semibold text-white mb-2">
+      <h3 className="text-lg font-semibold text-primary mb-2">
         {title}
       </h3>
 
-      <p className="text-gray-400 mb-6 max-w-sm mx-auto">
+      <p className="text-secondary mb-6 max-w-sm mx-auto">
         {description}
       </p>
 

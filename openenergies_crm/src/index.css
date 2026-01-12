@@ -231,7 +231,7 @@ a:hover {
 }
 
 .glass-modal {
-  background: var(--glass-bg);
+  background: #FFFFFF;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
@@ -240,6 +240,7 @@ a:hover {
 }
 
 .dark .glass-modal {
+  background: var(--glass-bg);
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), var(--shadow-inner-glow);
 }
 

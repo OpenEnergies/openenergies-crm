@@ -6,6 +6,7 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
+import { useTheme } from '@hooks/ThemeContext';
 import { Trash2, XCircle, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Plus, Loader2, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSortableTable } from '@hooks/useSortableTable';
@@ -73,7 +74,11 @@ async function deleteCliente(clienteId: string) {
 
 export default function ClientesList() {
   const { rol } = useSession();
+  const { theme } = useTheme();
   const queryClient = useQueryClient();
+
+  // Border color for table separators: green in dark mode, gray in light mode
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -252,7 +257,10 @@ export default function ClientesList() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                  <tr
+                    className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                    style={{ borderBottomColor: tableBorderColor }}
+                  >
                     <th className="w-10 p-4 text-left">
                       <input
                         type="checkbox"
@@ -354,7 +362,10 @@ export default function ClientesList() {
             </div>
 
             {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary">
+            <div
+              className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t"
+              style={{ borderTopColor: tableBorderColor }}
+            >
               <div className="text-sm text-secondary">
                 Total: <span className="text-primary font-bold">{totalItems}</span> registros •
                 Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>

@@ -7,6 +7,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@hooks/useSession';
+import { useTheme } from '@hooks/ThemeContext';
 import { HardHat, Tags, FileText, Mail, Users, Loader2, ArrowLeft, Phone, Lock, CreditCard, UserCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
@@ -38,6 +39,10 @@ export default function ClienteForm({ id }: ClienteFormProps) {
   const { rol: currentUserRol, userId } = useSession();
   const editing = Boolean(id);
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
+
+  // Accent border color: green in dark mode, light gray in light mode
+  const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
 
   const [createPortalAccess, setCreatePortalAccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -216,7 +221,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
             <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-primary">
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
             {editing ? 'Editar Cliente' : 'Nuevo Cliente'}
           </h1>
         </div>
@@ -363,7 +368,10 @@ export default function ClienteForm({ id }: ClienteFormProps) {
 
           {/* Portal Access Section (only on create) */}
           {!editing && (
-            <div className="border-t border-primary/20 pt-8 pb-4">
+            <div
+              className="pt-8 pb-4"
+              style={{ borderTop: `1px solid ${accentBorderColor}` }}
+            >
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2">
                   <Lock size={20} />
@@ -386,7 +394,10 @@ export default function ClienteForm({ id }: ClienteFormProps) {
               </label>
 
               {createPortalAccess && (
-                <div className="mt-4 p-5 rounded-xl bg-bg-intermediate/30 border border-primary/10 space-y-4">
+                <div
+                  className="mt-4 p-5 rounded-xl bg-bg-intermediate/30 space-y-4"
+                  style={{ border: `1px solid ${accentBorderColor}` }}
+                >
                   <p className="text-sm text-secondary font-medium opacity-70">
                     Se creará un usuario con rol 'cliente'. Comunícale sus credenciales de acceso.
                   </p>
@@ -433,10 +444,13 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           )}
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-primary/20">
+          <div
+            className="flex justify-end gap-3 pt-6"
+            style={{ borderTop: `1px solid ${accentBorderColor}` }}
+          >
             <button
               type="button"
-              className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200"
+              className="btn-secondary cursor-pointer"
               onClick={() => navigate({ to: '/app/clientes' })}
             >
               Cancelar

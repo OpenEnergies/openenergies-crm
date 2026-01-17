@@ -12,6 +12,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SearchableSelect from '../../components/SearchableSelect';
+import { useTheme } from '@hooks/ThemeContext';
 
 // ============ TIPOS ============
 type EstadoContrato = 'Aceptado' | 'En curso' | 'Bloqueado' | 'Pendiente Doc.' | 'Pendiente firma' | 'Firmado' | 'Contratado' | 'Pendiente renovacion' | 'Baja' | 'Standby' | 'Desiste';
@@ -111,6 +112,10 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
 export default function ContratoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
+
+  // Accent border color: green in dark mode, light gray in light mode (matches ClienteForm)
+  const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
 
   // Estados locales para filtros cascada
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
@@ -318,8 +323,8 @@ export default function ContratoForm({ id }: { id?: string }) {
         >
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2">
-          <FileText size={24} className="text-emerald-400" />
+        <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
+          <FileText size={24} className="text-fenix-600 dark:text-fenix-400" />
           {editing ? 'Editar Contrato' : 'Nuevo Contrato'}
         </h2>
       </div>
@@ -328,9 +333,12 @@ export default function ContratoForm({ id }: { id?: string }) {
 
         {/* ===== SECCIÓN 1: DATOS GENERALES (z-50) ===== */}
         <div className="glass-card p-6 sm:p-8 space-y-6 relative z-50">
-          <div className="flex items-center gap-2 pb-2 border-b border-bg-intermediate">
-            <FileText size={18} className="text-emerald-500" />
-            <h3 className="font-semibold text-emerald-400 text-lg">Datos Generales</h3>
+          <div
+            className="flex items-center gap-2 pb-2"
+            style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+          >
+            <FileText size={18} className="text-fenix-600 dark:text-fenix-400" />
+            <h3 className="font-semibold text-fenix-600 dark:text-fenix-400 text-lg">Datos Generales</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -348,14 +356,14 @@ export default function ContratoForm({ id }: { id?: string }) {
                   error={errors.comercializadora_id?.message}
                   disabled={loadingComercializadoras}
                   placeholder="Buscar comercializadora..."
-                  labelClassName="text-sm font-medium text-emerald-400"
+                  labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                 />
               )}
             />
 
             {/* Canal */}
             <div className="space-y-2">
-              <label htmlFor="canal_id" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="canal_id" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Users size={16} />
                 Canal
               </label>
@@ -400,7 +408,7 @@ export default function ContratoForm({ id }: { id?: string }) {
               placeholder="Todos los clientes"
               allowEmpty={true}
               emptyLabel="Todos los clientes"
-              labelClassName="text-sm font-medium text-emerald-400"
+              labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
             />
 
             {/* Punto de Suministro */}
@@ -421,7 +429,7 @@ export default function ContratoForm({ id }: { id?: string }) {
                   error={errors.punto_id?.message}
                   disabled={loadingPuntos}
                   placeholder="Selecciona punto..."
-                  labelClassName="text-sm font-medium text-emerald-400"
+                  labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                 />
               )}
             />
@@ -430,14 +438,17 @@ export default function ContratoForm({ id }: { id?: string }) {
 
         {/* ===== SECCIÓN 2: DATOS ESPECÍFICOS (z-40) ===== */}
         <div className="glass-card p-6 sm:p-8 space-y-6 relative z-40">
-          <div className="flex items-center gap-2 pb-2 border-b border-bg-intermediate">
-            <Activity size={18} className="text-emerald-500" />
-            <h3 className="font-semibold text-emerald-400 text-lg">Datos Específicos</h3>
+          <div
+            className="flex items-center gap-2 pb-2"
+            style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+          >
+            <Activity size={18} className="text-fenix-600 dark:text-fenix-400" />
+            <h3 className="font-semibold text-fenix-600 dark:text-fenix-400 text-lg">Datos Específicos</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label htmlFor="estado" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="estado" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Activity size={16} />
                 Estado *
               </label>
@@ -450,7 +461,7 @@ export default function ContratoForm({ id }: { id?: string }) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="numero_cuenta" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="numero_cuenta" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <CreditCard size={16} />
                 Número de cuenta (IBAN)
               </label>
@@ -469,7 +480,7 @@ export default function ContratoForm({ id }: { id?: string }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             <div className="space-y-2">
-              <label htmlFor="fotovoltaica" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fotovoltaica" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Sun size={16} />
                 Fotovoltaica
               </label>
@@ -487,7 +498,7 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <div className="h-6 w-11 rounded-full bg-bg-intermediate peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-fenix-500/50 peer-checked:bg-emerald-500 transition-colors" />
                   <div className="absolute top-[2px] left-[2px] bg-white h-5 w-5 rounded-full shadow-sm transition-all peer-checked:translate-x-5" />
                 </div>
-                <span className="text-sm font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors flex items-center gap-2">
+                <span className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                   <DollarSign size={16} />
                   Cobrado
                 </span>
@@ -498,14 +509,17 @@ export default function ContratoForm({ id }: { id?: string }) {
 
         {/* ===== SECCIÓN 3: FECHAS (z-30) ===== */}
         <div className="glass-card p-6 sm:p-8 space-y-6 relative z-30">
-          <div className="flex items-center gap-2 pb-2 border-b border-bg-intermediate">
-            <Calendar size={18} className="text-emerald-500" />
-            <h3 className="font-semibold text-emerald-400 text-lg">Fechas</h3>
+          <div
+            className="flex items-center gap-2 pb-2"
+            style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+          >
+            <Calendar size={18} className="text-fenix-600 dark:text-fenix-400" />
+            <h3 className="font-semibold text-fenix-600 dark:text-fenix-400 text-lg">Fechas</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <label htmlFor="fecha_activacion" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fecha_activacion" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Calendar size={16} />
                 Fecha de activación
               </label>
@@ -513,7 +527,7 @@ export default function ContratoForm({ id }: { id?: string }) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="fecha_aceptacion" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fecha_aceptacion" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Calendar size={16} />
                 Fecha de aceptación
               </label>
@@ -521,7 +535,7 @@ export default function ContratoForm({ id }: { id?: string }) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="fecha_firma" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fecha_firma" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Calendar size={16} />
                 Fecha de firma
               </label>
@@ -531,7 +545,7 @@ export default function ContratoForm({ id }: { id?: string }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label htmlFor="fecha_baja" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fecha_baja" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Calendar size={16} />
                 Fecha de baja
               </label>
@@ -539,7 +553,7 @@ export default function ContratoForm({ id }: { id?: string }) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="fecha_renovacion" className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+              <label htmlFor="fecha_renovacion" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                 <Calendar size={16} />
                 Fecha de renovación
               </label>
@@ -550,9 +564,12 @@ export default function ContratoForm({ id }: { id?: string }) {
 
         {/* ===== SECCIÓN 4: OTROS (z-20) ===== */}
         <div className="glass-card p-6 sm:p-8 space-y-6 relative z-20">
-          <div className="flex items-center gap-2 pb-2 border-b border-bg-intermediate">
-            <Bell size={18} className="text-emerald-500" />
-            <h3 className="font-semibold text-emerald-400 text-lg">Otros</h3>
+          <div
+            className="flex items-center gap-2 pb-2"
+            style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+          >
+            <Bell size={18} className="text-fenix-600 dark:text-fenix-400" />
+            <h3 className="font-semibold text-fenix-600 dark:text-fenix-400 text-lg">Otros</h3>
           </div>
 
           {/* Permanencia */}
@@ -569,13 +586,13 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <div className="h-6 w-11 rounded-full bg-bg-intermediate peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-fenix-500/50 peer-checked:bg-fenix-500 transition-colors" />
                   <div className="absolute top-[2px] left-[2px] bg-white h-5 w-5 rounded-full shadow-sm transition-all peer-checked:translate-x-5" />
                 </div>
-                <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors cursor-pointer">
+                <span className="text-sm font-bold text-primary uppercase tracking-tight">
                   Tiene permanencia
                 </span>
               </label>
 
               <div className="space-y-2">
-                <label htmlFor="fecha_permanencia" className={`text-sm font-medium flex items-center gap-2 ${!watchedPermanencia ? 'text-gray-500' : 'text-emerald-400'}`}>
+                <label htmlFor="fecha_permanencia" className={`text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2 ${!watchedPermanencia ? 'text-gray-500' : 'text-emerald-400'}`}>
                   <Calendar size={16} />
                   Fecha fin permanencia
                 </label>
@@ -605,13 +622,13 @@ export default function ContratoForm({ id }: { id?: string }) {
                   <div className="h-6 w-11 rounded-full bg-bg-intermediate peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-fenix-500/50 peer-checked:bg-fenix-500 transition-colors" />
                   <div className="absolute top-[2px] left-[2px] bg-white h-5 w-5 rounded-full shadow-sm transition-all peer-checked:translate-x-5" />
                 </div>
-                <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors cursor-pointer">
+                <span className="text-sm font-bold text-primary uppercase tracking-tight">
                   Activar aviso
                 </span>
               </label>
 
               <div className="space-y-2">
-                <label htmlFor="fecha_aviso" className={`text-sm font-medium flex items-center gap-2 ${!watchedAvisoRenovacion ? 'text-gray-500' : 'text-emerald-400'}`}>
+                <label htmlFor="fecha_aviso" className={`text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2 ${!watchedAvisoRenovacion ? 'text-gray-500' : 'text-emerald-400'}`}>
                   <Calendar size={16} />
                   Fecha del aviso
                 </label>
@@ -640,7 +657,7 @@ export default function ContratoForm({ id }: { id?: string }) {
           <button
             type="submit"
             disabled={isSubmitting || isLoading}
-            className="flex items-center gap-2 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 disabled:opacity-50 disabled:cursor-not-allowed font-medium cursor-pointer"
+            className="flex items-center gap-2 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20 disabled:opacity-50 disabled:cursor-not-allowed font-bold cursor-pointer"
           >
             <Save size={18} />
             {isSubmitting ? 'Guardando...' : (editing ? 'Guardar cambios' : 'Crear contrato')}

@@ -5,6 +5,7 @@ import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { Radio, Plus, Trash2, Loader2, XCircle, X, Layers, Search } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
 
 type Canal = {
@@ -51,6 +52,10 @@ export default function CanalesList() {
     });
 
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const { theme } = useTheme();
+
+    // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+    const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState<Canal | null>(null);
     const [newCanalName, setNewCanalName] = useState('');
@@ -225,7 +230,10 @@ export default function CanalesList() {
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate">
+                                <tr
+                                    className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                                    style={{ borderBottomColor: tableBorderColor }}
+                                >
                                     <th className="w-10 p-4 text-left">
                                         <input
                                             type="checkbox"

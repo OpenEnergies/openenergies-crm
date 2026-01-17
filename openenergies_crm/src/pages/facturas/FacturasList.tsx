@@ -8,6 +8,7 @@ import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, Chev
 import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
@@ -284,6 +285,10 @@ export default function FacturasList() {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const { theme } = useTheme();
+
+    // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+    const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
     const { data: facturas = [], isLoading, isError } = useQuery({
         queryKey: ['facturas-global', dateFilter],
@@ -441,7 +446,7 @@ export default function FacturasList() {
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
+                        <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
                             <Search size={16} />
                             Buscar
                         </label>
@@ -483,7 +488,10 @@ export default function FacturasList() {
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                                <tr
+                                    className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                                    style={{ borderBottomColor: tableBorderColor }}
+                                >
                                     <th className="p-4 text-left">
                                         <button onClick={() => handleSort('numero_factura' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                                             Nº Factura {renderSortIcon('numero_factura' as any)}
@@ -523,7 +531,7 @@ export default function FacturasList() {
                                     <th className="p-4 text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-primary">
+                            <tbody className="divide-y divide-fenix-500/10">
                                 {displayedData.map(factura => (
                                     <tr
                                         key={factura.id}
@@ -608,7 +616,10 @@ export default function FacturasList() {
 
                 {/* Pagination */}
                 {displayedData.length > 0 && (
-                    <div className="p-4 border-t border-bg-intermediate flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div
+                        className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+                        style={{ borderTop: `1px solid ${tableBorderColor}` }}
+                    >
                         <span className="text-sm text-secondary">
                             Total: <span className="text-primary font-bold">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-primary font-bold">{currentPage}</span> de {totalPages}
                         </span>

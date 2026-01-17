@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { RootDocumentItem } from '@lib/types'
 import { Download, Folder, FileText, FileArchive, Loader2, FileUp, FileImage, FileSpreadsheet, Eye as EyeIcon, Search, FolderOpen } from 'lucide-react'
 import { useSession } from '@hooks/useSession'
+import { useTheme } from '@hooks/ThemeContext'
 import { EmptyState } from '@components/EmptyState'
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast';
@@ -48,6 +49,11 @@ async function fetchAllRootDocuments(): Promise<RootDocumentItem[]> {
 export default function DocumentosList() {
   const { rol } = useSession()
   const queryClient = useQueryClient()
+  const { theme } = useTheme()
+
+  // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
+
   const [filter, setFilter] = useState('')
   const [isZipping, setIsZipping] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -143,16 +149,16 @@ export default function DocumentosList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-            <FolderOpen className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+          <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+            <FolderOpen className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Documentos Globales</h1>
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Documentos Globales</h1>
         </div>
 
         <div className="flex items-center gap-3">
           {canSearch && (
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
+              <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
                 <Search size={16} />
                 Buscar
               </label>
@@ -204,7 +210,10 @@ export default function DocumentosList() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b-2 border-primary bg-bg-intermediate">
+                <tr
+                  className="border-b-2 bg-bg-intermediate"
+                  style={{ borderBottomColor: tableBorderColor }}
+                >
                   <th className="p-4 text-left text-xs font-bold text-primary uppercase tracking-wider">
                     Nombre del Archivo / Carpeta
                   </th>
@@ -246,11 +255,11 @@ export default function DocumentosList() {
                         ) : (
                           <button
                             onClick={() => handlePreview(item.full_path, item.item_name)}
-                            className="flex items-center gap-3 text-slate-900 dark:text-white hover:text-fenix-500 dark:hover:text-fenix-400 transition-colors w-full text-left cursor-pointer"
+                            className="flex items-center gap-3 hover:text-fenix-500 dark:hover:text-fenix-400 transition-colors w-full text-left cursor-pointer"
                             title={`Vista previa de ${item.item_name}`}
                           >
                             {getFileIcon(item.item_name)}
-                            <span className="font-medium">{item.item_name}</span>
+                            <span className="text-secondary font-bold">{item.item_name}</span>
                           </button>
                         )}
                       </td>

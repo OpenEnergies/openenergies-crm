@@ -12,6 +12,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import SearchableSelect from '@components/SearchableSelect';
+import { useTheme } from '@hooks/ThemeContext';
 
 // ============ TIPOS ============
 type TipoFactura = 'Luz' | 'Gas';
@@ -131,6 +132,10 @@ async function fetchAsignaciones(puntoId: string): Promise<string[]> {
 export default function PuntoForm({ id }: { id?: string }) {
   const editing = Boolean(id);
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
+
+  // Accent border color: green in dark mode, light gray in light mode (matches ClienteForm)
+  const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
 
   // Estados locales
   const [selectedComerciales, setSelectedComerciales] = useState<string[]>([]);
@@ -369,7 +374,7 @@ export default function PuntoForm({ id }: { id?: string }) {
       <div className="flex items-center gap-3">
         <MapPin className="text-fenix-600 dark:text-fenix-400" size={28} />
         <div>
-          <h2 className="text-2xl font-bold text-primary">
+          <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
             {editing ? 'Editar Punto de Suministro' : 'Nuevo Punto de Suministro'}
           </h2>
           <p className="text-secondary opacity-70 text-sm font-medium">
@@ -390,7 +395,10 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 1: DATOS GENERALES ===== */}
           <div className="glass-card p-6 relative z-50">
-            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
+            <h3
+              className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3"
+              style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+            >
               <Building size={20} />
               Datos Generales
             </h3>
@@ -464,7 +472,10 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 2: DATOS ESPECÍFICOS ===== */}
           <div className="glass-card p-6 relative z-40">
-            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
+            <h3
+              className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3"
+              style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+            >
               <Zap size={20} />
               Datos Específicos
             </h3>
@@ -621,7 +632,10 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 3: DIRECCIONES ===== */}
           <div className="glass-card p-6 relative z-30">
-            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
+            <h3
+              className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3"
+              style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+            >
               <MapPin size={20} />
               Direcciones
             </h3>
@@ -723,7 +737,10 @@ export default function PuntoForm({ id }: { id?: string }) {
 
           {/* ===== SECCIÓN 4: COMERCIALES ===== */}
           <div className="glass-card p-6 relative z-20">
-            <h3 className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3 border-b border-primary">
+            <h3
+              className="text-lg font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2 mb-6 pb-3"
+              style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+            >
               <Users size={20} />
               Comerciales Asignados
             </h3>

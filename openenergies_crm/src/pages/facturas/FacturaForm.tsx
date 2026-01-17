@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTheme } from '@hooks/ThemeContext';
 import SearchableSelect from '@components/SearchableSelect';
 
 // ============ TYPES ============
@@ -140,6 +141,10 @@ export default function FacturaForm({ id }: { id?: string }) {
     const [manualTax1, setManualTax1] = useState(false);
     const [manualTax2, setManualTax2] = useState(false);
     const [manualTotal, setManualTotal] = useState(false);
+    const { theme } = useTheme();
+
+    // Accent border color: green in dark mode, light gray in light mode (matches ClienteForm)
+    const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
 
     // Queries
     const { data: comercializadoras = [], isLoading: loadingComercializadoras } = useQuery({
@@ -422,7 +427,7 @@ export default function FacturaForm({ id }: { id?: string }) {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
                     <Receipt size={24} className="text-fenix-600 dark:text-fenix-400" />
                     {editing ? 'Editar Factura' : 'Nueva Factura'}
                 </h2>
@@ -432,7 +437,10 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                 {/* ===== SECTION 1: GENERAL INFO (z-50) ===== */}
                 <div className="glass-card p-6 sm:p-8 space-y-6 relative z-50">
-                    <div className="flex items-center gap-2 pb-3 border-b border-primary">
+                    <div
+                        className="flex items-center gap-2 pb-3"
+                        style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+                    >
                         <FileText size={18} className="text-fenix-600 dark:text-fenix-400" />
                         <h3 className="font-bold text-fenix-600 dark:text-fenix-400 text-lg uppercase tracking-wider">Datos Generales</h3>
                     </div>
@@ -503,7 +511,7 @@ export default function FacturaForm({ id }: { id?: string }) {
                                     error={errors.punto_id?.message}
                                     disabled={loadingPuntos}
                                     placeholder={selectedClienteId ? "Selecciona CUPS..." : "Selecciona cliente primero"}
-                                    labelClassName="text-sm font-medium text-fenix-400"
+                                    labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                                     allowEmpty={false}
                                 />
                             )}
@@ -513,7 +521,10 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                 {/* ===== SECTION 2: INVOICE DETAILS (z-40) ===== */}
                 <div className="glass-card p-6 sm:p-8 space-y-6 relative z-40">
-                    <div className="flex items-center gap-2 pb-3 border-b border-primary">
+                    <div
+                        className="flex items-center gap-2 pb-3"
+                        style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+                    >
                         <Receipt size={18} className="text-fenix-600 dark:text-fenix-400" />
                         <h3 className="font-bold text-fenix-600 dark:text-fenix-400 text-lg uppercase tracking-wider">Datos de la Factura</h3>
                     </div>
@@ -537,7 +548,7 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                         {/* Fecha de emisión */}
                         <div className="space-y-2">
-                            <label htmlFor="fecha_emision" className="text-sm font-medium text-fenix-400 flex items-center gap-2">
+                            <label htmlFor="fecha_emision" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                                 <Calendar size={16} />
                                 Fecha Emisión *
                             </label>
@@ -585,7 +596,7 @@ export default function FacturaForm({ id }: { id?: string }) {
                                             ? `Tarifas ${watchedTipoFactura}...`
                                             : "Selecciona tipo primero..."
                                     }
-                                    labelClassName="text-sm font-medium text-fenix-400"
+                                    labelClassName="text-sm font-bold text-primary uppercase tracking-tight"
                                     allowEmpty
                                     emptyLabel="Sin tarifa"
                                 />
@@ -596,7 +607,10 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                 {/* ===== SECTION 3: SUPPLY DATA (z-30) ===== */}
                 <div className="glass-card p-6 sm:p-8 space-y-6 relative z-30">
-                    <div className="flex items-center gap-2 pb-3 border-b border-primary">
+                    <div
+                        className="flex items-center gap-2 pb-3"
+                        style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+                    >
                         <MapPin size={18} className="text-fenix-600 dark:text-fenix-400" />
                         <h3 className="font-bold text-fenix-600 dark:text-fenix-400 text-lg uppercase tracking-wider">Datos de Suministro</h3>
                     </div>
@@ -619,7 +633,7 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                         {/* Provincia */}
                         <div className="space-y-2">
-                            <label htmlFor="provincia" className="text-sm font-medium text-fenix-400 flex items-center gap-2">
+                            <label htmlFor="provincia" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                                 <MapPin size={16} />
                                 Provincia
                             </label>
@@ -652,7 +666,7 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                         {/* Potencia max */}
                         <div className="space-y-2">
-                            <label htmlFor="potencia_kw_max" className="text-sm font-medium text-fenix-400 flex items-center gap-2">
+                            <label htmlFor="potencia_kw_max" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                                 <Zap size={16} />
                                 Pot. Máx (kW)
                             </label>
@@ -684,7 +698,7 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                         {/* Precio €/kWh */}
                         <div className="space-y-2">
-                            <label htmlFor="precio_eur_kwh" className="text-sm font-medium text-fenix-400 flex items-center gap-2">
+                            <label htmlFor="precio_eur_kwh" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                                 <Calculator size={16} />
                                 Precio (€/kWh)
                             </label>
@@ -702,7 +716,10 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                 {/* ===== SECTION 4: TAXES & TOTALS (z-20) ===== */}
                 <div className="glass-card p-6 sm:p-8 space-y-6 relative z-20">
-                    <div className="flex items-center gap-2 pb-3 border-b border-primary">
+                    <div
+                        className="flex items-center gap-2 pb-3"
+                        style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+                    >
                         <Calculator size={18} className="text-fenix-600 dark:text-fenix-400" />
                         <h3 className="font-bold text-fenix-600 dark:text-fenix-400 text-lg uppercase tracking-wider">Impuestos y Total</h3>
                     </div>
@@ -869,7 +886,10 @@ export default function FacturaForm({ id }: { id?: string }) {
 
                 {/* ===== SECTION 5: NOTES (z-10) ===== */}
                 <div className="glass-card p-6 sm:p-8 space-y-6 relative z-10">
-                    <div className="flex items-center gap-2 pb-3 border-b border-primary">
+                    <div
+                        className="flex items-center gap-2 pb-3"
+                        style={{ borderBottom: `1px solid ${accentBorderColor}` }}
+                    >
                         <MessageSquare size={18} className="text-fenix-600 dark:text-fenix-400" />
                         <h3 className="font-bold text-fenix-600 dark:text-fenix-400 text-lg uppercase tracking-wider">Observaciones</h3>
                     </div>
@@ -889,7 +909,7 @@ export default function FacturaForm({ id }: { id?: string }) {
                 <div className="flex items-center justify-end gap-3 pt-6 border-t border-primary/20">
                     <button
                         type="button"
-                        className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200 cursor-pointer"
+                        className="btn-secondary cursor-pointer"
                         onClick={() => router.history.back()}
                     >
                         Cancelar

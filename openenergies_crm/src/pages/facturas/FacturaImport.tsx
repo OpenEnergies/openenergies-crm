@@ -114,7 +114,7 @@ export default function FacturaImport() {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
                     <FileUp size={24} className="text-fenix-400" />
                     Importación por Lote de Facturas
                 </h2>
@@ -129,7 +129,7 @@ export default function FacturaImport() {
                                 <UploadCloud size={32} className="text-fenix-500" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">Selecciona tus facturas PDF</h3>
+                                <h3 className="text-slate-600 dark:text-slate-400">Selecciona tus facturas PDF</h3>
                                 <p className="text-gray-400 text-sm mt-1">Puedes seleccionar múltiples archivos simultáneamente</p>
                             </div>
                             <input
@@ -155,7 +155,7 @@ export default function FacturaImport() {
                     {files.length > 0 && (
                         <div className="glass-card overflow-hidden">
                             <div className="p-4 border-b border-bg-intermediate flex justify-between items-center bg-bg-intermediate/30">
-                                <h4 className="font-semibold text-white flex items-center gap-2">
+                                <h4 className="text-slate-600 dark:text-slate-400 flex items-center gap-2">
                                     <FileText size={18} className="text-fenix-400" />
                                     Cola de subida ({files.length})
                                 </h4>
@@ -171,7 +171,7 @@ export default function FacturaImport() {
                                                 <td className="p-3 pl-4">
                                                     <div className="flex items-center gap-3">
                                                         <FileText size={16} className="text-red-400" />
-                                                        <span className="text-sm text-gray-200 truncate max-w-[200px] sm:max-w-md">
+                                                        <span className="text-gray-400 text-sm mt-1">
                                                             {file.name}
                                                         </span>
                                                     </div>
@@ -221,7 +221,7 @@ export default function FacturaImport() {
                     <div className="glass-card p-6 border-l-4 border-fenix-500">
                         <div className="flex items-center gap-2 mb-4">
                             <Building2 size={20} className="text-fenix-400" />
-                            <h4 className="font-bold text-white">Comercializadoras Soportadas</h4>
+                            <h4 className="text-slate-600 dark:text-slate-400">Comercializadoras Soportadas</h4>
                         </div>
                         <p className="text-sm text-gray-400 mb-4">
                             El sistema de extracción automática de datos solo está disponible para estas compañías:
@@ -241,7 +241,7 @@ export default function FacturaImport() {
                     <div className="glass-card p-6 bg-bg-intermediate/60 border border-white/5">
                         <div className="flex items-center gap-2 mb-4">
                             <AlertCircle size={20} className="text-solar-400" />
-                            <h4 className="font-bold text-white">Información Técnica</h4>
+                            <h4 className="text-slate-600 dark:text-slate-400">Información Técnica</h4>
                         </div>
                         <ul className="text-xs text-gray-400 space-y-3 list-disc pl-4">
                             <li>Límite de subida: <strong>{MAX_CUMULATIVE_SIZE_MB}MB</strong> por lote.</li>

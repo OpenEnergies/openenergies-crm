@@ -216,7 +216,7 @@ export default function LogoUpload({
 
     return (
         <div className="space-y-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+            <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
                 <ImageIcon size={16} />
                 Logo de la empresa
             </label>

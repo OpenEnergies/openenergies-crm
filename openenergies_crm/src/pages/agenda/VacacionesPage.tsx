@@ -116,7 +116,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
       <div className="glass-modal w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-bg-intermediate">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
             <Calendar className="text-fenix-600 dark:text-fenix-400" />
             Añadir Vacaciones
           </h3>
@@ -168,7 +168,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
           )}
 
           <div className="space-y-2">
-            <label htmlFor="fecha_inicio" className="text-sm font-medium text-gray-300">Fecha de inicio *</label>
+            <label htmlFor="fecha_inicio" className="text-sm font-bold text-primary uppercase tracking-tight">Fecha de inicio *</label>
             <input
               type="date"
               id="fecha_inicio"
@@ -186,7 +186,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="fecha_fin" className="text-sm font-medium text-gray-300">Fecha de fin *</label>
+            <label htmlFor="fecha_fin" className="text-sm font-bold text-primary uppercase tracking-tight">Fecha de fin *</label>
             <input
               type="date"
               id="fecha_fin"
@@ -205,14 +205,14 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
           </div>
 
           {diasCalculados > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-fenix-500/20 border border-fenix-500/30 text-fenix-200">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-fenix-500/20 border border-fenix-500/30 text-fenix-700 dark:text-fenix-200">
               <Clock size={16} />
               <span><strong>{diasCalculados}</strong> día{diasCalculados !== 1 ? 's' : ''} de vacaciones</span>
             </div>
           )}
 
           <div className="space-y-2">
-            <label htmlFor="descripcion" className="text-sm font-medium text-gray-300">Descripción (opcional)</label>
+            <label htmlFor="descripcion" className="text-sm font-bold text-primary uppercase tracking-tight">Descripción (opcional)</label>
             <textarea
               id="descripcion"
               value={descripcion}
@@ -225,7 +225,7 @@ function VacacionFormModal({ onClose, currentUserId, currentEmpresaId, isAdmin }
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-200 dark:border-bg-intermediate bg-slate-50 dark:bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
+        <div className="p-6 border-t border-slate-200 dark:border-fenix-700/30 bg-bg-intermediate/50 dark:bg-bg-tertiary flex items-center justify-end gap-3 rounded-b-xl">
           <button
             type="button"
             className="btn-secondary"
@@ -401,7 +401,7 @@ export default function VacacionesPage() {
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Vacaciones</h2>
+            <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Gestión de Vacaciones</h2>
             <p className="text-slate-600 dark:text-slate-400">
               {isAdmin ? 'Gestiona las vacaciones de todos los usuarios' : 'Gestiona tus períodos de vacaciones'}
             </p>
@@ -459,7 +459,7 @@ export default function VacacionesPage() {
                     </div>
                     <div className="text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-white">{userData.nombre}</span>
+                        <span className="font-semibold text-primary">{userData.nombre}</span>
                         <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-bg-intermediate text-slate-500 dark:text-slate-400 capitalize">
                           {userData.rol}
                         </span>
@@ -520,7 +520,7 @@ export default function VacacionesPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-slate-900 dark:text-white">
+                                  <span className="font-medium text-primary">
                                     {formatFecha(v.fecha_inicio)} - {formatFecha(v.fecha_fin)}
                                   </span>
                                   {enCurso && (

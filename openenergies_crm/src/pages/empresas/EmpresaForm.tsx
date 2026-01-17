@@ -8,6 +8,7 @@ import type { Empresa } from '@lib/types';
 import { Building2, FileText, Tags, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import LogoUpload, { convertToPng } from '@components/LogoUpload';
+import { useTheme } from '@hooks/ThemeContext';
 
 const schema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -20,6 +21,10 @@ type FormData = z.infer<typeof schema>;
 export default function EmpresaForm({ id }: { id?: string }) {
   const navigate = useNavigate();
   const editing = Boolean(id);
+  const { theme } = useTheme();
+
+  // Accent border color: green in dark mode, light gray in light mode (matches ClienteForm)
+  const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
@@ -137,7 +142,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
             <Building2 className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-primary">
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
             {editing ? 'Editar Empresa' : 'Nueva Empresa'}
           </h1>
         </div>
@@ -206,10 +211,13 @@ export default function EmpresaForm({ id }: { id?: string }) {
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-primary/20">
+          <div
+            className="flex justify-end gap-3 pt-6"
+            style={{ borderTop: `1px solid ${accentBorderColor}` }}
+          >
             <button
               type="button"
-              className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200"
+              className="btn-secondary cursor-pointer"
               onClick={() => navigate({ to: '/app/empresas' })}
             >
               Cancelar

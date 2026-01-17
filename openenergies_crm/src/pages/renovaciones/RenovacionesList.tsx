@@ -8,6 +8,7 @@ import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { fmtDate } from '@lib/utils';
 import { CalendarClock, Search, CalendarCheck, Calendar } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 
 // Tipos (igual que en ContratosList)
 type ContratoExtendido = Contrato & {
@@ -25,6 +26,26 @@ const initialColumnFilters = {
   fecha_activacion: { year: null, month: null, day: null } as DateParts,
   fecha_renovacion: { year: null, month: null, day: null } as DateParts,
   aviso_renovacion: [] as string[],
+};
+
+// Helper para colores de estado (igual que ContratosList)
+type EstadoContrato = 'Aceptado' | 'En curso' | 'Bloqueado' | 'Pendiente Doc.' | 'Pendiente firma' | 'Firmado' | 'Contratado' | 'Pendiente renovacion' | 'Baja' | 'Standby' | 'Desiste';
+
+const getEstadoColorClass = (estado: string) => {
+  const map: Record<EstadoContrato, string> = {
+    'Aceptado': 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30',
+    'En curso': 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 dark:border-blue-500/30',
+    'Bloqueado': 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 dark:border-red-500/30',
+    'Pendiente Doc.': 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/30',
+    'Pendiente firma': 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/30',
+    'Firmado': 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30',
+    'Contratado': 'bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 dark:border-purple-500/30',
+    'Pendiente renovacion': 'bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 dark:border-orange-500/30',
+    'Baja': 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20',
+    'Standby': 'bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20 dark:border-yellow-500/30',
+    'Desiste': 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 dark:border-red-500/30',
+  };
+  return map[estado as EstadoContrato] || 'bg-bg-intermediate text-secondary opacity-70 border border-primary/20';
 };
 
 // --- FUNCIÓN DE FETCH MODIFICADA ---
@@ -79,6 +100,10 @@ interface Props {
 export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
+  const { theme } = useTheme();
+
+  // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError } = useQuery({
     queryKey: ['renovaciones', filter, daysToExpiry],
@@ -195,7 +220,10 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
         {fetchedData && fetchedData.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-primary uppercase bg-bg-intermediate border-b-2 border-primary">
+              <thead
+                className="text-xs text-primary uppercase bg-bg-intermediate border-b-2"
+                style={{ borderBottomColor: tableBorderColor }}
+              >
                 <tr>
                   <th className="px-6 py-3 font-bold">
                     <button onClick={() => handleSort('puntos_suministro')} className="flex items-center gap-1 hover:text-fenix-500 transition-colors cursor-pointer">
@@ -263,7 +291,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
                     </td>
                     <td className="px-6 py-4 font-bold text-primary">{c.comercializadoras?.nombre ?? '—'}</td>
                     <td className="px-6 py-4 text-secondary">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/30 text-blue-300">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${getEstadoColorClass(c.estado)}`}>
                         {c.estado}
                       </span>
                     </td>

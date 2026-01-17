@@ -33,12 +33,12 @@ export default function ForceChangePassword() {
       // 2. Actualizar nuestra bandera en la tabla de perfiles
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No se pudo encontrar al usuario.');
-      
+
       const { error: updateProfileError } = await supabase
         .from('usuarios_app')
         .update({ forzar_cambio_password: false })
         .eq('user_id', user.id);
-      
+
       if (updateProfileError) throw updateProfileError;
 
       // --- 3. FORZAR REFETCH Y ESPERAR ---
@@ -52,7 +52,7 @@ export default function ForceChangePassword() {
 
     } catch (e: any) {
       console.error("Error al actualizar contraseña:", e);
-      toast.error(`Error al actualizar la contraseña: La contraseña debe tener al menos 8 caracteres, que incluyan al menos 1 letra mayúscula, 1 minúscula, 1 número y 1 carácter especial.`); 
+      toast.error(`Error al actualizar la contraseña: La contraseña debe tener al menos 8 caracteres, que incluyan al menos 1 letra mayúscula, 1 minúscula, 1 número y 1 carácter especial.`);
     }
   }
 
@@ -91,7 +91,7 @@ export default function ForceChangePassword() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-describedby="change-password-hint">
           {/* New Password */}
           <div className="space-y-1.5">
-            <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+            <label htmlFor="password" className="text-gray-400">
               <Lock size={16} />
               Nueva Contraseña
             </label>

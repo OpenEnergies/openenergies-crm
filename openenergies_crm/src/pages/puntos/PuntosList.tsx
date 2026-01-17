@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
 import type { EstadoPunto, TipoFactura } from '@lib/types';
+import { useTheme } from '@hooks/ThemeContext';
 import {
   Trash2, MapPinPlus, XCircle, Edit, X, ExternalLink,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, MapPin
@@ -399,6 +400,10 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
+  const { theme } = useTheme();
+
+  // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError } = useQuery({
     queryKey: ['puntos', filter, clienteId],
@@ -592,7 +597,7 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
               {!clienteId && (
                 <>
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
+                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
                       <Search size={16} />
                       Buscar
                     </label>
@@ -661,7 +666,10 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                <tr
+                  className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                  style={{ borderBottomColor: tableBorderColor }}
+                >
                   <th className="w-10 p-4 text-left">
                     <input
                       type="checkbox"
@@ -790,7 +798,10 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
 
         {/* Paginación */}
         {!isLoading && !isError && totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary">
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t"
+            style={{ borderTopColor: tableBorderColor }}
+          >
             <div className="text-sm text-secondary">
               Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
             </div>

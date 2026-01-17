@@ -11,6 +11,7 @@ import { useSession } from '@hooks/useSession';
 import { User, Mail, Phone, Shield, ArrowLeft, Users, Loader2, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
+import { useTheme } from '@hooks/ThemeContext';
 
 const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -48,6 +49,10 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
   const editing = Boolean(userId);
   const isAdmin = currentUserRol === 'administrador';
   const [createWithPassword, setCreateWithPassword] = useState(!isAdmin);
+  const { theme } = useTheme();
+
+  // Accent border color: green in dark mode, light gray in light mode (matches ClienteForm)
+  const accentBorderColor = theme === 'dark' ? '#17553e' : 'rgba(0, 0, 0, 0.1)';
   const schema = createUserSchema(isAdmin, createWithPassword, editing);
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, control, reset } = useForm<FormData>({
@@ -148,7 +153,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
             <Users className="w-5 h-5 text-fenix-500" />
           </div>
-          <h1 className="text-2xl font-bold text-fenix-600">
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
             {editing ? 'Editar Usuario' : 'Nuevo Colaborador'}
           </h1>
         </div>
@@ -166,7 +171,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           {/* Row: Nombre + Apellidos */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <User size={16} />
                 Nombre
               </label>
@@ -178,7 +183,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
               {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
             </div>
             <div>
-              <label htmlFor="apellidos" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="apellidos" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <User size={16} />
                 Apellidos
               </label>
@@ -193,7 +198,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
 
           {/* Email */}
           <div>
-            <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+            <label htmlFor="email" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
               <Mail size={16} />
               Email de acceso
             </label>
@@ -211,7 +216,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           {/* Row: Teléfono + Rol */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="telefono" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="telefono" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Phone size={16} />
                 Teléfono (opcional)
               </label>
@@ -223,7 +228,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
               />
             </div>
             <div>
-              <label htmlFor="rol" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+              <label htmlFor="rol" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <Shield size={16} />
                 Rol del Usuario
               </label>
@@ -254,7 +259,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           {!editing && (
             <>
               {isAdmin && (
-                <div className="p-4 rounded-lg bg-slate-50 dark:bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate">
+                <div className="p-4 rounded-lg bg-bg-intermediate/50 dark:bg-bg-tertiary border border-slate-200 dark:border-fenix-700/50">
                   <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
                     Método de creación
                   </label>
@@ -290,7 +295,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="password" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                         <Lock size={16} />
                         Contraseña
                       </label>
@@ -302,7 +307,7 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
                       {errors.password && <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>}
                     </div>
                     <div>
-                      <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-medium text-fenix-500 mb-2">
+                      <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                         <Lock size={16} />
                         Confirmar Contraseña
                       </label>
@@ -320,7 +325,10 @@ export default function UsuarioInviteForm({ userId }: { userId?: string }) {
           )}
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-bg-intermediate">
+          <div
+            className="flex justify-end gap-3 pt-6"
+            style={{ borderTop: `1px solid ${accentBorderColor}` }}
+          >
             <button
               type="button"
               className="btn-secondary"

@@ -25,7 +25,7 @@ function AgendaLegend() {
   const legendItemsWithVacaciones = [...legendItems, ['Vacaciones', '#F5A962']];
 
   return (
-    <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate mt-6">
+    <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-bg-intermediate/50 dark:bg-bg-tertiary border border-slate-200/50 dark:border-fenix-700/30 mt-6">
       <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mr-2">Leyenda:</span>
       {legendItemsWithVacaciones.map(([label, color]) => (
         <div key={label} className="flex items-center gap-2">
@@ -327,13 +327,13 @@ export default function AgendaPage() {
     <div className="flex flex-col h-full space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
+        <h2 className="text-3xl font-bold text-fenix-600 dark:text-fenix-500">
           Agenda
         </h2>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* View Toggle */}
-          <div className="p-1 rounded-lg bg-slate-100 dark:bg-bg-intermediate border border-slate-200 dark:border-bg-intermediate flex items-center">
+          <div className="p-1 rounded-lg bg-bg-intermediate/50 dark:bg-bg-tertiary border border-slate-200/50 dark:border-fenix-700/30 flex items-center">
             <button
               className={clsx(
                 "p-2 rounded-md transition-all",
@@ -362,7 +362,7 @@ export default function AgendaPage() {
               "flex items-center gap-2 px-3 py-2 rounded-lg transition-all border cursor-pointer",
               showVacaciones
                 ? "bg-orange-500/20 text-orange-600 dark:text-orange-300 border-orange-500/30 hover:bg-orange-500/30"
-                : "bg-slate-100 dark:bg-bg-intermediate text-slate-500 dark:text-slate-400 border-slate-200 dark:border-bg-intermediate hover:text-slate-900 dark:hover:text-white hover:bg-orange-500/10"
+                : "bg-bg-intermediate/50 dark:bg-bg-tertiary text-slate-600 dark:text-slate-300 border-slate-200/50 dark:border-fenix-700/30 hover:text-slate-900 dark:hover:text-white hover:bg-orange-500/10"
             )}
             onClick={() => setShowVacaciones(!showVacaciones)}
             title={showVacaciones ? 'Ocultar vacaciones' : 'Mostrar vacaciones'}
@@ -378,7 +378,7 @@ export default function AgendaPage() {
 
           <Link
             to="/app/agenda/vacaciones"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 dark:bg-bg-intermediate hover:bg-fenix-500/8 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-bg-intermediate transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-bg-intermediate/50 dark:bg-bg-tertiary hover:bg-fenix-500/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200/50 dark:border-fenix-700/30 transition-colors cursor-pointer"
           >
             <Umbrella size={18} />
             <span className="hidden sm:inline">Vacaciones</span>
@@ -416,6 +416,7 @@ export default function AgendaPage() {
         style={{ opacity: (isLoading || updateEventDateMutation.isPending || deleteMutationList.isPending) ? 0.7 : 1 }}
       >
         <style>{`
+          /* Base Dark Mode styles (default) */
           .fc {
             --fc-border-color: rgba(255, 255, 255, 0.1);
             --fc-page-bg-color: transparent;
@@ -426,7 +427,7 @@ export default function AgendaPage() {
           }
           .fc-theme-standard td, .fc-theme-standard th { border-color: var(--fc-border-color); }
           .fc-theme-standard .fc-scrollgrid { border-color: var(--fc-border-color); }
-          .fc-col-header-cell { background-color: rgba(0,0,0,0.3); text-transform: uppercase; font-size: 0.75rem; padding: 8px 0; }
+          .fc-col-header-cell { background-color: rgba(0,0,0,0.3); text-transform: uppercase; font-size: 0.75rem; padding: 8px 0; color: #e2e8f0; }
           .fc-daygrid-day { background-color: transparent !important; }
           .fc-daygrid-day-frame { background-color: transparent !important; }
           .fc-daygrid-day-number { color: #94a3b8; font-weight: 500; padding: 8px !important; }
@@ -439,13 +440,33 @@ export default function AgendaPage() {
           .fc-timegrid-event .fc-event-main { color: white !important; font-weight: 600 !important; }
           .fc-button-primary { background-color: rgba(255,255,255,0.1) !important; border: 1px solid rgba(255,255,255,0.15) !important; color: #e2e8f0 !important; text-transform: capitalize; font-weight: 500; }
           .fc-button-primary:hover { background-color: rgba(255,255,255,0.2) !important; }
-          .fc-button-active { background-color: #f59e0b !important; border-color: #f59e0b !important; color: white !important; }
+          .fc-button-active { background-color: #10b981 !important; border-color: #10b981 !important; color: white !important; }
           .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 600; color: #e2e8f0; }
           .fc-daygrid-day-events { margin-top: 4px; }
           .fc-daygrid-event-harness { margin-bottom: 2px; }
           .fc-day-other .fc-daygrid-day-number { color: #4b5563 !important; }
           .fc-popover { background-color: #1f2937 !important; border-color: rgba(255,255,255,0.1) !important; }
           .fc-popover-header { background-color: rgba(0,0,0,0.3) !important; color: #e2e8f0 !important; }
+          .fc-timegrid-slot-label { color: #94a3b8; }
+          .fc-timegrid-axis-cushion { color: #94a3b8; }
+
+          /* Light Mode overrides */
+          :root:not(.dark) .fc {
+            --fc-border-color: #cbd5e1;
+            color: #334155;
+          }
+          :root:not(.dark) .fc-col-header-cell { background-color: #f1f5f9; color: #334155; }
+          :root:not(.dark) .fc-daygrid-day-number { color: #475569; }
+          :root:not(.dark) .fc-day-other .fc-daygrid-day-number { color: #94a3b8 !important; }
+          :root:not(.dark) .fc-button-primary { background-color: #f1f5f9 !important; border: 1px solid #cbd5e1 !important; color: #334155 !important; }
+          :root:not(.dark) .fc-button-primary:hover { background-color: #e2e8f0 !important; color: #059669 !important; }
+          :root:not(.dark) .fc-button-active { background-color: #10b981 !important; border-color: #10b981 !important; color: white !important; }
+          :root:not(.dark) .fc-toolbar-title { color: #334155; }
+          :root:not(.dark) .fc-popover { background-color: #ffffff !important; border-color: #cbd5e1 !important; }
+          :root:not(.dark) .fc-popover-header { background-color: #f1f5f9 !important; color: #334155 !important; }
+          :root:not(.dark) .fc-timegrid-slot-label { color: #475569; }
+          :root:not(.dark) .fc-timegrid-axis-cushion { color: #475569; }
+
           /* Estilos específicos para vacaciones */
           .vacation-event { 
             background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%) !important;

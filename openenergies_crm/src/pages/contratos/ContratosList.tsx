@@ -17,6 +17,7 @@ import { fmtDate, clsx } from '@lib/utils';
 import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 
 // ============ TIPOS Y CONSTANTES ============
 type EstadoContrato =
@@ -564,6 +565,10 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
   const { rol } = useSession();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
+  const { theme } = useTheme();
+
+  // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError, refetch } = useQuery({
     queryKey: ['contratos', filter, clienteId],
@@ -759,7 +764,7 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
               {!clienteId && (
                 <>
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight">
+                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
                       <Search size={16} />
                       Buscar
                     </label>
@@ -839,7 +844,10 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                <tr
+                  className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                  style={{ borderBottomColor: tableBorderColor }}
+                >
                   <th className="p-4 w-10 text-left">
                     <input
                       type="checkbox"

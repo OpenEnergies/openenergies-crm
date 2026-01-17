@@ -10,6 +10,7 @@ import { ShieldCheck, ShieldOff, KeyRound, Trash2, Pencil, UserRoundPlus, Users,
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
 
@@ -55,6 +56,10 @@ export default function UsuariosList() {
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [userToDelete, setUserToDelete] = useState<UsuarioConEmpresa | null>(null);
   const [userToReset, setUserToReset] = useState<{ email: string } | null>(null);
+  const { theme } = useTheme();
+
+  // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
+  const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const toggleActiveMutation = useMutation({
     mutationFn: toggleUserActive,
@@ -160,7 +165,10 @@ export default function UsuariosList() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b-2 border-primary bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold">
+                <tr
+                  className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                  style={{ borderBottomColor: tableBorderColor }}
+                >
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('nombre_completo' as unknown as any)}

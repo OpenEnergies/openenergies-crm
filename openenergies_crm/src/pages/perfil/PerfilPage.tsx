@@ -200,7 +200,7 @@ export default function PerfilPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="nombre" className="block text-sm font-bold text-secondary uppercase tracking-tight mb-2">
+                  <label htmlFor="nombre" className="block text-sm text-secondary tracking-tight mb-2">
                     Nombre
                   </label>
                   {isEditing ? (
@@ -218,7 +218,7 @@ export default function PerfilPage() {
                   {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
                 </div>
                 <div>
-                  <label htmlFor="apellidos" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="apellidos" className="block text-sm text-secondary tracking-tight mb-2">
                     Apellidos
                   </label>
                   {isEditing ? (
@@ -238,7 +238,7 @@ export default function PerfilPage() {
               </div>
 
               <div>
-                <label htmlFor="telefono" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="telefono" className="block text-sm text-secondary tracking-tight mb-2">
                   Teléfono
                 </label>
                 {isEditing ? (
@@ -280,7 +280,7 @@ export default function PerfilPage() {
 
           {/* Aspecto Card */}
           <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Aspecto</h3>
+            <h3 className="text-lg font-semibold text-primary mb-6">Aspecto</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 type="button"
@@ -319,7 +319,7 @@ export default function PerfilPage() {
 
           {/* Change Password Card */}
           <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Cambiar Contraseña</h3>
+            <h3 className="text-lg font-semibold text-primary tracking-tight">Cambiar Contraseña</h3>
             <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

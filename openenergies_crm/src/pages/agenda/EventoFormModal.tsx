@@ -233,8 +233,8 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="glass-modal w-full max-w-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-bg-intermediate">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-fenix-700/30">
+          <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
             <Calendar className="text-fenix-600 dark:text-fenix-400" />
             {isEditMode ? 'Editar Evento' : 'Crear Evento'}
           </h2>
@@ -270,7 +270,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
               <>
                 {/* Título */}
                 <div className="space-y-2">
-                  <label htmlFor="titulo" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">Título del evento</label>
+                  <label htmlFor="titulo" className="text-sm font-bold text-primary uppercase tracking-tight">Título del evento</label>
                   <input
                     id="titulo"
                     {...register('titulo')}
@@ -283,17 +283,17 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Etiqueta */}
                   <div className="space-y-2">
-                    <label htmlFor="etiqueta" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-2">
+                    <label htmlFor="etiqueta" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                       <Tag size={16} /> Etiqueta
                     </label>
                     <div className="relative">
                       <select
                         id="etiqueta"
                         {...register('etiqueta')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
+                        className="glass-input w-full appearance-none cursor-pointer"
                       >
                         {etiquetasSeleccionables.map((et) => (
-                          <option key={et} value={et} className="bg-gray-800 text-white">{et}</option>
+                          <option key={et} value={et}>{et}</option>
                         ))}
                       </select>
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -307,11 +307,11 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
 
                   {/* Color */}
                   <div className="space-y-2">
-                    <label htmlFor="color" className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-2">
+                    <label htmlFor="color" className="text-sm font-bold text-primary uppercase tracking-tight flex items-center gap-2">
                       <Palette size={16} /> Color
                     </label>
                     <input type="hidden" id="color" {...register('color')} />
-                    <div className="flex items-center p-3 rounded-lg bg-gray-800/80 border border-gray-700">
+                    <div className="flex items-center p-3 rounded-lg bg-bg-intermediate border border-primary/20">
                       <span
                         className="w-8 h-8 rounded-full shadow-lg ring-2 ring-white/20 transition-colors duration-300"
                         style={{ backgroundColor: watchedEtiqueta ? etiquetaColorMap[watchedEtiqueta] : '#ccc' }}
@@ -321,26 +321,26 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                   </div>
                 </div>
 
-                <div className="h-px bg-white/10 my-6"></div>
+                <div className="h-px bg-slate-200 dark:bg-fenix-700/30 my-6"></div>
 
                 {/* Fecha Inicio */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2">
                     <Clock size={16} /> Inicio
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 dark:text-slate-500">Fecha</label>
+                      <label className="text-xs font-medium text-secondary">Fecha</label>
                       <input
                         type="date"
                         {...register('fecha_inicio_fecha')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer scheme-dark"
+                        className="glass-input w-full cursor-pointer"
                         onClick={openPicker}
                       />
                       {errors.fecha_inicio_fecha && <span className="text-xs text-red-400">{errors.fecha_inicio_fecha.message}</span>}
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 dark:text-slate-500">Hora</label>
+                      <label className="text-xs font-medium text-secondary">Hora</label>
                       <Controller
                         name="fecha_inicio_hora"
                         control={control}
@@ -349,11 +349,11 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                             <select
                               value={field.value || ''}
                               onChange={(e) => field.onChange(e.target.value)}
-                              className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
+                              className="glass-input w-full appearance-none cursor-pointer"
                             >
-                              <option value="" className="bg-gray-800">Seleccionar...</option>
+                              <option value="">Seleccionar...</option>
                               {TIME_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -370,23 +370,23 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                 </div>
 
                 {/* Fecha Fin */}
-                <div className="space-y-4 pt-4 border-t border-bg-intermediate">
-                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Clock size={16} /> Fin <span className="text-xs normal-case text-gray-600">(Opcional)</span>
+                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-fenix-700/30">
+                  <h3 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={16} /> Fin <span className="text-xs normal-case font-normal text-secondary">(Opcional)</span>
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 dark:text-slate-500">Fecha</label>
+                      <label className="text-xs font-medium text-secondary">Fecha</label>
                       <input
                         type="date"
                         {...register('fecha_fin_fecha')}
-                        className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 cursor-pointer scheme-dark"
+                        className="glass-input w-full cursor-pointer"
                         onClick={openPicker}
                       />
                       {errors.fecha_fin_fecha && <span className="text-xs text-red-400">{errors.fecha_fin_fecha.message}</span>}
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 dark:text-slate-500">Hora</label>
+                      <label className="text-xs font-medium text-secondary">Hora</label>
                       <Controller
                         name="fecha_fin_hora"
                         control={control}
@@ -395,11 +395,11 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
                             <select
                               value={field.value || ''}
                               onChange={(e) => field.onChange(e.target.value)}
-                              className="w-full px-4 py-2.5 rounded-lg bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 focus:outline-none transition-all duration-200 appearance-none cursor-pointer"
+                              className="glass-input w-full appearance-none cursor-pointer"
                             >
-                              <option value="" className="bg-gray-800">Seleccionar...</option>
+                              <option value="">Seleccionar...</option>
                               {TIME_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value} className="bg-gray-800">{opt.label}</option>
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -420,7 +420,7 @@ export default function EventoFormModal({ id, fechaSeleccionada, onClose }: Read
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-200 dark:border-bg-intermediate bg-slate-50 dark:bg-black/20 flex items-center justify-end gap-3 rounded-b-xl">
+        <div className="p-6 border-t border-slate-200 dark:border-fenix-700/30 bg-bg-intermediate/50 dark:bg-bg-tertiary flex items-center justify-end gap-3 rounded-b-xl">
           <button
             type="button"
             className="btn-secondary cursor-pointer"

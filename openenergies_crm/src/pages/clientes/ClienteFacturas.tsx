@@ -9,9 +9,11 @@ import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, Chev
 import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import toast from 'react-hot-toast';
+import ExportButton from '@components/ExportButton';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -140,7 +142,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
         return (
             <div className="flex justify-between py-2 border-b border-white/5 last:border-0">
                 <span className="text-gray-400 text-sm">{label}</span>
-                <span className="text-white font-medium text-sm">
+                <span className="text-primary font-bold text-sm">
                     {formatType === 'currency' ? formatCurrency(value as number) :
                         formatType === 'price' ? formatPricePerKwh(value as number) :
                             String(value)}
@@ -169,7 +171,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                             <Receipt className="w-5 h-5 text-fenix-500" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Factura {factura.numero_factura}</h3>
+                            <h3 className="text-lg font-bold text-primary">Factura {factura.numero_factura}</h3>
                             <p className="text-sm text-gray-400">{formatDate(factura.fecha_emision)}</p>
                         </div>
                     </div>
@@ -268,6 +270,11 @@ export default function ClienteFacturas() {
         queryFn: () => fetchFacturas(clienteId),
         enabled: !!clienteId,
     });
+
+    const { theme } = useTheme();
+
+    // Border color for table separators: green in dark mode, gray in light mode (matches FacturasList)
+    const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
     // Get or create signed URL with caching
     const getSignedUrl = useCallback(async (facturaId: string, comercializadoraNombre: string | null | undefined, numeroFactura: string): Promise<string | null> => {
@@ -421,23 +428,34 @@ export default function ClienteFacturas() {
                             <Receipt className="w-5 h-5 text-fenix-500" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Facturas</h2>
+                            <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Facturas</h2>
                             <p className="text-sm text-gray-400">{facturas.length} factura{facturas.length !== 1 ? 's' : ''} encontrada{facturas.length !== 1 ? 's' : ''}</p>
                         </div>
                     </div>
 
-                    {/* Search */}
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
-                            <Search size={16} />
-                            Buscar
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="Nº factura, CUPS..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="glass-input w-full md:w-64"
+                    {/* Search + Export */}
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                            <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                                <Search size={16} />
+                                Buscar
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Nº factura, CUPS..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="glass-input w-full md:w-64"
+                            />
+                        </div>
+                        <ExportButton
+                            exportParams={{
+                                entity: 'facturas',
+                                filters: {
+                                    cliente_id: clienteId,
+                                    search: searchTerm || undefined,
+                                },
+                            }}
                         />
                     </div>
                 </div>
@@ -454,7 +472,10 @@ export default function ClienteFacturas() {
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate text-xs text-gray-200 uppercase tracking-wider font-semibold">
+                            <tr
+                                className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                                style={{ borderBottomColor: tableBorderColor }}
+                            >
                                 <th className="p-4">
                                     <button
                                         onClick={() => handleSort('numero_factura' as any)}
@@ -534,14 +555,14 @@ export default function ClienteFacturas() {
 
                                     {/* CUPS */}
                                     <td className="p-4">
-                                        <span className="text-gray-300 font-mono text-sm">
+                                        <span className="text-secondary font-mono text-sm">
                                             {factura.puntos_suministro?.cups || '—'}
                                         </span>
                                     </td>
 
                                     {/* Potencia */}
                                     <td className="p-4">
-                                        <span className="text-gray-300 text-sm">
+                                        <span className="text-secondary text-sm">
                                             {factura.potencia_kw_min !== null && factura.potencia_kw_max !== null
                                                 ? `${formatNumber(factura.potencia_kw_min)} - ${formatNumber(factura.potencia_kw_max)}`
                                                 : '—'}
@@ -550,21 +571,21 @@ export default function ClienteFacturas() {
 
                                     {/* Total */}
                                     <td className="p-4 text-right">
-                                        <span className="text-white font-semibold">
+                                        <span className="font-bold text-secondary">
                                             {formatCurrency(factura.total)}
                                         </span>
                                     </td>
 
                                     {/* Consumo */}
                                     <td className="p-4 text-right">
-                                        <span className="text-gray-300">
+                                        <span className="text-secondary">
                                             {factura.consumo_kwh !== null ? `${formatNumber(factura.consumo_kwh)} kWh` : '—'}
                                         </span>
                                     </td>
 
                                     {/* Fecha Emisión */}
                                     <td className="p-4">
-                                        <span className="text-gray-400 text-sm">
+                                        <span className="text-secondary text-sm font-medium">
                                             {formatDate(factura.fecha_emision)}
                                         </span>
                                     </td>
@@ -603,9 +624,12 @@ export default function ClienteFacturas() {
 
             {/* Pagination */}
             {displayedData.length > 0 && (
-                <div className="p-4 border-t border-bg-intermediate flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div
+                    className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+                    style={{ borderTop: `2px solid ${tableBorderColor}` }}
+                >
                     <span className="text-sm text-gray-400">
-                        Total: <span className="text-white font-medium">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-white font-medium">{currentPage}</span> de {totalPages}
+                        Total: <span className="text-primary font-medium">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-primary font-medium">{currentPage}</span> de {totalPages}
                     </span>
                     <div className="flex items-center gap-2">
                         <button
@@ -651,7 +675,8 @@ export default function ClienteFacturas() {
                     onClose={() => setSelectedFactura(null)}
                 />,
                 document.body
-            )}
+            )
+            }
 
             {/* PDF Preview Modal */}
             <FilePreviewModal

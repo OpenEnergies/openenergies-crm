@@ -247,7 +247,7 @@ export default function ClienteDetailLayout() {
       </div>
 
       {/* Tabs Navigation - iOS Style */}
-      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-primary overflow-x-auto">
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate overflow-x-auto">
         {navLinks.map(link => {
           const isActive = location.pathname.startsWith(link.path);
           return (

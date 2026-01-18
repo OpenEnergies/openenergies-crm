@@ -11,6 +11,7 @@ import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
+import ExportButton from '@components/ExportButton';
 
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
 
@@ -131,13 +132,22 @@ export default function UsuariosList() {
             <p className="text-secondary opacity-70">Administra los accesos y roles de la plataforma.</p>
           </div>
         </div>
-
-        <Link to="/app/usuarios/invitar">
-          <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 transition-all duration-200 cursor-pointer">
-            <UserRoundPlus size={18} />
-            Invitar
-          </button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            exportParams={{
+              entity: 'usuarios_app',
+              filters: {
+                rol: columnFilters.rol.length > 0 ? columnFilters.rol : undefined,
+              },
+            }}
+          />
+          <Link to="/app/usuarios/invitar">
+            <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 transition-all duration-200 cursor-pointer">
+              <UserRoundPlus size={18} />
+              Invitar
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Table Card */}

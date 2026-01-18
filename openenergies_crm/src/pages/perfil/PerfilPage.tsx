@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Avatar from './Avatar';
 import TwoFactorAuthManager from './TwoFactorAuthManager';
-import { User, Phone, Loader2, Settings, Moon, Sun } from 'lucide-react';
+import { User, Phone, Loader2, Settings, Moon, Sun, Shield, Lock } from 'lucide-react';
 import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
 import PasswordInput from '@components/PasswordInput';
@@ -99,7 +99,6 @@ export default function PerfilPage() {
 
   const onSubmit = (formData: ProfileFormData) => {
     if (!userId) return;
-    // Sanitize telefono to null if empty to avoid 400 errors or constraint issues
     const updates = {
       ...formData,
       telefono: formData.telefono || null,
@@ -143,102 +142,175 @@ export default function PerfilPage() {
   const displayAvatarUrl = localAvatarUrl ?? perfil?.avatar_url ?? sessionAvatarUrl;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
           <Settings className="w-5 h-5 text-fenix-600 dark:text-fenix-500" />
         </div>
-        <h1 className="text-2xl font-bold text-primary">Mi Perfil</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Mi Perfil</h1>
+          <p className="text-secondary text-sm">Gestiona tu información personal y configuración</p>
+        </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-        {/* Left Column: Avatar and Summary */}
+        {/* Left Column: Avatar & Appearance (col-span-1) */}
         <div className="space-y-6">
-          <div className="glass-card p-6 flex flex-col items-center">
+
+          {/* Card 1: Profile Summary */}
+          <div className="glass-card p-6 flex flex-col items-center text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-fenix-500/5 to-transparent pointer-events-none" />
             {userId && (
-              <Avatar
-                userId={userId}
-                url={displayAvatarUrl}
-                onUpload={handleAvatarUploadSuccess}
-                nombre={displayNombre}
-                size={150}
-              />
+              <div className="relative z-10 mb-4">
+                <Avatar
+                  userId={userId}
+                  url={displayAvatarUrl}
+                  onUpload={handleAvatarUploadSuccess}
+                  nombre={displayNombre}
+                  size={120}
+                />
+              </div>
             )}
+            <div className="relative z-10 w-full">
+              <h3 className="text-xl font-bold text-primary truncate px-2">
+                {displayNombre} {perfil?.apellidos ?? ''}
+              </h3>
+              <p className="text-secondary text-sm mt-1 mb-3 truncate px-2">{perfil?.email ?? 'No disponible'}</p>
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-fenix-500/10 border border-fenix-500/20 text-fenix-600 dark:text-fenix-400 text-xs font-bold uppercase tracking-wider">
+                {perfil?.rol ?? '...'}
+              </div>
+            </div>
           </div>
-          <div className="glass-card p-6 text-center">
-            <h3 className="text-xl font-bold text-primary">
-              {displayNombre} {perfil?.apellidos ?? ''}
+
+          {/* Card 2: Appearance Config (Immediately below Profile) */}
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-bold text-primary mb-6 flex items-center gap-2 pb-4 border-b border-gray-100 dark:border-gray-800">
+              <Sun className="text-fenix-500" size={20} />
+              Configuración de Apariencia
             </h3>
-            <p className="text-secondary mt-1">{perfil?.email ?? 'No disponible'}</p>
-            <span className="inline-block mt-3 px-3 py-1 text-sm font-bold rounded-full bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 capitalize">
-              {perfil?.rol ?? '...'}
-            </span>
+
+            <div className="flex flex-col gap-4">
+              {/* Light Mode Button - STRICT STATIC STYLES */}
+              {/* Background: Light, Text: Dark. Always. */}
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
+                  bg-white text-slate-900 border-2
+                  ${theme === 'light'
+                    ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-100 text-slate-600">
+                    <Sun size={20} />
+                  </div>
+                  <div>
+                    <span className="block font-bold text-slate-900">Modo Claro</span>
+                    <span className="text-xs text-slate-500 font-medium">Apariencia luminosa</span>
+                  </div>
+                </div>
+                {theme === 'light' && (
+                  <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                )}
+              </button>
+
+              {/* Dark Mode Button - STRICT STATIC STYLES */}
+              {/* Background: Dark, Text: White. Always. */}
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
+                  bg-slate-900 text-white border-2
+                  ${theme === 'dark'
+                    ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
+                    : 'border-slate-700 hover:border-slate-600 hover:shadow-md'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-800 text-slate-300">
+                    <Moon size={20} />
+                  </div>
+                  <div>
+                    <span className="block font-bold text-white">Modo Oscuro</span>
+                    <span className="text-xs text-slate-400 font-medium">Menos fatiga visual</span>
+                  </div>
+                </div>
+                {theme === 'dark' && (
+                  <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Forms */}
+        {/* Right Column: Security & Personal Info (col-span-2) */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Personal Info Card */}
+          {/* Card 3: Personal Info (Moved to Top) */}
           <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-primary">Datos Personales</h3>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <User className="text-fenix-500" size={20} />
+                <h3 className="text-lg font-bold text-primary">Información Personal</h3>
+              </div>
               {!isEditing && (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white text-sm font-medium transition-colors cursor-pointer"
+                  className="text-sm font-medium text-fenix-600 dark:text-fenix-400 hover:text-fenix-500 transition-colors"
                 >
                   Editar
                 </button>
               )}
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="nombre" className="block text-sm text-secondary tracking-tight mb-2">
-                    Nombre
-                  </label>
-                  {isEditing ? (
-                    <div className="relative">
-                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
-                      <input
-                        id="nombre"
-                        {...register('nombre')}
-                        className="glass-input pl-10 w-full"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-primary font-medium py-2">{perfil?.nombre}</p>
-                  )}
-                  {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
-                </div>
-                <div>
-                  <label htmlFor="apellidos" className="block text-sm text-secondary tracking-tight mb-2">
-                    Apellidos
-                  </label>
-                  {isEditing ? (
-                    <div className="relative">
-                      <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
-                      <input
-                        id="apellidos"
-                        {...register('apellidos')}
-                        className="glass-input pl-10 w-full"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-primary font-medium py-2">{perfil?.apellidos}</p>
-                  )}
-                  {errors.apellidos && <p className="text-sm text-red-400 mt-1">{errors.apellidos.message}</p>}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <label htmlFor="nombre" className="block text-sm font-bold text-secondary uppercase tracking-wider mb-2">
+                  Nombre
+                </label>
+                {isEditing ? (
+                  <div className="relative">
+                    <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+                    <input
+                      id="nombre"
+                      {...register('nombre')}
+                      className="glass-input pl-10 w-full"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-primary font-medium p-2 bg-bg-intermediate/50 rounded-lg border border-transparent">{perfil?.nombre}</p>
+                )}
+                {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
               </div>
 
               <div>
-                <label htmlFor="telefono" className="block text-sm text-secondary tracking-tight mb-2">
+                <label htmlFor="apellidos" className="block text-sm font-bold text-secondary uppercase tracking-wider mb-2">
+                  Apellidos
+                </label>
+                {isEditing ? (
+                  <div className="relative">
+                    <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+                    <input
+                      id="apellidos"
+                      {...register('apellidos')}
+                      className="glass-input pl-10 w-full"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-primary font-medium p-2 bg-bg-intermediate/50 rounded-lg border border-transparent">{perfil?.apellidos}</p>
+                )}
+                {errors.apellidos && <p className="text-sm text-red-400 mt-1">{errors.apellidos.message}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="telefono" className="block text-sm font-bold text-secondary uppercase tracking-wider mb-2">
                   Teléfono
                 </label>
                 {isEditing ? (
@@ -252,13 +324,13 @@ export default function PerfilPage() {
                     />
                   </div>
                 ) : (
-                  <p className="text-primary font-medium py-2">{perfil?.telefono || 'No especificado'}</p>
+                  <p className="text-primary font-medium p-2 bg-bg-intermediate/50 rounded-lg border border-transparent">{perfil?.telefono || 'No especificado'}</p>
                 )}
               </div>
             </div>
 
             {isEditing && (
-              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-primary">
+              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                 <button
                   type="button"
                   className="px-4 py-2 rounded-lg bg-bg-intermediate hover:bg-bg-secondary text-secondary font-medium transition-colors cursor-pointer"
@@ -278,87 +350,66 @@ export default function PerfilPage() {
             )}
           </form>
 
-          {/* Aspecto Card */}
+          {/* Card 4: Security (Moved to Bottom) */}
           <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-primary mb-6">Aspecto</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setTheme('light')}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${theme === 'light'
-                  ? 'border-fenix-500 bg-fenix-500/10 text-slate-900 dark:text-white'
-                  : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Sun size={20} className={theme === 'light' ? 'text-fenix-500' : ''} />
-                  <span className="font-medium">Modo Claro</span>
-                </div>
-                {theme === 'light' && <div className="w-2 h-2 rounded-full bg-fenix-500 shadow-[0_0_8px_#10B981]" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme('dark')}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${theme === 'dark'
-                  ? 'border-fenix-500 bg-fenix-500/10 text-slate-900 dark:text-white'
-                  : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Moon size={20} className={theme === 'dark' ? 'text-fenix-500' : ''} />
-                  <span className="font-medium">Modo Oscuro</span>
-                </div>
-                {theme === 'dark' && <div className="w-2 h-2 rounded-full bg-fenix-500 shadow-[0_0_8px_#10B981]" />}
-              </button>
+            <div className="flex items-center gap-2 pb-4 mb-6 border-b border-gray-100 dark:border-gray-800">
+              <Shield className="text-fenix-500" size={20} />
+              <h3 className="text-lg font-bold text-primary">Seguridad y Acceso</h3>
             </div>
-          </div>
 
-          {/* 2FA Card */}
-          <TwoFactorAuthManager />
-
-          {/* Change Password Card */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-primary tracking-tight">Cambiar Contraseña</h3>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="password" className="block text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight mb-2">
-                    Nueva Contraseña
-                  </label>
-                  <PasswordInput
-                    id="password"
-                    {...passwordForm.register('password')}
-                  />
-                  {passwordForm.formState.errors.password && (
-                    <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.password.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight mb-2">
-                    Confirmar Nueva Contraseña
-                  </label>
-                  <PasswordInput
-                    id="confirmPassword"
-                    {...passwordForm.register('confirmPassword')}
-                  />
-                  {passwordForm.formState.errors.confirmPassword && (
-                    <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>
-                  )}
-                </div>
+            <div className="space-y-8">
+              {/* 2FA Manager */}
+              <div className="space-y-4">
+                <TwoFactorAuthManager />
               </div>
-              <div className="flex justify-end pt-4">
-                <button
-                  type="submit"
-                  disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}
-                  className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  {passwordForm.formState.isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                  {passwordForm.formState.isSubmitting ? 'Actualizando...' : 'Actualizar Contraseña'}
-                </button>
+
+              {/* Password Manager */}
+              <div className="space-y-4 pt-6 border-t border-dashed border-gray-200 dark:border-gray-700">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-secondary uppercase tracking-wider">
+                  <Lock size={16} />
+                  Cambiar Contraseña
+                </h4>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-medium text-secondary mb-1">
+                        Nueva Contraseña
+                      </label>
+                      <PasswordInput
+                        id="password"
+                        {...passwordForm.register('password')}
+                      />
+                      {passwordForm.formState.errors.password && (
+                        <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.password.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary mb-1">
+                        Confirmar Nueva Contraseña
+                      </label>
+                      <PasswordInput
+                        id="confirmPassword"
+                        {...passwordForm.register('confirmPassword')}
+                      />
+                      {passwordForm.formState.errors.confirmPassword && (
+                        <p className="text-sm text-red-400 mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}
+                      className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {passwordForm.formState.isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                      {passwordForm.formState.isSubmitting ? 'Actualizando...' : 'Actualizar Contraseña'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>

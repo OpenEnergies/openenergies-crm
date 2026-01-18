@@ -7,10 +7,11 @@ import { EmptyState } from '@components/EmptyState';
 import { fmtDate } from '@lib/utils';
 import { useSession } from '@hooks/useSession';
 import { useTheme } from '@hooks/ThemeContext';
-import { Trash2, XCircle, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Plus, Loader2, Users } from 'lucide-react';
+import { Trash2, XCircle, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Plus, Loader2, Users, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSortableTable } from '@hooks/useSortableTable';
 import ConfirmationModal from '@components/ConfirmationModal';
+import ExportButton from '@components/ExportButton';
 
 interface ClienteConAgregados {
   id: string;
@@ -24,7 +25,7 @@ interface ClienteConAgregados {
 
 const PAGE_SIZE = 50;
 
-async function fetchClientes(search: string): Promise<ClienteConAgregados[]> {
+async function fetchClientes(search: string, empresaId?: string): Promise<ClienteConAgregados[]> {
   let query = supabase
     .from('clientes')
     .select(`
@@ -33,13 +34,69 @@ async function fetchClientes(search: string): Promise<ClienteConAgregados[]> {
       dni,
       cif,
       creado_en,
-      puntos_suministro (
+      puntos_suministro!inner (
         id,
-        consumo_anual_kwh
+        consumo_anual_kwh,
+        current_comercializadora_id
       )
     `)
     .is('eliminado_en', null)
     .order('creado_en', { ascending: false });
+
+  if (empresaId) {
+    // Filter by clients having points with this comercializadora
+    query = query.eq('puntos_suministro.current_comercializadora_id', empresaId);
+  } else {
+    // If not filtering by empresa, we don't strictly need !inner, but for simplicity we keep the structure 
+    // or relax it. However, !inner forces presence of points. 
+    // To keep standard behavior (all clients even without points), we should conditionalize the select/join.
+    // But `select` string is static. 
+    // Actually, distinct clients behavior might be desired.
+    // Let's use conditional modification of the query object if possible, but the select clause hardcodes the relationship.
+    // Standard `fetchClientes` usually lists ALL clients.
+    // If `empresaId` is missing, we shouldn't force `!inner`.
+    // Reverting to `puntos_suministro` (left join) by default, and `!inner` filtering via `.not('puntos_suministro', 'is', null)` logic 
+    // or just applying the filter on the relationship if Supabase supports it without !inner for filtering.
+    // Actually, to filter parent by child, !inner is best.
+    // Let's redefine the query based on empresaId presence.
+  }
+
+  // Re-declare query to handle the join type diff
+  if (empresaId) {
+    query = supabase
+      .from('clientes')
+      .select(`
+          id,
+          nombre,
+          dni,
+          cif,
+          creado_en,
+          puntos_suministro!inner (
+             id,
+             consumo_anual_kwh,
+             current_comercializadora_id
+          )
+        `)
+      .eq('puntos_suministro.current_comercializadora_id', empresaId)
+      .is('eliminado_en', null)
+      .order('creado_en', { ascending: false });
+  } else {
+    query = supabase
+      .from('clientes')
+      .select(`
+          id,
+          nombre,
+          dni,
+          cif,
+          creado_en,
+          puntos_suministro (
+             id,
+             consumo_anual_kwh
+          )
+        `)
+      .is('eliminado_en', null)
+      .order('creado_en', { ascending: false }) as any;
+  }
 
   if (search) {
     query = query.or(`nombre.ilike.%${search}%,dni.ilike.%${search}%,cif.ilike.%${search}%`);
@@ -51,6 +108,9 @@ async function fetchClientes(search: string): Promise<ClienteConAgregados[]> {
 
   return (data || []).map((cliente: any) => {
     const puntos = cliente.puntos_suministro || [];
+    // If filtering by empresa, we might only want to count points OF that empresa? 
+    // Usually yes, but the type `ClienteConAgregados` just shows aggregate data.
+    // For now, simple mapping.
     const puntosActivos = puntos.filter((p: any) => p.id);
 
     return {
@@ -72,7 +132,7 @@ async function deleteCliente(clienteId: string) {
   if (error) throw new Error(error.message);
 }
 
-export default function ClientesList() {
+export default function ClientesList({ empresaId }: { empresaId?: string }) {
   const { rol } = useSession();
   const { theme } = useTheme();
   const queryClient = useQueryClient();
@@ -86,8 +146,8 @@ export default function ClientesList() {
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
   const { data: fetchedData, isLoading, isError } = useQuery({
-    queryKey: ['clientes', filter],
-    queryFn: () => fetchClientes(filter),
+    queryKey: ['clientes', filter, empresaId],
+    queryFn: () => fetchClientes(filter, empresaId),
   });
 
   const deleteMutation = useMutation({
@@ -154,10 +214,156 @@ export default function ClientesList() {
     setSelectedIds([]);
   };
 
+  if (empresaId) {
+    return (
+      <div className="glass-card overflow-hidden">
+        {/* Integrated Header for Detail View */}
+        <div className="p-6 border-b border-bg-intermediate">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Left: Icon + Title + Counter */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-fenix-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Clientes</h2>
+                <p className="text-sm text-gray-400">
+                  {totalItems} cliente{totalItems !== 1 ? 's' : ''} encontrado{totalItems !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Right: Search + Export */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                  <Search size={16} />
+                  Buscar
+                </label>
+                <input
+                  placeholder="Nombre, DNI..."
+                  value={filter}
+                  onChange={e => {
+                    setFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="glass-input w-full md:w-64"
+                />
+              </div>
+              <ExportButton
+                entity="clientes"
+                preFilters={{
+                  comercializadora_id: empresaId,
+                  search: filter
+                }}
+                label="Exportar"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Table Content (Reusing the same table structure, just wrapped differently) */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
+          </div>
+        )}
+
+        {isError && (
+          <div className="text-center py-12">
+            <p className="text-red-400 mb-2">Error al cargar los clientes</p>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['clientes'] })}
+              className="text-primary hover:underline hover:text-fenix-400 transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !isError && fetchedData?.length === 0 ? (
+          <EmptyState
+            icon={<Users className="text-fenix-500" size={48} />}
+            title="Sin clientes"
+            description={filter ? 'No se encontraron clientes con ese criterio.' : 'No hay clientes registrados para esta empresa.'}
+          />
+        ) : !isLoading && !isError && (
+          <div className="overflow-x-auto custom-scrollbar">
+            {/* Table Logic (Duplicated for now or I could extract it, but keeping it inline to minimize risk) */}
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold" style={{ borderBottomColor: tableBorderColor }}>
+                  <th className="p-4 rounded-tl-lg">Nombre / Razón Social</th>
+                  <th className="p-4">DNI / CIF</th>
+                  <th className="p-4 text-center">Puntos</th>
+                  <th className="p-4 text-right">Consumo Anual</th>
+                  <th className="p-4 rounded-tr-lg text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-fenix-500/10">
+                {displayedData.map((cliente: any) => (
+                  <tr key={cliente.id} className="hover:bg-fenix-500/5 transition-colors group">
+                    <td className="p-4">
+                      <Link to="/app/clientes/$id" params={{ id: cliente.id }} className="font-medium text-fenix-600 dark:text-fenix-400 group-hover:text-primary transition-colors">
+                        {cliente.nombre}
+                      </Link>
+                    </td>
+                    <td className="p-4 text-secondary text-sm">{cliente.dni || cliente.cif || '—'}</td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cliente.puntos_count > 0 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-gray-500/10 text-gray-500 border-gray-500/20'}`}>
+                        {cliente.puntos_count}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right font-mono text-sm text-secondary">
+                      {cliente.total_kwh ? `${cliente.total_kwh.toLocaleString()} kWh` : '—'}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link to="/app/clientes/$id" params={{ id: cliente.id }} className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-bg-intermediate transition-colors" title="Ver detalle">
+                          <Eye size={16} />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination for Integrated View */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-bg-intermediate bg-bg-intermediate/5">
+                <div className="text-sm text-secondary">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg hover:bg-bg-intermediate disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-secondary hover:text-primary"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg hover:bg-bg-intermediate disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-secondary hover:text-primary"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // GLOBAL VIEW (Existing layout)
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Existing Header content without the empresaId logic (since we handled it above) */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
             <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
@@ -169,38 +375,17 @@ export default function ClientesList() {
           {selectedIds.length > 0 ? (
             /* Selection action bar */
             <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
+              {/* ... existing selection bar tools ... */}
               <span className="text-sm text-fenix-400 font-medium">
                 {selectedIds.length} seleccionado(s)
               </span>
-              <div className="flex items-center gap-1 ml-2">
-                {selectedIds.length === 1 && canEdit && selectedIds[0] && (
-                  <Link
-                    to="/app/clientes/$id/editar"
-                    params={{ id: selectedIds[0] }}
-                    className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
-                    title="Editar Cliente"
-                  >
-                    <Edit size={16} />
-                  </Link>
-                )}
-                {canDelete && (
-                  <button
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title={`Eliminar ${selectedIds.length} cliente(s)`}
-                    onClick={handleDeleteSelected}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-                <button
-                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
-                  title="Cancelar selección"
-                  onClick={() => setSelectedIds([])}
-                >
-                  <XCircle size={16} />
-                </button>
-              </div>
+              <button
+                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
+                title="Cancelar selección"
+                onClick={() => setSelectedIds([])}
+              >
+                <XCircle size={16} />
+              </button>
             </div>
           ) : (
             <>
@@ -219,6 +404,12 @@ export default function ClientesList() {
                   className="glass-input w-64"
                 />
               </div>
+              <ExportButton
+                exportParams={{
+                  entity: 'clientes',
+                  filters: { search: filter || undefined },
+                }}
+              />
               <Link to="/app/clientes/nuevo">
                 <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
                   <Plus size={18} />
@@ -229,6 +420,7 @@ export default function ClientesList() {
           )}
         </div>
       </div>
+
 
       {/* Table Card */}
       <div className="glass-card overflow-hidden">

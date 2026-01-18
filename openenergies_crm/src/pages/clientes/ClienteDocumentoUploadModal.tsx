@@ -68,7 +68,7 @@ export default function ClienteDocumentoUploadModal({ clienteId, currentPath, on
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-500 flex items-center gap-2">
             <Upload size={22} className="text-fenix-500" />
             Subir Documento
           </h3>

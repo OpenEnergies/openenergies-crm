@@ -198,7 +198,7 @@ export default function EmpresaDetailLayout() {
       </div>
 
       {/* Tab Navigation - iOS Style */}
-      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate border border-primary overflow-x-auto">
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate overflow-x-auto">
         {navLinks.map(link => {
           const isActive = location.pathname.startsWith(link.path);
           return (
@@ -208,7 +208,7 @@ export default function EmpresaDetailLayout() {
               className={`
                 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all duration-200
                 ${isActive
-                  ? 'bg-fenix-500/20 text-fenix-600 dark:text-fourth shadow-sm border-2 border-fenix-500/40'
+                  ? 'bg-fenix-500/20 text-fenix-600 dark:text-fourth shadow-sm'
                   : 'text-secondary hover:text-primary hover:bg-bg-intermediate opacity-70 hover:opacity-100'}
               `}
             >

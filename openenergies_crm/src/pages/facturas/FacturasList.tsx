@@ -12,6 +12,7 @@ import { useTheme } from '@hooks/ThemeContext';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
+import ExportButton from '@components/ExportButton';
 import toast from 'react-hot-toast';
 
 // ============ STORAGE HELPERS ============
@@ -458,6 +459,16 @@ export default function FacturasList() {
                             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
+                    <ExportButton
+                        exportParams={{
+                            entity: 'facturas',
+                            filters: {
+                                search: searchTerm || undefined,
+                                fecha_desde: dateFilter.year && dateFilter.month ? `${dateFilter.year}-${dateFilter.month}-01` : undefined,
+                                fecha_hasta: dateFilter.year && dateFilter.month && dateFilter.day ? `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}` : undefined,
+                            },
+                        }}
+                    />
                     <Link
                         to="/app/facturas/importar"
                         className="flex items-center justify-center h-11 px-4 bg-bg-intermediate border border-fenix-500/30 hover:border-fenix-500 text-primary rounded-lg transition-all shadow-lg shadow-black/20"
@@ -621,7 +632,7 @@ export default function FacturasList() {
                         style={{ borderTop: `1px solid ${tableBorderColor}` }}
                     >
                         <span className="text-sm text-secondary">
-                            Total: <span className="text-primary font-bold">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-primary font-bold">{currentPage}</span> de {totalPages}
+                            Total: <span className="text-primary font-medium">{totalItems}</span> factura{totalItems !== 1 ? 's' : ''} • Página <span className="text-primary font-medium">{currentPage}</span> de {totalPages}
                         </span>
                         <div className="flex items-center gap-2">
                             <button

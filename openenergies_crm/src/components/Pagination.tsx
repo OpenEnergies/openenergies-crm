@@ -6,15 +6,16 @@ interface PaginationProps {
     totalItems: number;
     onPageChange: (page: number) => void;
     isLoading?: boolean;
+    className?: string;
 }
 
-export function Pagination({ page, totalPages, totalItems, onPageChange, isLoading = false }: PaginationProps) {
+export function Pagination({ page, totalPages, totalItems, onPageChange, isLoading = false, className }: PaginationProps) {
     const goToPage = (newPage: number) => {
         onPageChange(Math.max(1, Math.min(newPage, totalPages)));
     };
 
     return (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary">
+        <div className={className ?? "flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-primary"}>
             <div className="text-sm text-secondary">
                 Total: <span className="text-primary font-medium">{totalItems}</span> registros •
                 Página <span className="text-primary font-medium">{page}</span> de <span className="text-primary font-medium">{totalPages || 1}</span>

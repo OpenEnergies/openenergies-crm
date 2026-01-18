@@ -29,7 +29,7 @@ export default function DaysInputPrompt({ onSubmit }: Props) {
           </div>
         </div>
 
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white text-center mb-2">
+        <h3 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500 text-center mb-6">
           Próximas Renovaciones
         </h3>
         <p className="text-slate-600 dark:text-slate-400 text-center mb-6">

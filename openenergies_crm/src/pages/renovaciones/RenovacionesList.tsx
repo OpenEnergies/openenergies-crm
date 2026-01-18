@@ -9,6 +9,7 @@ import { fmtDate } from '@lib/utils';
 import { CalendarClock, Search, CalendarCheck, Calendar } from 'lucide-react';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
+import ExportButton from '@components/ExportButton';
 
 // Tipos (igual que en ContratosList)
 type ContratoExtendido = Contrato & {
@@ -174,7 +175,7 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
             <CalendarClock size={24} className="text-fenix-600 dark:text-emerald-400" />
             Renovaciones
           </h2>
-          <p className="text-secondary">
+          <p className="text-secondary opacity-70">
             Contratos que vencen en los próximos <span className="font-bold text-fenix-600 dark:text-fenix-400">{daysToExpiry} días</span>.
           </p>
         </div>
@@ -192,6 +193,15 @@ export default function RenovacionesList({ daysToExpiry, onReset }: Props) {
               className="glass-input w-full"
             />
           </div>
+
+          <ExportButton
+            exportParams={{
+              entity: 'renovaciones',
+              filters: {
+                search: filter || undefined,
+              },
+            }}
+          />
 
           <button
             onClick={onReset}

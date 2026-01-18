@@ -1,6 +1,7 @@
 // src/components/MultiSearchableSelect.tsx
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Search, X, Loader2, Check } from 'lucide-react';
+import { useTheme } from '@hooks/ThemeContext';
 
 export interface Option {
     value: string;
@@ -38,6 +39,7 @@ export default function MultiSearchableSelect({
     allLabel = 'Todos',
     showChips = true
 }: MultiSearchableSelectProps) {
+    const { theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
@@ -183,12 +185,12 @@ export default function MultiSearchableSelect({
                 </div>
 
                 {isOpen && !disabled && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#141424] border border-bg-intermediate rounded-xl py-2 shadow-2xl z-[9999] max-h-60 overflow-y-auto custom-scrollbar">
+                    <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl py-2 shadow-2xl z-[9999] max-h-60 overflow-y-auto custom-scrollbar border ${theme === 'dark' ? 'bg-[#141424] border-bg-intermediate' : 'bg-white border-gray-200'}`}>
                         <button
                             type="button"
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${isAllSelected
-                                ? 'bg-fenix-500/10 text-fenix-600 dark:text-fenix-400 font-bold'
-                                : 'text-secondary hover:bg-bg-intermediate hover:text-primary'
+                                ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
+                                : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5 hover:text-primary' : 'text-gray-900 hover:bg-gray-50 hover:text-primary')
                                 }`}
                             onClick={() => handleToggleSelect('ALL')}
                         >
@@ -196,7 +198,7 @@ export default function MultiSearchableSelect({
                             {isAllSelected && <Check size={14} />}
                         </button>
 
-                        <div className="h-px bg-primary my-1" />
+                        <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`} />
 
                         {isLoading && displayOptions.length === 0 ? (
                             <div className="px-4 py-3 text-gray-500 text-sm text-center flex items-center justify-center gap-2">
@@ -214,10 +216,10 @@ export default function MultiSearchableSelect({
                                         key={option.value}
                                         type="button"
                                         className={`w-full text-left px-4 py-2.5 text-sm transition-all flex items-start justify-between gap-3 ${isSelected
-                                            ? 'bg-fenix-500/10 text-fenix-600 dark:text-fenix-400 font-bold'
+                                            ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
                                             : option.disabled
-                                                ? 'opacity-40 cursor-default'
-                                                : 'text-primary hover:bg-bg-intermediate'
+                                                ? 'opacity-40 cursor-default text-gray-400'
+                                                : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5' : 'text-gray-900 hover:bg-gray-50')
                                             }`}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -228,7 +230,7 @@ export default function MultiSearchableSelect({
                                             <div className="truncate flex items-center gap-2">
                                                 {option.label}
                                                 {option.disabled && (
-                                                    <span className="text-[10px] bg-bg-intermediate px-1.5 py-0.5 rounded text-secondary uppercase font-bold">Sin Facturas</span>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${theme === 'dark' ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>Sin Facturas</span>
                                                 )}
                                             </div>
                                             {option.subtitle && (

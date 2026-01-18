@@ -6,7 +6,7 @@ import { supabase } from '@lib/supabase';
 import { Link } from '@tanstack/react-router';
 import {
   Trash2, BadgePlus, XCircle, Edit, X, ExternalLink,
-  Calendar, Sun, CheckCircle, Circle, AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Search, FileText
+  Calendar, Sun, CheckCircle, Circle, AlertCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, FileText
 } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
@@ -18,6 +18,7 @@ import { EmptyState } from '@components/EmptyState';
 import { useSession } from '@hooks/useSession';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
+import ExportButton from '@components/ExportButton';
 
 // ============ TIPOS Y CONSTANTES ============
 type EstadoContrato =
@@ -79,7 +80,7 @@ const initialColumnFilters = {
 };
 
 // ============ FETCH ============
-async function fetchContratos(filter: string, clienteId?: string): Promise<ContratoExtendido[]> {
+async function fetchContratos(filter: string, clienteId?: string, empresaId?: string): Promise<ContratoExtendido[]> {
   let query = supabase
     .from('contratos')
     .select(`
@@ -98,13 +99,16 @@ async function fetchContratos(filter: string, clienteId?: string): Promise<Contr
     .is('eliminado_en', null)
     .order('creado_en', { ascending: false });
 
+
   if (clienteId) {
     query = query.eq('puntos_suministro.cliente_id', clienteId);
   }
 
-  if (filter.trim()) {
-    query = query.or(`puntos_suministro.cups.ilike.%${filter}%,comercializadoras.nombre.ilike.%${filter}%`);
+  if (empresaId) {
+    query = query.eq('comercializadora_id', empresaId); // Filter by comercializadora (empresa)
   }
+
+  if (clienteId && 'empresaId' in ({} as any)) { /* no-op, just context */ }
 
   const { data, error } = await query.limit(500);
   if (error) throw error;
@@ -147,6 +151,11 @@ interface ContratoModalProps {
 }
 
 function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
+  const { theme } = useTheme();
+
+  // Border color for section separators: green in dark mode, gray in light mode
+  const sectionBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
+
   // Lock body scroll when modal is open
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -162,7 +171,7 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-2xl glass-modal overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-primary">
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: `2px solid ${sectionBorderColor}` }}>
           <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400">Detalle del Contrato</h3>
           <button
             className="p-2 text-secondary hover:text-primary hover:bg-bg-intermediate rounded-lg transition-colors cursor-pointer"
@@ -181,40 +190,40 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-2">Información General</h4>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Cliente</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Cliente</span>
                 {cliente ? (
-                  <span className="text-secondary font-bold">
+                  <span className="text-primary font-bold">
                     {cliente.nombre}
                   </span>
-                ) : <span className="text-secondary opacity-40">—</span>}
+                ) : <span className="text-secondary opacity-50">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">CUPS</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">CUPS</span>
                 {punto ? (
-                  <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-secondary font-mono w-fit border border-primary/20">
+                  <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-primary font-mono font-bold w-fit border border-primary/20">
                     {punto.cups}
                   </code>
-                ) : <span className="text-secondary opacity-40">—</span>}
+                ) : <span className="text-secondary opacity-50">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Dirección</span>
-                <span className="text-secondary font-medium">{punto?.direccion_sum || '—'}</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Dirección</span>
+                <span className="text-primary font-bold">{punto?.direccion_sum || '—'}</span>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Comercializadora</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Comercializadora</span>
                 {contrato.comercializadoras ? (
-                  <span className="text-secondary font-medium">
+                  <span className="text-primary font-bold">
                     {contrato.comercializadoras.nombre}
                   </span>
-                ) : <span className="text-secondary opacity-40">—</span>}
+                ) : <span className="text-secondary opacity-50">—</span>}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Canal</span>
-                <span className="text-secondary font-medium">{contrato.canales?.nombre || '—'}</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Canal</span>
+                <span className="text-primary font-bold">{contrato.canales?.nombre || '—'}</span>
               </div>
             </div>
 
@@ -223,7 +232,7 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-2">Estado y Servicios</h4>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Estado</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Estado</span>
                 <div>
                   <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${getEstadoColorClass(contrato.estado)}`}>
                     {contrato.estado}
@@ -232,7 +241,7 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Fotovoltaica</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Fotovoltaica</span>
                 <div>
                   <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${getFVColorClass(contrato.fotovoltaica || 'No')}`}>
                     {contrato.fotovoltaica || '—'}
@@ -241,7 +250,7 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Cobrado</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Cobrado</span>
                 <div>
                   {contrato.cobrado ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -256,71 +265,74 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Tarifa</span>
-                <span className="font-mono text-secondary font-bold bg-bg-intermediate px-2 py-0.5 rounded w-fit border border-primary/20">{punto?.tarifa || '—'}</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Tarifa</span>
+                <span className="font-mono text-primary font-bold bg-bg-intermediate px-2 py-0.5 rounded w-fit border border-primary/20">{punto?.tarifa || '—'}</span>
               </div>
 
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-primary uppercase tracking-tight mb-1">Consumo anual</span>
-                <span className="text-secondary font-bold">{punto?.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
+                <span className="text-xs text-secondary font-medium uppercase tracking-wider mb-1">Consumo anual</span>
+                <span className="text-primary font-bold">{punto?.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-primary">
+          <div className="mt-8 pt-6" style={{ borderTop: `2px solid ${sectionBorderColor}` }}>
             <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Calendar size={16} /> Fechas Importantes
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               <div>
-                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Aceptación</span>
-                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_aceptacion)}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Aceptación</span>
+                <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_aceptacion)}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Firma</span>
-                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_firma)}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Firma</span>
+                <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_firma)}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Activación</span>
-                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_activacion)}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Activación</span>
+                <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_activacion)}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Renovación</span>
-                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_renovacion)}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Renovación</span>
+                <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_renovacion)}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Baja</span>
-                <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_baja)}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Baja</span>
+                <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_baja)}</span>
               </div>
             </div>
 
             {(contrato.permanencia || contrato.aviso_renovacion) && (
-              <div className="mt-4 pt-4 border-t border-primary grid grid-cols-2 gap-4">
+              <div className="mt-4 pt-4 grid grid-cols-2 gap-4" style={{ borderTop: `1px solid ${sectionBorderColor}` }}>
                 {contrato.permanencia && (
                   <div>
-                    <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Permanencia hasta</span>
-                    <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_permanencia)}</span>
+                    <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Permanencia hasta</span>
+                    <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_permanencia)}</span>
                   </div>
                 )}
                 {contrato.aviso_renovacion && (
                   <div>
-                    <span className="block text-xs font-bold text-primary uppercase tracking-tight flex items-center gap-1 mb-1">
+                    <span className="block text-xs text-secondary font-medium uppercase tracking-wider flex items-center gap-1 mb-1">
                       <AlertCircle size={10} className="text-amber-500" /> Aviso renovación
                     </span>
-                    <span className="text-sm text-secondary font-medium">{fmtDate(contrato.fecha_aviso)}</span>
+                    <span className="text-sm text-primary font-bold">{fmtDate(contrato.fecha_aviso)}</span>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-primary">
-              <span className="block text-xs font-bold text-primary uppercase tracking-tight mb-1">Creado el</span>
-              <span className="text-sm text-secondary opacity-60 font-medium">{fmtDate(contrato.creado_en)}</span>
+            <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${sectionBorderColor}` }}>
+              <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Creado el</span>
+              <span className="text-sm text-primary font-bold opacity-70">{fmtDate(contrato.creado_en)}</span>
             </div>
           </div>
         </div>
 
-        <div className="p-6 border-t border-primary bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div
+          className="p-6 bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl"
+          style={{ borderTop: `2px solid ${sectionBorderColor}` }}
+        >
           <Link to="/app/contratos/$id" params={{ id: contrato.id }}>
             <button className="px-6 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
               Editar contrato
@@ -328,7 +340,7 @@ function ContratoDetailModal({ contrato, onClose }: ContratoModalProps) {
           </Link>
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl text-secondary font-bold hover:text-primary hover:bg-bg-intermediate transition-all duration-200 cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-bg-intermediate hover:bg-slate-600 dark:hover:bg-slate-700 text-primary font-medium transition-all cursor-pointer border border-primary/20"
           >
             Cerrar
           </button>
@@ -350,6 +362,17 @@ function EstadoDropdown({ contratoId, currentEstado, onUpdate }: EstadoDropdownP
   const [isUpdating, setIsUpdating] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Lock body scroll when dropdown is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -437,6 +460,17 @@ function FVDropdown({ contratoId, currentFV, onUpdate }: FVDropdownProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Lock body scroll when dropdown is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -556,7 +590,7 @@ function CobradoCheckbox({ contratoId, checked, onUpdate }: CobradoCheckboxProps
 }
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function ContratosList({ clienteId, hideClienteColumn }: { clienteId?: string; hideClienteColumn?: boolean }) {
+export default function ContratosList({ clienteId, empresaId, hideClienteColumn }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -571,8 +605,8 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['contratos', filter, clienteId],
-    queryFn: () => fetchContratos(filter, clienteId),
+    queryKey: ['contratos', filter, clienteId, empresaId],
+    queryFn: () => fetchContratos(filter, clienteId, empresaId),
   });
 
   const handleInlineUpdate = () => {
@@ -707,92 +741,129 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
     }
   };
 
-  return (
-    <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {!clienteId && (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Contratos</h1>
-            </div>
-          </div>
-        )}
+  const totalItems = filteredData.length;
 
-        <div className={`flex items-center gap-3 ${clienteId ? 'w-full justify-between' : 'w-full sm:w-auto'}`}>
-          {selectedIds.length > 0 ? (
-            /* Selection action bar - compact inline style */
-            <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
-              <span className="text-sm text-fenix-400 font-medium">
-                {selectedIds.length} seleccionado(s)
-              </span>
-              <div className="flex items-center gap-1 ml-2">
-                {selectedIds.length === 1 && canEdit && selectedIds[0] && (
-                  <Link
-                    to="/app/contratos/$id"
-                    params={{ id: selectedIds[0] }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
-                    title="Editar Contrato"
-                  >
-                    <Edit size={16} />
-                  </Link>
-                )}
-                {canDelete && (
-                  <button
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title={`Eliminar ${selectedIds.length} contrato(s)`}
-                    onClick={handleDeleteSelected}
-                    disabled={deleteContratoMutation.isPending}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-                <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
-                  title="Cancelar selección"
-                  onClick={() => setSelectedIds([])}
-                >
-                  <XCircle size={16} />
-                </button>
+  const isDetailView = !!(clienteId || empresaId);
+
+  return (
+    <div className={isDetailView ? "animate-fade-in" : "flex flex-col gap-6 animate-fade-in"}>
+      {/* Encabezado GLOBAL */}
+      {!isDetailView && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          {!clienteId && !empresaId ? (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Contratos</h1>
               </div>
             </div>
           ) : (
-            <>
-              {!clienteId && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                      <Search size={16} />
-                      Buscar
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="CUPS o comercializadora..."
-                      className="glass-input w-64"
-                      value={filter}
-                      onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
-                    />
-                  </div>
-                  {canCreate && (
-                    <Link to="/app/contratos/nuevo">
-                      <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
-                        <BadgePlus size={18} />
-                        <span className="hidden sm:inline">Nuevo Contrato</span>
-                      </button>
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-400 flex items-center gap-3">
+                <FileText className="text-fenix-500" />
+                Contratos
+                <span className="text-sm font-normal text-secondary bg-bg-intermediate px-2 py-0.5 rounded-full border border-primary/20">
+                  {filteredData.length}
+                </span>
+              </h2>
+              <ExportButton
+                entity="contratos"
+                preFilters={{
+                  cliente_id: clienteId,
+                  comercializadora_id: empresaId,
+                  search: filter
+                }}
+                label="Exportar"
+              />
+            </div>
+          )}
+
+          <div className={`flex items-center gap-3 ${clienteId ? 'w-full justify-between' : 'w-full sm:w-auto'}`}>
+            {selectedIds.length > 0 ? (
+              /* Selection action bar - compact inline style */
+              <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
+                <span className="text-sm text-fenix-400 font-medium">
+                  {selectedIds.length} seleccionado(s)
+                </span>
+                <div className="flex items-center gap-1 ml-2">
+                  {selectedIds.length === 1 && canEdit && selectedIds[0] && (
+                    <Link
+                      to="/app/contratos/$id"
+                      params={{ id: selectedIds[0] }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                      title="Editar Contrato"
+                    >
+                      <Edit size={16} />
                     </Link>
                   )}
-                </>
-              )}
-            </>
-          )}
+                  {canDelete && (
+                    <button
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title={`Eliminar ${selectedIds.length} contrato(s)`}
+                      onClick={handleDeleteSelected}
+                      disabled={deleteContratoMutation.isPending}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                  <button
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                    title="Cancelar selección"
+                    onClick={() => setSelectedIds([])}
+                  >
+                    <XCircle size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {!clienteId && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                        <Search size={16} />
+                        Buscar
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="CUPS o comercializadora..."
+                        className="glass-input w-64"
+                        value={filter}
+                        onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
+                      />
+                    </div>
+                    <ExportButton
+                      exportParams={{
+                        entity: 'contratos',
+                        filters: {
+                          search: filter || undefined,
+                          cliente_id: clienteId,
+                          estado: columnFilters.estado.length > 0 ? columnFilters.estado : undefined,
+                          fotovoltaica: columnFilters.fotovoltaica.length > 0 ? columnFilters.fotovoltaica : undefined,
+                          cobrado: columnFilters.cobrado.length > 0 ? columnFilters.cobrado.map(v => v === 'Sí' ? 'true' : 'false') : undefined,
+                        },
+                      }}
+                    />
+                    {canCreate && (
+                      <Link to="/app/contratos/nuevo">
+                        <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                          <BadgePlus size={18} />
+                          <span className="hidden sm:inline">Nuevo Contrato</span>
+                        </button>
+                      </Link>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Estados de carga / error */}
-      {isLoading && (
+      {isLoading && !isDetailView && (
         <div className="glass-card p-12 flex items-center justify-center">
           <div className="animate-spin text-fenix-500"><Sun size={32} /></div>
           <p className="ml-3 text-gray-400 font-medium">Cargando contratos...</p>
@@ -806,6 +877,50 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
       )}
 
       <div className="glass-card overflow-hidden">
+        {/* Integrated Header for Detail View */}
+        {isDetailView && (
+          <div className="p-6 border-b border-bg-intermediate">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              {/* Left */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-fenix-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Contratos</h2>
+                  <p className="text-sm text-gray-400">
+                    {totalItems} contratos encontrados
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Search + Export */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                    <Search size={16} />
+                    Buscar
+                  </label>
+                  <input
+                    placeholder="Nº Contrato, CUPS..."
+                    value={filter}
+                    onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
+                    className="glass-input w-full md:w-64"
+                  />
+                </div>
+                <ExportButton
+                  entity="contratos"
+                  preFilters={{
+                    cliente_id: clienteId,
+                    comercializadora_id: empresaId,
+                    search: filter
+                  }}
+                  label="Exportar"
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {/* Estados vacíos */}
         {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && !clienteId && (
           <EmptyState
@@ -1006,13 +1121,49 @@ export default function ContratosList({ clienteId, hideClienteColumn }: { client
 
         {/* Paginación */}
         {!isLoading && !isError && totalPages > 1 && (
-          <Pagination
-            page={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredData.length}
-            onPageChange={setCurrentPage}
-            isLoading={isLoading}
-          />
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4"
+            style={{ borderTop: `2px solid ${tableBorderColor}` }}
+          >
+            <div className="text-sm text-secondary">
+              Total: <span className="text-primary font-medium">{filteredData.length}</span> registros •
+              Página <span className="text-primary font-medium">{currentPage}</span> de <span className="text-primary font-medium">{totalPages || 1}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1 || isLoading}
+                title="Primera página"
+              >
+                <ChevronsLeft size={18} />
+              </button>
+              <button
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1 || isLoading}
+                title="Página anterior"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage >= totalPages || isLoading}
+                title="Página siguiente"
+              >
+                <ChevronRight size={18} />
+              </button>
+              <button
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage >= totalPages || isLoading}
+                title="Última página"
+              >
+                <ChevronsRight size={18} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

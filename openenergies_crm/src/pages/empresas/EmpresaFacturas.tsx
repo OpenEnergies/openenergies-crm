@@ -8,9 +8,11 @@ import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, Chev
 import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
+import { useTheme } from '@hooks/ThemeContext';
 import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import toast from 'react-hot-toast';
+import ExportButton from '@components/ExportButton';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -185,6 +187,9 @@ export default function EmpresaFacturas() {
         enabled: !!empresaId,
     });
 
+    const { theme } = useTheme();
+    const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
+
     const getSignedUrl = useCallback(async (facturaId: string, comercializadoraNombre: string | null | undefined, numeroFactura: string): Promise<string | null> => {
         const cached = signedUrlCache[facturaId];
         if (cached && cached.expires > Date.now()) return cached.url;
@@ -268,20 +273,32 @@ export default function EmpresaFacturas() {
                             <Receipt className="w-5 h-5 text-fenix-500" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Facturas</h2>
-                            <p className="text-sm text-gray-400">{facturas.length} total</p>
+                            <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Facturas</h2>
+                            <p className="text-sm text-secondary">{facturas.length} total</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <label className="flex items-center gap-2 text-sm font-medium text-emerald-400 whitespace-nowrap">
-                            <Search size={16} /> Buscar
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="Nº factura, CUPS, Cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="glass-input w-full md:w-64"
+
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                            <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                                <Search size={16} /> Buscar
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Nº factura, CUPS, Cliente..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="glass-input w-full md:w-64"
+                            />
+                        </div>
+                        <ExportButton
+                            exportParams={{
+                                entity: 'facturas',
+                                filters: {
+                                    comercializadora_id: empresaId,
+                                    search: searchTerm || undefined,
+                                },
+                            }}
                         />
                     </div>
                 </div>
@@ -293,7 +310,10 @@ export default function EmpresaFacturas() {
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b-2 border-bg-intermediate bg-bg-intermediate text-xs text-gray-200 uppercase tracking-wider font-semibold">
+                            <tr
+                                className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                                style={{ borderBottomColor: tableBorderColor }}
+                            >
                                 <th className="p-4"><button onClick={() => handleSort('numero_factura' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">Nº Factura {renderSortIcon('numero_factura' as any)}</button></th>
                                 <th className="p-4"><button onClick={() => handleSort('cliente' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">Cliente {renderSortIcon('cliente' as any)}</button></th>
                                 <th className="p-4"><button onClick={() => handleSort('cups' as any)} className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer">CUPS {renderSortIcon('cups' as any)}</button></th>
@@ -310,11 +330,11 @@ export default function EmpresaFacturas() {
                         <tbody className="divide-y divide-fenix-500/10">
                             {displayedData.map(factura => (
                                 <tr key={factura.id} className="hover:bg-fenix-500/8 transition-colors">
-                                    <td className="p-4"><button onClick={() => setSelectedFactura(factura)} className="text-fenix-400 hover:text-fenix-300 font-medium cursor-pointer underline-offset-2 hover:underline">{factura.numero_factura}</button></td>
-                                    <td className="p-4 text-gray-300 text-sm">{factura.clientes?.nombre || '—'}</td>
-                                    <td className="p-4 text-gray-300 font-mono text-sm">{factura.puntos_suministro?.cups || '—'}</td>
-                                    <td className="p-4 text-right text-white font-semibold">{formatCurrency(factura.total)}</td>
-                                    <td className="p-4 text-gray-400 text-sm">{formatDate(factura.fecha_emision)}</td>
+                                    <td className="p-4"><button onClick={() => setSelectedFactura(factura)} className="text-fenix-600 dark:text-fenix-400 hover:text-fenix-500 dark:hover:text-fenix-300 font-medium cursor-pointer underline-offset-2 hover:underline">{factura.numero_factura}</button></td>
+                                    <td className="p-4 text-secondary text-sm">{factura.clientes?.nombre || '—'}</td>
+                                    <td className="p-4 text-secondary font-mono text-sm">{factura.puntos_suministro?.cups || '—'}</td>
+                                    <td className="p-4 text-right text-primary font-bold">{formatCurrency(factura.total)}</td>
+                                    <td className="p-4 text-secondary text-sm">{formatDate(factura.fecha_emision)}</td>
                                     <td className="p-4">
                                         <div className="flex items-center justify-end gap-2">
                                             <button onClick={() => handlePreviewPdf(factura)} disabled={loadingPdfId === factura.id} className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all cursor-pointer disabled:opacity-50">{loadingPdfId === factura.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}</button>
@@ -329,13 +349,16 @@ export default function EmpresaFacturas() {
             )}
 
             {displayedData.length > 0 && (
-                <div className="p-4 border-t border-bg-intermediate flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <span className="text-sm text-gray-400">Página <span className="text-white font-medium">{currentPage}</span> de {totalPages}</span>
+                <div
+                    className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+                    style={{ borderTop: `2px solid ${tableBorderColor}` }}
+                >
+                    <span className="text-sm text-secondary">Página <span className="text-primary font-medium">{currentPage}</span> de {totalPages}</span>
                     <div className="flex items-center gap-2">
-                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}><ChevronsLeft size={18} /></button>
-                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={18} /></button>
-                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={18} /></button>
-                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}><ChevronsRight size={18} /></button>
+                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}><ChevronsLeft size={18} /></button>
+                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={18} /></button>
+                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={18} /></button>
+                        <button className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 cursor-pointer" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}><ChevronsRight size={18} /></button>
                     </div>
                 </div>
             )}

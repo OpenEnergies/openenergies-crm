@@ -818,7 +818,7 @@ export default function ClienteDocumentos({
             className="relative z-10 w-full max-w-md glass-modal p-6"
             style={{ transform: 'perspective(1000px) rotateX(0deg)', transformStyle: 'preserve-3d' }}
           >
-            <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-500 mb-4 flex items-center gap-2">
               <FolderPlus size={22} className="text-fenix-500" />
               Crear Nueva Carpeta
             </h3>

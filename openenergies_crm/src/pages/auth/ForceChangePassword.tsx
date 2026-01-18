@@ -91,7 +91,7 @@ export default function ForceChangePassword() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-describedby="change-password-hint">
           {/* New Password */}
           <div className="space-y-1.5">
-            <label htmlFor="password" className="text-gray-400">
+            <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
               <Lock size={16} />
               Nueva Contraseña
             </label>

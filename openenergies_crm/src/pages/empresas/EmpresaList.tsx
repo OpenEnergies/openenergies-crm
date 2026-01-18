@@ -10,6 +10,7 @@ import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
 import EmpresaLogo from '@components/EmpresaLogo';
+import ExportButton from '@components/ExportButton';
 
 async function fetchEmpresas(archived: boolean) {
   const query = supabase
@@ -152,12 +153,20 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
             </div>
           ) : (
             !isArchivedMode && (
-              <Link to="/app/empresas/nueva">
-                <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
-                  <HousePlus size={18} />
-                  <span className="hidden sm:inline">Nueva</span>
-                </button>
-              </Link>
+              <div className="flex items-center gap-3">
+                <ExportButton
+                  exportParams={{
+                    entity: 'empresas',
+                    filters: { is_archived: false },
+                  }}
+                />
+                <Link to="/app/empresas/nueva">
+                  <button className="flex items-center gap-2 h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
+                    <HousePlus size={18} />
+                    <span className="hidden sm:inline">Nueva</span>
+                  </button>
+                </Link>
+              </div>
             )
           )}
         </div>

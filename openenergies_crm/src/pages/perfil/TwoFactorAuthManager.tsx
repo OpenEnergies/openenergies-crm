@@ -85,7 +85,7 @@ export default function TwoFactorAuthManager() {
 
   if (isLoading) {
     return (
-      <div className="glass-card p-6 flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
         <span className="text-gray-400">Comprobando estado de 2FA...</span>
       </div>
@@ -93,7 +93,7 @@ export default function TwoFactorAuthManager() {
   }
 
   return (
-    <div className="glass-card p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3 mb-4">
         <Shield className="w-5 h-5 text-green-400" />
         <h3 className="text-lg font-semibold text-primary tracking-tight">Autenticación de Dos Factores (2FA)</h3>

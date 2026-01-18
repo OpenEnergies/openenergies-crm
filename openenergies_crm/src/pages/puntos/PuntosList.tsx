@@ -16,6 +16,7 @@ import { toast } from 'react-hot-toast';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { clsx } from '@lib/utils';
+import ExportButton from '@components/ExportButton';
 
 // ============ TIPOS ============
 interface PuntoConCliente {
@@ -73,12 +74,13 @@ const initialColumnFilters = {
 };
 
 // ============ FETCH FUNCTION ============
-async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoConCliente[]> {
+async function fetchPuntos(filter: string, clienteId?: string, empresaId?: string): Promise<PuntoConCliente[]> {
   let query = supabase
     .from('puntos_suministro')
     .select(`
       id,
       cliente_id,
+      current_comercializadora_id,
       cups,
       estado,
       tarifa,
@@ -117,6 +119,10 @@ async function fetchPuntos(filter: string, clienteId?: string): Promise<PuntoCon
     query = query.eq('cliente_id', clienteId);
   }
 
+  if (empresaId) {
+    query = query.eq('current_comercializadora_id', empresaId);
+  }
+
   if (filter) {
     query = query.or(`cups.ilike.%${filter}%,direccion_sum.ilike.%${filter}%`);
   }
@@ -148,6 +154,11 @@ interface PuntoModalProps {
 }
 
 function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
+  const { theme } = useTheme();
+
+  // Border color for section separators: green in dark mode, gray in light mode
+  const sectionBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
+
   // Lock body scroll when modal is open
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -172,7 +183,7 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-2xl glass-modal overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-primary">
+        <div className="flex items-center justify-between p-6" style={{ borderBottom: `2px solid ${sectionBorderColor}` }}>
           <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400 flex items-center gap-2">
             <MapPin className="text-fenix-500" /> Detalle del Punto de Suministro
           </h3>
@@ -190,19 +201,19 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
             {/* Columna Izquierda */}
             <div className="space-y-4">
               <div>
-                <span className="block text-xs text-white mb-1">Cliente</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Cliente</span>
                 {punto.clientes && Array.isArray(punto.clientes) && punto.clientes[0] ? (
-                  <span className="text-primary font-medium">
+                  <span className="text-primary font-bold">
                     {punto.clientes[0].nombre}
                   </span>
                 ) : (punto.clientes && !Array.isArray(punto.clientes) && (punto.clientes as any).nombre) ? (
-                  <span className="text-primary font-medium">
+                  <span className="text-primary font-bold">
                     {(punto.clientes as any).nombre}
                   </span>
-                ) : <span className="text-gray-400">—</span>}
+                ) : <span className="text-secondary opacity-50">—</span>}
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Comercializadora</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Comercializadora</span>
                 {punto.comercializadora && Array.isArray(punto.comercializadora) && punto.comercializadora[0] ? (
                   <span className="text-primary text-sm">
                     {punto.comercializadora[0].nombre}
@@ -211,34 +222,34 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
                   <span className="text-primary text-sm">
                     {(punto.comercializadora as any).nombre}
                   </span>
-                ) : <span className="text-gray-400">—</span>}
+                ) : <span className="text-secondary opacity-50">—</span>}
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">CUPS</span>
-                <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-primary font-mono">{punto.cups}</code>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">CUPS</span>
+                <code className="text-sm bg-bg-intermediate px-1.5 py-0.5 rounded text-primary font-mono font-bold">{punto.cups}</code>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Comerciales asignados</span>
-                <span className="text-gray-300 text-sm">{comercialesAsignados}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Comerciales asignados</span>
+                <span className="text-primary text-sm">{comercialesAsignados}</span>
               </div>
             </div>
 
             {/* Columna Derecha */}
             <div className="space-y-4">
               <div>
-                <span className="block text-xs text-white mb-1">Tarifa</span>
-                <span className="text-gray-300 font-medium">{punto.tarifa || '—'}</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Tarifa</span>
+                <span className="text-primary font-bold">{punto.tarifa || '—'}</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Potencia Total</span>
-                <span className="text-gray-300 font-medium">{potenciaTotal.toFixed(2)} kW</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Potencia Total</span>
+                <span className="text-primary font-bold">{potenciaTotal.toFixed(2)} kW</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Consumo Anual</span>
-                <span className="text-gray-300 font-medium">{punto.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Consumo Anual</span>
+                <span className="text-primary font-bold">{punto.consumo_anual_kwh?.toLocaleString() || '—'} kWh</span>
               </div>
               <div>
-                <span className="block text-xs text-white mb-1">Fotovoltaica</span>
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Fotovoltaica</span>
                 <div className="flex items-center gap-2">
                   <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${punto.tiene_fv ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-bg-intermediate text-secondary opacity-60'}`}>
                     {punto.tiene_fv ? 'Sí' : 'No'}
@@ -249,19 +260,19 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-bg-intermediate">
-            <h4 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider mb-4">Direcciones</h4>
+          <div className="mt-8 pt-6" style={{ borderTop: `2px solid ${sectionBorderColor}` }}>
+            <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-4">Direcciones</h4>
             <div className="space-y-4">
               <div>
-                <span className="block text-xs text-white mb-1">Suministro</span>
-                <span className="text-gray-300 text-sm">
+                <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Suministro</span>
+                <span className="text-primary text-sm">
                   {punto.direccion_sum}{punto.localidad_sum ? `, ${punto.localidad_sum}` : ''}{punto.provincia_sum ? ` (${punto.provincia_sum})` : ''}
                 </span>
               </div>
               {punto.direccion_fisc && (
                 <div>
-                  <span className="block text-xs text-white mb-1">Fiscal</span>
-                  <span className="text-gray-300 text-sm">
+                  <span className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1">Fiscal</span>
+                  <span className="text-primary text-sm">
                     {punto.direccion_fisc}{punto.localidad_fisc ? `, ${punto.localidad_fisc}` : ''}{punto.provincia_fisc ? ` (${punto.provincia_fisc})` : ''}
                   </span>
                 </div>
@@ -269,20 +280,23 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
             </div>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-bg-intermediate">
-            <h4 className="text-sm font-semibold text-fenix-400 uppercase tracking-wider mb-4">Potencias por Periodo (kW)</h4>
+          <div className="mt-6 pt-6" style={{ borderTop: `2px solid ${sectionBorderColor}` }}>
+            <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-4">Potencias por Periodo (kW)</h4>
             <div className="grid grid-cols-6 gap-2 text-center">
               {[punto.p1_kw, punto.p2_kw, punto.p3_kw, punto.p4_kw, punto.p5_kw, punto.p6_kw].map((val, idx) => (
                 <div key={idx} className="bg-bg-intermediate rounded p-2">
-                  <span className="block text-[10px] text-primary font-bold uppercase opacity-60">P{idx + 1}</span>
-                  <span className="block text-sm font-medium text-primary">{val ?? '-'}</span>
+                  <span className="block text-[10px] text-fenix-600 dark:text-fenix-400 font-bold uppercase">P{idx + 1}</span>
+                  <span className="block text-sm font-bold text-primary">{val ?? '-'}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="p-6 border-t border-primary bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div
+          className="p-6 bg-bg-intermediate/30 flex items-center justify-end gap-3 rounded-b-2xl"
+          style={{ borderTop: `2px solid ${sectionBorderColor}` }}
+        >
           <Link to="/app/puntos/$id" params={{ id: punto.id }}>
             <button className="px-4 py-2.5 rounded-xl bg-fenix-500 hover:bg-fenix-600 text-white font-medium shadow-lg shadow-fenix-500/25 transition-all cursor-pointer">
               Editar punto
@@ -290,7 +304,7 @@ function PuntoDetailModal({ punto, onClose }: PuntoModalProps) {
           </Link>
           <button
             onClick={onClose}
-            className="btn-secondary cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-bg-intermediate hover:bg-slate-600 dark:hover:bg-slate-700 text-primary font-medium transition-all cursor-pointer border border-primary/20"
           >
             Cerrar
           </button>
@@ -312,6 +326,17 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
   const [isUpdating, setIsUpdating] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Lock body scroll when dropdown is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -363,9 +388,9 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
 
       {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-9998" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-[9998]" onClick={() => setIsOpen(false)} />
           <div
-            className="fixed z-9999 w-52 bg-bg-primary border border-fenix-500/20 rounded-xl py-2 shadow-2xl animate-fade-in max-h-60 overflow-y-auto"
+            className="fixed z-[9999] w-52 bg-bg-primary border border-fenix-500/20 rounded-xl py-2 shadow-2xl animate-fade-in max-h-60 overflow-y-auto custom-scrollbar"
             style={{ top: menuPosition.top, left: menuPosition.left }}
           >
             {ESTADOS_PUNTO.map(estado => (
@@ -373,8 +398,8 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
                 key={estado}
                 className={clsx(
                   'w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 cursor-pointer',
-                  'hover:bg-fenix-500/15 text-gray-300',
-                  estado === currentEstado ? 'font-medium bg-fenix-500/15 text-fenix-400' : ''
+                  'hover:bg-bg-intermediate text-secondary hover:text-primary',
+                  estado === currentEstado ? 'font-bold bg-bg-intermediate/50 text-fenix-600 dark:text-fenix-400' : ''
                 )}
                 onClick={() => handleChange(estado)}
               >
@@ -392,7 +417,7 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
 
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId?: string; hideClienteColumn?: boolean }) {
+export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -406,8 +431,8 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError } = useQuery({
-    queryKey: ['puntos', filter, clienteId],
-    queryFn: () => fetchPuntos(filter, clienteId)
+    queryKey: ['puntos', filter, clienteId, empresaId],
+    queryFn: () => fetchPuntos(filter, clienteId, empresaId)
   });
 
   const handleRefresh = () => {
@@ -544,86 +569,77 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
     }
   };
 
+
+
+  const isDetailView = !!(clienteId || empresaId);
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {!clienteId && (
+    <div className={isDetailView ? "animate-fade-in" : "flex flex-col gap-6 animate-fade-in"}>
+      {/* Encabezado GLOBAL - Solo visible si no estamos en vista detalle */}
+      {!isDetailView && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
               <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
             </div>
             <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h1>
           </div>
-        )}
 
-        <div className={`flex items-center gap-3 ${clienteId ? 'w-full justify-between' : 'w-full sm:w-auto'}`}>
-          {selectedIds.length > 0 ? (
-            /* Selection action bar - compact inline style */
-            <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
-              <span className="text-sm text-fenix-400 font-medium">
-                {selectedIds.length} seleccionado(s)
-              </span>
-              <div className="flex items-center gap-1 ml-2">
-                {selectedIds.length === 1 && selectedIds[0] && (
-                  <Link
-                    to="/app/puntos/$id"
-                    params={{ id: selectedIds[0] }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
-                    title="Editar Punto"
-                  >
-                    <Edit size={16} />
-                  </Link>
-                )}
-                <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                  title={`Eliminar ${selectedIds.length} punto(s)`}
-                  onClick={handleDeleteSelected}
-                  disabled={deletePuntoMutation.isPending}
-                >
-                  <Trash2 size={16} />
-                </button>
-                <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
-                  title="Cancelar selección"
-                  onClick={() => setSelectedIds([])}
-                >
-                  <XCircle size={16} />
-                </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {selectedIds.length > 0 ? (
+              /* Selection action bar */
+              <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
+                <span className="text-sm text-fenix-400 font-medium">{selectedIds.length} seleccionado(s)</span>
+                <div className="flex items-center gap-1 ml-2">
+                  {/* Actions... (simplified for brevity in this view, assuming standard actions exist or passing through) */}
+                  {selectedIds.length === 1 && selectedIds[0] && (
+                    <Link to="/app/puntos/$id" params={{ id: selectedIds[0] }} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors">
+                      <Edit size={16} />
+                    </Link>
+                  )}
+                  <button onClick={handleDeleteSelected} disabled={deletePuntoMutation.isPending} className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                  <button onClick={() => setSelectedIds([])} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors">
+                    <XCircle size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <>
-              {!clienteId && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                      <Search size={16} />
-                      Buscar
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="CUPS o dirección..."
-                      className="glass-input w-64"
-                      value={filter}
-                      onChange={e => setFilter(e.target.value)}
-                    />
-                  </div>
-                  <Link to="/app/puntos/nuevo">
-                    <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
-                      <MapPinPlus size={18} />
-                      <span className="hidden sm:inline">Nuevo Punto</span>
-                    </button>
-                  </Link>
-                </>
-              )}
-            </>
-          )}
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                    <Search size={16} />
+                    Buscar
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="CUPS o dirección..."
+                    className="glass-input w-64"
+                    value={filter}
+                    onChange={e => setFilter(e.target.value)}
+                  />
+                </div>
+                <ExportButton
+                  exportParams={{
+                    entity: 'puntos_suministro',
+                    filters: { search: filter || undefined }
+                  }}
+                />
+                <Link to="/app/puntos/nuevo">
+                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                    <MapPinPlus size={18} />
+                    <span className="hidden sm:inline">Nuevo Punto</span>
+                  </button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Estados de carga / error */}
-      {isLoading && (
+      {isLoading && !isDetailView && (
         <div className="glass-card p-12 flex items-center justify-center">
           <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
           <p className="ml-3 text-secondary font-medium">Cargando puntos de suministro...</p>
@@ -637,6 +653,50 @@ export default function PuntosList({ clienteId, hideClienteColumn }: { clienteId
       )}
 
       <div className="glass-card overflow-hidden">
+        {/* Integrated Header for Detail View */}
+        {isDetailView && (
+          <div className="p-6 border-b border-bg-intermediate">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              {/* Left: Icon + Title + Counter */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-fenix-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h2>
+                  <p className="text-sm text-gray-400">
+                    {totalItems} puntos encontrados
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Search + Export */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                    <Search size={16} />
+                    Buscar
+                  </label>
+                  <input
+                    placeholder="CUPS, Dirección..."
+                    value={filter}
+                    onChange={e => setFilter(e.target.value)}
+                    className="glass-input w-full md:w-64"
+                  />
+                </div>
+                <ExportButton
+                  entity="puntos_suministro"
+                  preFilters={{
+                    cliente_id: clienteId,
+                    comercializadora_id: empresaId,
+                    search: filter
+                  }}
+                  label="Exportar"
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {/* Estados vacíos */}
         {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && !clienteId && (
           <EmptyState

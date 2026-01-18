@@ -15,6 +15,7 @@ import { format, subMonths, startOfYear, endOfYear, startOfMonth, endOfMonth } f
 import { es } from 'date-fns/locale';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
+import { useTheme } from '@hooks/ThemeContext';
 
 // ============ TYPES & SCHEMAS ============
 
@@ -82,6 +83,7 @@ const GROUP_LABELS: Record<GroupByOption, string> = {
 // ============ COMPONENTS ============
 
 export default function AnalyticsPage() {
+    const { theme } = useTheme();
     // --- State: Filters ---
     const [selectedClients, setSelectedClients] = useState<string[] | null>(null); // null = "Todos"
     const [selectedPoints, setSelectedPoints] = useState<string[] | null>(null);   // null = "Todos"
@@ -204,12 +206,14 @@ export default function AnalyticsPage() {
 
     return (
         <div className="flex flex-col gap-6 animate-fade-in pb-12">
-            <header>
-                <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-                    <BarChart3 size={24} className="text-fenix-600 dark:text-fenix-400" />
-                    Explorador de Datos
-                </h2>
-                <p className="text-secondary">Analiza el consumo y facturación de forma dinámica.</p>
+            <header className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Explorador de Datos</h2>
+                    <p className="text-secondary opacity-70 text-sm">Analiza el consumo y facturación de forma dinámica.</p>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
@@ -297,7 +301,7 @@ export default function AnalyticsPage() {
                                         {/* Measure Selector */}
                                         <div className="col-span-12 sm:col-span-6">
                                             <select
-                                                className="glass-input text-[11px] py-1.5 w-full h-9"
+                                                className={`glass-input text-[11px] py-1.5 w-full h-9 ${theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}`}
                                                 value={m.measure}
                                                 onChange={(e) => {
                                                     const val = e.target.value as Metric['measure'];
@@ -305,7 +309,7 @@ export default function AnalyticsPage() {
                                                 }}
                                             >
                                                 {Object.entries(MEASURE_LABELS).map(([k, v]) => (
-                                                    <option key={k} value={k}>{v}</option>
+                                                    <option key={k} value={k} className={theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}>{v}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -313,7 +317,7 @@ export default function AnalyticsPage() {
                                         {/* Aggregation Selector */}
                                         <div className="col-span-6 sm:col-span-3">
                                             <select
-                                                className="glass-input text-[11px] py-1.5 w-full h-9"
+                                                className={`glass-input text-[11px] py-1.5 w-full h-9 ${theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}`}
                                                 value={m.aggregation}
                                                 onChange={(e) => {
                                                     const val = e.target.value as Metric['aggregation'];
@@ -321,7 +325,7 @@ export default function AnalyticsPage() {
                                                 }}
                                             >
                                                 {Object.entries(AGG_LABELS).map(([k, v]) => (
-                                                    <option key={k} value={k}>{v}</option>
+                                                    <option key={k} value={k} className={theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}>{v}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -374,12 +378,12 @@ export default function AnalyticsPage() {
                             <label className="block">
                                 <span className="text-xs text-gray-400">Agrupar por</span>
                                 <select
-                                    className="glass-input mt-1"
+                                    className={`glass-input mt-1 ${theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}`}
                                     value={groupBy}
                                     onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
                                 >
                                     {Object.entries(GROUP_LABELS).map(([k, v]) => (
-                                        <option key={k} value={k}>{v}</option>
+                                        <option key={k} value={k} className={theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}>{v}</option>
                                     ))}
                                 </select>
                             </label>

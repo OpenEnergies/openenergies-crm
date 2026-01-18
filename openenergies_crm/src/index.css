@@ -188,15 +188,13 @@ select:focus-visible {
 }
 
 
-/* Links */
+/* Links - inherit color from parent, only active nav items get fenix color */
 a {
-  color: var(--color-fenix-500);
+  color: inherit;
+  text-decoration: none;
   transition: color 0.2s;
 }
 
-a:hover {
-  color: var(--color-fenix-400);
-}
 
 /* Scrollbar */
 ::-webkit-scrollbar {

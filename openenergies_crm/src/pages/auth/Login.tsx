@@ -115,13 +115,13 @@ export default function Login() {
           <div className="w-11 h-11 rounded-xl bg-white/90 flex items-center justify-center">
             <img src="/logo_openenergies.png" alt="Open Energies" className="w-9 h-9" />
           </div>
-          <span className="text-xl font-semibold text-white">Open Energies CRM</span>
+          <span className="font-semibold text-lg whitespace-nowrap transition-opacity duration-200">Open Energies CRM</span>
         </div>
 
         {/* Title */}
         <h1
           id="login-title"
-          className="text-2xl font-bold text-white text-center mb-2"
+          className="text-xl font-bold text-fenix-600 dark:text-fenix-500 text-center mb-2"
         >
           {isMfaStep ? 'Verificar Identidad' : 'Accede a tu cuenta'}
         </h1>

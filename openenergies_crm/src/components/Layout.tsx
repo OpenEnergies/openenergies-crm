@@ -5,7 +5,7 @@ import { NavigationMenu } from './navigation/NavigationMenu';
 
 import { supabase } from '@lib/supabase';
 import { useSession } from '@hooks/useSession';
-import { LogOut, Bell, Loader2, User, MoreVertical, Leaf } from 'lucide-react';
+import { LogOut, Bell, Loader2, User, MoreVertical, Leaf, CalendarDays } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '@hooks/useNotifications';
 import ChatWidget from '@features/chat/ChatWidget';
@@ -132,6 +132,13 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              to="/app/agenda"
+              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
+              title="Agenda"
+            >
+              <CalendarDays size={20} />
+            </Link>
+            <Link
               to="/app/notificaciones"
               className="relative p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
               title="Notificaciones"
@@ -155,6 +162,15 @@ export default function Layout() {
           bg-bg-primary/80 backdrop-blur-sm
         ">
           <div className="flex items-center gap-3">
+            {/* Agenda */}
+            <Link
+              to="/app/agenda"
+              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
+              title="Agenda"
+            >
+              <CalendarDays size={20} />
+            </Link>
+
             {/* Notifications */}
             <Link
               to="/app/notificaciones"

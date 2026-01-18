@@ -53,7 +53,6 @@ export function useExportData() {
 
             const response = await supabase.functions.invoke('export-data', {
                 body: { entity, filters },
-                responseType: 'blob',
             });
 
             if (response.error) {

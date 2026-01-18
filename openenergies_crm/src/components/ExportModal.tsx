@@ -366,7 +366,7 @@ export default function ExportModal({
                                 label="Cliente"
                                 options={clienteOptions}
                                 selectedValues={filtroCliente ? [filtroCliente] : null}
-                                onChange={(vals) => setFiltroCliente(vals && vals.length > 0 ? vals[0] : null)}
+                                onChange={(vals) => setFiltroCliente(vals?.[0] ?? null)}
                                 placeholder="Buscar clientes..."
                                 isLoading={!clientesData}
                             />
@@ -377,7 +377,7 @@ export default function ExportModal({
                                 label="Comercializadora"
                                 options={comercializadoraOptions}
                                 selectedValues={filtroComercializadora ? [filtroComercializadora] : null}
-                                onChange={(vals) => setFiltroComercializadora(vals && vals.length > 0 ? vals[0] : null)}
+                                onChange={(vals) => setFiltroComercializadora(vals?.[0] ?? null)}
                                 placeholder="Buscar comercializadoras..."
                                 isLoading={!comercializadorasData}
                             />

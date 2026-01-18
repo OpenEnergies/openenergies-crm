@@ -46,6 +46,7 @@ import FacturasList from '@pages/facturas/FacturasList';
 import FacturaForm from '@pages/facturas/FacturaForm';
 import FacturaImport from '@pages/facturas/FacturaImport';
 import AnalyticsPage from '@pages/analytics/AnalyticsPage';
+import ActividadPage from '@pages/analytics/ActividadPage';
 
 
 // --- 1. RUTA RAÍZ ---
@@ -142,6 +143,12 @@ const analyticsRoute = createRoute({
   component: () => <RequireRole roles={['administrador', 'comercial']}><AnalyticsPage /></RequireRole>,
 });
 
+const actividadRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/actividad',
+  component: () => <RequireRole roles={['administrador', 'comercial']}><ActividadPage /></RequireRole>,
+});
+
 // --- CORRECCIÓN AQUÍ ---
 // Eliminamos la propiedad 'id' explícita
 export const documentosClienteRoute = createRoute({
@@ -236,6 +243,7 @@ const routeTree = rootRoute.addChildren([
     documentosClienteRoute, // Añadida
     documentoUploadRoute,
     analyticsRoute,
+    actividadRoute,
   ]),
 ]);
 

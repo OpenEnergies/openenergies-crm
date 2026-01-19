@@ -502,6 +502,43 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
     setColumnFilters(prev => ({ ...prev, [column]: selected }));
   };
 
+  // Función auxiliar para traducir errores de la RPC a mensajes amigables
+  const getDeleteErrorMessage = (error: { message?: string; code?: string }, puntoId: string): string => {
+    const shortId = puntoId.substring(0, 8);
+    const errorMessage = error.message || '';
+    const errorCode = error.code || '';
+
+    // Errores específicos del backend (códigos personalizados)
+    if (errorCode === 'AUTHZ' || errorMessage.includes('Acceso denegado') || errorMessage.includes('No autenticado')) {
+      return `No tienes permisos para eliminar el punto ${shortId}...`;
+    }
+    if (errorCode === 'NTFND' || errorMessage.includes('no encontrado')) {
+      return `El punto ${shortId}... no existe o ya fue eliminado.`;
+    }
+    if (errorCode === 'DPNDY' || errorMessage.includes('contratos activos')) {
+      // Extraer número de contratos del mensaje si está disponible
+      const match = errorMessage.match(/(\d+)\s*contratos?\s*activos/i);
+      const numContratos = match ? match[1] : 'varios';
+      return `No se puede eliminar el punto ${shortId}...: tiene ${numContratos} contrato(s) activo(s). Primero debes dar de baja o eliminar los contratos.`;
+    }
+    if (errorMessage.includes('Aún tiene datos asociados')) {
+      return `El punto ${shortId}... no se puede eliminar porque tiene datos asociados.`;
+    }
+
+    // Error genérico de base de datos
+    if (errorMessage.includes('invalid input value') || errorMessage.includes('enum')) {
+      return `Error interno al eliminar el punto ${shortId}.... Por favor, contacta con soporte técnico.`;
+    }
+
+    // Error de conexión
+    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      return `Error de conexión al intentar eliminar el punto ${shortId}.... Verifica tu conexión a internet.`;
+    }
+
+    // Error genérico
+    return `No se pudo eliminar el punto ${shortId}.... Por favor, inténtalo de nuevo.`;
+  };
+
   // Mutación para eliminar
   const deletePuntoMutation = useMutation({
     mutationFn: async (puntoIds: string[]) => {
@@ -514,10 +551,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         if (result.status === 'rejected' || (result.status === 'fulfilled' && result.value.error)) {
           const error = result.status === 'rejected' ? result.reason : result.value.error;
           const puntoId = puntoIds[index] ?? 'desconocido';
-          const message = error.message.includes('Aún tiene datos asociados')
-            ? `Punto ${puntoId.substring(0, 8)}... no borrado: Aún tiene datos asociados.`
-            : `Error al eliminar ${puntoId.substring(0, 8)}...: ${error.message}`;
-          errors.push(message);
+          errors.push(getDeleteErrorMessage(error, puntoId));
         }
       });
 

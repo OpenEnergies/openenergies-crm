@@ -66,7 +66,9 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
   try {
     // --- 👇 Envuelve la creación/invitación en try...catch ---
     if (creationType === 'invite') {
-      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        redirectTo: 'https://openenergies.crm.converlysolutions.com/auth/reset-password'
+      });
       if (error) throw error; // Lanza el error para ser capturado abajo
       newAuthUser = data.user;
     } else if (creationType === 'create_with_password') {
@@ -215,18 +217,27 @@ async function handleToggleActive(payload: any, supabaseAdmin: SupabaseClient) {
 async function handleResetPassword(payload: any, supabaseAdmin: SupabaseClient) {
   const { email } = payload;
   if (!email) throw new Error('El email es necesario para restablecer la contraseña.');
-  const { error } = await supabaseAdmin.auth.admin.generateLink({ type: 'recovery', email: email });
+  
+  // Usar resetPasswordForEmail para enviar el email de recuperación al usuario
+  // generateLink solo genera el enlace pero NO envía el email
+  const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://openenergies.crm.converlysolutions.com/auth/reset-password',
+  });
   if (error) throw error;
 }
 
 async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
-  const { userId } = payload;
+  const { userId, adminUserId } = payload;
   if (!userId) throw new Error('El ID del usuario es necesario para eliminarlo.');
 
-  const { data: userProfile, error: profileError } = await supabaseAdmin.from('usuarios_app').select('rol').eq('user_id', userId).single();
+  const { data: userProfile, error: profileError } = await supabaseAdmin
+    .from('usuarios_app')
+    .select('rol, email, nombre, apellidos')
+    .eq('user_id', userId)
+    .single();
   if (profileError) console.warn("No se encontró perfil para el usuario, se intentará borrar solo de Auth.");
 
-  // --- LÓGICA DE BORRADO DE CLIENTE ACTUALIZADA ---
+  // --- LÓGICA DE BORRADO DE CLIENTE ---
   if (userProfile?.rol === 'cliente') {
     const { data: contacto, error: contactoError } = await supabaseAdmin
       .from('contactos_cliente')
@@ -238,7 +249,7 @@ async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
     
     const clienteId = contacto.cliente_id;
 
-    // --- INICIO: NUEVA LÓGICA DE BORRADO DE STORAGE ---
+    // Borrar archivos de storage
     const clientFolderPath = `clientes/${clienteId}`;
     const allPathsToDelete = await listAllFilesRecursively(supabaseAdmin, clientFolderPath);
 
@@ -248,16 +259,112 @@ async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
         .remove(allPathsToDelete);
       if (removeError) console.warn(`Error al borrar archivos de storage para cliente ${clienteId}:`, removeError.message);
     }
-    // --- FIN: NUEVA LÓGICA DE BORRADO DE STORAGE ---
 
     // Borrar al cliente de la BBDD (la cascada se encarga del resto)
     const { error: clienteError } = await supabaseAdmin.from('clientes').delete().eq('id', clienteId);
     if (clienteError) throw new Error(`Error al eliminar la ficha del cliente: ${clienteError.message}`);
   }
 
-  // Borrar usuario de Auth (esto se hace para todos los roles)
-  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-  if (authError) throw authError;
+  // --- PROCESO DE ELIMINACIÓN PARA COMERCIALES/ADMINS ---
+  // Usamos el patrón de seguridad del sistema:
+  // 1. Soft delete + anonimización de datos en public (GDPR)
+  // 2. Registrar evento de seguridad
+  // 3. Eliminar de auth.users (para que no pueda hacer login)
+
+  if (userProfile?.rol === 'comercial' || userProfile?.rol === 'administrador') {
+    // --- PASO 1: Soft delete de vacaciones asociadas ---
+    const { error: vacacionesError } = await supabaseAdmin
+      .from('vacaciones')
+      .update({ 
+        eliminado_en: new Date().toISOString(),
+        eliminado_por: adminUserId || null
+      })
+      .eq('user_id', userId)
+      .is('eliminado_en', null);
+    if (vacacionesError) console.warn(`Error al soft-delete vacaciones: ${vacacionesError.message}`);
+
+    // --- PASO 2: Reasignar clientes del comercial ---
+    // Los clientes asignados se reasignan al admin que ejecuta la acción
+    if (userProfile?.rol === 'comercial' && adminUserId) {
+      const { error: reasignError } = await supabaseAdmin
+        .from('asignaciones_comercial')
+        .update({ comercial_user_id: adminUserId })
+        .eq('comercial_user_id', userId);
+      if (reasignError) console.warn(`Error al reasignar clientes: ${reasignError.message}`);
+    }
+
+    // --- PASO 3: Anonimizar datos del usuario (GDPR) ---
+    const hashId = `${userId.substring(0, 8)}_${Date.now()}`;
+    const { error: anonError } = await supabaseAdmin
+      .from('usuarios_app')
+      .update({
+        nombre: 'USUARIO_ELIMINADO',
+        apellidos: hashId,
+        email: `eliminado_${hashId}@gdpr.eliminado`,
+        telefono: null,
+        avatar_url: null,
+        activo: false,
+        eliminado_en: new Date().toISOString(),
+        eliminado_por: adminUserId || null,
+        modificado_en: new Date().toISOString(),
+        modificado_por: adminUserId || null
+      })
+      .eq('user_id', userId);
+    if (anonError) throw new Error(`Error al anonimizar usuario: ${anonError.message}`);
+
+    // --- PASO 4: Registrar evento de seguridad en audit ---
+    // Esto se hace llamando a una función de BD que registra en audit.security_events
+    const { error: auditError } = await supabaseAdmin.rpc('log_user_deletion_event', {
+      p_deleted_user_id: userId,
+      p_deleted_by: adminUserId,
+      p_original_email: userProfile?.email || 'unknown',
+      p_original_rol: userProfile?.rol || 'unknown'
+    });
+    // No lanzamos error si falla el log de auditoría, solo advertimos
+    if (auditError) console.warn(`Advertencia: No se pudo registrar evento de auditoría: ${auditError.message}`);
+
+  } else if (!userProfile) {
+    // Si no hay perfil, limpiamos las referencias manualmente (modo legacy/fallback)
+    // Esto solo debería ocurrir en casos de datos inconsistentes
+
+    // Limpiar referencias de auditoría en vacaciones
+    await supabaseAdmin.from('vacaciones').update({ creado_por: null }).eq('creado_por', userId);
+    await supabaseAdmin.from('vacaciones').update({ modificado_por: null }).eq('modificado_por', userId);
+    await supabaseAdmin.from('vacaciones').update({ eliminado_por: null }).eq('eliminado_por', userId);
+
+    // Limpiar referencias en client_secrets
+    await supabaseAdmin.from('client_secrets').update({ created_by: null }).eq('created_by', userId);
+    await supabaseAdmin.from('client_secrets').update({ updated_by: null }).eq('updated_by', userId);
+
+    // Limpiar referencias en solicitudes_eliminacion
+    await supabaseAdmin.from('solicitudes_eliminacion').update({ solicitado_por: null }).eq('solicitado_por', userId);
+    await supabaseAdmin.from('solicitudes_eliminacion').update({ verificado_por: null }).eq('verificado_por', userId);
+    await supabaseAdmin.from('solicitudes_eliminacion').update({ anonimizado_por: null }).eq('anonimizado_por', userId);
+  }
+
+  // --- PASO FINAL: Deshabilitar usuario en Auth y liberar email ---
+  // NO eliminamos de auth.users porque:
+  // 1. RLS con relforcerowsecurity=TRUE bloquea el CASCADE hacia usuarios_app
+  // 2. Soft delete + anonimización cumple con GDPR sin eliminar físicamente
+  // 3. Mantiene integridad referencial y rastro de auditoría completo
+  // El usuario queda "baneado" permanentemente y no puede hacer login
+  // IMPORTANTE: Cambiamos el email para liberar el original y permitir reutilización
+  const deletedEmailSuffix = `deleted_${userId.slice(0, 8)}_${Date.now()}@gdpr.deleted`;
+  const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    email: deletedEmailSuffix,  // Liberar email original para reutilización
+    ban_duration: '876000h',  // Ban por 100 años = permanente
+    user_metadata: {
+      deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: adminUserId,
+      original_email: userProfile?.email || 'unknown'  // Guardar email original para auditoría
+    }
+  });
+  if (banError) {
+    console.warn(`Advertencia: No se pudo deshabilitar usuario en auth: ${banError.message}`);
+    // No lanzamos error porque el soft delete + anonimización ya se completó
+    // El usuario ya no aparecerá en la UI y sus datos están anonimizados
+  }
 }
 
 // --- Handler Principal (SIN CAMBIOS) ---

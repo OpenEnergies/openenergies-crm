@@ -43,9 +43,9 @@ async function resetUserPassword({ email }: { email: string }) {
   if (error) throw new Error(error.message);
 }
 
-async function deleteUser({ userId }: { userId: string }) {
+async function deleteUser({ userId, adminUserId }: { userId: string; adminUserId: string }) {
   const { error } = await supabase.functions.invoke('manage-user', {
-    body: { action: 'delete', payload: { userId } }
+    body: { action: 'delete', payload: { userId, adminUserId } }
   });
   if (error) throw new Error(error.message);
 }
@@ -101,8 +101,10 @@ export default function UsuariosList() {
 
   const filteredData = useMemo(() => {
     if (!fetchedData) return [];
+    // Solo mostrar usuarios no eliminados
     return fetchedData.filter(item => (
-      columnFilters.rol.length === 0 || columnFilters.rol.includes(item.rol)
+      item.eliminado_en === null &&
+      (columnFilters.rol.length === 0 || columnFilters.rol.includes(item.rol))
     ));
   }, [fetchedData, columnFilters]);
 
@@ -164,14 +166,14 @@ export default function UsuariosList() {
           </div>
         )}
 
-        {fetchedData && fetchedData.length === 0 && !isLoading && !isFiltered && (
+        {fetchedData && filteredData.length === 0 && !isLoading && !isFiltered && (
           <EmptyState
             title="No hay usuarios"
             description="Invita a tu primer colaborador o da de alta a un cliente."
           />
         )}
 
-        {fetchedData && fetchedData.length > 0 && (
+        {fetchedData && filteredData.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -339,7 +341,7 @@ export default function UsuariosList() {
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white transition-colors disabled:opacity-50 cursor-pointer"
-                onClick={() => deleteMutation.mutate({ userId: userToDelete.user_id })}
+                onClick={() => deleteMutation.mutate({ userId: userToDelete.user_id, adminUserId: currentUserId || '' })}
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}

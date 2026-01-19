@@ -375,17 +375,38 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
           {selectedIds.length > 0 ? (
             /* Selection action bar */
             <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
-              {/* ... existing selection bar tools ... */}
               <span className="text-sm text-fenix-400 font-medium">
                 {selectedIds.length} seleccionado(s)
               </span>
-              <button
-                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
-                title="Cancelar selección"
-                onClick={() => setSelectedIds([])}
-              >
-                <XCircle size={16} />
-              </button>
+              <div className="flex items-center gap-1 ml-2">
+                {/* Botón Editar - solo si hay 1 seleccionado */}
+                {selectedIds.length === 1 && selectedIds[0] && (
+                  <Link to="/app/clientes/$id/editar" params={{ id: selectedIds[0] }}>
+                    <button
+                      className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
+                      title="Editar cliente"
+                    >
+                      <Edit size={16} />
+                    </button>
+                  </Link>
+                )}
+                {/* Botón Eliminar */}
+                <button
+                  className="p-1.5 rounded-lg text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Eliminar seleccionados"
+                  onClick={handleDeleteSelected}
+                >
+                  <Trash2 size={16} />
+                </button>
+                {/* Botón Cancelar selección */}
+                <button
+                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
+                  title="Cancelar selección"
+                  onClick={() => setSelectedIds([])}
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
             </div>
           ) : (
             <>

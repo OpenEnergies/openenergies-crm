@@ -38,7 +38,7 @@ const ESTADOS_FV: EstadoFV[] = ['activa', 'no', 'pendiente'];
 // Determina cuántas potencias se muestran según la tarifa
 function getPotenciasActivas(tarifa: TipoTarifa | null): number {
   if (!tarifa) return 0;
-  if (tarifa === '2.0TD') return 2;
+  if (tarifa === '2.0TD') return 3; // P1, P2, P3
   if (tarifa === '3.0TD') return 3;
   return 6; // 6.1TD y todos los RL
 }
@@ -528,9 +528,9 @@ export default function PuntoForm({ id }: { id?: string }) {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   {[1, 2, 3, 4, 5, 6].map(i => {
-                    // Para 2.0TD: solo P1 y P2 habilitados
-                    // Para 3.0TD y 6.1TD: todos habilitados
-                    const isDisabled = watchedTarifa === '2.0TD' && i > 2;
+                    // Para 2.0TD y 3.0TD: P1, P2 y P3 habilitados
+                    // Para 6.1TD y RL: todos habilitados (P1-P6)
+                    const isDisabled = (watchedTarifa === '2.0TD' || watchedTarifa === '3.0TD') && i > 3;
 
                     return (
                       <div key={`p${i}`} className="form-group">

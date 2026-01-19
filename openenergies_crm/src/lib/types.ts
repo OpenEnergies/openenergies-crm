@@ -68,6 +68,8 @@ export interface UsuarioApp {
   creado_en: string | null;
   avatar_url: string | null;
   theme_preference: 'light' | 'dark';
+  eliminado_en: string | null;
+  eliminado_por: UUID | null;
 }
 
 export interface Empresa {

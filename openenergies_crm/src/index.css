@@ -243,6 +243,11 @@ a {
 }
 
 .glass-sidebar {
+  background: #ffffff;
+  border-right: 1px solid var(--border-primary);
+}
+
+.dark .glass-sidebar {
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

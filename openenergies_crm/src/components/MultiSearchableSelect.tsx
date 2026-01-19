@@ -1,5 +1,6 @@
 // src/components/MultiSearchableSelect.tsx
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X, Loader2, Check } from 'lucide-react';
 import { useTheme } from '@hooks/ThemeContext';
 
@@ -59,7 +60,12 @@ export default function MultiSearchableSelect({
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            if (
+                containerRef.current &&
+                !containerRef.current.contains(event.target as Node) &&
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
                 setIsOpen(false);
                 setSearchTerm('');
             }
@@ -78,6 +84,35 @@ export default function MultiSearchableSelect({
         }, 300);
         return () => clearTimeout(handler);
     }, [searchTerm, onSearch]);
+
+    // Calculate position for portal
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const updatePosition = () => {
+        if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setDropdownStyle({
+                position: 'fixed',
+                top: `${rect.bottom + 8}px`,
+                left: `${rect.left}px`,
+                width: `${rect.width}px`,
+                zIndex: 9999,
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            updatePosition();
+            window.addEventListener('resize', updatePosition);
+            window.addEventListener('scroll', updatePosition, true);
+        }
+        return () => {
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('scroll', updatePosition, true);
+        };
+    }, [isOpen]);
 
     const handleToggleSelect = (option: Option | 'ALL') => {
         if (disabled) return;
@@ -126,6 +161,71 @@ export default function MultiSearchableSelect({
     const selectedOptions = isAllSelected
         ? []
         : options.filter(opt => selectedValues?.includes(opt.value));
+
+    const dropdownContent = (
+        <div
+            ref={dropdownRef}
+            style={dropdownStyle}
+            className={`rounded-xl py-2 shadow-2xl overflow-y-auto custom-scrollbar border ${theme === 'dark' ? 'bg-[#141424] border-bg-intermediate' : 'bg-white border-gray-200'} max-h-60`}
+        >
+            <button
+                type="button"
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${isAllSelected
+                    ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
+                    : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5 hover:text-primary' : 'text-gray-900 hover:bg-gray-50 hover:text-primary')
+                    }`}
+                onClick={() => handleToggleSelect('ALL')}
+            >
+                <span>{allLabel}</span>
+                {isAllSelected && <Check size={14} />}
+            </button>
+
+            <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`} />
+
+            {isLoading && displayOptions.length === 0 ? (
+                <div className="px-4 py-3 text-gray-500 text-sm text-center flex items-center justify-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Buscando...
+                </div>
+            ) : displayOptions.length === 0 ? (
+                <div className="px-4 py-3 text-secondary text-sm text-center">
+                    No se encontraron resultados
+                </div>
+            ) : (
+                displayOptions.map((option: Option) => {
+                    const isSelected = !isAllSelected && selectedValues?.includes(option.value);
+                    return (
+                        <button
+                            key={option.value}
+                            type="button"
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-all flex items-start justify-between gap-3 ${isSelected
+                                ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
+                                : option.disabled
+                                    ? 'opacity-40 cursor-default text-gray-400'
+                                    : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5' : 'text-gray-900 hover:bg-gray-50')
+                                }`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleSelect(option);
+                            }}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="truncate flex items-center gap-2">
+                                    {option.label}
+                                    {option.disabled && (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${theme === 'dark' ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>Sin Facturas</span>
+                                    )}
+                                </div>
+                                {option.subtitle && (
+                                    <div className="text-[10px] text-secondary mt-0.5 truncate leading-tight">{option.subtitle}</div>
+                                )}
+                            </div>
+                            {isSelected && <Check size={14} className="shrink-0 mt-0.5" />}
+                        </button>
+                    );
+                })
+            )}
+        </div>
+    );
 
     return (
         <div className="space-y-2" ref={containerRef}>
@@ -184,66 +284,7 @@ export default function MultiSearchableSelect({
                     </div>
                 </div>
 
-                {isOpen && !disabled && (
-                    <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl py-2 shadow-2xl z-[9999] max-h-60 overflow-y-auto custom-scrollbar border ${theme === 'dark' ? 'bg-[#141424] border-bg-intermediate' : 'bg-white border-gray-200'}`}>
-                        <button
-                            type="button"
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${isAllSelected
-                                ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
-                                : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5 hover:text-primary' : 'text-gray-900 hover:bg-gray-50 hover:text-primary')
-                                }`}
-                            onClick={() => handleToggleSelect('ALL')}
-                        >
-                            <span>{allLabel}</span>
-                            {isAllSelected && <Check size={14} />}
-                        </button>
-
-                        <div className={`h-px my-1 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'}`} />
-
-                        {isLoading && displayOptions.length === 0 ? (
-                            <div className="px-4 py-3 text-gray-500 text-sm text-center flex items-center justify-center gap-2">
-                                <Loader2 size={14} className="animate-spin" /> Buscando...
-                            </div>
-                        ) : displayOptions.length === 0 ? (
-                            <div className="px-4 py-3 text-secondary text-sm text-center">
-                                No se encontraron resultados
-                            </div>
-                        ) : (
-                            displayOptions.map((option: Option) => {
-                                const isSelected = !isAllSelected && selectedValues?.includes(option.value);
-                                return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        className={`w-full text-left px-4 py-2.5 text-sm transition-all flex items-start justify-between gap-3 ${isSelected
-                                            ? (theme === 'dark' ? 'bg-fenix-500/10 text-fenix-400 font-bold' : 'bg-fenix-50 text-fenix-600 font-bold')
-                                            : option.disabled
-                                                ? 'opacity-40 cursor-default text-gray-400'
-                                                : (theme === 'dark' ? 'text-gray-100 hover:bg-white/5' : 'text-gray-900 hover:bg-gray-50')
-                                            }`}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleToggleSelect(option);
-                                        }}
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="truncate flex items-center gap-2">
-                                                {option.label}
-                                                {option.disabled && (
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${theme === 'dark' ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>Sin Facturas</span>
-                                                )}
-                                            </div>
-                                            {option.subtitle && (
-                                                <div className="text-[10px] text-secondary mt-0.5 truncate leading-tight">{option.subtitle}</div>
-                                            )}
-                                        </div>
-                                        {isSelected && <Check size={14} className="shrink-0 mt-0.5" />}
-                                    </button>
-                                );
-                            })
-                        )}
-                    </div>
-                )}
+                {isOpen && !disabled && createPortal(dropdownContent, document.body)}
             </div>
 
             {showChips && (

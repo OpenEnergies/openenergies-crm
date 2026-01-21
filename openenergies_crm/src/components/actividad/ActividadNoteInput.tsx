@@ -8,11 +8,12 @@ import { useTheme } from '@hooks/ThemeContext';
 import toast from 'react-hot-toast';
 
 interface ActividadNoteInputProps {
-    clienteId: string | null;
+    clienteId?: string | null;
+    empresaId?: string | null;
     onSuccess?: () => void;
 }
 
-export default function ActividadNoteInput({ clienteId, onSuccess }: ActividadNoteInputProps) {
+export default function ActividadNoteInput({ clienteId, empresaId, onSuccess }: ActividadNoteInputProps) {
     const { theme } = useTheme();
     const [nota, setNota] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -31,7 +32,7 @@ export default function ActividadNoteInput({ clienteId, onSuccess }: ActividadNo
         if (!nota.trim() || isPending) return;
 
         insertarNota(
-            { clienteId, contenido: nota.trim() },
+            { clienteId, empresaId, contenido: nota.trim() },
             {
                 onSuccess: () => {
                     setNota('');

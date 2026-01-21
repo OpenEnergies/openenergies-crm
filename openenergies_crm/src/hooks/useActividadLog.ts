@@ -62,6 +62,11 @@ function buildQuery(
         query = query.eq('cliente_id', filters.cliente_id);
     }
 
+    // Filtro por empresa_id (para vista de ficha de empresa)
+    if (filters.empresa_id) {
+        query = query.eq('empresa_id', filters.empresa_id);
+    }
+
     // Filtro por usuario
     if (filters.user_id) {
         query = query.eq('user_id', filters.user_id);
@@ -145,6 +150,20 @@ export function useActividadCliente(
 }
 
 /**
+ * Hook para obtener log de una empresa específica
+ */
+export function useActividadEmpresa(
+    empresaId: string | undefined,
+    filters: Omit<ActividadFilters, 'empresa_id'> = {},
+    pagination: PaginationOptions = { page: 0, pageSize: DEFAULT_PAGE_SIZE }
+) {
+    return useActividadLog(
+        empresaId ? { ...filters, empresa_id: empresaId } : filters,
+        pagination
+    );
+}
+
+/**
  * Hook para insertar notas manuales
  */
 export function useInsertarNotaManual() {
@@ -154,9 +173,11 @@ export function useInsertarNotaManual() {
     return useMutation({
         mutationFn: async ({
             clienteId,
+            empresaId,
             contenido,
         }: {
-            clienteId: string | null;
+            clienteId?: string | null;
+            empresaId?: string | null;
             contenido: string;
         }) => {
             if (!userId) {
@@ -177,11 +198,12 @@ export function useInsertarNotaManual() {
             const { data, error } = await supabase
                 .from('actividad_log')
                 .insert({
-                    cliente_id: clienteId,
+                    cliente_id: clienteId || null,
+                    empresa_id: empresaId || null,
                     user_id: userId,
                     tipo_evento: 'nota_manual',
                     entidad_tipo: clienteId ? 'cliente' : 'cliente', // Default a cliente
-                    entidad_id: clienteId || userId, // Si no hay cliente, usar userId como referencia
+                    entidad_id: clienteId || empresaId || userId, // Si no hay cliente ni empresa, usar userId como referencia
                     contenido_nota: contenido.trim(),
                     metadata_usuario: {
                         nombre: nombre || 'Usuario',
@@ -205,6 +227,11 @@ export function useInsertarNotaManual() {
             if (variables.clienteId) {
                 queryClient.invalidateQueries({
                     queryKey: ['actividad_log', { cliente_id: variables.clienteId }],
+                });
+            }
+            if (variables.empresaId) {
+                queryClient.invalidateQueries({
+                    queryKey: ['actividad_log', { empresa_id: variables.empresaId }],
                 });
             }
         },

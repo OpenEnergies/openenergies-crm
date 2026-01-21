@@ -45,6 +45,7 @@ export interface MetadatosEntidad {
 export interface ActividadLogEntry {
     id: string;
     cliente_id: string | null;
+    empresa_id: string | null;
     punto_id: string | null;
     contrato_id: string | null;
     user_id: string;
@@ -68,6 +69,7 @@ export interface ActividadFilters {
     contrato_ids?: string[];
     // Filtros simples
     cliente_id?: string;
+    empresa_id?: string;
     user_id?: string;
     tipo_evento?: TipoEventoLog[];
     entidad_tipo?: EntidadTipoLog[];

@@ -18,7 +18,8 @@ interface ActividadChatProps {
     onLoadMore: () => void;
     filters: FiltersType;
     onFiltersChange: (filters: FiltersType) => void;
-    clienteId: string | null;
+    clienteId?: string | null;
+    empresaId?: string | null;
     showClienteFilter?: boolean;
     onRefresh?: () => void;
 }
@@ -83,6 +84,7 @@ export default function ActividadChat({
     filters,
     onFiltersChange,
     clienteId,
+    empresaId,
     showClienteFilter = false,
     onRefresh,
 }: ActividadChatProps) {
@@ -308,6 +310,7 @@ export default function ActividadChat({
             {/* Input de notas */}
             <ActividadNoteInput
                 clienteId={clienteId}
+                empresaId={empresaId}
                 onSuccess={() => {
                     setShouldScrollToBottom(true);
                     onRefresh?.();

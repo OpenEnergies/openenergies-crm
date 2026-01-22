@@ -6,12 +6,9 @@ import { Settings, Eye, EyeOff } from 'lucide-react';
 import KPICardsSection from './dashboard/widgets/KPICardsSection';
 import EstadoCharts from './dashboard/widgets/EstadoCharts';
 import TopPuntosValorWidget from './dashboard/widgets/TopPuntosValorWidget';
-import MarketSummaryCard from './dashboard/widgets/market/MarketSummaryCard';
-import PriceChartWidget from './dashboard/widgets/market/PriceChartWidget';
-import PeriodsTableWidget from './dashboard/widgets/market/PeriodsTableWidget';
 
-// Hooks
-import { useMarketDailyStats, useMarketChartData } from '@features/market-data/hooks/useMarketData';
+// New OMIE-style Market Dashboard
+import MercadoDashboard from './dashboard/widgets/market/MercadoDashboard';
 
 // Existing widgets
 import ProximosEventosWidget from './dashboard/widgets/ProximosEventosWidget';
@@ -60,37 +57,6 @@ export default function Dashboard() {
   const [viewSettings, setViewSettings] = useState<ViewSettings>(loadViewSettings);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
-  // Market Data State
-  const [marketDate, setMarketDate] = useState<Date>(new Date());
-  const [isToday, setIsToday] = useState(true);
-
-  // Hardcoded GeoID for Spain (Península) - assuming 8741 or similar, but prompt says fetching from view.
-  // The service takes geoId. Let's assume 8741 (Península) as default or fetch.
-  // Context says `fetchDailyStats(date: Date, geoId: number)`. I will use 8741 as a safe default for now or 0 if RPC handles defaults.
-  // Actually, I'll use 8741 which is standard for Peninsular system in ESIOS.
-  const GEO_ID = 8741;
-
-  const {
-    data: marketDailyStats,
-    isError: isMarketStatsError,
-    isLoading: isMarketStatsLoading
-  } = useMarketDailyStats(marketDate, GEO_ID);
-
-  const {
-    data: marketChartData,
-    isError: isMarketChartError
-  } = useMarketChartData(marketDate, GEO_ID);
-
-  // Helper to switch dates
-  const handleDateChange = (today: boolean) => {
-    setIsToday(today);
-    const date = new Date();
-    if (!today) {
-      date.setDate(date.getDate() + 1);
-    }
-    setMarketDate(date);
-  };
-
   // Permissions
   const isAdmin = rol === 'administrador';
   const isComercial = rol === 'comercial';
@@ -98,8 +64,8 @@ export default function Dashboard() {
   const canSeeRenovacionesWidget = isAdmin || isComercial;
   const canSeeMisClientesWidget = isComercial;
   const canSeeEstadoMisClientesWidget = isComercial;
-  const canSeeEnergyAnalytics = isAdmin; // Solo admin ve analytics de energía
-  const canSeeMarketData = isAdmin || isComercial; // Advisors and Clients (via 'comercial' role for now?) Prompt says "Advisors (CRM) and Clients".
+  const canSeeEnergyAnalytics = isAdmin;
+  const canSeeMarketData = isAdmin || isComercial;
 
   // Save settings on change
   useEffect(() => {
@@ -109,8 +75,6 @@ export default function Dashboard() {
   const toggleSetting = (key: keyof ViewSettings) => {
     setViewSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const isMarketError = isMarketStatsError || isMarketChartError;
 
   return (
     <div className="space-y-6 w-full">
@@ -180,56 +144,9 @@ export default function Dashboard() {
         <KPICardsSection />
       )}
 
-      {/* Market Data Section */}
+      {/* Market Data Section - NEW OMIE STYLE */}
       {canSeeMarketData && viewSettings.showMarket && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-800">Mercado Eléctrico (OMIE / PVPC)</h2>
-
-          {isMarketError ? (
-            <div className="w-full p-6 text-center bg-amber-50 rounded-xl border border-amber-100 text-amber-700">
-              <p>Datos de mercado actualizándose...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 md:gap-6 h-auto md:h-[400px]">
-              {/* Summary Card */}
-              <div className="md:col-span-1 h-full">
-                {marketDailyStats ? (
-                  <MarketSummaryCard
-                    data={marketDailyStats}
-                    isToday={isToday}
-                    onDateChange={handleDateChange}
-                  />
-                ) : (
-                  <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 animate-pulse p-4">
-                    <div className="h-6 w-32 bg-slate-100 rounded mb-4"></div>
-                    <div className="h-10 w-full bg-slate-100 rounded mb-4"></div>
-                    <div className="h-10 w-full bg-slate-100 rounded"></div>
-                  </div>
-                )}
-              </div>
-
-              {/* Chart */}
-              <div className="md:col-span-2 h-full">
-                {marketChartData && marketChartData.length > 0 ? (
-                  <PriceChartWidget data={marketChartData} />
-                ) : (
-                  <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center text-slate-400">
-                    {isMarketStatsLoading ? 'Cargando gráfico...' : 'No hay datos disponibles'}
-                  </div>
-                )}
-              </div>
-
-              {/* Periods Table */}
-              <div className="md:col-span-1 h-full">
-                {marketDailyStats ? (
-                  <PeriodsTableWidget data={marketDailyStats} />
-                ) : (
-                  <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 animate-pulse p-4"></div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <MercadoDashboard />
       )}
 
       {/* Estado Charts - Admin only */}

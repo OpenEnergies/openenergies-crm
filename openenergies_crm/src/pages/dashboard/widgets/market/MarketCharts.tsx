@@ -249,7 +249,7 @@ export function PVPCChart({ data, height = 280 }: PVPCChartProps) {
 
 interface SimpleLineChartProps {
     data: ChartDataPoint[];
-    dataKey: 'surplus' | 'intraday';
+    dataKey: 'surplus' | 'intraday' | 'gas';
     title: string;
     subtitle?: string;
     color?: string;

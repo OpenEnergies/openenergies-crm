@@ -63,6 +63,7 @@ export interface ChartDataPoint {
     pvpc?: number;
     surplus?: number;
     intraday?: number;
+    gas?: number;
     period?: 'P1' | 'P2' | 'P3';
 }
 

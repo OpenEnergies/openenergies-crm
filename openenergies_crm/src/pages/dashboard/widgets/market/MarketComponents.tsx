@@ -390,6 +390,41 @@ export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
     );
 }
 
+// Selector específico para Gas (solo 7D y 1M)
+export type GasTimeRange = '7D' | '1M';
+
+interface GasTimeRangeSelectorProps {
+    value: GasTimeRange;
+    onChange: (range: GasTimeRange) => void;
+}
+
+/**
+ * Selector de rango temporal para gráficos de Gas (7D/1M)
+ */
+export function GasTimeRangeSelector({ value, onChange }: GasTimeRangeSelectorProps) {
+    const options: { key: GasTimeRange; label: string }[] = [
+        { key: '7D', label: '7D' },
+        { key: '1M', label: '1M' },
+    ];
+
+    return (
+        <div className="flex bg-slate-100 rounded-lg p-1">
+            {options.map(opt => (
+                <button
+                    key={opt.key}
+                    onClick={() => onChange(opt.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${value === opt.key
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    {opt.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 interface SectionHeaderProps {
     title: string;
     subtitle?: string;

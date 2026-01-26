@@ -9,6 +9,8 @@ import TopPuntosValorWidget from './dashboard/widgets/TopPuntosValorWidget';
 
 // New OMIE-style Market Dashboard
 import MercadoDashboard from './dashboard/widgets/market/MercadoDashboard';
+import GasDashboard from './dashboard/widgets/market/GasDashboard';
+import MarketTabSelector, { type MarketView } from './dashboard/widgets/market/MarketTabSelector';
 
 // Existing widgets
 import ProximosEventosWidget from './dashboard/widgets/ProximosEventosWidget';
@@ -56,6 +58,7 @@ export default function Dashboard() {
   const { rol, nombre, apellidos } = useSession();
   const [viewSettings, setViewSettings] = useState<ViewSettings>(loadViewSettings);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [marketView, setMarketView] = useState<MarketView>('electricity');
 
   // Permissions
   const isAdmin = rol === 'administrador';
@@ -139,42 +142,63 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* KPI Cards - Admin only */}
-      {canSeeEnergyAnalytics && viewSettings.showKPIs && (
-        <KPICardsSection />
+      {/* Market View Selector - Always visible when user has access */}
+      {canSeeMarketData && viewSettings.showMarket && (
+        <MarketTabSelector activeView={marketView} onViewChange={setMarketView} />
       )}
 
-      {/* Market Data Section - NEW OMIE STYLE */}
-      {canSeeMarketData && viewSettings.showMarket && (
+      {/* ============================================================
+          PESTAÑA: INDICADORES CLAVE
+          ============================================================ */}
+      {marketView === 'indicators' && (
+        <>
+          {/* KPI Cards - Admin only */}
+          {canSeeEnergyAnalytics && viewSettings.showKPIs && (
+            <KPICardsSection />
+          )}
+
+          {/* Estado Charts - Admin only */}
+          {canSeeEnergyAnalytics && viewSettings.showCharts && (
+            <EstadoCharts />
+          )}
+
+          {/* Main Widgets Grid */}
+          <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
+            {/* Top Puntos - Admin only */}
+            {canSeeEnergyAnalytics && viewSettings.showTopPuntos && (
+              <TopPuntosValorWidget />
+            )}
+
+            {/* Agenda Widget */}
+            {canSeeAgendaWidget && viewSettings.showAgenda && (
+              <ProximosEventosWidget />
+            )}
+
+            {/* Renovaciones Widget */}
+            {canSeeRenovacionesWidget && viewSettings.showRenovaciones && (
+              <ContratosPorVencerWidget />
+            )}
+
+            {/* Comercial-specific widgets */}
+            {canSeeMisClientesWidget && <MisClientesAsignadosWidget />}
+            {canSeeEstadoMisClientesWidget && <EstadoMisClientesWidget />}
+          </div>
+        </>
+      )}
+
+      {/* ============================================================
+          PESTAÑA: LUZ (MERCADO ELÉCTRICO)
+          ============================================================ */}
+      {canSeeMarketData && viewSettings.showMarket && marketView === 'electricity' && (
         <MercadoDashboard />
       )}
 
-      {/* Estado Charts - Admin only */}
-      {canSeeEnergyAnalytics && viewSettings.showCharts && (
-        <EstadoCharts />
+      {/* ============================================================
+          PESTAÑA: GAS (MERCADO DE GAS NATURAL)
+          ============================================================ */}
+      {canSeeMarketData && viewSettings.showMarket && marketView === 'gas' && (
+        <GasDashboard />
       )}
-
-      {/* Main Widgets Grid */}
-      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
-        {/* Top Puntos - Admin only */}
-        {canSeeEnergyAnalytics && viewSettings.showTopPuntos && (
-          <TopPuntosValorWidget />
-        )}
-
-        {/* Agenda Widget */}
-        {canSeeAgendaWidget && viewSettings.showAgenda && (
-          <ProximosEventosWidget />
-        )}
-
-        {/* Renovaciones Widget */}
-        {canSeeRenovacionesWidget && viewSettings.showRenovaciones && (
-          <ContratosPorVencerWidget />
-        )}
-
-        {/* Comercial-specific widgets */}
-        {canSeeMisClientesWidget && <MisClientesAsignadosWidget />}
-        {canSeeEstadoMisClientesWidget && <EstadoMisClientesWidget />}
-      </div>
     </div>
   );
 }

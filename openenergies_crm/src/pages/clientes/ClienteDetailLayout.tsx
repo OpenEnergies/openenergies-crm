@@ -22,31 +22,31 @@ interface ClienteDetallado {
 }
 
 async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
-  const { data: cliente, error } = await supabase
-    .from('clientes')
-    .select('*')
-    .eq('id', clienteId)
-    .is('eliminado_en', null)
-    .single();
+  // Usar la función RPC que descifra los datos sensibles
+  const { data: clienteDescifrado, error: rpcError } = await supabase
+    .rpc('obtener_cliente_completo', { p_cliente_id: clienteId });
 
-  if (error) throw error;
+  // Fallback a consulta directa si la RPC falla
+  let cliente: any;
+  if (rpcError || !clienteDescifrado || clienteDescifrado.error) {
+    console.warn('RPC obtener_cliente_completo falló, usando consulta directa:', rpcError);
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', clienteId)
+      .is('eliminado_en', null)
+      .single();
+    if (error) throw error;
+    cliente = data;
+  } else {
+    cliente = clienteDescifrado;
+  }
 
   const { data: puntos } = await supabase
     .from('puntos_suministro')
     .select('p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw')
     .eq('cliente_id', clienteId)
     .is('eliminado_en', null);
-
-  // Obtener IBAN real desde vault (desencriptado para admins)
-  let ibanReal = cliente.numero_cuenta;
-  try {
-    const { data: ibanVault } = await supabase.rpc('obtener_iban_vault', { p_cliente_id: clienteId });
-    if (ibanVault) {
-      ibanReal = ibanVault;
-    }
-  } catch (e) {
-    console.warn('No se pudo obtener IBAN del vault:', e);
-  }
 
   const puntosCount = puntos?.length || 0;
   const totalKwh = (puntos || []).reduce((acc, p) => {
@@ -61,7 +61,6 @@ async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
 
   return {
     ...cliente,
-    numero_cuenta: ibanReal,
     puntos_count: puntosCount,
     total_kwh: totalKwh,
   } as ClienteDetallado;

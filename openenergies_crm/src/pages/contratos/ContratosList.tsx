@@ -108,10 +108,25 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
     query = query.eq('comercializadora_id', empresaId); // Filter by comercializadora (empresa)
   }
 
-  if (clienteId && 'empresaId' in ({} as any)) { /* no-op, just context */ }
-
   const { data, error } = await query.limit(500);
   if (error) throw error;
+  
+  // Filtro de búsqueda en el cliente (filtra por CUPS, nombre cliente y comercializadora)
+  if (filter && filter.trim()) {
+    const searchTerm = filter.toLowerCase().trim();
+    return (data as ContratoExtendido[] || []).filter(contrato => {
+      const cups = contrato.puntos_suministro?.cups?.toLowerCase() || '';
+      const clienteNombre = contrato.puntos_suministro?.clientes?.nombre?.toLowerCase() || '';
+      const comercializadoraNombre = contrato.comercializadoras?.nombre?.toLowerCase() || '';
+      const direccion = contrato.puntos_suministro?.direccion_sum?.toLowerCase() || '';
+      
+      return cups.includes(searchTerm) ||
+             clienteNombre.includes(searchTerm) ||
+             comercializadoraNombre.includes(searchTerm) ||
+             direccion.includes(searchTerm);
+    });
+  }
+  
   return (data as ContratoExtendido[]) || [];
 }
 

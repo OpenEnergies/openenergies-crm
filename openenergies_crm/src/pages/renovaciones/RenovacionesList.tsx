@@ -67,29 +67,33 @@ async function fetchRenovaciones(
     comercializadoras:empresas!contratos_comercializadora_id_fkey ( nombre )
   `;
 
-  if (!filter) {
-    const { data, error } = await supabase
-      .from('contratos')
-      .select(selectQuery)
-      .gte('fecha_renovacion', todayISO)
-      .lte('fecha_renovacion', futureDateISO)
-      .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
-      .order('fecha_renovacion', { ascending: true })
-      .limit(100);
-    if (error) throw error;
-    return data as ContratoExtendido[];
-  }
-
   const { data, error } = await supabase
-    .rpc('search_contratos', { search_text: filter, p_cliente_id: null })
+    .from('contratos')
     .select(selectQuery)
     .gte('fecha_renovacion', todayISO)
     .lte('fecha_renovacion', futureDateISO)
     .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
     .order('fecha_renovacion', { ascending: true })
     .limit(100);
-
+  
   if (error) throw error;
+  
+  // Filtro de búsqueda en el cliente (filtra por CUPS, comercializadora y nombre del cliente)
+  if (filter && filter.trim()) {
+    const searchTerm = filter.toLowerCase().trim();
+    return (data as ContratoExtendido[] || []).filter(contrato => {
+      const cups = contrato.puntos_suministro?.cups?.toLowerCase() || '';
+      const clienteNombre = contrato.puntos_suministro?.clientes?.nombre?.toLowerCase() || '';
+      const comercializadoraNombre = contrato.comercializadoras?.nombre?.toLowerCase() || '';
+      const direccion = contrato.puntos_suministro?.direccion_sum?.toLowerCase() || '';
+      
+      return cups.includes(searchTerm) ||
+             clienteNombre.includes(searchTerm) ||
+             comercializadoraNombre.includes(searchTerm) ||
+             direccion.includes(searchTerm);
+    });
+  }
+  
   return data as ContratoExtendido[];
 }
 

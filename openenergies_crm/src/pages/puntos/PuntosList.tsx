@@ -123,12 +123,33 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
     query = query.eq('current_comercializadora_id', empresaId);
   }
 
-  if (filter) {
-    query = query.or(`cups.ilike.%${filter}%,direccion_sum.ilike.%${filter}%`);
-  }
-
   const { data, error } = await query;
   if (error) throw error;
+  
+  // Filtro de búsqueda en el cliente (filtra por CUPS, dirección y nombre del cliente)
+  if (filter && filter.trim()) {
+    const searchTerm = filter.toLowerCase().trim();
+    return (data || []).filter((punto: any) => {
+      const cups = punto.cups?.toLowerCase() || '';
+      const direccion = punto.direccion_sum?.toLowerCase() || '';
+      const localidad = punto.localidad_sum?.toLowerCase() || '';
+      const provincia = punto.provincia_sum?.toLowerCase() || '';
+      const cliente = Array.isArray(punto.clientes) 
+        ? punto.clientes[0]?.nombre?.toLowerCase() || ''
+        : punto.clientes?.nombre?.toLowerCase() || '';
+      const comercializadora = Array.isArray(punto.comercializadora)
+        ? punto.comercializadora[0]?.nombre?.toLowerCase() || ''
+        : punto.comercializadora?.nombre?.toLowerCase() || '';
+      
+      return cups.includes(searchTerm) ||
+             direccion.includes(searchTerm) ||
+             localidad.includes(searchTerm) ||
+             provincia.includes(searchTerm) ||
+             cliente.includes(searchTerm) ||
+             comercializadora.includes(searchTerm);
+    }) as PuntoConCliente[];
+  }
+  
   return (data || []) as PuntoConCliente[];
 }
 

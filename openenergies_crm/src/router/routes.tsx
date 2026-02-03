@@ -47,6 +47,8 @@ import FacturaForm from '@pages/facturas/FacturaForm';
 import FacturaImport from '@pages/facturas/FacturaImport';
 import AnalyticsPage from '@pages/analytics/AnalyticsPage';
 import ActividadPage from '@pages/analytics/ActividadPage';
+// Informes de Mercado
+import { InformesPage } from '@pages/informes';
 
 
 // --- 1. RUTA RAÍZ ---
@@ -177,6 +179,7 @@ export const empresasEditRoute = createRoute({ getParentRoute: () => appRoute, p
 export const canalesRoute = createRoute({ getParentRoute: () => appRoute, path: '/canales', component: () => <RequireRole roles={['administrador']}><CanalesList /></RequireRole>, });
 
 export const comparativasNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/comparativas/nueva', component: ComparativaForm });
+export const informesMercadoRoute = createRoute({ getParentRoute: () => appRoute, path: '/informes', component: () => <RequireRole roles={['administrador', 'comercial']}><InformesPage /></RequireRole> });
 
 
 // --- 4. CONTINUACIÓN: NOT FOUND COMPONENT ---
@@ -244,6 +247,7 @@ const routeTree = rootRoute.addChildren([
     documentoUploadRoute,
     analyticsRoute,
     actividadRoute,
+    informesMercadoRoute,
   ]),
 ]);
 

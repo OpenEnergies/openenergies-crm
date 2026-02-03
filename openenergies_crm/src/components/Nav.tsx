@@ -92,6 +92,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
       items: [
         { to: '/app/facturas', label: 'Facturas', module: 'facturas' },
         { to: '/app/comparativas/nueva', label: 'Comparativas', module: 'comparativas' },
+        { to: '/app/informes', label: 'Informes de Mercado', module: 'comparativas' },
       ],
     },
     { to: '/app/documentos', label: 'Documentos', icon: Files, module: 'documentos', exact: true },

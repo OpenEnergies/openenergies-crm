@@ -627,8 +627,8 @@ export type Database = {
           fecha_permanencia: string | null
           fecha_renovacion: string | null
           fotovoltaica:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id: string
           modificado_en: string | null
           modificado_por: string | null
@@ -654,8 +654,8 @@ export type Database = {
           fecha_permanencia?: string | null
           fecha_renovacion?: string | null
           fotovoltaica?:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id?: string
           modificado_en?: string | null
           modificado_por?: string | null
@@ -681,8 +681,8 @@ export type Database = {
           fecha_permanencia?: string | null
           fecha_renovacion?: string | null
           fotovoltaica?:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id?: string
           modificado_en?: string | null
           modificado_por?: string | null
@@ -1563,7 +1563,7 @@ export type Database = {
       }
       precios_potencia: {
         Row: {
-          a├▒o: number
+          año: number
           creado_en: string | null
           empresa_id: string
           id: string
@@ -1576,7 +1576,7 @@ export type Database = {
           tarifa: Database["public"]["Enums"]["tarifa_electrica"]
         }
         Insert: {
-          a├▒o: number
+          año: number
           creado_en?: string | null
           empresa_id: string
           id?: string
@@ -1589,7 +1589,7 @@ export type Database = {
           tarifa: Database["public"]["Enums"]["tarifa_electrica"]
         }
         Update: {
-          a├▒o?: number
+          año?: number
           creado_en?: string | null
           empresa_id?: string
           id?: string
@@ -2183,8 +2183,8 @@ export type Database = {
           fecha_permanencia: string | null
           fecha_renovacion: string | null
           fotovoltaica:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id: string | null
           modificado_en: string | null
           modificado_por: string | null
@@ -2210,8 +2210,8 @@ export type Database = {
           fecha_permanencia?: string | null
           fecha_renovacion?: string | null
           fotovoltaica?:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id?: string | null
           modificado_en?: string | null
           modificado_por?: string | null
@@ -2237,8 +2237,8 @@ export type Database = {
           fecha_permanencia?: string | null
           fecha_renovacion?: string | null
           fotovoltaica?:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id?: string | null
           modificado_en?: string | null
           modificado_por?: string | null
@@ -3175,8 +3175,8 @@ export type Database = {
           fecha_permanencia: string | null
           fecha_renovacion: string | null
           fotovoltaica:
-            | Database["public"]["Enums"]["estado_fotovoltaica"]
-            | null
+          | Database["public"]["Enums"]["estado_fotovoltaica"]
+          | null
           id: string
           modificado_en: string | null
           modificado_por: string | null
@@ -3192,68 +3192,68 @@ export type Database = {
         }
       }
       search_puntos_suministro:
-        | {
-            Args: {
-              cliente_ids?: string[]
-              limit_count?: number
-              search_text: string
-            }
-            Returns: {
-              cliente_id: string
-              cliente_nombre: string
-              cups: string
-              direccion_sum: string
-              has_facturas: boolean
-              id: string
-              localidad_sum: string
-              provincia_sum: string
-            }[]
-          }
-        | {
-            Args: { p_cliente_id?: string; search_text: string }
-            Returns: {
-              cliente_id: string
-              consumo_anual_kwh: number | null
-              creado_en: string | null
-              creado_por: string | null
-              cups: string
-              current_comercializadora_id: string | null
-              direccion_fisc: string | null
-              direccion_post: string | null
-              direccion_sum: string
-              eliminado_en: string | null
-              eliminado_por: string | null
-              estado: Database["public"]["Enums"]["estado_punto"]
-              fv_compensacion: Database["public"]["Enums"]["estado_fv"] | null
-              id: string
-              localidad_fisc: string | null
-              localidad_post: string | null
-              localidad_sum: string | null
-              modificado_en: string | null
-              modificado_por: string | null
-              p1_kw: number | null
-              p2_kw: number | null
-              p3_kw: number | null
-              p4_kw: number | null
-              p5_kw: number | null
-              p6_kw: number | null
-              provincia_fisc: string | null
-              provincia_post: string | null
-              provincia_sum: string | null
-              tarifa: Database["public"]["Enums"]["tipo_tarifa"] | null
-              tiene_fv: boolean | null
-              tipo_factura:
-                | Database["public"]["Enums"]["tipo_factura_enum"]
-                | null
-              version: number
-            }[]
-            SetofOptions: {
-              from: "*"
-              to: "puntos_suministro"
-              isOneToOne: false
-              isSetofReturn: true
-            }
-          }
+      | {
+        Args: {
+          cliente_ids?: string[]
+          limit_count?: number
+          search_text: string
+        }
+        Returns: {
+          cliente_id: string
+          cliente_nombre: string
+          cups: string
+          direccion_sum: string
+          has_facturas: boolean
+          id: string
+          localidad_sum: string
+          provincia_sum: string
+        }[]
+      }
+      | {
+        Args: { p_cliente_id?: string; search_text: string }
+        Returns: {
+          cliente_id: string
+          consumo_anual_kwh: number | null
+          creado_en: string | null
+          creado_por: string | null
+          cups: string
+          current_comercializadora_id: string | null
+          direccion_fisc: string | null
+          direccion_post: string | null
+          direccion_sum: string
+          eliminado_en: string | null
+          eliminado_por: string | null
+          estado: Database["public"]["Enums"]["estado_punto"]
+          fv_compensacion: Database["public"]["Enums"]["estado_fv"] | null
+          id: string
+          localidad_fisc: string | null
+          localidad_post: string | null
+          localidad_sum: string | null
+          modificado_en: string | null
+          modificado_por: string | null
+          p1_kw: number | null
+          p2_kw: number | null
+          p3_kw: number | null
+          p4_kw: number | null
+          p5_kw: number | null
+          p6_kw: number | null
+          provincia_fisc: string | null
+          provincia_post: string | null
+          provincia_sum: string | null
+          tarifa: Database["public"]["Enums"]["tipo_tarifa"] | null
+          tiene_fv: boolean | null
+          tipo_factura:
+          | Database["public"]["Enums"]["tipo_factura_enum"]
+          | null
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "puntos_suministro"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       set_folder_visibility: {
         Args: {
           p_cliente_id: string
@@ -3300,41 +3300,41 @@ export type Database = {
     }
     Enums: {
       entidad_tipo_log:
-        | "cliente"
-        | "punto"
-        | "contrato"
-        | "documento"
-        | "factura"
-        | "factura_cliente"
+      | "cliente"
+      | "punto"
+      | "contrato"
+      | "documento"
+      | "factura"
+      | "factura_cliente"
       estado_contrato:
-        | "Aceptado"
-        | "En curso"
-        | "Bloqueado"
-        | "Pendiente Doc."
-        | "Pendiente firma"
-        | "Firmado"
-        | "Contratado"
-        | "Pendiente renovacion"
-        | "Baja"
-        | "Standby"
-        | "Desiste"
+      | "Aceptado"
+      | "En curso"
+      | "Bloqueado"
+      | "Pendiente Doc."
+      | "Pendiente firma"
+      | "Firmado"
+      | "Contratado"
+      | "Pendiente renovacion"
+      | "Baja"
+      | "Standby"
+      | "Desiste"
       estado_factura: "borrador" | "emitida" | "pagada" | "anulada"
       estado_fotovoltaica:
-        | "Pendiente de instalar"
-        | "Activa"
-        | "Pendiente de activar"
-        | "Duda"
-        | "No"
+      | "Pendiente de instalar"
+      | "Activa"
+      | "Pendiente de activar"
+      | "Duda"
+      | "No"
       estado_fv: "activa" | "no" | "pendiente"
       estado_punto:
-        | "Nueva Oportunidad"
-        | "Solicitar Doc."
-        | "Doc. OK"
-        | "Estudio enviado"
-        | "Aceptado"
-        | "Permanencia"
-        | "Standby"
-        | "Desiste"
+      | "Nueva Oportunidad"
+      | "Solicitar Doc."
+      | "Doc. OK"
+      | "Estudio enviado"
+      | "Aceptado"
+      | "Permanencia"
+      | "Standby"
+      | "Desiste"
       rol_usuario: "administrador" | "comercial" | "cliente"
       tarifa_electrica: "2.0TD" | "3.0TD" | "6.1TD"
       tipo_cliente: "Persona fisica" | "Persona juridica"
@@ -3346,20 +3346,20 @@ export type Database = {
       tipo_factura_enum: "Luz" | "Gas"
       tipo_informe_mercado: "auditoria" | "mercado" | "seguimiento"
       tipo_tarifa:
-        | "2.0TD"
-        | "3.0TD"
-        | "6.1TD"
-        | "RL.1"
-        | "RL.2"
-        | "RL.3"
-        | "RL.4"
-        | "RL.5"
-        | "RL.6"
-        | "RL.7"
-        | "RL.8"
-        | "RL.9"
-        | "RL.10"
-        | "RL.11"
+      | "2.0TD"
+      | "3.0TD"
+      | "6.1TD"
+      | "RL.1"
+      | "RL.2"
+      | "RL.3"
+      | "RL.4"
+      | "RL.5"
+      | "RL.6"
+      | "RL.7"
+      | "RL.8"
+      | "RL.9"
+      | "RL.10"
+      | "RL.11"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3373,116 +3373,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {
@@ -3556,3 +3556,7 @@ export const Constants = {
     },
   },
 } as const
+
+export type UUID = string
+export type UsuarioApp = Database['public']['Tables']['usuarios_app']['Row']
+export type RolUsuario = Database['public']['Enums']['rol_usuario']

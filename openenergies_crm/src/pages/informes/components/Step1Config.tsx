@@ -5,22 +5,18 @@ import React from 'react';
 import {
   Calendar,
   Users,
-  MapPin,
-  Zap,
-  Flame,
   FileText,
   ChevronRight
 } from 'lucide-react';
-import MultiSearchableSelect from '@components/MultiSearchableSelect';
-import { useClientesForSelect, usePuntosForSelect } from '@hooks/useInformesMercado';
+import SearchableSelect from '@components/SearchableSelect';
+import { useClientesForSelect } from '@hooks/useInformesMercado';
 import type {
   InformeConfig,
   TipoInformeMercado,
-  TipoEnergiaInforme,
   RangoPreset,
   RangoFechas
 } from '@lib/informesTypes';
-import { getRangoFromPreset, getTipoInformeLabel, getTipoEnergiaLabel } from '@lib/informesTypes';
+import { getRangoFromPreset, getTipoInformeLabel } from '@lib/informesTypes';
 
 interface Step1ConfigProps {
   config: InformeConfig;
@@ -29,15 +25,8 @@ interface Step1ConfigProps {
 }
 
 const TIPO_INFORME_OPTIONS: { value: TipoInformeMercado; label: string; description: string }[] = [
-  { value: 'auditoria', label: 'Auditoría Energética', description: 'Análisis completo de consumos y costes' },
-  { value: 'mercado', label: 'Situación de Mercado', description: 'Estado actual del mercado eléctrico' },
-  { value: 'seguimiento', label: 'Seguimiento Periódico', description: 'Evolución mensual de indicadores' },
-];
-
-const TIPO_ENERGIA_OPTIONS: { value: TipoEnergiaInforme; icon: React.ReactNode; label: string }[] = [
-  { value: 'electricidad', icon: <Zap size={18} />, label: 'Electricidad' },
-  { value: 'gas', icon: <Flame size={18} />, label: 'Gas Natural' },
-  { value: 'ambos', icon: <><Zap size={14} /><Flame size={14} /></>, label: 'Ambos' },
+  { value: 'auditoria', label: 'Auditoría Energética', description: 'Análisis completo de consumos y costes del cliente' },
+  { value: 'comparativa', label: 'Auditoría Comparativa con el Mercado', description: 'Comparación del cliente con el mercado eléctrico' },
 ];
 
 const RANGO_PRESETS: { value: RangoPreset; label: string }[] = [
@@ -50,18 +39,16 @@ const RANGO_PRESETS: { value: RangoPreset; label: string }[] = [
 
 export default function Step1Config({ config, onChange, onNext }: Step1ConfigProps) {
   const [clienteSearch, setClienteSearch] = React.useState('');
-  const [puntoSearch, setPuntoSearch] = React.useState('');
 
-  const { data: clientesOptions = [], isLoading: loadingClientes } = useClientesForSelect(clienteSearch);
-  const { data: puntosOptions = [], isLoading: loadingPuntos } = usePuntosForSelect(config.cliente_ids, puntoSearch);
+  const { data: clientesOptions = [], isLoading: loadingClientes } = useClientesForSelect(
+    clienteSearch,
+    config.rango_fechas.start,
+    config.rango_fechas.end
+  );
 
   // Handlers
   const handleTipoInformeChange = (tipo: TipoInformeMercado) => {
     onChange({ ...config, tipo_informe: tipo });
-  };
-
-  const handleTipoEnergiaChange = (tipo: TipoEnergiaInforme) => {
-    onChange({ ...config, tipo_energia: tipo });
   };
 
   const handleRangoPresetChange = (preset: RangoPreset) => {
@@ -81,22 +68,12 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
     });
   };
 
-  const handleClientesChange = (values: string[] | null) => {
-    const newClienteIds = values || [];
-    // Reset puntos if clientes change
-    onChange({
-      ...config,
-      cliente_ids: newClienteIds,
-      punto_ids: newClienteIds.length === 0 ? [] : config.punto_ids,
-    });
+  const handleClienteChange = (value: string) => {
+    onChange({ ...config, cliente_id: value || null });
   };
 
-  const handlePuntosChange = (values: string[] | null) => {
-    onChange({ ...config, punto_ids: values || [] });
-  };
-
-  // Validation
-  const canProceed = config.titulo.trim() !== '' && (config.cliente_ids.length > 0 || config.punto_ids.length > 0);
+  // Validation: se puede continuar si hay título y cliente seleccionado
+  const canProceed = config.titulo.trim() !== '' && config.cliente_id !== null;
 
   return (
     <div className="space-y-8">
@@ -124,7 +101,7 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
           <FileText size={18} className="text-fenix-500" />
           Tipo de Informe
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TIPO_INFORME_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -147,40 +124,13 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
         </div>
       </div>
 
-      {/* Tipo de Energía */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-        <h3 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
-          <Zap size={18} className="text-fenix-500" />
-          Tipo de Energía
-        </h3>
-        <div className="flex flex-wrap gap-3">
-          {TIPO_ENERGIA_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => handleTipoEnergiaChange(option.value)}
-              className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-full border-2 transition-all
-                ${config.tipo_energia === option.value
-                  ? 'border-fenix-500 bg-fenix-500 text-white'
-                  : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                }
-              `}
-            >
-              {option.icon}
-              <span className="font-medium">{option.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Rango de Fechas */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <h3 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
           <Calendar size={18} className="text-fenix-500" />
           Rango de Fechas
         </h3>
-        
+
         {/* Presets */}
         <div className="flex flex-wrap gap-2 mb-4">
           {RANGO_PRESETS.map((preset) => (
@@ -228,55 +178,34 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
         </div>
       </div>
 
-      {/* Selección de Clientes */}
+      {/* Selección de Cliente */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <h3 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
           <Users size={18} className="text-fenix-500" />
-          Clientes
+          Cliente
         </h3>
-        <MultiSearchableSelect
+        <SearchableSelect
           options={clientesOptions}
-          selectedValues={config.cliente_ids.length > 0 ? config.cliente_ids : null}
-          onChange={handleClientesChange}
+          value={config.cliente_id || ''}
+          onChange={handleClienteChange}
           onSearch={setClienteSearch}
-          placeholder="Buscar clientes..."
-          allLabel="Todos los clientes"
-          isLoading={loadingClientes}
-          showChips
+          placeholder="Escribe para buscar un cliente..."
+          allowEmpty={true}
+          emptyLabel="Sin seleccionar"
         />
-        {config.cliente_ids.length > 0 && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            {config.cliente_ids.length} cliente{config.cliente_ids.length !== 1 ? 's' : ''} seleccionado{config.cliente_ids.length !== 1 ? 's' : ''}
-          </p>
-        )}
-      </div>
-
-      {/* Selección de Puntos de Suministro */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-        <h3 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
-          <MapPin size={18} className="text-fenix-500" />
-          Puntos de Suministro
-        </h3>
-        <MultiSearchableSelect
-          options={puntosOptions}
-          selectedValues={config.punto_ids.length > 0 ? config.punto_ids : null}
-          onChange={handlePuntosChange}
-          onSearch={setPuntoSearch}
-          placeholder="Buscar por CUPS o dirección..."
-          allLabel="Todos los puntos"
-          isLoading={loadingPuntos}
-          showChips
-        />
-        {config.punto_ids.length > 0 && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            {config.punto_ids.length} punto{config.punto_ids.length !== 1 ? 's' : ''} seleccionado{config.punto_ids.length !== 1 ? 's' : ''}
-          </p>
-        )}
-        {config.cliente_ids.length > 0 && puntosOptions.length === 0 && !loadingPuntos && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-            Los clientes seleccionados no tienen puntos de suministro registrados.
-          </p>
-        )}
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+          {!clienteSearch || clienteSearch.trim().length === 0 ? (
+            'Escribe el nombre o email del cliente para buscar'
+          ) : loadingClientes ? (
+            'Buscando clientes...'
+          ) : clientesOptions.length === 0 ? (
+            'No se encontraron clientes con facturas en el periodo seleccionado'
+          ) : config.cliente_id ? (
+            'Cliente seleccionado correctamente'
+          ) : (
+            `${clientesOptions.length} cliente${clientesOptions.length !== 1 ? 's' : ''} encontrado${clientesOptions.length !== 1 ? 's' : ''}`
+          )}
+        </p>
       </div>
 
       {/* Botón Siguiente */}
@@ -301,7 +230,7 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
       {/* Validation message */}
       {!canProceed && (
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-          Completa el título y selecciona al menos un cliente o punto de suministro para continuar.
+          Completa el título y selecciona un cliente para continuar.
         </p>
       )}
     </div>

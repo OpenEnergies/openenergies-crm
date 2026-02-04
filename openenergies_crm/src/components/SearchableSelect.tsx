@@ -6,12 +6,14 @@ interface Option {
     value: string;
     label: string;
     subtitle?: string;
+    disabled?: boolean;
 }
 
 interface SearchableSelectProps {
     options: Option[];
     value: string;
     onChange: (value: string) => void;
+    onSearch?: (term: string) => void;  // Nueva prop para callback de búsqueda
     placeholder?: string;
     label?: string;
     icon?: React.ReactNode;
@@ -26,6 +28,7 @@ export default function SearchableSelect({
     options,
     value,
     onChange,
+    onSearch,
     placeholder = 'Buscar...',
     label,
     icon,
@@ -40,6 +43,13 @@ export default function SearchableSelect({
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Llamar callback cuando cambia el término de búsqueda
+    useEffect(() => {
+        if (onSearch) {
+            onSearch(searchTerm);
+        }
+    }, [searchTerm, onSearch]);
 
     // Filtrar opciones según el término de búsqueda
     const filteredOptions = options.filter(option =>
@@ -90,7 +100,7 @@ export default function SearchableSelect({
                 e.preventDefault();
                 if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
                     const selected = filteredOptions[highlightedIndex];
-                    if (selected) {
+                    if (selected && !selected.disabled) {
                         onChange(selected.value);
                         setIsOpen(false);
                         setSearchTerm('');
@@ -104,10 +114,11 @@ export default function SearchableSelect({
         }
     };
 
-    const handleSelect = (optionValue: string) => {
+    const handleSelect = (optionValue: string, isDisabled?: boolean) => {
+        if (isDisabled) return;
         onChange(optionValue);
         setIsOpen(false);
-        setSearchTerm('');
+        // No limpiar searchTerm aquí - se limpiarà cuando se abra de nuevo
     };
 
     const handleClear = (e: React.MouseEvent) => {
@@ -132,6 +143,10 @@ export default function SearchableSelect({
                         } ${error ? 'border-red-500' : ''}`}
                     onClick={() => {
                         if (!disabled) {
+                            if (!isOpen) {
+                                // Limpiar searchTerm cuando se abre
+                                setSearchTerm('');
+                            }
                             setIsOpen(!isOpen);
                             setTimeout(() => inputRef.current?.focus(), 0);
                         }
@@ -199,14 +214,18 @@ export default function SearchableSelect({
                                 <button
                                     key={option.value}
                                     type="button"
-                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${option.value === value
-                                        ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-medium'
-                                        : index === highlightedIndex
+                                    disabled={option.disabled}
+                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                                        option.disabled
+                                            ? 'opacity-40 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50'
+                                            : option.value === value
+                                            ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 font-medium'
+                                            : index === highlightedIndex
                                             ? 'bg-bg-intermediate text-primary'
                                             : 'text-secondary hover:bg-bg-intermediate hover:text-primary'
-                                        }`}
-                                    onClick={() => handleSelect(option.value)}
-                                    onMouseEnter={() => setHighlightedIndex(index)}
+                                    }`}
+                                    onClick={() => handleSelect(option.value, option.disabled)}
+                                    onMouseEnter={() => !option.disabled && setHighlightedIndex(index)}
                                 >
                                     <div className="font-medium">{option.label}</div>
                                     {option.subtitle && (

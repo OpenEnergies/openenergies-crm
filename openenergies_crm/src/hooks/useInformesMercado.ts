@@ -11,7 +11,8 @@ import type {
   GenerateInformeRequest,
   GenerateInformeResponse,
   DatosCalculados,
-  RangoFechas
+  RangoFechas,
+  AuditoriaEnergeticaData
 } from '@lib/informesTypes';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,8 @@ export const informesKeys = {
   detail: (id: string) => [...informesKeys.details(), id] as const,
   datosCalculados: (clienteIds: string[], puntoIds: string[], rango: RangoFechas) =>
     [...informesKeys.all, 'datos', { clienteIds, puntoIds, rango }] as const,
+  auditoriaData: (clienteId: string, rango: RangoFechas) =>
+    [...informesKeys.all, 'auditoria', { clienteId, rango }] as const,
 };
 
 // ============================================================================
@@ -47,6 +50,7 @@ export function useInformesList(options: UseInformesListOptions = {}) {
     queryFn: async (): Promise<InformeMercadoConRelaciones[]> => {
       if (!empresaId) return [];
 
+      // CORRECCIÓN: Relación explícita con creador
       let query = supabase
         .from('informes_mercado')
         .select(`
@@ -110,15 +114,15 @@ export function useInformeDetail(id: string | undefined) {
         const [clientesRes, puntosRes] = await Promise.all([
           data.cliente_ids?.length
             ? supabase
-                .from('clientes')
-                .select('id, nombre')
-                .in('id', data.cliente_ids)
+              .from('clientes')
+              .select('id, nombre')
+              .in('id', data.cliente_ids)
             : Promise.resolve({ data: [] }),
           data.punto_ids?.length
             ? supabase
-                .from('puntos_suministro')
-                .select('id, cups, direccion')
-                .in('id', data.punto_ids)
+              .from('puntos_suministro')
+              .select('id, cups, direccion')
+              .in('id', data.punto_ids)
             : Promise.resolve({ data: [] }),
         ]);
 
@@ -148,7 +152,6 @@ export function useDatosCalculados(
   return useQuery({
     queryKey: informesKeys.datosCalculados(clienteIds, puntoIds, rangoFechas),
     queryFn: async (): Promise<DatosCalculados> => {
-      // Fetch facturacion data
       const { data: facturacionData, error: factError } = await supabase
         .rpc('get_informe_facturacion_data', {
           p_cliente_ids: clienteIds,
@@ -161,7 +164,6 @@ export function useDatosCalculados(
         console.error('Error fetching facturacion data:', factError);
       }
 
-      // Fetch market data
       const { data: marketData, error: marketError } = await supabase
         .rpc('get_informe_market_data', {
           p_fecha_inicio: rangoFechas.start,
@@ -186,7 +188,7 @@ export function useDatosCalculados(
       };
     },
     enabled: enabled && (clienteIds.length > 0 || puntoIds.length > 0),
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -207,7 +209,6 @@ export function useGenerateInforme() {
         throw new Error('No hay sesión activa');
       }
 
-      // Add empresa_id to config if not present
       const enrichedRequest = {
         ...request,
         config: {
@@ -227,7 +228,6 @@ export function useGenerateInforme() {
       return response.data as GenerateInformeResponse;
     },
     onSuccess: (data) => {
-      // Invalidate lists to show new informe
       queryClient.invalidateQueries({ queryKey: informesKeys.lists() });
 
       if (data.success) {
@@ -250,7 +250,6 @@ export function useDeleteInforme() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      // First get the informe to know the storage path
       const { data: informe, error: fetchError } = await supabase
         .from('informes_mercado')
         .select('ruta_storage')
@@ -261,12 +260,10 @@ export function useDeleteInforme() {
         throw new Error('Error obteniendo informe');
       }
 
-      // Delete from storage if exists
       if (informe?.ruta_storage) {
         await supabase.storage.from('informes-mercado').remove([informe.ruta_storage]);
       }
 
-      // Delete from database
       const { error: deleteError } = await supabase
         .from('informes_mercado')
         .delete()
@@ -299,7 +296,7 @@ export function useInformeDownloadUrl(rutaStorage: string | null | undefined) {
 
       const { data, error } = await supabase.storage
         .from('informes-mercado')
-        .createSignedUrl(rutaStorage, 3600); // 1 hour
+        .createSignedUrl(rutaStorage, 3600);
 
       if (error) {
         console.error('Error creating signed URL:', error);
@@ -309,7 +306,7 @@ export function useInformeDownloadUrl(rutaStorage: string | null | undefined) {
       return data?.signedUrl || null;
     },
     enabled: !!rutaStorage,
-    staleTime: 30 * 60 * 1000, // 30 minutos (menos que la expiración de 1h)
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -317,38 +314,86 @@ export function useInformeDownloadUrl(rutaStorage: string | null | undefined) {
 // HOOK: Clientes para Selector
 // ============================================================================
 
-export function useClientesForSelect(searchTerm: string = '') {
+export function useClientesForSelect(
+  searchTerm: string = '',
+  startDate?: string,
+  endDate?: string
+) {
   const { empresaId } = useEmpresaId();
 
   return useQuery({
-    queryKey: ['clientes-select', empresaId, searchTerm],
+    queryKey: ['clientes-select', empresaId, searchTerm, startDate, endDate],
     queryFn: async () => {
       if (!empresaId) return [];
 
-      let query = supabase
-        .from('clientes')
-        .select('id, nombre, email_facturacion, estado')
-        .eq('empresa_id', empresaId)
-        .eq('estado', 'activo')
-        .order('nombre');
-
-      if (searchTerm) {
-        query = query.or(`nombre.ilike.%${searchTerm}%,email_facturacion.ilike.%${searchTerm}%`);
+      // Si no hay término de búsqueda, no ejecutar consulta (evitar carga masiva)
+      if (!searchTerm || searchTerm.trim().length === 0) {
+        return [];
       }
 
-      query = query.limit(50);
+      // Si no hay rango de fechas, no mostrar nada
+      if (!startDate || !endDate) {
+        return [];
+      }
 
-      const { data, error } = await query;
+      // PASO 1: Buscar TODOS los clientes que coincidan con el término de búsqueda
+      let clientesQuery = supabase
+        .from('clientes')
+        .select('id, nombre, email')
+        .is('eliminado_en', null)
+        .or(`nombre.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+        .order('nombre');
 
-      if (error) throw error;
+      const { data: clientes, error: clientesError } = await clientesQuery;
 
-      return (data || []).map((c) => ({
-        value: c.id,
-        label: c.nombre,
-        subtitle: c.email_facturacion || undefined,
-      }));
+      if (clientesError) throw clientesError;
+
+      if (!clientes || clientes.length === 0) {
+        return []; // No hay clientes que coincidan con la búsqueda
+      }
+
+      // PASO 2: Obtener los cliente_ids que tienen facturas en el rango
+      let facturasQuery = supabase
+        .from('facturacion_clientes')
+        .select('cliente_id')
+        .in('cliente_id', clientes.map(c => c.id))
+        .gte('fecha_emision', startDate)
+        .lte('fecha_emision', endDate);
+
+      const { data: facturas, error: facturasError } = await facturasQuery;
+
+      if (facturasError) {
+        console.error('Error fetching facturas for clientes:', facturasError);
+        // Si hay error, mostrar todos como deshabilitados
+        return clientes.map((c) => ({
+          value: c.id,
+          label: c.nombre,
+          subtitle: c.email || undefined,
+          disabled: true,
+        }));
+      }
+
+      // Obtener IDs únicos de clientes con facturas
+      const clientesConFacturas = new Set(
+        (facturas || []).map(f => f.cliente_id)
+      );
+
+      // PASO 3: Convertir a formato de opciones
+      // Habilitados: los que tienen facturas
+      // Deshabilitados: los que NO tienen facturas
+      return clientes.map((c) => {
+        const tieneFacturas = clientesConFacturas.has(c.id);
+        return {
+          value: c.id,
+          label: c.nombre,
+          subtitle: tieneFacturas 
+            ? (c.email || undefined) 
+            : 'No se encontraron facturas en ese rango de fechas',
+          disabled: !tieneFacturas, // Deshabilitado si NO tiene facturas
+        };
+      });
     },
-    enabled: !!empresaId,
+    enabled: !!empresaId && !!searchTerm && searchTerm.trim().length > 0,
   });
 }
 
@@ -356,48 +401,143 @@ export function useClientesForSelect(searchTerm: string = '') {
 // HOOK: Puntos para Selector (filtrado por clientes seleccionados)
 // ============================================================================
 
-export function usePuntosForSelect(clienteIds: string[], searchTerm: string = '') {
+export function usePuntosForSelect(
+  clienteIds: string[],
+  searchTerm: string = '',
+  startDate?: string,
+  endDate?: string,
+  tipoEnergia?: 'electricidad' | 'gas' | 'ambos'
+) {
   const { empresaId } = useEmpresaId();
 
   return useQuery({
-    queryKey: ['puntos-select', empresaId, clienteIds, searchTerm],
+    queryKey: ['puntos-select', empresaId, clienteIds, searchTerm, startDate, endDate, tipoEnergia],
     queryFn: async () => {
       if (!empresaId) return [];
 
-      let query = supabase
+      // Si no hay rango de fechas o tipo de energía, no mostrar nada
+      if (!startDate || !endDate || !tipoEnergia) {
+        return [];
+      }
+
+      // PASO 1: Obtener SOLO los punto_ids que tienen facturas en el rango
+      let facturasQuery = supabase
+        .from('facturacion_clientes')
+        .select('punto_id', { count: 'exact' });
+
+      facturasQuery = facturasQuery
+        .gte('fecha_emision', startDate)
+        .lte('fecha_emision', endDate);
+
+      // Filtrar por tipo de energía
+      if (tipoEnergia === 'electricidad') {
+        facturasQuery = facturasQuery.eq('tipo_factura', 'Luz');
+      } else if (tipoEnergia === 'gas') {
+        facturasQuery = facturasQuery.eq('tipo_factura', 'Gas');
+      } else if (tipoEnergia === 'ambos') {
+        facturasQuery = facturasQuery.in('tipo_factura', ['Luz', 'Gas']);
+      }
+
+      const { data: facturas, error: facturasError } = await facturasQuery;
+
+      if (facturasError) {
+        console.error('Error fetching facturas for puntos:', facturasError);
+        return [];
+      }
+
+      if (!facturas || facturas.length === 0) {
+        return []; // No hay facturas, no hay puntos disponibles
+      }
+
+      // Obtener IDs únicos de puntos
+      const puntoIds = Array.from(new Set(facturas.map(f => f.punto_id)));
+
+      // PASO 2: Obtener datos de esos puntos específicos
+      let puntosQuery = supabase
         .from('puntos_suministro')
-        .select(`
-          id,
-          cups,
-          direccion,
-          titular,
-          cliente_id,
-          clientes!inner(empresa_id, nombre)
-        `)
-        .eq('clientes.empresa_id', empresaId)
+        .select('id, cups, direccion_sum, cliente_id')
+        .in('id', puntoIds)
+        .is('eliminado_en', null)
         .order('cups');
 
-      // Filter by selected clients if any
+      // Filtrar por clientes seleccionados si hay alguno
       if (clienteIds.length > 0) {
-        query = query.in('cliente_id', clienteIds);
+        puntosQuery = puntosQuery.in('cliente_id', clienteIds);
       }
 
       if (searchTerm) {
-        query = query.or(`cups.ilike.%${searchTerm}%,direccion.ilike.%${searchTerm}%,titular.ilike.%${searchTerm}%`);
+        puntosQuery = puntosQuery.or(`cups.ilike.%${searchTerm}%,direccion_sum.ilike.%${searchTerm}%`);
       }
 
-      query = query.limit(100);
+      const { data: puntos, error: puntosError } = await puntosQuery;
 
-      const { data, error } = await query;
+      if (puntosError) throw puntosError;
 
-      if (error) throw error;
+      if (!puntos || puntos.length === 0) return [];
 
-      return (data || []).map((p: any) => ({
+      // PASO 3: Obtener nombres de clientes para los puntos
+      const uniqueClienteIds = Array.from(new Set(puntos.map(p => p.cliente_id).filter(Boolean)));
+
+      let clientesMap: Record<string, string> = {};
+
+      if (uniqueClienteIds.length > 0) {
+        const { data: clientes, error: clientesError } = await supabase
+          .from('clientes')
+          .select('id, nombre')
+          .in('id', uniqueClienteIds);
+
+        if (!clientesError && clientes) {
+          clientesMap = clientes.reduce((acc, curr) => {
+            acc[curr.id] = curr.nombre;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+
+      // PASO 4: Convertir a formato de opciones (todos habilitados porque ya están filtrados)
+      return puntos.map((p) => ({
         value: p.id,
         label: p.cups,
-        subtitle: `${p.direccion} - ${p.clientes?.nombre || p.titular}`,
+        subtitle: `${p.direccion_sum} - ${clientesMap[p.cliente_id] || 'N/A'}`,
+        disabled: false, // Todos están habilitados porque tienen facturas
       }));
     },
     enabled: !!empresaId,
+  });
+}
+
+// ============================================================================
+// HOOK: Datos de Auditoría Energética
+// Obtiene datos agregados por tarifa/mes para un cliente
+// ============================================================================
+
+export function useAuditoriaEnergeticaData(
+  clienteId: string | null,
+  rangoFechas: RangoFechas,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: informesKeys.auditoriaData(clienteId || '', rangoFechas),
+    queryFn: async (): Promise<AuditoriaEnergeticaData> => {
+      if (!clienteId) {
+        throw new Error('Se requiere un cliente para obtener datos de auditoría');
+      }
+
+      const { data, error } = await supabase.rpc('get_auditoria_energetica_data', {
+        p_cliente_id: clienteId,
+        p_fecha_inicio: rangoFechas.start,
+        p_fecha_fin: rangoFechas.end,
+      });
+
+      if (error) {
+        console.error('Error fetching auditoria data:', error);
+        throw error;
+      }
+
+      // La RPC devuelve JSONB directamente
+      return data as AuditoriaEnergeticaData;
+    },
+    enabled: enabled && !!clienteId && !!rangoFechas.start && !!rangoFechas.end,
+    staleTime: 5 * 60 * 1000, // 5 minutos de cache
   });
 }

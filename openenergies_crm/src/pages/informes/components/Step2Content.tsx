@@ -146,10 +146,10 @@ function DynamicListInput({
 }
 
 export default function Step2Content({ config, content, onChange, onBack, onNext }: Step2ContentProps) {
-  // Fetch calculated data
+  // Fetch calculated data - ahora solo con un cliente
   const { data: datosCalculados, isLoading: loadingDatos } = useDatosCalculados(
-    config.cliente_ids,
-    config.punto_ids,
+    config.cliente_id ? [config.cliente_id] : [],
+    [],  // Ya no usamos puntos
     config.rango_fechas,
     true
   );
@@ -226,6 +226,96 @@ export default function Step2Content({ config, content, onChange, onBack, onNext
         <div className="flex items-center justify-center gap-3 py-8 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
           <Loader2 className="animate-spin text-fenix-500" size={24} />
           <span className="text-slate-600 dark:text-slate-400">Cargando datos calculados...</span>
+        </div>
+      )}
+
+      {/* Resumen de Precios - Solo se muestra cuando hay datos */}
+      {datosCalculados && datosCalculados.facturacion.resumen.total_facturas > 0 && (
+        <div className="bg-gradient-to-br from-fenix-50 to-fenix-100 dark:from-slate-800 dark:to-slate-750 rounded-xl border-2 border-fenix-200 dark:border-fenix-900/50 p-6">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white mb-6">
+            <Euro size={22} className="text-fenix-600" />
+            Resumen de Precios - Período Seleccionado
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Precio Medio Pagado */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">Precio Medio Pagado</div>
+              <div className="text-3xl font-bold text-slate-800 dark:text-white">
+                {content.precio_medio_pagado 
+                  ? `${(content.precio_medio_pagado * 1000).toFixed(2)}`
+                  : datosCalculados.facturacion.resumen.precio_medio_kwh
+                  ? `${(datosCalculados.facturacion.resumen.precio_medio_kwh * 1000).toFixed(2)}`
+                  : '—'}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">€/MWh</div>
+            </div>
+
+            {/* Precio Medio de Mercado */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">Precio Medio Mercado</div>
+              <div className="text-3xl font-bold text-fenix-600 dark:text-fenix-400">
+                {content.precio_medio_mercado 
+                  ? `${(content.precio_medio_mercado * 1000).toFixed(2)}`
+                  : datosCalculados.mercado.resumen_periodo?.[0]?.media_periodo
+                  ? `${datosCalculados.mercado.resumen_periodo[0].media_periodo.toFixed(2)}`
+                  : '—'}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">€/MWh</div>
+            </div>
+
+            {/* Diferencia */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm border border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">Diferencia</div>
+              {(() => {
+                const precioPagado = content.precio_medio_pagado || datosCalculados.facturacion.resumen.precio_medio_kwh;
+                const precioMercado = content.precio_medio_mercado || (datosCalculados.mercado.resumen_periodo?.[0]?.media_periodo ? datosCalculados.mercado.resumen_periodo[0].media_periodo / 1000 : 0);
+                const diferencia = precioPagado && precioMercado ? ((precioPagado - precioMercado) * 1000) : 0;
+                const porcentaje = precioPagado && precioMercado ? ((diferencia / (precioMercado * 1000)) * 100) : 0;
+                
+                return (
+                  <>
+                    <div className={`text-3xl font-bold ${diferencia > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)}
+                    </div>
+                    <div className={`text-xs mt-1 ${diferencia > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                      {diferencia > 0 ? '+' : ''}{porcentaje.toFixed(1)}% vs mercado
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Estadísticas adicionales */}
+          <div className="mt-6 pt-6 border-t border-fenix-200 dark:border-slate-700">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1">Total Facturas</div>
+                <div className="font-semibold text-slate-800 dark:text-white">
+                  {datosCalculados.facturacion.resumen.total_facturas}
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1">Consumo Total</div>
+                <div className="font-semibold text-slate-800 dark:text-white">
+                  {datosCalculados.facturacion.resumen.consumo_total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 0 })} kWh
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1">Importe Total</div>
+                <div className="font-semibold text-slate-800 dark:text-white">
+                  {datosCalculados.facturacion.resumen.importe_total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 dark:text-slate-400 mb-1">Alcance</div>
+                <div className="font-semibold text-slate-800 dark:text-white">
+                  Cliente completo
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import WizardStepIndicator from './components/WizardStepIndicator';
 import Step1Config from './components/Step1Config';
 import Step2Content from './components/Step2Content';
+import AuditoriaEnergeticaContent from './components/AuditoriaEnergeticaContent';
 import Step3Generate from './components/Step3Generate';
 import InformesHistory from './components/InformesHistory';
 
@@ -19,9 +20,10 @@ import type {
   WizardStep,
   InformeConfig,
   InformeContent,
+  AuditoriaContent,
   GenerateInformeResponse
 } from '@lib/informesTypes';
-import { DEFAULT_CONFIG, DEFAULT_CONTENT } from '@lib/informesTypes';
+import { DEFAULT_CONFIG, DEFAULT_CONTENT, DEFAULT_AUDITORIA_CONTENT } from '@lib/informesTypes';
 
 type ViewMode = 'wizard' | 'history';
 
@@ -37,6 +39,7 @@ export default function InformesPage() {
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [config, setConfig] = useState<InformeConfig>(DEFAULT_CONFIG);
   const [content, setContent] = useState<InformeContent>(DEFAULT_CONTENT);
+  const [auditoriaContent, setAuditoriaContent] = useState<AuditoriaContent>(DEFAULT_AUDITORIA_CONTENT);
   const [generateResult, setGenerateResult] = useState<GenerateInformeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +68,7 @@ export default function InformesPage() {
     setCurrentStep(1);
     setConfig(DEFAULT_CONFIG);
     setContent(DEFAULT_CONTENT);
+    setAuditoriaContent(DEFAULT_AUDITORIA_CONTENT);
     setGenerateResult(null);
     setError(null);
   }, []);
@@ -184,7 +188,16 @@ export default function InformesPage() {
                 onNext={handleNext}
               />
             )}
-            {currentStep === 2 && (
+            {currentStep === 2 && config.tipo_informe === 'auditoria' && (
+              <AuditoriaEnergeticaContent
+                config={config}
+                content={auditoriaContent}
+                onChange={setAuditoriaContent}
+                onBack={handleBack}
+                onNext={handleNext}
+              />
+            )}
+            {currentStep === 2 && config.tipo_informe === 'comparativa' && (
               <Step2Content
                 config={config}
                 content={content}
@@ -197,6 +210,7 @@ export default function InformesPage() {
               <Step3Generate
                 config={config}
                 content={content}
+                auditoriaContent={config.tipo_informe === 'auditoria' ? auditoriaContent : undefined}
                 onBack={handleBack}
                 onGenerate={handleGenerate}
                 isGenerating={generateMutation.isPending}

@@ -16,7 +16,6 @@ import { useInformesList, useDeleteInforme, useInformeDownloadUrl } from '@hooks
 import type { InformeMercadoConRelaciones } from '@lib/informesTypes';
 import {
   getTipoInformeLabel,
-  getTipoEnergiaLabel,
   getEstadoLabel,
   getEstadoColor
 } from '@lib/informesTypes';
@@ -71,11 +70,9 @@ function InformeRow({ informe }: { informe: InformeMercadoConRelaciones }) {
         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
           <span>{getTipoInformeLabel(informe.tipo_informe)}</span>
           <span>•</span>
-          <span>{getTipoEnergiaLabel(informe.tipo_energia)}</span>
-          <span>•</span>
           <span className="flex items-center gap-1">
             <Users size={12} />
-            {informe.cliente_ids.length} cliente{informe.cliente_ids.length !== 1 ? 's' : ''}
+            Cliente completo
           </span>
         </div>
         <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">

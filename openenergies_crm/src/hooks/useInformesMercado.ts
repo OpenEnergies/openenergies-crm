@@ -50,14 +50,14 @@ export function useInformesList(options: UseInformesListOptions = {}) {
     queryFn: async (): Promise<InformeMercadoConRelaciones[]> => {
       if (!empresaId) return [];
 
-      // CORRECCIÓN: Relación explícita con creador
+      // Query base: obtener informes del usuario o de su empresa
       let query = supabase
         .from('informes_mercado')
         .select(`
           *,
-          creador:usuarios_app!creado_por(nombre, apellidos)
+          creador:usuarios_app!creado_por(nombre, apellidos),
+          cliente_info:clientes!cliente_id(id, nombre)
         `)
-        .eq('empresa_id', empresaId)
         .order('creado_en', { ascending: false });
 
       if (options.tipo_informe) {
@@ -77,6 +77,30 @@ export function useInformesList(options: UseInformesListOptions = {}) {
       if (error) {
         console.error('Error fetching informes:', error);
         throw error;
+      }
+
+      // Obtener targets para cada informe
+      if (data && data.length > 0) {
+        const informeIds = data.map(i => i.id);
+        const { data: targets } = await supabase
+          .from('informes_targets')
+          .select('informe_id, punto_id')
+          .in('informe_id', informeIds);
+
+        // Agrupar targets por informe
+        const targetsMap = new Map<string, string[]>();
+        (targets || []).forEach(t => {
+          if (!targetsMap.has(t.informe_id)) {
+            targetsMap.set(t.informe_id, []);
+          }
+          targetsMap.get(t.informe_id)!.push(t.punto_id);
+        });
+
+        // Agregar punto_ids a cada informe
+        return data.map(informe => ({
+          ...informe,
+          punto_ids: targetsMap.get(informe.id) || []
+        })) as InformeMercadoConRelaciones[];
       }
 
       return (data || []) as InformeMercadoConRelaciones[];
@@ -99,7 +123,8 @@ export function useInformeDetail(id: string | undefined) {
         .from('informes_mercado')
         .select(`
           *,
-          creador:usuarios_app!creado_por(nombre, apellidos)
+          creador:usuarios_app!creado_por(nombre, apellidos),
+          cliente_info:clientes!cliente_id(id, nombre)
         `)
         .eq('id', id)
         .single();
@@ -109,27 +134,27 @@ export function useInformeDetail(id: string | undefined) {
         throw error;
       }
 
-      // Fetch related clientes and puntos info
       if (data) {
-        const [clientesRes, puntosRes] = await Promise.all([
-          data.cliente_ids?.length
-            ? supabase
-              .from('clientes')
-              .select('id, nombre')
-              .in('id', data.cliente_ids)
-            : Promise.resolve({ data: [] }),
-          data.punto_ids?.length
-            ? supabase
+        // Fetch targets
+        const { data: targets } = await supabase
+          .from('informes_targets')
+          .select('punto_id')
+          .eq('informe_id', id);
+
+        const puntoIds = (targets || []).map(t => t.punto_id);
+
+        // Fetch puntos info
+        const { data: puntosData } = puntoIds.length > 0
+          ? await supabase
               .from('puntos_suministro')
-              .select('id, cups, direccion')
-              .in('id', data.punto_ids)
-            : Promise.resolve({ data: [] }),
-        ]);
+              .select('id, cups, direccion_sum')
+              .in('id', puntoIds)
+          : { data: [] };
 
         return {
           ...data,
-          clientes_info: clientesRes.data || [],
-          puntos_info: puntosRes.data || [],
+          punto_ids: puntoIds,
+          puntos_info: puntosData || []
         } as InformeMercadoConRelaciones;
       }
 
@@ -144,20 +169,25 @@ export function useInformeDetail(id: string | undefined) {
 // ============================================================================
 
 export function useDatosCalculados(
-  clienteIds: string[],
+  clienteId: string | null,
   puntoIds: string[],
-  rangoFechas: RangoFechas,
+  fechaInicio: string,
+  fechaFin: string,
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: informesKeys.datosCalculados(clienteIds, puntoIds, rangoFechas),
+    queryKey: informesKeys.datosCalculados([clienteId || ''], puntoIds, { start: fechaInicio, end: fechaFin }),
     queryFn: async (): Promise<DatosCalculados> => {
+      if (!clienteId) {
+        throw new Error('Se requiere un cliente');
+      }
+
       const { data: facturacionData, error: factError } = await supabase
         .rpc('get_informe_facturacion_data', {
-          p_cliente_ids: clienteIds,
+          p_cliente_id: clienteId,
           p_punto_ids: puntoIds,
-          p_fecha_inicio: rangoFechas.start,
-          p_fecha_fin: rangoFechas.end,
+          p_fecha_inicio: fechaInicio,
+          p_fecha_fin: fechaFin,
         });
 
       if (factError) {
@@ -166,8 +196,8 @@ export function useDatosCalculados(
 
       const { data: marketData, error: marketError } = await supabase
         .rpc('get_informe_market_data', {
-          p_fecha_inicio: rangoFechas.start,
-          p_fecha_fin: rangoFechas.end,
+          p_fecha_inicio: fechaInicio,
+          p_fecha_fin: fechaFin,
           p_indicator_ids: [600, 1001], // SPOT y PVPC
         });
 
@@ -179,7 +209,7 @@ export function useDatosCalculados(
         facturacion: facturacionData || {
           resumen: { total_facturas: 0, importe_total: 0, consumo_total_kwh: 0, precio_medio_kwh: 0 },
           por_mes: [],
-          por_cliente: [],
+          por_punto: [],
         },
         mercado: marketData || {
           estadisticas_diarias: [],
@@ -187,7 +217,7 @@ export function useDatosCalculados(
         },
       };
     },
-    enabled: enabled && (clienteIds.length > 0 || puntoIds.length > 0),
+    enabled: enabled && !!clienteId && puntoIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -198,7 +228,6 @@ export function useDatosCalculados(
 
 export function useGenerateInforme() {
   const queryClient = useQueryClient();
-  const { empresaId } = useEmpresaId();
 
   return useMutation({
     mutationFn: async (request: GenerateInformeRequest): Promise<GenerateInformeResponse> => {
@@ -209,16 +238,8 @@ export function useGenerateInforme() {
         throw new Error('No hay sesión activa');
       }
 
-      const enrichedRequest = {
-        ...request,
-        config: {
-          ...request.config,
-          empresa_id: request.config.empresa_id || empresaId,
-        },
-      };
-
       const response = await supabase.functions.invoke('generate-market-report', {
-        body: enrichedRequest,
+        body: request,
       });
 
       if (response.error) {
@@ -513,11 +534,12 @@ export function usePuntosForSelect(
 
 export function useAuditoriaEnergeticaData(
   clienteId: string | null,
-  rangoFechas: RangoFechas,
+  fechaInicio: string,
+  fechaFin: string,
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: informesKeys.auditoriaData(clienteId || '', rangoFechas),
+    queryKey: informesKeys.auditoriaData(clienteId || '', { start: fechaInicio, end: fechaFin }),
     queryFn: async (): Promise<AuditoriaEnergeticaData> => {
       if (!clienteId) {
         throw new Error('Se requiere un cliente para obtener datos de auditoría');
@@ -525,8 +547,8 @@ export function useAuditoriaEnergeticaData(
 
       const { data, error } = await supabase.rpc('get_auditoria_energetica_data', {
         p_cliente_id: clienteId,
-        p_fecha_inicio: rangoFechas.start,
-        p_fecha_fin: rangoFechas.end,
+        p_fecha_inicio: fechaInicio,
+        p_fecha_fin: fechaFin,
       });
 
       if (error) {
@@ -537,7 +559,7 @@ export function useAuditoriaEnergeticaData(
       // La RPC devuelve JSONB directamente
       return data as AuditoriaEnergeticaData;
     },
-    enabled: enabled && !!clienteId && !!rangoFechas.start && !!rangoFechas.end,
+    enabled: enabled && !!clienteId && !!fechaInicio && !!fechaFin,
     staleTime: 5 * 60 * 1000, // 5 minutos de cache
   });
 }

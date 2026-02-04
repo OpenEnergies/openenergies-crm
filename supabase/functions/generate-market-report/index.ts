@@ -21,15 +21,11 @@ const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB
 // Types
 interface InformeConfig {
   titulo: string;
-  tipo_informe: 'auditoria' | 'mercado' | 'seguimiento';
-  tipo_energia: 'electricidad' | 'gas' | 'ambos';
-  rango_fechas: {
-    start: string;
-    end: string;
-  };
-  cliente_ids: string[];
+  tipo_informe: 'auditoria' | 'comparativa';
+  fecha_inicio: string;
+  fecha_fin: string;
+  cliente_id: string;
   punto_ids: string[];
-  empresa_id: string;
 }
 
 interface InformeContent {
@@ -85,13 +81,13 @@ function corsHeaders(origin: string | null, req: Request) {
 }
 
 // Generate unique filename
-function generateFilename(config: InformeConfig): string {
+function generateFilename(config: InformeConfig, clienteId: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const sanitizedTitle = config.titulo
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '_')
     .substring(0, 30);
-  return `${config.empresa_id}/${config.tipo_informe}_${sanitizedTitle}_${timestamp}.pdf`;
+  return `${clienteId}/${config.tipo_informe}_${sanitizedTitle}_${timestamp}.pdf`;
 }
 
 serve(async (req) => {
@@ -118,9 +114,9 @@ serve(async (req) => {
     const { config, content } = payload;
 
     // Validate required fields
-    if (!config?.titulo || !config?.tipo_informe || !config?.rango_fechas) {
+    if (!config?.titulo || !config?.tipo_informe || !config?.fecha_inicio || !config?.fecha_fin || !config?.cliente_id) {
       return new Response(
-        JSON.stringify({ error: "Faltan campos requeridos en config" }),
+        JSON.stringify({ error: "Faltan campos requeridos en config (titulo, tipo_informe, fecha_inicio, fecha_fin, cliente_id)" }),
         { status: 400, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
@@ -151,29 +147,30 @@ serve(async (req) => {
       );
     }
 
-    // 4) Get user's empresa_id
-    const { data: userData, error: userError } = await supabaseUser
-      .from("usuarios_app")
-      .select("empresa_id, rol")
-      .eq("user_id", user.id)
+    // 4) Validate cliente_id belongs to user's empresa
+    const { data: cliente, error: clienteError } = await supabaseUser
+      .from("clientes")
+      .select("id, nombre, empresa_id")
+      .eq("id", config.cliente_id)
       .single();
 
-    if (userError || !userData) {
+    if (clienteError || !cliente) {
       return new Response(
-        JSON.stringify({ error: "Usuario no encontrado" }),
+        JSON.stringify({ error: "Cliente no encontrado o sin acceso" }),
         { status: 403, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
 
-    const empresaId = config.empresa_id || userData.empresa_id;
+    const clienteId = cliente.id;
+    const empresaId = cliente.empresa_id;
 
     // 5) Fetch billing data using RPC
     const { data: facturacionData, error: factError } = await supabaseUser
       .rpc('get_informe_facturacion_data', {
-        p_cliente_ids: config.cliente_ids,
+        p_cliente_id: config.cliente_id,
         p_punto_ids: config.punto_ids,
-        p_fecha_inicio: config.rango_fechas.start,
-        p_fecha_fin: config.rango_fechas.end
+        p_fecha_inicio: config.fecha_inicio,
+        p_fecha_fin: config.fecha_fin
       });
 
     if (factError) {
@@ -184,8 +181,8 @@ serve(async (req) => {
     // 6) Fetch market data using RPC
     const { data: marketData, error: marketError } = await supabaseUser
       .rpc('get_informe_market_data', {
-        p_fecha_inicio: config.rango_fechas.start,
-        p_fecha_fin: config.rango_fechas.end,
+        p_fecha_inicio: config.fecha_inicio,
+        p_fecha_fin: config.fecha_fin,
         p_indicator_ids: [600, 1001]  // SPOT and PVPC
       });
 
@@ -195,10 +192,12 @@ serve(async (req) => {
     }
 
     // 7) Fetch client and point details
-    const { data: clientesData } = await supabaseUser
-      .from("clientes")
-      .select("id, nombre, email_facturacion, estado")
-      .in("id", config.cliente_ids);
+    const clienteData = {
+      id: cliente.id,
+      nombre: cliente.nombre,
+      email_facturacion: null,
+      estado: null
+    };
 
     const { data: puntosData } = await supabaseUser
       .from("puntos_suministro")
@@ -238,13 +237,13 @@ serve(async (req) => {
       tipo: "informe_mercado",
       config: {
         ...config,
-        empresa_id: empresaId
+        cliente_id: clienteId
       },
       content,
       data: {
-        facturacion: facturacionData || { resumen: {}, por_mes: [], por_cliente: [] },
+        facturacion: facturacionData || { resumen: {}, por_mes: [], por_punto: [] },
         mercado: marketData || { estadisticas_diarias: [], resumen_periodo: [] },
-        clientes: clientesData || [],
+        cliente: clienteData,
         puntos: puntosData || []
       },
       branding,
@@ -290,18 +289,28 @@ serve(async (req) => {
         .insert({
           titulo: config.titulo,
           tipo_informe: config.tipo_informe,
-          tipo_energia: config.tipo_energia,
-          rango_fechas: config.rango_fechas,
-          cliente_ids: config.cliente_ids,
-          punto_ids: config.punto_ids,
+          fecha_inicio: config.fecha_inicio,
+          fecha_fin: config.fecha_fin,
+          cliente_id: config.cliente_id,
           parametros_config: content,
           creado_por: user.id,
-          empresa_id: empresaId,
           estado: 'borrador',
           ruta_storage: null
         })
         .select()
         .single();
+
+      // Insert targets
+      if (!insertError && informeRecord && config.punto_ids?.length > 0) {
+        await supabaseAdmin
+          .from("informes_targets")
+          .insert(
+            config.punto_ids.map(punto_id => ({
+              informe_id: informeRecord.id,
+              punto_id
+            }))
+          );
+      }
 
       if (insertError) {
         return new Response(
@@ -328,7 +337,7 @@ serve(async (req) => {
     }
 
     // 11) Upload PDF to Storage
-    const filename = generateFilename(config);
+    const filename = generateFilename(config, clienteId);
     
     const { error: uploadError } = await supabaseAdmin.storage
       .from("informes-mercado")
@@ -351,18 +360,33 @@ serve(async (req) => {
       .insert({
         titulo: config.titulo,
         tipo_informe: config.tipo_informe,
-        tipo_energia: config.tipo_energia,
-        rango_fechas: config.rango_fechas,
-        cliente_ids: config.cliente_ids,
-        punto_ids: config.punto_ids,
+        fecha_inicio: config.fecha_inicio,
+        fecha_fin: config.fecha_fin,
+        cliente_id: config.cliente_id,
         parametros_config: content,
         ruta_storage: filename,
         creado_por: user.id,
-        empresa_id: empresaId,
         estado: 'completado'
       })
       .select()
       .single();
+
+    // Insert targets
+    if (!insertError && informeRecord && config.punto_ids?.length > 0) {
+      const { error: targetsError } = await supabaseAdmin
+        .from("informes_targets")
+        .insert(
+          config.punto_ids.map(punto_id => ({
+            informe_id: informeRecord.id,
+            punto_id
+          }))
+        );
+      
+      if (targetsError) {
+        console.error("Error inserting targets:", targetsError);
+        // No fallar la operación completa, solo registrar
+      }
+    }
 
     if (insertError) {
       console.error("Database insert error:", insertError);

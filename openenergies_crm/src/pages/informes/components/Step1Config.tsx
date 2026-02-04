@@ -6,10 +6,12 @@ import {
   Calendar,
   Users,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import SearchableSelect from '@components/SearchableSelect';
-import { useClientesForSelect } from '@hooks/useInformesMercado';
+import MultiSearchableSelect from '@components/MultiSearchableSelect';
+import { useClientesForSelect, usePuntosForSelect } from '@hooks/useInformesMercado';
 import type {
   InformeConfig,
   TipoInformeMercado,
@@ -39,11 +41,20 @@ const RANGO_PRESETS: { value: RangoPreset; label: string }[] = [
 
 export default function Step1Config({ config, onChange, onNext }: Step1ConfigProps) {
   const [clienteSearch, setClienteSearch] = React.useState('');
+  const [puntoSearch, setPuntoSearch] = React.useState('');
 
   const { data: clientesOptions = [], isLoading: loadingClientes } = useClientesForSelect(
     clienteSearch,
-    config.rango_fechas.start,
-    config.rango_fechas.end
+    config.fecha_inicio,
+    config.fecha_fin
+  );
+
+  const { data: puntosOptions = [], isLoading: loadingPuntos } = usePuntosForSelect(
+    config.cliente_id ? [config.cliente_id] : [],
+    puntoSearch,
+    config.fecha_inicio,
+    config.fecha_fin,
+    'ambos'
   );
 
   // Handlers
@@ -52,27 +63,42 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
   };
 
   const handleRangoPresetChange = (preset: RangoPreset) => {
-    const newRango = preset === 'personalizado' ? config.rango_fechas : getRangoFromPreset(preset);
+    const rango = getRangoFromPreset(preset);
     onChange({
       ...config,
       rango_preset: preset,
-      rango_fechas: newRango,
+      fecha_inicio: rango.start,
+      fecha_fin: rango.end,
     });
   };
 
-  const handleRangoChange = (field: keyof RangoFechas, value: string) => {
+  const handleRangoChange = (field: 'start' | 'end', value: string) => {
     onChange({
       ...config,
       rango_preset: 'personalizado',
-      rango_fechas: { ...config.rango_fechas, [field]: value },
+      fecha_inicio: field === 'start' ? value : config.fecha_inicio,
+      fecha_fin: field === 'end' ? value : config.fecha_fin,
     });
   };
 
   const handleClienteChange = (value: string) => {
-    onChange({ ...config, cliente_id: value || null });
+    // Set cliente_id; do NOT auto-advance. User will click "Siguiente" when ready.
+    onChange({
+      ...config,
+      cliente_id: value || null,
+      punto_ids: [],
+    });
   };
 
-  // Validation: se puede continuar si hay título y cliente seleccionado
+  // NOTE: Do NOT auto-advance when cliente is selected. The user must
+  // click "Siguiente" to proceed to Paso 2. We still clear punto_ids when
+  // cliente changes so the draft generation in Paso 2 will recompute puntos.
+
+  const handlePuntosChange = (values: string[] | null) => {
+    onChange({ ...config, punto_ids: values || [] });
+  };
+
+  // Validation: se puede continuar si hay título y cliente (los puntos se calculan en Paso 2)
   const canProceed = config.titulo.trim() !== '' && config.cliente_id !== null;
 
   return (
@@ -157,7 +183,7 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Desde</label>
             <input
               type="date"
-              value={config.rango_fechas.start}
+              value={config.fecha_inicio}
               onChange={(e) => handleRangoChange('start', e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 
                          bg-white dark:bg-slate-900 text-slate-900 dark:text-white
@@ -168,7 +194,7 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Hasta</label>
             <input
               type="date"
-              value={config.rango_fechas.end}
+              value={config.fecha_fin}
               onChange={(e) => handleRangoChange('end', e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 
                          bg-white dark:bg-slate-900 text-slate-900 dark:text-white
@@ -207,6 +233,8 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
           )}
         </p>
       </div>
+
+      {/* Puntos no se muestran en este paso: se procesan en Paso 2 tras avanzar */}
 
       {/* Botón Siguiente */}
       <div className="flex justify-end pt-4">

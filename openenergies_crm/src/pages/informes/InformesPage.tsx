@@ -8,8 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 // Components
 import WizardStepIndicator from './components/WizardStepIndicator';
 import Step1Config from './components/Step1Config';
-import Step2Content from './components/Step2Content';
-import AuditoriaEnergeticaContent from './components/AuditoriaEnergeticaContent';
+import Step2Content from './components/Step2ContentNew';
 import Step3Generate from './components/Step3Generate';
 import InformesHistory from './components/InformesHistory';
 
@@ -19,11 +18,11 @@ import { useEmpresaId } from '@hooks/useEmpresaId';
 import type {
   WizardStep,
   InformeConfig,
-  InformeContent,
-  AuditoriaContent,
   GenerateInformeResponse
 } from '@lib/informesTypes';
-import { DEFAULT_CONFIG, DEFAULT_CONTENT, DEFAULT_AUDITORIA_CONTENT } from '@lib/informesTypes';
+import { DEFAULT_CONFIG } from '@lib/informesTypes';
+import type { ReportDraft } from '@lib/reportDraftTypes';
+import { buildFinalReportPayload } from '@lib/reportDraftGenerator';
 
 type ViewMode = 'wizard' | 'history';
 
@@ -38,8 +37,7 @@ export default function InformesPage() {
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [config, setConfig] = useState<InformeConfig>(DEFAULT_CONFIG);
-  const [content, setContent] = useState<InformeContent>(DEFAULT_CONTENT);
-  const [auditoriaContent, setAuditoriaContent] = useState<AuditoriaContent>(DEFAULT_AUDITORIA_CONTENT);
+  const [reportDraft, setReportDraft] = useState<ReportDraft | null>(null);
   const [generateResult, setGenerateResult] = useState<GenerateInformeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +46,14 @@ export default function InformesPage() {
     setCurrentStep(step);
     setError(null);
   }, []);
+
+  const handleNextWithDraft = useCallback((draft: ReportDraft) => {
+    setReportDraft(draft);
+    if (currentStep < 3) {
+      setCurrentStep((prev) => (prev + 1) as WizardStep);
+      setError(null);
+    }
+  }, [currentStep]);
 
   const handleNext = useCallback(() => {
     if (currentStep < 3) {
@@ -67,16 +73,15 @@ export default function InformesPage() {
   const handleReset = useCallback(() => {
     setCurrentStep(1);
     setConfig(DEFAULT_CONFIG);
-    setContent(DEFAULT_CONTENT);
-    setAuditoriaContent(DEFAULT_AUDITORIA_CONTENT);
+    setReportDraft(null);
     setGenerateResult(null);
     setError(null);
   }, []);
 
-  // Generate handler
+  // Generate handler using ReportDraft
   const handleGenerate = useCallback(async () => {
-    if (!empresaId) {
-      setError('No se pudo determinar la empresa');
+    if (!reportDraft) {
+      setError('No hay borrador de informe para generar');
       return;
     }
 
@@ -84,12 +89,12 @@ export default function InformesPage() {
     setGenerateResult(null);
 
     try {
+      // Construir el payload final desde el draft
+      const payload = buildFinalReportPayload(reportDraft);
+      
       const result = await generateMutation.mutateAsync({
-        config: {
-          ...config,
-          empresa_id: empresaId,
-        },
-        content,
+        config,
+        content: payload,
       });
 
       setGenerateResult(result);
@@ -99,7 +104,7 @@ export default function InformesPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     }
-  }, [config, content, empresaId, generateMutation, queryClient]);
+  }, [config, reportDraft, generateMutation, queryClient]);
 
   // Tab button component
   const TabButton = ({
@@ -188,29 +193,17 @@ export default function InformesPage() {
                 onNext={handleNext}
               />
             )}
-            {currentStep === 2 && config.tipo_informe === 'auditoria' && (
-              <AuditoriaEnergeticaContent
-                config={config}
-                content={auditoriaContent}
-                onChange={setAuditoriaContent}
-                onBack={handleBack}
-                onNext={handleNext}
-              />
-            )}
-            {currentStep === 2 && config.tipo_informe === 'comparativa' && (
+            {currentStep === 2 && (
               <Step2Content
                 config={config}
-                content={content}
-                onChange={setContent}
                 onBack={handleBack}
-                onNext={handleNext}
+                onNext={handleNextWithDraft}
               />
             )}
             {currentStep === 3 && (
               <Step3Generate
                 config={config}
-                content={content}
-                auditoriaContent={config.tipo_informe === 'auditoria' ? auditoriaContent : undefined}
+                draft={reportDraft}
                 onBack={handleBack}
                 onGenerate={handleGenerate}
                 isGenerating={generateMutation.isPending}

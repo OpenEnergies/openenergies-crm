@@ -1215,58 +1215,88 @@ export type Database = {
       informes_mercado: {
         Row: {
           actualizado_en: string | null
-          cliente_ids: string[]
+          cliente_id: string
           creado_en: string
           creado_por: string
-          empresa_id: string
           estado: string
+          fecha_fin: string
+          fecha_inicio: string
           id: string
           parametros_config: Json
-          punto_ids: string[]
-          rango_fechas: Json
           ruta_storage: string | null
-          tipo_energia: Database["public"]["Enums"]["tipo_energia_informe"]
           tipo_informe: Database["public"]["Enums"]["tipo_informe_mercado"]
           titulo: string
         }
         Insert: {
           actualizado_en?: string | null
-          cliente_ids?: string[]
+          cliente_id: string
           creado_en?: string
           creado_por: string
-          empresa_id: string
           estado?: string
+          fecha_fin: string
+          fecha_inicio: string
           id?: string
           parametros_config?: Json
-          punto_ids?: string[]
-          rango_fechas: Json
           ruta_storage?: string | null
-          tipo_energia?: Database["public"]["Enums"]["tipo_energia_informe"]
           tipo_informe?: Database["public"]["Enums"]["tipo_informe_mercado"]
           titulo: string
         }
         Update: {
           actualizado_en?: string | null
-          cliente_ids?: string[]
+          cliente_id?: string
           creado_en?: string
           creado_por?: string
-          empresa_id?: string
           estado?: string
+          fecha_fin?: string
+          fecha_inicio?: string
           id?: string
           parametros_config?: Json
-          punto_ids?: string[]
-          rango_fechas?: Json
           ruta_storage?: string | null
-          tipo_energia?: Database["public"]["Enums"]["tipo_energia_informe"]
           tipo_informe?: Database["public"]["Enums"]["tipo_informe_mercado"]
           titulo?: string
         }
         Relationships: [
           {
-            foreignKeyName: "informes_mercado_empresa_id_fkey"
-            columns: ["empresa_id"]
+            foreignKeyName: "informes_mercado_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "empresas"
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      informes_targets: {
+        Row: {
+          created_at: string
+          id: string
+          informe_id: string
+          punto_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          informe_id: string
+          punto_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          informe_id?: string
+          punto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "informes_targets_informe_id_fkey"
+            columns: ["informe_id"]
+            isOneToOne: false
+            referencedRelation: "informes_mercado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "informes_targets_punto_id_fkey"
+            columns: ["punto_id"]
+            isOneToOne: false
+            referencedRelation: "puntos_suministro"
             referencedColumns: ["id"]
           },
         ]
@@ -3341,10 +3371,9 @@ export type Database = {
       tipo_documento: "factura" | "contrato" | "otro"
       tipo_empresa: "comercializadora" | "openenergies"
       tipo_energia: "luz" | "gas"
-      tipo_energia_informe: "electricidad" | "gas" | "ambos"
       tipo_evento_log: "creacion" | "edicion" | "eliminacion" | "nota_manual"
       tipo_factura_enum: "Luz" | "Gas"
-      tipo_informe_mercado: "auditoria" | "mercado" | "seguimiento"
+      tipo_informe_mercado: "auditoria" | "comparativa"
       tipo_tarifa:
       | "2.0TD"
       | "3.0TD"
@@ -3533,10 +3562,9 @@ export const Constants = {
       tipo_documento: ["factura", "contrato", "otro"],
       tipo_empresa: ["comercializadora", "openenergies"],
       tipo_energia: ["luz", "gas"],
-      tipo_energia_informe: ["electricidad", "gas", "ambos"],
       tipo_evento_log: ["creacion", "edicion", "eliminacion", "nota_manual"],
       tipo_factura_enum: ["Luz", "Gas"],
-      tipo_informe_mercado: ["auditoria", "mercado", "seguimiento"],
+      tipo_informe_mercado: ["auditoria", "comparativa"],
       tipo_tarifa: [
         "2.0TD",
         "3.0TD",

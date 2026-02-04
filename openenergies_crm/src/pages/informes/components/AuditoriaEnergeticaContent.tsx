@@ -270,7 +270,8 @@ export default function AuditoriaEnergeticaContent({
   // Fetch data from RPC
   const { data: auditoriaData, isLoading, error } = useAuditoriaEnergeticaData(
     config.cliente_id,
-    config.rango_fechas,
+    config.fecha_inicio,
+    config.fecha_fin,
     !!config.cliente_id
   );
 

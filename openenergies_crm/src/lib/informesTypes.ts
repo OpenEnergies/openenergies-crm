@@ -25,9 +25,11 @@ export type RangoPreset = 'ultimo_mes' | 'ultimo_trimestre' | 'ultimo_semestre' 
 export interface InformeConfig {
   titulo: string;
   tipo_informe: TipoInformeMercado;
-  rango_fechas: RangoFechas;
+  fecha_inicio: string;
+  fecha_fin: string;
   rango_preset: RangoPreset;
   cliente_id: UUID | null;
+  punto_ids: UUID[];
 }
 
 // ============================================================================
@@ -251,6 +253,16 @@ export interface AnalisisPotencia {
   recomendacion_potencia: RecomendacionPotencia;
 }
 
+/** Facturación agregada por punto en el período */
+export interface FacturacionPorPunto {
+  punto_id: string;
+  cups: string;
+  tarifa: string;
+  consumo_total: number;
+  coste_total: number;
+  precio_medio: number;
+}
+
 /** Respuesta completa de la RPC get_auditoria_energetica_data */
 export interface AuditoriaEnergeticaData {
   cliente_id: string;
@@ -259,6 +271,7 @@ export interface AuditoriaEnergeticaData {
   resumen_por_tarifa: ResumenPorTarifa[];
   inventario_suministros: InventarioSuministro[];
   analisis_potencias: AnalisisPotencia[];
+  facturacion_por_punto: FacturacionPorPunto[];
   generado_at: string;
   error?: string;
 }
@@ -321,12 +334,12 @@ export interface InformeMercado {
   id: UUID;
   titulo: string;
   tipo_informe: TipoInformeMercado;
-  rango_fechas: RangoFechas;
+  fecha_inicio: string;
+  fecha_fin: string;
   cliente_id: UUID;
   parametros_config: InformeContent;
   ruta_storage: string | null;
   creado_por: UUID;
-  empresa_id: UUID;
   creado_en: string;
   actualizado_en: string | null;
   estado: EstadoInforme;
@@ -348,9 +361,11 @@ export interface InformeMercadoConRelaciones extends InformeMercado {
 // REQUEST/RESPONSE PARA API
 // ============================================================================
 
+import type { FinalReportPayload } from './reportDraftTypes';
+
 export interface GenerateInformeRequest {
-  config: Omit<InformeConfig, 'rango_preset'> & { empresa_id?: string };
-  content: InformeContent;
+  config: Omit<InformeConfig, 'rango_preset'>;
+  content: InformeContent | FinalReportPayload;
 }
 
 export interface GenerateInformeResponse {
@@ -393,9 +408,11 @@ export interface WizardState {
 export const DEFAULT_CONFIG: InformeConfig = {
   titulo: '',
   tipo_informe: 'auditoria',
-  rango_fechas: getRangoFromPreset('ultimo_mes'), // Usa la función para calcular el último mes natural
+  fecha_inicio: getRangoFromPreset('ultimo_mes').start,
+  fecha_fin: getRangoFromPreset('ultimo_mes').end,
   rango_preset: 'ultimo_mes',
-  cliente_id: null
+  cliente_id: null,
+  punto_ids: []
 };
 
 export const DEFAULT_CONTENT: InformeContent = {

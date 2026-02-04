@@ -148,10 +148,11 @@ function DynamicListInput({
 export default function Step2Content({ config, content, onChange, onBack, onNext }: Step2ContentProps) {
   // Fetch calculated data - ahora solo con un cliente
   const { data: datosCalculados, isLoading: loadingDatos } = useDatosCalculados(
-    config.cliente_id ? [config.cliente_id] : [],
-    [],  // Ya no usamos puntos
-    config.rango_fechas,
-    true
+    config.cliente_id,
+    config.punto_ids,
+    config.fecha_inicio,
+    config.fecha_fin,
+    !!config.cliente_id
   );
 
   // Pre-fill data when calculated data is loaded

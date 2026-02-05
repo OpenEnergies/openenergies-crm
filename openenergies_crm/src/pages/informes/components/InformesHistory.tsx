@@ -1,7 +1,7 @@
 // openenergies_crm/src/pages/informes/components/InformesHistory.tsx
 // Historial de informes generados
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FileText,
   Download,
@@ -10,7 +10,9 @@ import {
   Users,
   Loader2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { useInformesList, useDeleteInforme, useInformeDownloadUrl } from '@hooks/useInformesMercado';
 import type { InformeMercadoConRelaciones } from '@lib/informesTypes';
@@ -25,9 +27,82 @@ interface InformesHistoryProps {
   showViewAll?: boolean;
 }
 
-function InformeRow({ informe }: { informe: InformeMercadoConRelaciones }) {
+// Modal de confirmación (Componente interno)
+function DeleteConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  isDeleting,
+  title
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+  title: string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+              <AlertTriangle className="text-red-600 dark:text-red-400" size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">
+                ¿Eliminar informe?
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Estás a punto de eliminar el informe <span className="font-medium text-slate-800 dark:text-white">"{title}"</span>.
+              </p>
+              <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                Esta acción eliminará permanentemente el archivo asociado.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isDeleting}
+            className="px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium text-sm"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors font-medium text-sm flex items-center gap-2"
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Eliminando...
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} />
+                Eliminar Informe
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InformeRow({
+  informe,
+  onDeleteClick
+}: {
+  informe: InformeMercadoConRelaciones;
+  onDeleteClick: (informe: InformeMercadoConRelaciones) => void;
+}) {
   const { data: downloadUrl, isLoading: loadingUrl } = useInformeDownloadUrl(informe.ruta_storage);
-  const deleteMutation = useDeleteInforme();
 
   const createdDate = new Date(informe.creado_en).toLocaleDateString('es-ES', {
     day: 'numeric',
@@ -39,12 +114,6 @@ function InformeRow({ informe }: { informe: InformeMercadoConRelaciones }) {
     hour: '2-digit',
     minute: '2-digit',
   });
-
-  const handleDelete = () => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este informe?')) {
-      deleteMutation.mutate(informe.id);
-    }
-  };
 
   const creadorNombre = informe.creador
     ? `${informe.creador.nombre || ''} ${informe.creador.apellidos || ''}`.trim() || 'Usuario'
@@ -106,16 +175,11 @@ function InformeRow({ informe }: { informe: InformeMercadoConRelaciones }) {
           </a>
         )}
         <button
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors disabled:opacity-50"
+          onClick={() => onDeleteClick(informe)}
+          className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"
           title="Eliminar"
         >
-          {deleteMutation.isPending ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Trash2 size={16} />
-          )}
+          <Trash2 size={16} />
         </button>
       </div>
     </div>
@@ -124,6 +188,24 @@ function InformeRow({ informe }: { informe: InformeMercadoConRelaciones }) {
 
 export default function InformesHistory({ limit = 10, showViewAll = false }: InformesHistoryProps) {
   const { data: informes, isLoading, error } = useInformesList({ limit });
+  const deleteMutation = useDeleteInforme();
+
+  // State para el modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [informeToDelete, setInformeToDelete] = useState<InformeMercadoConRelaciones | null>(null);
+
+  const handleDeleteClick = (informe: InformeMercadoConRelaciones) => {
+    setInformeToDelete(informe);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (informeToDelete) {
+      await deleteMutation.mutateAsync(informeToDelete.id);
+      setDeleteModalOpen(false);
+      setInformeToDelete(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -158,17 +240,31 @@ export default function InformesHistory({ limit = 10, showViewAll = false }: Inf
   }
 
   return (
-    <div className="space-y-3">
-      {informes.map((informe) => (
-        <InformeRow key={informe.id} informe={informe} />
-      ))}
+    <>
+      <div className="space-y-3">
+        {informes.map((informe) => (
+          <InformeRow
+            key={informe.id}
+            informe={informe}
+            onDeleteClick={handleDeleteClick}
+          />
+        ))}
 
-      {showViewAll && informes.length >= limit && (
-        <button className="w-full flex items-center justify-center gap-2 py-3 text-sm text-fenix-600 dark:text-fenix-400 hover:text-fenix-700 transition-colors">
-          Ver todos los informes
-          <ChevronRight size={16} />
-        </button>
-      )}
-    </div>
+        {showViewAll && informes.length >= limit && (
+          <button className="w-full flex items-center justify-center gap-2 py-3 text-sm text-fenix-600 dark:text-fenix-400 hover:text-fenix-700 transition-colors">
+            Ver todos los informes
+            <ChevronRight size={16} />
+          </button>
+        )}
+      </div>
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        isDeleting={deleteMutation.isPending}
+        title={informeToDelete?.titulo || 'Informe'}
+      />
+    </>
   );
 }

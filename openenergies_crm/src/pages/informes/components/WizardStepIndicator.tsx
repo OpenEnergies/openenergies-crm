@@ -12,8 +12,7 @@ interface WizardStepIndicatorProps {
 
 const steps = [
   { number: 1, title: 'Configuración', description: 'Alcance del informe' },
-  { number: 2, title: 'Contenido', description: 'Edición y datos' },
-  { number: 3, title: 'Generación', description: 'Revisar y generar' },
+  { number: 2, title: 'Contenido y Generación', description: 'Edición y generar' },
 ] as const;
 
 export default function WizardStepIndicator({ currentStep, onStepClick }: WizardStepIndicatorProps) {

@@ -10,7 +10,7 @@ export const CATALOGO_PLANTILLAS = {
   // A) PORTADA
   // -------------------------------------------------------------------------
   PORTADA: {
-    base: `Informe de auditoría energética de {cliente_nombre}. Periodo analizado: {fecha_inicio} – {fecha_fin}.`,
+    base: `Informe de auditoría energética`,
     sublinea: `Resumen de consumos, costes, precio medio del kWh y potencias demandadas a partir de la facturación registrada.`,
   },
 
@@ -133,11 +133,11 @@ export function interpolatePlantilla<T extends object>(
   const vars = variables as Record<string, unknown>;
   return template.replace(/\{(\w+)\}/g, (match, key) => {
     const value = vars[key];
-    
+
     if (value === null || value === undefined) {
       return '—';
     }
-    
+
     if (typeof value === 'number') {
       // Formatear según el tipo de variable
       if (key.includes('_pct')) {
@@ -154,7 +154,7 @@ export function interpolatePlantilla<T extends object>(
       }
       return value.toLocaleString('es-ES');
     }
-    
+
     return String(value);
   });
 }

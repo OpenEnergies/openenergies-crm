@@ -59,6 +59,7 @@ export function useInformesList(options: UseInformesListOptions = {}) {
           creador:usuarios_app!creado_por(nombre, apellidos),
           cliente_info:clientes!cliente_id(id, nombre)
         `)
+        .is('eliminado_en', null)
         .order('creado_en', { ascending: false });
 
       if (options.tipo_informe) {
@@ -334,6 +335,11 @@ export function useDeleteInforme() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
+      // 1. Obtener usuario actual para el log
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
+      // 2. Obtener ruta del archivo
       const { data: informe, error: fetchError } = await supabase
         .from('informes_mercado')
         .select('ruta_storage')
@@ -344,22 +350,34 @@ export function useDeleteInforme() {
         throw new Error('Error obteniendo informe');
       }
 
+      // 3. HARD DELETE del archivo en Storage
       if (informe?.ruta_storage) {
-        await supabase.storage.from('informes-mercado').remove([informe.ruta_storage]);
+        const { error: storageError } = await supabase.storage
+          .from('informes-mercado')
+          .remove([informe.ruta_storage]);
+
+        if (storageError) {
+          console.error('Error eliminando archivo de storage:', storageError);
+          // No lanzamos error aquí para permitir que continúe el borrado lógico en BD
+        }
       }
 
-      const { error: deleteError } = await supabase
+      // 4. SOFT DELETE del registro en BD
+      const { error: updateError } = await supabase
         .from('informes_mercado')
-        .delete()
+        .update({
+          eliminado_en: new Date().toISOString(),
+          eliminado_por: user.id
+        })
         .eq('id', id);
 
-      if (deleteError) {
-        throw new Error('Error eliminando informe');
+      if (updateError) {
+        throw new Error('Error marcando informe como eliminado');
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: informesKeys.lists() });
-      toast.success('Informe eliminado');
+      toast.success('Informe eliminado correctamente');
     },
     onError: (error: Error) => {
       console.error('Error deleting informe:', error);
@@ -383,14 +401,20 @@ export function useInformeDownloadUrl(rutaStorage: string | null | undefined) {
         .createSignedUrl(rutaStorage, 3600);
 
       if (error) {
-        console.error('Error creating signed URL:', error);
-        throw error;
+        // Ignorar error "Object not found" (400) pues es esperado al eliminar
+        if (error.message.includes('Object not found') || error.message.includes('400')) {
+          return null;
+        }
+
+        console.warn('Error creating signed URL:', error.message);
+        return null;
       }
 
       return data?.signedUrl || null;
     },
     enabled: !!rutaStorage,
     staleTime: 30 * 60 * 1000,
+    retry: false, // No reintentar si el archivo no existe
   });
 }
 

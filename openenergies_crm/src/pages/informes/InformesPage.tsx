@@ -9,7 +9,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import WizardStepIndicator from './components/WizardStepIndicator';
 import Step1Config from './components/Step1Config';
 import Step2Content from './components/Step2ContentNew';
-import Step3Generate from './components/Step3Generate';
 import InformesHistory from './components/InformesHistory';
 
 // Hooks & Types
@@ -48,16 +47,8 @@ export default function InformesPage() {
     setError(null);
   }, []);
 
-  const handleNextWithDraft = useCallback((draft: ReportDraft) => {
-    setReportDraft(draft);
-    if (currentStep < 3) {
-      setCurrentStep((prev) => (prev + 1) as WizardStep);
-      setError(null);
-    }
-  }, [currentStep]);
-
   const handleNext = useCallback(() => {
-    if (currentStep < 3) {
+    if (currentStep < 2) {
       setCurrentStep((prev) => (prev + 1) as WizardStep);
       setError(null);
     }
@@ -81,18 +72,14 @@ export default function InformesPage() {
 
   // Generate handler using ReportDraft
   // Routes to different Edge Functions based on tipo_informe
-  const handleGenerate = useCallback(async () => {
-    if (!reportDraft) {
-      setError('No hay borrador de informe para generar');
-      return;
-    }
-
+  const handleGenerate = useCallback(async (draft: ReportDraft) => {
+    setReportDraft(draft);
     setError(null);
     setGenerateResult(null);
 
     try {
       // Construir el payload final desde el draft
-      const payload = buildFinalReportPayload(reportDraft);
+      const payload = buildFinalReportPayload(draft);
 
       let result: GenerateInformeResponse;
 
@@ -115,7 +102,7 @@ export default function InformesPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     }
-  }, [config, reportDraft, generateMutation, auditMutation, queryClient]);
+  }, [config, generateMutation, auditMutation, queryClient]);
 
   // Check if currently generating (either mutation)
   const isGenerating = generateMutation.isPending || auditMutation.isPending;
@@ -211,18 +198,10 @@ export default function InformesPage() {
               <Step2Content
                 config={config}
                 onBack={handleBack}
-                onNext={handleNextWithDraft}
-              />
-            )}
-            {currentStep === 3 && (
-              <Step3Generate
-                config={config}
-                draft={reportDraft}
-                onBack={handleBack}
                 onGenerate={handleGenerate}
-                isGenerating={isGenerating}
+                isSubmitting={isGenerating}
                 generateResult={generateResult}
-                error={error}
+                submitError={error}
               />
             )}
           </div>

@@ -1,7 +1,8 @@
 // openenergies_crm/src/pages/informes/components/Step2Content.tsx
 // Paso 2: Contenido del Informe - Edición de narrativa por tarifa y mes
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,7 +27,7 @@ import {
   ToggleRight,
   Info,
 } from 'lucide-react';
-import { useAuditoriaEnergeticaData, useClientesForSelect } from '@hooks/useInformesMercado';
+import { useAuditoriaEnergeticaData } from '@hooks/useInformesMercado';
 import { useReportDraft } from '@hooks/useReportDraft';
 import type { InformeConfig } from '@lib/informesTypes';
 import type { ReportDraft, NarrativeSection, DatosTarifaDraft, PuntoExtremo } from '@lib/reportDraftTypes';
@@ -40,7 +41,10 @@ import { maskCUPS } from '@lib/reportTemplates';
 interface Step2ContentProps {
   config: InformeConfig;
   onBack: () => void;
-  onNext: (draft: ReportDraft) => void;
+  onGenerate: (draft: ReportDraft) => void;
+  isSubmitting: boolean;
+  generateResult: { success: boolean; url?: string; informe_id?: string } | null;
+  submitError: string | null;
 }
 
 // ============================================================================
@@ -454,18 +458,14 @@ function TarifaCard({
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-export default function Step2Content({ config, onBack, onNext }: Step2ContentProps) {
+export default function Step2Content({ config, onBack, onGenerate, isSubmitting, generateResult, submitError }: Step2ContentProps) {
   // Estado local
   const [expandedTarifas, setExpandedTarifas] = useState<Set<string>>(new Set());
   const [tarifaSearch, setTarifaSearch] = useState('');
+  const navigate = useNavigate();
 
-  // Obtener nombre del cliente
-  const { data: clientes } = useClientesForSelect();
-  const clienteNombre = useMemo(() => {
-    if (!config.cliente_id || !clientes) return '';
-    const cliente = clientes.find((c) => c.value === config.cliente_id);
-    return cliente?.label || '';
-  }, [config.cliente_id, clientes]);
+  // Use client name from config (set in Step1Config)
+  const clienteNombre = config.cliente_nombre || '';
 
   // Cargar datos de auditoría
   const { data: auditoriaData, isLoading: loadingAuditoria } = useAuditoriaEnergeticaData(
@@ -522,12 +522,32 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
     });
   }, []);
 
-  const handleNext = useCallback(() => {
+  const handleGenerate = useCallback(() => {
     if (!draft) return;
-    saveDraft().then(() => {
-      onNext(draft);
-    });
-  }, [draft, saveDraft, onNext]);
+    onGenerate(draft);
+  }, [draft, onGenerate]);
+
+  // Redirect on success
+  useEffect(() => {
+    if (generateResult?.success) {
+      // Auto-trigger download if URL is available
+      if (generateResult.url) {
+        const link = document.createElement('a');
+        link.href = generateResult.url;
+        link.target = '_blank';
+        link.download = `informe-${config.cliente_nombre}-${new Date().toISOString().split('T')[0]}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Force reload to reset wizard
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 2000); // 2 seconds delay to allow download to start
+      return () => clearTimeout(timer);
+    }
+  }, [generateResult, config.cliente_nombre]);
 
   // Loading state
   if (loadingAuditoria || loadingDraft) {
@@ -577,24 +597,6 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Revisa y edita el contenido antes de generar el PDF
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={regenerateDraft}
-            disabled={isGenerating}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={isGenerating ? 'animate-spin' : ''} />
-            Regenerar
-          </button>
-          <button
-            onClick={saveDraft}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-fenix-500 text-white hover:bg-fenix-600 transition-colors disabled:opacity-50"
-          >
-            <Save size={16} />
-            {isSaving ? 'Guardando...' : 'Guardar'}
-          </button>
         </div>
       </div>
 
@@ -911,24 +913,75 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
         )}
       </div>
 
+      {/* Resultado de generación */}
+      {generateResult?.success && (
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="text-emerald-500" size={24} />
+            <div>
+              <p className="font-medium text-emerald-700 dark:text-emerald-300">
+                ¡Informe generado correctamente!
+              </p>
+              {generateResult.url && (
+                <a
+                  href={generateResult.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 mt-1"
+                >
+                  <FileText size={14} />
+                  Descargar documento
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error de generación */}
+      {submitError && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-red-500" size={24} />
+            <p className="text-red-700 dark:text-red-300">Error: Vuelve a intentarlo más tarde</p>
+          </div>
+        </div>
+      )}
+
       {/* Navegación */}
       <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
         <button
           onClick={onBack}
+          disabled={isSubmitting}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 
-                     text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                     text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors
+                     disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft size={18} />
           Atrás
         </button>
         <button
-          onClick={handleNext}
-          disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-2 rounded-lg bg-fenix-500 text-white 
-                     hover:bg-fenix-600 transition-colors disabled:opacity-50"
+          onClick={handleGenerate}
+          disabled={isSaving || isSubmitting || generateResult?.success}
+          className="flex items-center gap-2 px-6 py-3 rounded-lg bg-fenix-500 text-white 
+                     hover:bg-fenix-600 transition-colors disabled:opacity-50 shadow-lg shadow-fenix-500/25"
         >
-          Siguiente: Generar
-          <ChevronRight size={18} />
+          {isSubmitting ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              Generando...
+            </>
+          ) : generateResult?.success ? (
+            <>
+              <CheckCircle2 size={18} />
+              Completado
+            </>
+          ) : (
+            <>
+              <FileText size={18} />
+              Generar Informe
+            </>
+          )}
         </button>
       </div>
     </div>

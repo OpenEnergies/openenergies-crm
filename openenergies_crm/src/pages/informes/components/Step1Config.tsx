@@ -82,10 +82,12 @@ export default function Step1Config({ config, onChange, onNext }: Step1ConfigPro
   };
 
   const handleClienteChange = (value: string) => {
-    // Set cliente_id; do NOT auto-advance. User will click "Siguiente" when ready.
+    // Set cliente_id and cliente_nombre; do NOT auto-advance.
+    const selectedOption = clientesOptions.find(opt => opt.value === value);
     onChange({
       ...config,
       cliente_id: value || null,
+      cliente_nombre: selectedOption?.label || '',
       punto_ids: [],
     });
   };

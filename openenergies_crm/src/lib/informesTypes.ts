@@ -29,6 +29,7 @@ export interface InformeConfig {
   fecha_fin: string;
   rango_preset: RangoPreset;
   cliente_id: UUID | null;
+  cliente_nombre: string;  // Name of selected client for display
   punto_ids: UUID[];
 }
 
@@ -390,7 +391,7 @@ export interface GenerateInformeResponse {
 // ESTADO DEL WIZARD
 // ============================================================================
 
-export type WizardStep = 1 | 2 | 3;
+export type WizardStep = 1 | 2;
 
 export interface WizardState {
   currentStep: WizardStep;
@@ -413,6 +414,7 @@ export const DEFAULT_CONFIG: InformeConfig = {
   fecha_fin: getRangoFromPreset('ultimo_mes').end,
   rango_preset: 'ultimo_mes',
   cliente_id: null,
+  cliente_nombre: '',
   punto_ids: []
 };
 

@@ -114,6 +114,7 @@ export interface ExtremosTarifaDraft {
   bottom_consumo: PuntoExtremo[];  // Bottom 3 menor consumo
   top_coste: PuntoExtremo[];  // Top 3 mayor coste
   bottom_coste: PuntoExtremo[];  // Bottom 3 menor coste
+  error_motivo?: string; // Motivo si no se pueden calcular extremos
 }
 
 /** Datos completos por tarifa */
@@ -161,13 +162,13 @@ export interface ReportDraftMetadata {
 
 export interface ReportDraft {
   metadata: ReportDraftMetadata;
-  
+
   // KPIs globales calculados
   kpis_globales: KPIsGlobales;
-  
+
   // Datos por tarifa (incluye series mensuales, potencias, extremos)
   por_tarifa: DatosTarifaDraft[];
-  
+
   // Narrativa por secciones
   narrativa: {
     portada: NarrativeSection;
@@ -183,7 +184,7 @@ export interface ReportDraft {
     desviaciones: NarrativeSection;
     conclusion: NarrativeSection;
   };
-  
+
   // Recomendaciones (toggle OFF por defecto)
   recomendaciones_enabled: boolean;
   recomendaciones_text: string;
@@ -256,7 +257,7 @@ export function createEmptyReportDraft(
   clienteNombre: string
 ): ReportDraft {
   const now = new Date().toISOString();
-  
+
   return {
     metadata: {
       informe_id: null,
@@ -267,7 +268,7 @@ export function createEmptyReportDraft(
       titulo,
       creado_at: now,
       actualizado_at: now,
-      version: 1,
+      version: 2,
     },
     kpis_globales: {
       cliente_nombre: clienteNombre,

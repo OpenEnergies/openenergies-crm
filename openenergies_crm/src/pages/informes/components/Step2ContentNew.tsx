@@ -287,158 +287,163 @@ function TarifaCard({
 
           {/* Potencias con cobertura */}
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  Potencias contratadas agregadas (suma de puntos con datos)
-                </div>
-                {tarifa.potencias.cobertura_pct !== undefined && tarifa.potencias.puntos_con_potencia !== undefined && tarifa.potencias.puntos_totales !== undefined && (
-                  <div className="text-xs text-blue-700 dark:text-blue-400">
-                    Cobertura: {tarifa.potencias.cobertura_pct.toFixed(0)}% ({tarifa.potencias.puntos_con_potencia}/{tarifa.potencias.puntos_totales} puntos)
-                  </div>
-                )}
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                Potencias contratadas agregadas (suma de puntos con datos)
               </div>
-              <div className="p-2 bg-blue-100 dark:bg-blue-800/30 rounded text-xs text-blue-900 dark:text-blue-200 italic">
-                Las potencias mostradas corresponden a la suma de las potencias contratadas de los puntos de suministro con informaci\u00f3n disponible para esta tarifa. No representan un valor individual ni una recomendaci\u00f3n de dimensionamiento.
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].map((p) => {
-                  const value = tarifa.potencias[`${p}_kw` as keyof typeof tarifa.potencias];
-                  return value !== null ? (
-                    <span key={p} className="px-2 py-1 bg-white dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300">
-                      {p.toUpperCase()}: {Number(value).toLocaleString('es-ES')} kW
-                    </span>
-                  ) : null;
-                })}
-              </div>
-              {tarifa.potencias.alerta_resumen && (
-                <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle size={12} />
-                  {tarifa.potencias.alerta_resumen}
+              {tarifa.potencias.cobertura_pct !== undefined && tarifa.potencias.puntos_con_potencia !== undefined && tarifa.potencias.puntos_totales !== undefined && (
+                <div className="text-xs text-blue-700 dark:text-blue-400">
+                  Cobertura: {tarifa.potencias.cobertura_pct.toFixed(0)}% ({tarifa.potencias.puntos_con_potencia}/{tarifa.potencias.puntos_totales} puntos)
                 </div>
               )}
             </div>
+            <div className="p-2 bg-blue-100 dark:bg-blue-800/30 rounded text-xs text-blue-900 dark:text-blue-200 italic">
+              Las potencias mostradas corresponden a la suma de las potencias contratadas de los puntos de suministro con informaci\u00f3n disponible para esta tarifa. No representan un valor individual ni una recomendaci\u00f3n de dimensionamiento.
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].map((p) => {
+                const value = tarifa.potencias[`${p}_kw` as keyof typeof tarifa.potencias];
+                return value !== null ? (
+                  <span key={p} className="px-2 py-1 bg-white dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300">
+                    {p.toUpperCase()}: {Number(value).toLocaleString('es-ES')} kW
+                  </span>
+                ) : null;
+              })}
+            </div>
+            {tarifa.potencias.alerta_resumen && (
+              <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <AlertTriangle size={12} />
+                {tarifa.potencias.alerta_resumen}
+              </div>
+            )}
+          </div>
 
           {/* Extremos */}
           <div className="space-y-3">
             <div className="text-sm font-medium text-amber-800 dark:text-amber-300">
               Extremos por punto de suministro
             </div>
-            
+
             {/* Mensaje si no hay extremos */}
-            {(!tarifa.extremos || 
-              (!tarifa.extremos.top_consumo?.length && 
-               !tarifa.extremos.bottom_consumo?.length && 
-               !tarifa.extremos.top_coste?.length && 
-               !tarifa.extremos.bottom_coste?.length)) && (
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs text-slate-500 dark:text-slate-400 italic">
-                No hay datos de extremos disponibles. Regenera el informe para calcularlos automáticamente.
-              </div>
-            )}
-            
+            {/* Mensaje si no hay extremos */}
+            {(!tarifa.extremos ||
+              (!tarifa.extremos.top_consumo?.length &&
+                !tarifa.extremos.bottom_consumo?.length &&
+                !tarifa.extremos.top_coste?.length &&
+                !tarifa.extremos.bottom_coste?.length)) && (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs text-slate-500 dark:text-slate-400 italic flex items-start gap-2">
+                  <Info size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    {tarifa.extremos?.error_motivo ||
+                      "No hay datos de extremos disponibles. Regenera el informe para calcularlos automáticamente."}
+                  </span>
+                </div>
+              )}
+
             {/* Top 3 Mayor Consumo */}
             {tarifa.extremos && tarifa.extremos.top_consumo && tarifa.extremos.top_consumo.length > 0 && (
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <div className="text-xs font-semibold text-green-800 dark:text-green-300 mb-2">
-                    Top 3 Mayor Consumo
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {tarifa.extremos.top_consumo.map((punto, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400 font-mono">
-                          {punto.cups}
-                        </span>
-                        <div className="flex gap-4">
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">
-                            {punto.valor.toLocaleString('es-ES', { maximumFractionDigits: 0 })} kWh
-                          </span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-xs font-semibold text-green-800 dark:text-green-300 mb-2">
+                  Top 3 Mayor Consumo
                 </div>
-              )}
-              
-              {/* Bottom 3 Menor Consumo */}
+                <div className="space-y-1 text-xs">
+                  {tarifa.extremos.top_consumo.map((punto, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-slate-600 dark:text-slate-400 font-mono">
+                        {punto.cups}
+                      </span>
+                      <div className="flex gap-4">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {punto.valor.toLocaleString('es-ES', { maximumFractionDigits: 0 })} kWh
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom 3 Menor Consumo */}
             {tarifa.extremos && tarifa.extremos.bottom_consumo && tarifa.extremos.bottom_consumo.length > 0 && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">
-                    Bottom 3 Menor Consumo
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {tarifa.extremos.bottom_consumo.map((punto, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400 font-mono">
-                          {punto.cups}
-                        </span>
-                        <div className="flex gap-4">
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">
-                            {punto.valor.toLocaleString('es-ES', { maximumFractionDigits: 0 })} kWh
-                          </span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-xs font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                  Bottom 3 Menor Consumo
                 </div>
-              )}
-              
-              {/* Top 3 Mayor Coste */}
+                <div className="space-y-1 text-xs">
+                  {tarifa.extremos.bottom_consumo.map((punto, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-slate-600 dark:text-slate-400 font-mono">
+                        {punto.cups}
+                      </span>
+                      <div className="flex gap-4">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {punto.valor.toLocaleString('es-ES', { maximumFractionDigits: 0 })} kWh
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top 3 Mayor Coste */}
             {tarifa.extremos && tarifa.extremos.top_coste && tarifa.extremos.top_coste.length > 0 && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <div className="text-xs font-semibold text-red-800 dark:text-red-300 mb-2">
-                    Top 3 Mayor Coste
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {tarifa.extremos.top_coste.map((punto, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400 font-mono">
-                          {punto.cups}
-                        </span>
-                        <div className="flex gap-4">
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">
-                            {punto.valor.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-                          </span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="text-xs font-semibold text-red-800 dark:text-red-300 mb-2">
+                  Top 3 Mayor Coste
                 </div>
-              )}
-              
-              {/* Bottom 3 Menor Coste */}
+                <div className="space-y-1 text-xs">
+                  {tarifa.extremos.top_coste.map((punto, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-slate-600 dark:text-slate-400 font-mono">
+                        {punto.cups}
+                      </span>
+                      <div className="flex gap-4">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {punto.valor.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom 3 Menor Coste */}
             {tarifa.extremos && tarifa.extremos.bottom_coste && tarifa.extremos.bottom_coste.length > 0 && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                  <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-2">
-                    Bottom 3 Menor Coste
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {tarifa.extremos.bottom_coste.map((punto, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400 font-mono">
-                          {punto.cups}
-                        </span>
-                        <div className="flex gap-4">
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">
-                            {punto.valor.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-                          </span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-2">
+                  Bottom 3 Menor Coste
                 </div>
-              )}
-            </div>
+                <div className="space-y-1 text-xs">
+                  {tarifa.extremos.bottom_coste.map((punto, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-slate-600 dark:text-slate-400 font-mono">
+                        {punto.cups}
+                      </span>
+                      <div className="flex gap-4">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
+                          {punto.valor.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                        </span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {punto.precio_medio_eur_kwh.toFixed(4)} €/kWh
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -499,7 +504,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
     if (!draft) return [];
     if (!tarifaSearch.trim()) return draft.por_tarifa;
     const search = tarifaSearch.toLowerCase();
-    return draft.por_tarifa.filter(t => 
+    return draft.por_tarifa.filter(t =>
       t.tarifa_nombre.toLowerCase().includes(search)
     );
   }, [draft, tarifaSearch]);
@@ -555,7 +560,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
   }
 
   const kpis = draft.kpis_globales;
-  
+
   // Asegurar que desviaciones_sugeridas exista (compatibilidad con drafts antiguos)
   if (!kpis.desviaciones_sugeridas) {
     kpis.desviaciones_sugeridas = [];
@@ -704,7 +709,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
             onChange={(texto) => updateNarrativeSection('analisis_tarifas', texto)}
             rows={4}
           />
-          
+
           {/* Buscador de tarifas (solo si hay muchas) */}
           {draft.por_tarifa.length > 5 && (
             <div className="relative">
@@ -720,7 +725,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
               />
             </div>
           )}
-          
+
           {/* Lista de tarifas */}
           <div className="space-y-3">
             {tarifasFiltradas.map((tarifa) => (
@@ -732,7 +737,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
               />
             ))}
           </div>
-          
+
           {tarifasFiltradas.length === 0 && tarifaSearch && (
             <p className="text-center py-4 text-slate-500 dark:text-slate-400">
               No se encontraron tarifas con "{tarifaSearch}"
@@ -825,7 +830,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
               </ul>
             </div>
           )}
-          
+
           <NarrativeEditor
             section={draft.narrativa.limitaciones}
             label="Limitaciones del Análisis"
@@ -882,7 +887,7 @@ export default function Step2Content({ config, onBack, onNext }: Step2ContentPro
             )}
           </button>
         </div>
-        
+
         {draft.recomendaciones_enabled && (
           <div className="p-4 pt-2 border-t border-slate-100 dark:border-slate-700">
             <div className="space-y-2">

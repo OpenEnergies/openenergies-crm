@@ -261,6 +261,7 @@ export interface FacturacionPorPunto {
   consumo_total: number;
   coste_total: number;
   precio_medio: number;
+  precio_medio_energia?: number; // Precio ponderado real (SUM(precio*consumo)/SUM(consumo))
 }
 
 /** Respuesta completa de la RPC get_auditoria_energetica_data */
@@ -308,19 +309,19 @@ export interface RecomendacionAuditoria {
 export interface AuditoriaContent {
   // Bloque A: Resumen Ejecutivo por Tarifa
   resumen_tarifas: ResumenTarifaEditable[];
-  
+
   // Bloque B: Inventario de Suministros
   inventario: InventarioSuministro[];
   inventario_limitaciones: string;
   inventario_desviaciones: string;
-  
+
   // Bloque C: Análisis de Potencias
   analisis_potencias: AnalisisPotencia[];
   potencias_comentario: string;
-  
+
   // Bloque D: Recomendaciones
   recomendaciones: RecomendacionAuditoria[];
-  
+
   // Resumen ejecutivo general
   resumen_general: string;
   conclusion: string;

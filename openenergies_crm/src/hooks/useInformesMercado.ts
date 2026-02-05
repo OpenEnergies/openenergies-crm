@@ -14,6 +14,7 @@ import type {
   RangoFechas,
   AuditoriaEnergeticaData
 } from '@lib/informesTypes';
+import type { FinalReportPayload } from '@lib/reportDraftTypes';
 import toast from 'react-hot-toast';
 
 // ============================================================================
@@ -146,9 +147,9 @@ export function useInformeDetail(id: string | undefined) {
         // Fetch puntos info
         const { data: puntosData } = puntoIds.length > 0
           ? await supabase
-              .from('puntos_suministro')
-              .select('id, cups, direccion_sum')
-              .in('id', puntoIds)
+            .from('puntos_suministro')
+            .select('id, cups, direccion_sum')
+            .in('id', puntoIds)
           : { data: [] };
 
         return {
@@ -263,8 +264,70 @@ export function useGenerateInforme() {
 }
 
 // ============================================================================
-// HOOK: Eliminar Informe
+// HOOK: Generar Informe de Auditoría Energética
+// Llama a generate-audit-report Edge Function y descarga automáticamente el DOCX
 // ============================================================================
+
+/** Trigger automatic download of a file from a signed URL */
+function triggerDownload(url: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function useGenerateAuditReport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: FinalReportPayload): Promise<GenerateInformeResponse> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+
+      const response = await supabase.functions.invoke('generate-audit-report', {
+        body: payload,
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Error generando informe de auditoría');
+      }
+
+      const data = response.data as GenerateInformeResponse;
+
+      // Trigger automatic download if URL is available
+      if (data.success && data.download_url) {
+        const filename = `${payload.metadata.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '_')}.docx`;
+        triggerDownload(data.download_url, filename);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: informesKeys.lists() });
+
+      if (data.success) {
+        if (data.download_url) {
+          toast.success('Informe de auditoría generado y descargado correctamente');
+        } else {
+          toast.success('Informe guardado (sin documento - microservicio no configurado)');
+        }
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Error generating audit report:', error);
+      toast.error(`Error generando auditoría: ${error.message}`);
+    },
+  });
+}
+
+
 
 export function useDeleteInforme() {
   const queryClient = useQueryClient();
@@ -407,8 +470,8 @@ export function useClientesForSelect(
         return {
           value: c.id,
           label: c.nombre,
-          subtitle: tieneFacturas 
-            ? (c.email || undefined) 
+          subtitle: tieneFacturas
+            ? (c.email || undefined)
             : 'No se encontraron facturas en ese rango de fechas',
           disabled: !tieneFacturas, // Deshabilitado si NO tiene facturas
         };

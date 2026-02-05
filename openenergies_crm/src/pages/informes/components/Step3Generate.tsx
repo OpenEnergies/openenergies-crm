@@ -305,17 +305,17 @@ export default function Step3Generate({
             const p = t.potencias;
             return p && (p.p1_kw || p.p2_kw || p.p3_kw || p.p4_kw || p.p5_kw || p.p6_kw);
           }) && (
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-              <h4 className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
-                <AlertTriangle size={16} />
-                Análisis de Potencias
-              </h4>
-              <p className="text-sm text-amber-600 dark:text-amber-300">
-                Se han analizado las potencias contratadas vs máximas registradas para todas las tarifas.
-                El informe incluirá recomendaciones de ajuste donde corresponda.
-              </p>
-            </div>
-          )}
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <h4 className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
+                  <AlertTriangle size={16} />
+                  Análisis de Potencias
+                </h4>
+                <p className="text-sm text-amber-600 dark:text-amber-300">
+                  Se han analizado las potencias contratadas vs máximas registradas para todas las tarifas.
+                  El informe incluirá recomendaciones de ajuste donde corresponda.
+                </p>
+              </div>
+            )}
 
           {/* Recomendaciones */}
           {recomendaciones_enabled && draft.recomendaciones_text && (
@@ -369,7 +369,7 @@ export default function Step3Generate({
                   className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                 >
                   <Download size={18} />
-                  Descargar PDF
+                  {config.tipo_informe === 'auditoria' ? 'Descargar DOCX' : 'Descargar PDF'}
                 </a>
               )}
               {generateResult.success && generateResult.message && (

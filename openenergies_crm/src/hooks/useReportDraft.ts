@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 
 export const reportDraftKeys = {
   all: ['report-draft'] as const,
-  draft: (clienteId: string, fechaInicio: string, fechaFin: string) => 
+  draft: (clienteId: string, fechaInicio: string, fechaFin: string) =>
     [...reportDraftKeys.all, { clienteId, fechaInicio, fechaFin }] as const,
 };
 
@@ -41,7 +41,7 @@ interface UseReportDraftReturn {
   isGenerating: boolean;
   isSaving: boolean;
   error: Error | null;
-  
+
   // Acciones
   updateNarrativeSection: (
     sectionKey: keyof ReportDraft['narrativa'],
@@ -82,24 +82,24 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const storageKey = getDraftStorageKey(clienteId, fechaInicio, fechaFin);
 
   // -------------------------------------------------------------------------
   // CARGAR DRAFT EXISTENTE O GENERAR NUEVO
   // -------------------------------------------------------------------------
-  
+
   useEffect(() => {
     if (!enabled || !auditoriaData || !clienteId) return;
-    
+
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       // Intentar cargar draft guardado
       const savedDraft = localStorage.getItem(storageKey);
-      
+
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft) as ReportDraft;
         // Verificar que coincide con los parámetros actuales
@@ -107,14 +107,15 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
           parsed.metadata.cliente_id === clienteId &&
           parsed.metadata.fecha_inicio === fechaInicio &&
           parsed.metadata.fecha_fin === fechaFin &&
-          JSON.stringify(parsed.metadata.punto_ids.sort()) === JSON.stringify(puntoIds.sort())
+          JSON.stringify(parsed.metadata.punto_ids.sort()) === JSON.stringify(puntoIds.sort()) &&
+          parsed.metadata.version === 2
         ) {
           setDraft(parsed);
           setIsGenerating(false);
           return;
         }
       }
-      
+
       // No hay draft válido, generar nuevo
       const newDraft = generateReportDraft(auditoriaData, {
         clienteId,
@@ -124,12 +125,12 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
         fechaFin,
         titulo,
       });
-      
+
       setDraft(newDraft);
-      
+
       // Guardar en localStorage
       localStorage.setItem(storageKey, JSON.stringify(newDraft));
-      
+
     } catch (err) {
       console.error('Error loading/generating draft:', err);
       setError(err instanceof Error ? err : new Error('Error generando draft'));
@@ -141,12 +142,12 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // GUARDAR CON DEBOUNCE
   // -------------------------------------------------------------------------
-  
+
   const debouncedSave = useCallback((draftToSave: ReportDraft) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     saveTimeoutRef.current = setTimeout(() => {
       try {
         const updated = {
@@ -167,13 +168,13 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // ACTUALIZAR SECCIÓN NARRATIVA
   // -------------------------------------------------------------------------
-  
+
   const updateNarrativeSection = useCallback((
     sectionKey: keyof ReportDraft['narrativa'],
     texto: string
   ) => {
     if (!draft) return;
-    
+
     const updatedDraft: ReportDraft = {
       ...draft,
       narrativa: {
@@ -185,7 +186,7 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
         },
       },
     };
-    
+
     setDraft(updatedDraft);
     debouncedSave(updatedDraft);
   }, [draft, debouncedSave]);
@@ -193,15 +194,15 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // TOGGLE RECOMENDACIONES
   // -------------------------------------------------------------------------
-  
+
   const toggleRecomendaciones = useCallback((enabled: boolean) => {
     if (!draft) return;
-    
+
     const updatedDraft: ReportDraft = {
       ...draft,
       recomendaciones_enabled: enabled,
     };
-    
+
     setDraft(updatedDraft);
     debouncedSave(updatedDraft);
   }, [draft, debouncedSave]);
@@ -209,15 +210,15 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // ACTUALIZAR TEXTO DE RECOMENDACIONES
   // -------------------------------------------------------------------------
-  
+
   const updateRecomendacionesText = useCallback((texto: string) => {
     if (!draft) return;
-    
+
     const updatedDraft: ReportDraft = {
       ...draft,
       recomendaciones_text: texto,
     };
-    
+
     setDraft(updatedDraft);
     debouncedSave(updatedDraft);
   }, [draft, debouncedSave]);
@@ -225,18 +226,18 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // GUARDAR INMEDIATAMENTE
   // -------------------------------------------------------------------------
-  
+
   const saveDraft = useCallback(async () => {
     if (!draft) return;
-    
+
     setIsSaving(true);
-    
+
     try {
       // Cancelar debounce pendiente
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      
+
       const updated = {
         ...draft,
         metadata: {
@@ -245,10 +246,10 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
           version: draft.metadata.version + 1,
         },
       };
-      
+
       localStorage.setItem(storageKey, JSON.stringify(updated));
       setDraft(updated);
-      
+
       toast.success('Borrador guardado');
     } catch (err) {
       console.error('Error saving draft:', err);
@@ -262,12 +263,12 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // REGENERAR DRAFT
   // -------------------------------------------------------------------------
-  
+
   const regenerateDraft = useCallback(() => {
     if (!auditoriaData) return;
-    
+
     setIsGenerating(true);
-    
+
     try {
       const newDraft = generateReportDraft(auditoriaData, {
         clienteId,
@@ -277,10 +278,10 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
         fechaFin,
         titulo,
       });
-      
+
       setDraft(newDraft);
       localStorage.setItem(storageKey, JSON.stringify(newDraft));
-      
+
       toast.success('Contenido regenerado');
     } catch (err) {
       console.error('Error regenerating draft:', err);
@@ -293,7 +294,7 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // OBTENER PAYLOAD FINAL
   // -------------------------------------------------------------------------
-  
+
   const getFinalPayload = useCallback(() => {
     if (!draft) return null;
     return buildFinalReportPayload(draft);
@@ -302,7 +303,7 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // CLEANUP
   // -------------------------------------------------------------------------
-  
+
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -314,7 +315,7 @@ export function useReportDraft(options: UseReportDraftOptions): UseReportDraftRe
   // -------------------------------------------------------------------------
   // RETURN
   // -------------------------------------------------------------------------
-  
+
   return {
     draft,
     isLoading: isGenerating && !draft,
@@ -340,7 +341,7 @@ export function useCleanupOldDrafts() {
       const keysToRemove: string[] = [];
       const now = Date.now();
       const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 días
-      
+
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key?.startsWith('report-draft-')) {
@@ -359,9 +360,9 @@ export function useCleanupOldDrafts() {
           }
         }
       }
-      
+
       keysToRemove.forEach(key => localStorage.removeItem(key));
-      
+
       if (keysToRemove.length > 0) {
         console.log(`Cleaned up ${keysToRemove.length} old report drafts`);
       }

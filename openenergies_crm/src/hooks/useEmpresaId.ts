@@ -11,7 +11,10 @@ export function useEmpresaId() {
     async function run() {
       // rpc current_user_empresa_id()
       const { data, error } = await supabase.rpc('current_user_empresa_id');
-      if (error) console.error(error);
+      // Silently handle error as requested to avoid console noise, fallback to null
+      if (error && import.meta.env.DEV) {
+        // console.debug('RPC current_user_empresa_id failed:', error.message);
+      }
       if (mounted) { setEmpresaId(data ?? null); setLoading(false); }
     }
     run();

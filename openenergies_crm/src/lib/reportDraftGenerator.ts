@@ -52,12 +52,12 @@ function generarDesviacionesSugeridas(
   potenciasDisponiblesPct: number
 ): string[] {
   const desviaciones: string[] = [];
-  
+
   // Regla 1: Periodo con un \u00fanico mes
   if (mesesN === 1) {
     desviaciones.push('Periodo analizado comprende un \u00fanico mes, lo que limita el an\u00e1lisis de tendencias.');
   }
-  
+
   // Regla 2: Alta concentración en una tarifa (> 70% del coste)
   if (tarifas.length > 1 && tarifas[0]) {
     const tarifaTop = tarifas.reduce((max, t) => t.total_coste > max.total_coste ? t : max, tarifas[0]);
@@ -66,7 +66,7 @@ function generarDesviacionesSugeridas(
       desviaciones.push(`Alta concentración de coste en tarifa ${tarifaTop.tarifa} (${pct.toFixed(0)}% del total).`);
     }
   }
-  
+
   // Regla 3: Pico de coste mensual significativo (> 150% de la media)
   if (meses.length > 1) {
     const costeMedio = costeTotal / meses.length;
@@ -76,7 +76,7 @@ function generarDesviacionesSugeridas(
       desviaciones.push(`Pico de coste detectado en ${nombresMeses}, significativamente superior a la media del periodo.`);
     }
   }
-  
+
   // Regla 4: Diferencias relevantes de precio medio entre tarifas
   if (tarifas.length > 1) {
     const precioMax = Math.max(...tarifas.map(t => t.precio_medio));
@@ -85,12 +85,12 @@ function generarDesviacionesSugeridas(
       desviaciones.push(`Diferencia relevante de precio medio entre tarifas: variaci\u00f3n superior al 30%.`);
     }
   }
-  
+
   // Regla 5: Cobertura incompleta de potencias
   if (potenciasDisponiblesPct < 60) {
     desviaciones.push(`Cobertura de potencias incompleta (${potenciasDisponiblesPct.toFixed(0)}%), lo que limita conclusiones t\u00e9cnicas sobre dimensionamiento.`);
   }
-  
+
   // Regla 6: Pico de precio medio mensual
   if (meses.length > 2) {
     const precioMedio = meses.reduce((sum, m) => sum + m.precio, 0) / meses.length;
@@ -100,7 +100,7 @@ function generarDesviacionesSugeridas(
       desviaciones.push(`Precio medio del kWh elevado en ${nombresMeses} respecto a la media del periodo.`);
     }
   }
-  
+
   return desviaciones;
 }
 
@@ -111,12 +111,12 @@ function calcularKPIsGlobales(
   clienteNombre: string
 ): KPIsGlobales {
   const { resumen_por_tarifa, inventario_suministros, fecha_inicio, fecha_fin } = data;
-  
+
   // Calcular totales
   const consumo_total_kwh = resumen_por_tarifa.reduce((sum, t) => sum + t.total_consumo, 0);
   const coste_total_eur = resumen_por_tarifa.reduce((sum, t) => sum + t.total_coste, 0);
   const precio_medio_eur_kwh = consumo_total_kwh > 0 ? coste_total_eur / consumo_total_kwh : 0;
-  
+
   // Contar facturas y meses Ãºnicos
   const mesesSet = new Set<string>();
   let facturasTotal = 0;
@@ -126,7 +126,7 @@ function calcularKPIsGlobales(
       facturasTotal += m.puntos_activos; // AproximaciÃ³n
     });
   });
-  
+
   // Encontrar mes con mÃ¡ximo coste/consumo/precio
   const todosMeses: { mes: string; mes_nombre: string; consumo: number; coste: number; precio: number }[] = [];
   resumen_por_tarifa.forEach(t => {
@@ -146,36 +146,36 @@ function calcularKPIsGlobales(
       }
     });
   });
-  
+
   // Recalcular precio medio por mes
   todosMeses.forEach(m => {
     m.precio = m.consumo > 0 ? m.coste / m.consumo : 0;
   });
-  
+
   const defaultMes = { mes: '', mes_nombre: '', coste: 0, consumo: 0, precio: 0 };
   const mesMaxCoste = todosMeses.reduce((max, m) => m.coste > max.coste ? m : max, todosMeses[0] ?? defaultMes);
   const mesMaxConsumo = todosMeses.reduce((max, m) => m.consumo > max.consumo ? m : max, todosMeses[0] ?? defaultMes);
   const mesMaxPrecio = todosMeses.reduce((max, m) => m.precio > max.precio ? m : max, todosMeses[0] ?? defaultMes);
-  
+
   // Default para tarifas
   const defaultTarifa = { tarifa: '', total_consumo: 0, total_coste: 0, precio_medio: 0, facturas_count: 0, puntos_count: 0 };
-  
+
   // Encontrar tarifa top en coste y consumo
   const tarifaTopCoste = resumen_por_tarifa.reduce((max, t) => t.total_coste > max.total_coste ? t : max, resumen_por_tarifa[0] ?? defaultTarifa);
   const tarifaTopConsumo = resumen_por_tarifa.reduce((max, t) => t.total_consumo > max.total_consumo ? t : max, resumen_por_tarifa[0] ?? defaultTarifa);
-  
+
   // Encontrar tarifas con precio extremo
   const tarifaMaxPrecio = resumen_por_tarifa.reduce((max, t) => t.precio_medio > max.precio_medio ? t : max, resumen_por_tarifa[0] ?? defaultTarifa);
   const tarifaMinPrecio = resumen_por_tarifa.reduce((min, t) => t.precio_medio < min.precio_medio ? t : min, resumen_por_tarifa[0] ?? defaultTarifa);
-  
+
   // Calidad de datos - estimaciÃ³n simple
-  const puntosConPotencia = inventario_suministros.filter(p => 
+  const puntosConPotencia = inventario_suministros.filter(p =>
     p.potencias_contratadas.p1 !== null || p.potencias_contratadas.p2 !== null
   ).length;
-  const potencias_disponibles_pct = inventario_suministros.length > 0 
-    ? (puntosConPotencia / inventario_suministros.length) * 100 
+  const potencias_disponibles_pct = inventario_suministros.length > 0
+    ? (puntosConPotencia / inventario_suministros.length) * 100
     : 0;
-  
+
   // Generar desviaciones sugeridas autom\u00e1ticamente
   const desviaciones_sugeridas = generarDesviacionesSugeridas(
     resumen_por_tarifa,
@@ -185,7 +185,7 @@ function calcularKPIsGlobales(
     mesesSet.size,
     potencias_disponibles_pct
   );
-  
+
   return {
     cliente_nombre: clienteNombre,
     fecha_inicio: formatFecha(fecha_inicio),
@@ -230,26 +230,26 @@ function calcularPotenciasTarifa(
 ): PotenciasTarifaDraft {
   const puntosTarifa = inventario.filter(p => p.tarifa === tarifa);
   const puntosTotales = puntosTarifa.length;
-  
+
   // Contar puntos con al menos una potencia vÃ¡lida
-  const puntosConPotencia = puntosTarifa.filter(p => 
-    p.potencias_contratadas.p1 !== null || 
+  const puntosConPotencia = puntosTarifa.filter(p =>
+    p.potencias_contratadas.p1 !== null ||
     p.potencias_contratadas.p2 !== null ||
     p.potencias_contratadas.p3 !== null ||
     p.potencias_contratadas.p4 !== null ||
     p.potencias_contratadas.p5 !== null ||
     p.potencias_contratadas.p6 !== null
   ).length;
-  
+
   const cobertura_pct = puntosTotales > 0 ? (puntosConPotencia / puntosTotales) * 100 : 0;
-  
+
   const sumarPotencia = (key: keyof InventarioSuministro['potencias_contratadas']) => {
     const valores = puntosTarifa
       .map(p => p.potencias_contratadas[key])
       .filter((v): v is number => v !== null);
     return valores.length > 0 ? valores.reduce((a, b) => a + b, 0) : null;
   };
-  
+
   const potencias: PotenciasTarifaDraft = {
     p1_kw: sumarPotencia('p1'),
     p2_kw: sumarPotencia('p2'),
@@ -264,7 +264,7 @@ function calcularPotenciasTarifa(
     cobertura_pct,
     alerta_resumen: null,
   };
-  
+
   // Contar periodos disponibles
   potencias.periodos_disponibles = [
     potencias.p1_kw,
@@ -274,7 +274,7 @@ function calcularPotenciasTarifa(
     potencias.p5_kw,
     potencias.p6_kw,
   ].filter(v => v !== null).length;
-  
+
   // Generar alerta segÃºn cobertura
   if (cobertura_pct < 10) {
     potencias.alerta_resumen = `Cobertura muy baja: ${cobertura_pct.toFixed(0)}% (${puntosConPotencia}/${puntosTotales} puntos)`;
@@ -283,7 +283,7 @@ function calcularPotenciasTarifa(
   } else if (potencias.periodos_disponibles < 3) {
     potencias.alerta_resumen = 'Potencias incompletas por periodo';
   }
-  
+
   return potencias;
 }
 
@@ -295,46 +295,108 @@ function calcularExtremosTarifa(
   tarifa: ResumenPorTarifa,
   inventario: InventarioSuministro[],
   facturacionPorPunto: Map<string, { consumo: number; coste: number; precio: number }>
-): ExtremosTarifaDraft | null {
+): ExtremosTarifaDraft {
+  console.groupCollapsed(`[Extremos] Calculando para tarifa ${tarifa.tarifa}`);
+
   const puntosTarifa = inventario.filter(p => p.tarifa === tarifa.tarifa);
-  if (puntosTarifa.length === 0) return null;
-  
+
+  if (puntosTarifa.length === 0) {
+    console.warn('No hay puntos asociados a esta tarifa en el inventario.');
+    console.groupEnd();
+    return {
+      top_consumo: [], bottom_consumo: [], top_coste: [], bottom_coste: [],
+      error_motivo: 'No se encontraron suministros asociados a esta tarifa.'
+    };
+  }
+
   // Obtener datos de facturación por punto
   const puntosConDatos = puntosTarifa
-    .map(p => ({
-      cups: p.cups,  // SIN enmascarar
-      ...facturacionPorPunto.get(p.punto_id) || { consumo: 0, coste: 0, precio: 0 },
-    }))
-    .filter(p => p.consumo > 0 || p.coste > 0);
-  
-  if (puntosConDatos.length === 0) return null;
-  
-  // Ordenar por consumo (descendente)
-  const porConsumo = [...puntosConDatos].sort((a, b) => b.consumo - a.consumo);
+    .map(p => {
+      const datosRaw = facturacionPorPunto.get(p.cups.trim().toUpperCase()) || {
+        consumo: 0,
+        coste: 0,
+        precio: 0
+      };
+
+      return {
+        cups: p.cups,  // SIN enmascarar
+        // FIX: Casting explícito a Number para evitar problemas con strings de la BD
+        consumo: Number(datosRaw.consumo),
+        coste: Number(datosRaw.coste),
+        precio: Number(datosRaw.precio)
+      };
+    })
+    .filter(p => p.consumo > 0);
+
+  // LOGS OBLIGATORIOS PARA DEBUGGING
+  console.groupCollapsed('### EXTREMOS DEBUG ###');
+  console.log('Tarifa:', tarifa.tarifa);
+  console.log('Puntos totales en tarifa:', puntosTarifa.length);
+  console.log('Puntos con datos (consumo > 0):', puntosConDatos.length);
+
+  if (puntosConDatos.length > 0) {
+    console.log('Ejemplo Punto 1:', puntosConDatos[0]);
+    console.log('Ejemplo Punto 2:', puntosConDatos[1]);
+  } else {
+    console.warn('NO HAY PUNTOS CON DATOS para esta tarifa');
+  }
+  console.groupEnd();
+
+  if (puntosConDatos.length === 0) {
+    console.warn('Existen puntos pero sin consumo ni coste en el periodo.');
+    console.groupEnd();
+    return {
+      top_consumo: [], bottom_consumo: [], top_coste: [], bottom_coste: [],
+      error_motivo: 'No hay datos de consumo o coste en el periodo seleccionado para esta tarifa.'
+    };
+  }
+
+  // Helper para sort determinista (desempate por CUPS)
+  const sortDeterminista = (a: typeof puntosConDatos[0], b: typeof puntosConDatos[0], key: 'consumo' | 'coste') => {
+    // Orden descendente por valor
+    // Usamos epsilon para considerar igualdad en floats
+    if (Math.abs(b[key] - a[key]) > 0.001) {
+      return b[key] - a[key];
+    }
+    // Empate: ordenar por CUPS (ascendente) para estabilidad
+    return a.cups.localeCompare(b.cups);
+  };
+
+  // --- RANKING CONSUMO ---
+  const porConsumo = [...puntosConDatos].sort((a, b) => sortDeterminista(a, b, 'consumo'));
+
   const top_consumo = porConsumo.slice(0, 3).map(p => ({
     cups: p.cups,
     valor: p.consumo,
     precio_medio_eur_kwh: p.precio,
   }));
+
+  // Bottom: tomamos últimos 3 de la lista ordenada descendente
   const bottom_consumo = porConsumo.slice(-3).reverse().map(p => ({
     cups: p.cups,
     valor: p.consumo,
     precio_medio_eur_kwh: p.precio,
   }));
-  
-  // Ordenar por coste (descendente)
-  const porCoste = [...puntosConDatos].sort((a, b) => b.coste - a.coste);
+
+  // --- RANKING COSTE ---
+  const porCoste = [...puntosConDatos].sort((a, b) => sortDeterminista(a, b, 'coste'));
+
   const top_coste = porCoste.slice(0, 3).map(p => ({
     cups: p.cups,
     valor: p.coste,
     precio_medio_eur_kwh: p.precio,
   }));
+
   const bottom_coste = porCoste.slice(-3).reverse().map(p => ({
     cups: p.cups,
     valor: p.coste,
     precio_medio_eur_kwh: p.precio,
   }));
-  
+
+  console.log('Top Consumo (sample):', top_consumo[0]);
+  console.log('Bottom Consumo (sample):', bottom_consumo[0]);
+  console.groupEnd();
+
   return {
     top_consumo,
     bottom_consumo,
@@ -352,16 +414,16 @@ function transformarDatosTarifa(
   facturacionPorPunto: Map<string, { consumo: number; coste: number; precio: number }>
 ): DatosTarifaDraft {
   const puntosTarifa = inventario.filter(p => p.tarifa === tarifa.tarifa);
-  
+
   const defaultMensual = { mes: '', mes_nombre: '', consumo_total: 0, coste_total: 0, precio_medio_kwh: 0, puntos_activos: 0 };
   // Encontrar mes con mÃ¡ximos
-  const mesMaxCoste = tarifa.datos_mensuales.reduce((max, m) => 
+  const mesMaxCoste = tarifa.datos_mensuales.reduce((max, m) =>
     m.coste_total > max.coste_total ? m : max, tarifa.datos_mensuales[0] ?? defaultMensual);
-  const mesMaxConsumo = tarifa.datos_mensuales.reduce((max, m) => 
+  const mesMaxConsumo = tarifa.datos_mensuales.reduce((max, m) =>
     m.consumo_total > max.consumo_total ? m : max, tarifa.datos_mensuales[0] ?? defaultMensual);
-  const mesMaxPrecio = tarifa.datos_mensuales.reduce((max, m) => 
+  const mesMaxPrecio = tarifa.datos_mensuales.reduce((max, m) =>
     m.precio_medio_kwh > max.precio_medio_kwh ? m : max, tarifa.datos_mensuales[0] ?? defaultMensual);
-  
+
   return {
     tarifa_nombre: tarifa.tarifa,
     consumo_kwh: tarifa.total_consumo,
@@ -408,8 +470,8 @@ function generarNarrativaPortadaSublinea(): NarrativeSection {
  * Genera la narrativa para la secciÃ³n de alcance
  */
 function generarNarrativaAlcance(kpis: KPIsGlobales): NarrativeSection {
-  const template = kpis.meses_n === 1 
-    ? CATALOGO_PLANTILLAS.ALCANCE.variante_1_mes 
+  const template = kpis.meses_n === 1
+    ? CATALOGO_PLANTILLAS.ALCANCE.variante_1_mes
     : CATALOGO_PLANTILLAS.ALCANCE.base;
   const texto = interpolatePlantilla(template, kpis);
   return createEmptyNarrativeSection(texto);
@@ -420,13 +482,13 @@ function generarNarrativaAlcance(kpis: KPIsGlobales): NarrativeSection {
  */
 function generarNarrativaMetodologia(kpis: KPIsGlobales): NarrativeSection {
   let texto = CATALOGO_PLANTILLAS.METODOLOGIA.base;
-  
+
   // AÃ±adir variante si hay datos incompletos
-  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS || 
-      kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
+  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS ||
+    kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
     texto += '\n\n' + CATALOGO_PLANTILLAS.METODOLOGIA.variante_datos_incompletos;
   }
-  
+
   return createEmptyNarrativeSection(texto);
 }
 
@@ -435,20 +497,20 @@ function generarNarrativaMetodologia(kpis: KPIsGlobales): NarrativeSection {
  */
 function generarNarrativaResumenEjecutivo(kpis: KPIsGlobales): NarrativeSection {
   let texto = interpolatePlantilla(CATALOGO_PLANTILLAS.RESUMEN_EJECUTIVO.base, kpis);
-  
+
   // AÃ±adir variante segÃºn nÃºmero de tarifas
   if (kpis.tarifas_n === 1) {
     texto += '\n\n' + interpolatePlantilla(CATALOGO_PLANTILLAS.RESUMEN_EJECUTIVO.variante_1_tarifa, kpis);
   } else {
     texto += '\n\n' + interpolatePlantilla(CATALOGO_PLANTILLAS.RESUMEN_EJECUTIVO.variante_multitarifa, kpis);
   }
-  
+
   // AÃ±adir nota de calidad de datos si aplica
-  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS || 
-      kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
+  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS ||
+    kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
     texto += '\n\n' + interpolatePlantilla(CATALOGO_PLANTILLAS.RESUMEN_EJECUTIVO.variante_calidad_datos, kpis);
   }
-  
+
   return createEmptyNarrativeSection(texto);
 }
 
@@ -456,8 +518,8 @@ function generarNarrativaResumenEjecutivo(kpis: KPIsGlobales): NarrativeSection 
  * Genera la narrativa para el anÃ¡lisis de tarifas
  */
 function generarNarrativaAnalisisTarifas(kpis: KPIsGlobales): NarrativeSection {
-  const template = kpis.tarifas_n === 1 
-    ? CATALOGO_PLANTILLAS.ANALISIS_TARIFAS.variante_1_tarifa 
+  const template = kpis.tarifas_n === 1
+    ? CATALOGO_PLANTILLAS.ANALISIS_TARIFAS.variante_1_tarifa
     : CATALOGO_PLANTILLAS.ANALISIS_TARIFAS.base;
   const texto = interpolatePlantilla(template, kpis);
   return createEmptyNarrativeSection(texto);
@@ -467,8 +529,8 @@ function generarNarrativaAnalisisTarifas(kpis: KPIsGlobales): NarrativeSection {
  * Genera la narrativa para la evoluciÃ³n mensual
  */
 function generarNarrativaEvolucionMensual(kpis: KPIsGlobales): NarrativeSection {
-  const template = kpis.meses_n === 1 
-    ? CATALOGO_PLANTILLAS.EVOLUCION_MENSUAL.variante_1_mes 
+  const template = kpis.meses_n === 1
+    ? CATALOGO_PLANTILLAS.EVOLUCION_MENSUAL.variante_1_mes
     : CATALOGO_PLANTILLAS.EVOLUCION_MENSUAL.base;
   const texto = interpolatePlantilla(template, kpis);
   return createEmptyNarrativeSection(texto);
@@ -479,12 +541,12 @@ function generarNarrativaEvolucionMensual(kpis: KPIsGlobales): NarrativeSection 
  */
 function generarNarrativaPotencias(kpis: KPIsGlobales): NarrativeSection {
   let texto = interpolatePlantilla(CATALOGO_PLANTILLAS.POTENCIAS.base, kpis);
-  
+
   // AÃ±adir variante si potencias incompletas
   if (kpis.potencias_faltantes_pct > UMBRAL_POTENCIAS_INCOMPLETAS) {
     texto += '\n\n' + CATALOGO_PLANTILLAS.POTENCIAS.variante_potencias_incompletas;
   }
-  
+
   return createEmptyNarrativeSection(texto);
 }
 
@@ -507,7 +569,7 @@ function generarNarrativaLimitaciones(): NarrativeSection {
  */
 function generarNarrativaDesviaciones(kpis: KPIsGlobales): NarrativeSection {
   let texto = CATALOGO_PLANTILLAS.DESVIACIONES.base;
-  
+
   // Añadir desviaciones autogeneradas
   if (kpis.desviaciones_sugeridas.length > 0) {
     texto += '\n\nDesviaciones identificadas:\n';
@@ -515,7 +577,7 @@ function generarNarrativaDesviaciones(kpis: KPIsGlobales): NarrativeSection {
       texto += `${idx + 1}. ${desv}\n`;
     });
   }
-  
+
   return createEmptyNarrativeSection(texto);
 }
 
@@ -524,19 +586,19 @@ function generarNarrativaDesviaciones(kpis: KPIsGlobales): NarrativeSection {
  */
 function generarNarrativaConclusion(kpis: KPIsGlobales): NarrativeSection {
   let texto: string;
-  
+
   if (kpis.tarifas_n === 1) {
     texto = interpolatePlantilla(CATALOGO_PLANTILLAS.CONCLUSION.variante_1_tarifa, kpis);
   } else {
     texto = interpolatePlantilla(CATALOGO_PLANTILLAS.CONCLUSION.base, kpis);
   }
-  
+
   // AÃ±adir nota de calidad si aplica
-  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS || 
-      kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
+  if (kpis.calidad_consumo_pct_faltante > UMBRAL_DATOS_INCOMPLETOS ||
+    kpis.calidad_precio_pct_faltante > UMBRAL_DATOS_INCOMPLETOS) {
     texto += '\n\n' + CATALOGO_PLANTILLAS.CONCLUSION.variante_calidad_datos;
   }
-  
+
   return createEmptyNarrativeSection(texto);
 }
 
@@ -567,28 +629,75 @@ export function generateReportDraft(
     config.titulo,
     config.clienteNombre
   );
-  
+
   // Calcular KPIs globales
   const kpis = calcularKPIsGlobales(auditoriaData, config.clienteNombre);
   draft.kpis_globales = kpis;
-  
+
   // Construir mapa de facturación por punto desde datos REALES de la RPC
+  // USAMOS "CUPS" COMO CLAVE para ser robustos frente a IDs distintos
+
   const facturacionPorPunto = new Map<string, { consumo: number; coste: number; precio: number }>();
+
+  // Procesar facturación por punto
   if (auditoriaData.facturacion_por_punto) {
     auditoriaData.facturacion_por_punto.forEach(punto => {
-      facturacionPorPunto.set(punto.punto_id, {
-        consumo: punto.consumo_total,
-        coste: punto.coste_total,
-        precio: punto.precio_medio,
-      });
+      // Normalizar clave CUPS a mayúsculas
+      const key = punto.cups.trim().toUpperCase();
+      const existing = facturacionPorPunto.get(key);
+
+      // Convertir explícitamente a Number
+      const consumo = Number(punto.consumo_total);
+      const coste = Number(punto.coste_total);
+
+      // LOG DE COMPROBACIÓN DE PRECIOS
+      // Priorizar precio_medio_energia (ponderado) calculado en RPC
+      // Si no existe, usar precio_medio (que es coste/consumo, menos preciso para extremos)
+      let precio = 0;
+      if (punto.precio_medio_energia !== undefined && punto.precio_medio_energia !== null) {
+        precio = Number(punto.precio_medio_energia);
+      } else {
+        precio = Number(punto.precio_medio);
+      }
+
+      // Si el consumo es muy bajo o nulo, el precio puede ser irrelevante o inf
+      if (consumo <= 0) {
+        precio = 0;
+      }
+
+      // LOG DEBUG EXTREMOS para los primeros 3
+      // No logueamos aquí dentro para no saturar, loguearemos el resumen final.
+
+      if (existing) {
+        // Recalcular precio medio ponderado
+        const totalConsumo = existing.consumo + consumo;
+        const totalCoste = existing.coste + coste;
+
+        let nuevoPrecio = 0;
+        if (totalConsumo > 0) {
+          // Ponderar: (PrecioA * ConsumoA + PrecioB * ConsumoB) / TotalConsumo
+          nuevoPrecio = ((existing.precio * existing.consumo) + (precio * consumo)) / totalConsumo;
+        }
+
+        existing.consumo = totalConsumo;
+        existing.coste = totalCoste;
+        existing.precio = nuevoPrecio;
+      } else {
+        // Nuevo registro
+        facturacionPorPunto.set(key, {
+          consumo,
+          coste,
+          precio, // Guardamos el precio de ENERGÍA (unitario)
+        });
+      }
     });
   }
-  
+
   // Transformar datos por tarifa
-  draft.por_tarifa = auditoriaData.resumen_por_tarifa.map(t => 
+  draft.por_tarifa = auditoriaData.resumen_por_tarifa.map(t =>
     transformarDatosTarifa(t, auditoriaData.inventario_suministros, facturacionPorPunto)
   );
-  
+
   // Generar narrativa
   draft.narrativa = {
     portada: generarNarrativaPortada(kpis),
@@ -604,7 +713,7 @@ export function generateReportDraft(
     desviaciones: generarNarrativaDesviaciones(kpis),
     conclusion: generarNarrativaConclusion(kpis),
   };
-  
+
   return draft;
 }
 
@@ -633,12 +742,12 @@ export function buildFinalReportPayload(draft: ReportDraft): FinalReportPayload 
     desviaciones: getFinalText(draft.narrativa.desviaciones),
     conclusion: getFinalText(draft.narrativa.conclusion),
   };
-  
+
   // Incluir recomendaciones SOLO si estÃ¡ habilitado
   if (draft.recomendaciones_enabled && draft.recomendaciones_text.trim()) {
     secciones.recomendaciones = draft.recomendaciones_text;
   }
-  
+
   const tarifas: ReportPayloadTarifa[] = draft.por_tarifa.map(t => ({
     tarifa_nombre: t.tarifa_nombre,
     consumo_kwh: t.consumo_kwh,
@@ -648,7 +757,7 @@ export function buildFinalReportPayload(draft: ReportDraft): FinalReportPayload 
     potencias: t.potencias,
     extremos: t.extremos,
   }));
-  
+
   return {
     metadata: {
       titulo: draft.metadata.titulo,

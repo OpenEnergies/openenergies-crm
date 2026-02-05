@@ -1,7 +1,7 @@
 {
   "servers": {
     "supabase": {
-      "type": "http",
+      "type": "sse",
       "url": "https://mcp.supabase.com/mcp?project_ref=uyyftxwdahmkahebqrhp&read_only=true&features=database,development",
       "headers": {
         "Authorization": "Bearer sbp_ad4853a88dd872a23acff21dbb8e35a376964b69"

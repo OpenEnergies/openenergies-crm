@@ -13,7 +13,7 @@ import Step3Generate from './components/Step3Generate';
 import InformesHistory from './components/InformesHistory';
 
 // Hooks & Types
-import { useGenerateInforme, informesKeys } from '@hooks/useInformesMercado';
+import { useGenerateInforme, useGenerateAuditReport, informesKeys } from '@hooks/useInformesMercado';
 import { useEmpresaId } from '@hooks/useEmpresaId';
 import type {
   WizardStep,
@@ -30,6 +30,7 @@ export default function InformesPage() {
   const queryClient = useQueryClient();
   const { empresaId } = useEmpresaId();
   const generateMutation = useGenerateInforme();
+  const auditMutation = useGenerateAuditReport();
 
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('wizard');
@@ -79,6 +80,7 @@ export default function InformesPage() {
   }, []);
 
   // Generate handler using ReportDraft
+  // Routes to different Edge Functions based on tipo_informe
   const handleGenerate = useCallback(async () => {
     if (!reportDraft) {
       setError('No hay borrador de informe para generar');
@@ -91,11 +93,20 @@ export default function InformesPage() {
     try {
       // Construir el payload final desde el draft
       const payload = buildFinalReportPayload(reportDraft);
-      
-      const result = await generateMutation.mutateAsync({
-        config,
-        content: payload,
-      });
+
+      let result: GenerateInformeResponse;
+
+      // Route to the appropriate Edge Function based on report type
+      if (config.tipo_informe === 'auditoria') {
+        // Use dedicated audit report Edge Function (generates DOCX)
+        result = await auditMutation.mutateAsync(payload);
+      } else {
+        // Use market report Edge Function (generates PDF)
+        result = await generateMutation.mutateAsync({
+          config,
+          content: payload,
+        });
+      }
 
       setGenerateResult(result);
 
@@ -104,7 +115,10 @@ export default function InformesPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     }
-  }, [config, reportDraft, generateMutation, queryClient]);
+  }, [config, reportDraft, generateMutation, auditMutation, queryClient]);
+
+  // Check if currently generating (either mutation)
+  const isGenerating = generateMutation.isPending || auditMutation.isPending;
 
   // Tab button component
   const TabButton = ({
@@ -206,7 +220,7 @@ export default function InformesPage() {
                 draft={reportDraft}
                 onBack={handleBack}
                 onGenerate={handleGenerate}
-                isGenerating={generateMutation.isPending}
+                isGenerating={isGenerating}
                 generateResult={generateResult}
                 error={error}
               />

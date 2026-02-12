@@ -632,7 +632,9 @@ export type Database = {
           id: string
           modificado_en: string | null
           modificado_por: string | null
+          nombre_carpeta_renovacion_pendiente_fecha: string | null
           numero_cuenta: string | null
+          pendiente_fecha: boolean
           permanencia: boolean | null
           punto_id: string
         }
@@ -659,7 +661,9 @@ export type Database = {
           id?: string
           modificado_en?: string | null
           modificado_por?: string | null
+          nombre_carpeta_renovacion_pendiente_fecha?: string | null
           numero_cuenta?: string | null
+          pendiente_fecha?: boolean
           permanencia?: boolean | null
           punto_id: string
         }
@@ -686,7 +690,9 @@ export type Database = {
           id?: string
           modificado_en?: string | null
           modificado_por?: string | null
+          nombre_carpeta_renovacion_pendiente_fecha?: string | null
           numero_cuenta?: string | null
+          pendiente_fecha?: boolean
           permanencia?: boolean | null
           punto_id?: string
         }

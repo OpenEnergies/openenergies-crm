@@ -239,24 +239,61 @@ export default function InformesHistory({ limit = 10, showViewAll = false }: Inf
     );
   }
 
+  // Separate informes by type ('comparativa' grouped with 'mercado' for backward compat)
+  const informesAuditoria = informes.filter((i) => i.tipo_informe === 'auditoria');
+  const informesMercado = informes.filter((i) => i.tipo_informe === 'mercado' || i.tipo_informe === 'comparativa');
+
   return (
     <>
-      <div className="space-y-3">
-        {informes.map((informe) => (
-          <InformeRow
-            key={informe.id}
-            informe={informe}
-            onDeleteClick={handleDeleteClick}
-          />
-        ))}
+      {/* Informes de Auditoría */}
+      {informesAuditoria.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+            Informes de Auditoría Energética
+          </h3>
+          <div className="space-y-3">
+            {informesAuditoria.map((informe) => (
+              <InformeRow
+                key={informe.id}
+                informe={informe}
+                onDeleteClick={handleDeleteClick}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-        {showViewAll && informes.length >= limit && (
-          <button className="w-full flex items-center justify-center gap-2 py-3 text-sm text-fenix-600 dark:text-fenix-400 hover:text-fenix-700 transition-colors">
-            Ver todos los informes
-            <ChevronRight size={16} />
-          </button>
-        )}
-      </div>
+      {/* Informes de Mercado */}
+      {informesMercado.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+            Informes Comparativos con el Mercado
+          </h3>
+          <div className="space-y-3">
+            {informesMercado.map((informe) => (
+              <InformeRow
+                key={informe.id}
+                informe={informe}
+                onDeleteClick={handleDeleteClick}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state if all are filtered out (shouldn't happen, but safe) */}
+      {informesAuditoria.length === 0 && informesMercado.length === 0 && (
+        <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+          Sin informes que mostrar
+        </div>
+      )}
+
+      {showViewAll && informes.length >= limit && (
+        <button className="w-full flex items-center justify-center gap-2 py-3 text-sm text-fenix-600 dark:text-fenix-400 hover:text-fenix-700 transition-colors">
+          Ver todos los informes
+          <ChevronRight size={16} />
+        </button>
+      )}
 
       <DeleteConfirmationModal
         isOpen={deleteModalOpen}

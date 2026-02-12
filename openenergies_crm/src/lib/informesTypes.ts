@@ -7,7 +7,7 @@ import type { UUID } from './types';
 // ENUMS Y TIPOS BASE
 // ============================================================================
 
-export type TipoInformeMercado = 'auditoria' | 'comparativa';
+export type TipoInformeMercado = 'auditoria' | 'mercado' | 'comparativa';
 export type EstadoInforme = 'borrador' | 'generando' | 'completado' | 'error';
 export type ConclusionTipo = 'favorable' | 'informativa';
 
@@ -513,7 +513,8 @@ export function getRangoFromPreset(preset: RangoPreset): RangoFechas {
 export function getTipoInformeLabel(tipo: TipoInformeMercado): string {
   const labels: Record<TipoInformeMercado, string> = {
     auditoria: 'Auditoría Energética',
-    comparativa: 'Auditoría Comparativa con el Mercado'
+    mercado: 'Auditoría Comparativa con el Mercado',
+    comparativa: 'Auditoría Comparativa con el Mercado',
   };
   return labels[tipo];
 }

@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import WizardStepIndicator from './components/WizardStepIndicator';
 import Step1Config from './components/Step1Config';
 import Step2Content from './components/Step2ContentNew';
+import Step2Comparativa from './components/Step2Comparativa';
 import InformesHistory from './components/InformesHistory';
 
 // Hooks & Types
@@ -104,6 +105,12 @@ export default function InformesPage() {
     }
   }, [config, generateMutation, auditMutation, queryClient]);
 
+  // Handler for comparativa (Step2Comparativa calls the Edge Function internally and returns result)
+  const handleComparativaResult = useCallback((result: GenerateInformeResponse) => {
+    setGenerateResult(result);
+    queryClient.invalidateQueries({ queryKey: informesKeys.lists() });
+  }, [queryClient]);
+
   // Check if currently generating (either mutation)
   const isGenerating = generateMutation.isPending || auditMutation.isPending;
 
@@ -194,7 +201,17 @@ export default function InformesPage() {
                 onNext={handleNext}
               />
             )}
-            {currentStep === 2 && (
+            {currentStep === 2 && config.tipo_informe === 'comparativa' && (
+              <Step2Comparativa
+                config={config}
+                onBack={handleBack}
+                onGenerate={handleComparativaResult}
+                isSubmitting={isGenerating}
+                generateResult={generateResult}
+                submitError={error}
+              />
+            )}
+            {currentStep === 2 && config.tipo_informe !== 'comparativa' && (
               <Step2Content
                 config={config}
                 onBack={handleBack}

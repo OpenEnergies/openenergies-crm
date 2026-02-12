@@ -401,12 +401,21 @@ export function useInformeDownloadUrl(rutaStorage: string | null | undefined) {
         .createSignedUrl(rutaStorage, 3600);
 
       if (error) {
-        // Ignorar error "Object not found" (400) pues es esperado al eliminar
-        if (error.message.includes('Object not found') || error.message.includes('400')) {
+        // Silently ignore "Object not found" errors (expected for deleted files or incorrectly stored paths)
+        // These can occur when:
+        // 1. File was deleted from storage but DB record remains
+        // 2. Path format changed between versions
+        // 3. File generation failed but record was created
+        if (
+          error.message.includes('Object not found') ||
+          error.message.includes('400') ||
+          error.message.includes('Not found')
+        ) {
           return null;
         }
 
-        console.warn('Error creating signed URL:', error.message);
+        // Only log unexpected errors (like network issues or permissions)
+        console.warn('[useInformeDownloadUrl] Unexpected error creating signed URL:', error.message);
         return null;
       }
 
@@ -648,5 +657,90 @@ export function useAuditoriaEnergeticaData(
     },
     enabled: enabled && !!clienteId && !!fechaInicio && !!fechaFin,
     staleTime: 5 * 60 * 1000, // 5 minutos de cache
+  });
+}
+
+// ============================================================================
+// HOOK: Generar Informe Comparativo con Mercado
+// Llama a generate-comparative-audit-report Edge Function
+// ============================================================================
+
+import type { ComparativaPayload, ComparativaDraft } from '@lib/comparativaDraftTypes';
+
+/** Response from the comparative Edge Function */
+export interface ComparativeReportResponse extends GenerateInformeResponse {
+  calculated_data?: Record<string, unknown>;
+}
+
+export function useGenerateComparativeReport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ComparativaPayload): Promise<ComparativeReportResponse> => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        throw new Error('No hay sesión activa');
+      }
+
+      // The Edge Function returns DOCX binary directly in generate mode.
+      // We use fetch() to handle the binary response properly.
+      const generatePayload = { ...payload, mode: 'generate' };
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL || ''}/functions/v1/generate-comparative-audit-report`;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify(generatePayload),
+      });
+
+      if (!resp.ok) {
+        // Try to parse error JSON
+        let errMsg = `Error ${resp.status}`;
+        try {
+          const errJson = await resp.json();
+          errMsg = errJson.error || errMsg;
+        } catch { /* ignore parse error */ }
+        throw new Error(errMsg);
+      }
+
+      const contentType = resp.headers.get('Content-Type') || '';
+      const informeId = resp.headers.get('X-Informe-Id') || '';
+
+      if (contentType.includes('application/vnd.openxmlformats')) {
+        // Binary DOCX response — download it
+        const blob = await resp.blob();
+        const filename = `${payload.metadata.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '_')}.docx`;
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
+        return { success: true, informe_id: informeId } as ComparativeReportResponse;
+      }
+
+      // Fallback: JSON response (e.g. if Cloud Run not configured)
+      const data = await resp.json();
+      return data as ComparativeReportResponse;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: informesKeys.lists() });
+      toast.success('Informe comparativo generado y descargado correctamente');
+    },
+    onError: (error: Error) => {
+      console.error('Error generating comparative report:', error);
+      toast.error(`Error generando comparativa: ${error.message}`);
+    },
   });
 }

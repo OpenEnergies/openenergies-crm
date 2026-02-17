@@ -94,7 +94,9 @@ export default function Dashboard() {
             {nombre ? `Bienvenido, ${nombre}${apellidos ? ` ${apellidos}` : ''}` : 'Bienvenido'}
           </h1>
           <p className="text-fenix-500/70 text-sm sm:text-base">
-            Gestiona tus clientes, contratos y documentos desde un único lugar.
+            {isCliente
+              ? 'Gestiona tus suministros desde un único lugar.'
+              : 'Gestiona tus clientes, contratos y documentos desde un único lugar.'}
           </p>
         </div>
 
@@ -156,12 +158,14 @@ export default function Dashboard() {
             <span className="text-sm text-secondary">Cargando panel de cliente…</span>
           </div>
         }>
-          {/* Row 1: Map (25%, spans full height) + KPIs & Charts (75%) */}
-          <div className="flex flex-col lg:flex-row gap-4">
+          {/* Row 1: KPIs & Charts (full width, map hidden) */}
+          <div className="flex flex-col gap-4">
+            {/* Map hidden from UI – logic and imports preserved
             <div className="w-full lg:w-1/4 lg:self-stretch">
               <MapWidget />
             </div>
-            <div className="w-full lg:w-3/4">
+            */}
+            <div className="w-full">
               <ClientInsightsWidget />
             </div>
           </div>

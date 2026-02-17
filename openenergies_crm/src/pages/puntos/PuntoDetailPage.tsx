@@ -11,6 +11,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, Area, AreaChart
 } from 'recharts';
+import EmpresaLogo from '@components/EmpresaLogo';
 
 // ─── Types ───
 interface PuntoInfo {
@@ -27,7 +28,7 @@ interface PuntoInfo {
     p4_kw: number | null;
     p5_kw: number | null;
     p6_kw: number | null;
-    comercializadora: { nombre: string } | { nombre: string }[] | null;
+    comercializadora: { nombre: string; logo_url: string | null } | { nombre: string; logo_url: string | null }[] | null;
 }
 
 interface FacturaRow {
@@ -51,7 +52,7 @@ function usePuntoInfo(puntoId: string | undefined) {
                 .select(`
           id, cups, tarifa, tipo_factura, direccion_sum, localidad_sum, provincia_sum,
           p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw,
-          comercializadora:empresas!current_comercializadora_id (nombre)
+          comercializadora:empresas!current_comercializadora_id (nombre, logo_url)
         `)
                 .eq('id', puntoId)
                 .single();
@@ -161,6 +162,15 @@ export default function PuntoDetailPage() {
         return '—';
     }, [punto]);
 
+    const comercializadoraLogoUrl = useMemo(() => {
+        if (!punto?.comercializadora) return null;
+        if (Array.isArray(punto.comercializadora) && punto.comercializadora[0]) return punto.comercializadora[0].logo_url;
+        if (!Array.isArray(punto.comercializadora) && (punto.comercializadora as any).logo_url) return (punto.comercializadora as any).logo_url;
+        return null;
+    }, [punto]);
+
+    const isLuz = punto?.tipo_factura === 'Luz';
+
     // ─── Chart Colors ───
     const chartColors = {
         consumo: isDark ? '#34d399' : '#10b981',
@@ -219,8 +229,8 @@ export default function PuntoDetailPage() {
                 </div>
             </div>
 
-            {/* ═══ ROW 1: Tarifa+Tipo | Potencias (6 peajes) | Consumo+Coste ═══ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* ═══ ROW 1: Tarifa+Tipo | Potencias (only Luz) | Consumo+Coste ═══ */}
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isLuz ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-4`}>
                 {/* Tarifa + Tipo (stacked) */}
                 <div className="glass-card p-4 flex flex-col gap-3">
                     <div className="flex items-start gap-3">
@@ -243,25 +253,27 @@ export default function PuntoDetailPage() {
                     </div>
                 </div>
 
-                {/* Potencias Contratadas - 6 peajes always */}
-                <div className="glass-card p-4 lg:col-span-2">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-fenix-500/15 flex items-center justify-center">
-                            <Zap className="w-3.5 h-3.5 text-fenix-500" />
-                        </div>
-                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Potencias contratadas (kW)</p>
-                    </div>
-                    <div className="grid grid-cols-6 gap-2">
-                        {potencias.map(p => (
-                            <div key={p.label} className="bg-bg-intermediate rounded-lg p-2 text-center">
-                                <span className="block text-[10px] text-fenix-600 dark:text-fenix-400 font-bold uppercase">{p.label}</span>
-                                <span className="block text-base font-bold text-primary mt-0.5">
-                                    {p.value != null && p.value > 0 ? p.value : '—'}
-                                </span>
+                {/* Potencias Contratadas - Only shown for Luz */}
+                {isLuz && (
+                    <div className="glass-card p-4 lg:col-span-2">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 rounded-lg bg-fenix-500/15 flex items-center justify-center">
+                                <Zap className="w-3.5 h-3.5 text-fenix-500" />
                             </div>
-                        ))}
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Potencias contratadas (kW)</p>
+                        </div>
+                        <div className="grid grid-cols-6 gap-2">
+                            {potencias.map(p => (
+                                <div key={p.label} className="bg-bg-intermediate rounded-lg p-2 text-center">
+                                    <span className="block text-[10px] text-fenix-600 dark:text-fenix-400 font-bold uppercase">{p.label}</span>
+                                    <span className="block text-base font-bold text-primary mt-0.5">
+                                        {p.value != null && p.value > 0 ? p.value : '—'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Consumo Anual + Coste Anual (stacked) */}
                 <div className="glass-card p-4 flex flex-col gap-3">
@@ -312,14 +324,26 @@ export default function PuntoDetailPage() {
                         </div>
                         <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Información adicional</p>
                     </div>
-                    <div className="space-y-3">
-                        <div>
-                            <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">Comercializadora</span>
-                            <span className="text-primary font-bold">{comercializadoraNombre}</span>
+                    <div className="flex items-stretch gap-4">
+                        {/* Left: Comercializadora + CUPS */}
+                        <div className="flex-1 space-y-3">
+                            <div>
+                                <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">Comercializadora</span>
+                                <span className="text-primary font-bold">{comercializadoraNombre}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">CUPS</span>
+                                <code className="text-primary font-bold font-mono text-sm">{punto.cups}</code>
+                            </div>
                         </div>
-                        <div>
-                            <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">CUPS</span>
-                            <code className="text-primary font-bold font-mono text-sm">{punto.cups}</code>
+                        {/* Right: Logo large, vertically centered */}
+                        <div className="flex-1 flex items-center justify-center">
+                            <EmpresaLogo
+                                logoUrl={comercializadoraLogoUrl}
+                                nombre={comercializadoraNombre}
+                                size="lg"
+                                className="!w-24 !h-24 !rounded-2xl"
+                            />
                         </div>
                     </div>
                 </div>

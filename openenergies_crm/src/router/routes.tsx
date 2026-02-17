@@ -12,6 +12,7 @@ import ClienteFacturas from '@pages/clientes/ClienteFacturas';
 // Puntos
 import PuntosList from '@pages/puntos/PuntosList';
 import PuntoForm from '@pages/puntos/PuntoForm';
+import PuntoDetailPage from '@pages/puntos/PuntoDetailPage';
 // Contratos
 import ContratosList from '@pages/contratos/ContratosList';
 import ContratoForm from '@pages/contratos/ContratoForm';
@@ -106,6 +107,7 @@ const clienteActividadRoute = createRoute({ getParentRoute: () => clienteDetailR
 const puntosRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos', component: PuntosList });
 const puntoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/nuevo', component: () => <PuntoForm /> });
 const puntoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id', component: function EditPunto() { const { id } = useParams({ from: puntoEditRoute.id }); return <PuntoForm id={id} />; } });
+const puntoDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id/detalle', component: PuntoDetailPage });
 const contratosRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos', component: ContratosList });
 const contratoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/nuevo', component: () => <ContratoForm /> });
 const contratoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/$id', component: function EditContrato() { const { id } = useParams({ from: contratoEditRoute.id }); return <ContratoForm id={id} />; } });
@@ -142,7 +144,7 @@ const facturaImportRoute = createRoute({
 const analyticsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/analiticas',
-  component: () => <RequireRole roles={['administrador', 'comercial']}><AnalyticsPage /></RequireRole>,
+  component: () => <RequireRole roles={['administrador', 'comercial', 'cliente']}><AnalyticsPage /></RequireRole>,
 });
 
 const actividadRoute = createRoute({
@@ -233,6 +235,7 @@ const routeTree = rootRoute.addChildren([
     ]),
     puntosRoute,
     puntoNewRoute,
+    puntoDetailRoute,
     puntoEditRoute,
     contratosRoute,
     contratoNewRoute,

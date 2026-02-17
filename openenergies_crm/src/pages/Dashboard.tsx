@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useSession } from '@hooks/useSession';
-import { Settings, Eye, EyeOff } from 'lucide-react';
+import { Settings, Eye, EyeOff, Loader2 } from 'lucide-react';
+
+// Lazy-loaded client widgets (code-split, only loaded for client role)
+const MapWidget = lazy(() => import('@components/map/MapWidget'));
+const ClientInsightsWidget = lazy(() => import('@components/dashboard/ClientInsightsWidget'));
+import { CostBreakdownWidget } from '@components/dashboard/ClientInsightsWidget';
 
 // New energy analytics widgets
 import KPICardsSection from './dashboard/widgets/KPICardsSection';
@@ -63,6 +68,7 @@ export default function Dashboard() {
   // Permissions
   const isAdmin = rol === 'administrador';
   const isComercial = rol === 'comercial';
+  const isCliente = rol === 'cliente';
   const canSeeAgendaWidget = isAdmin;
   const canSeeRenovacionesWidget = isAdmin;
   const canSeeMisClientesWidget = isComercial;
@@ -141,6 +147,28 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* ============ CLIENT DASHBOARD (Map + Insights + Cost Breakdown) ============ */}
+      {isCliente && (
+        <Suspense fallback={
+          <div className="glass-card p-8 flex items-center justify-center gap-3">
+            <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+            <span className="text-sm text-secondary">Cargando panel de cliente…</span>
+          </div>
+        }>
+          {/* Row 1: Map (25%, spans full height) + KPIs & Charts (75%) */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="w-full lg:w-1/4 lg:self-stretch">
+              <MapWidget />
+            </div>
+            <div className="w-full lg:w-3/4">
+              <ClientInsightsWidget />
+            </div>
+          </div>
+          {/* Row 2: Cost breakdown full width */}
+          <CostBreakdownWidget />
+        </Suspense>
+      )}
 
       {/* Market View Selector - Always visible when user has access */}
       {canSeeMarketData && viewSettings.showMarket && (

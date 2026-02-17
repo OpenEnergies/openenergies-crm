@@ -3,9 +3,10 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import type { EstadoPunto, TipoFactura } from '@lib/types';
 import { useTheme } from '@hooks/ThemeContext';
+import { useSession } from '@hooks/useSession';
 import {
   Trash2, MapPinPlus, XCircle, Edit, X, ExternalLink,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, MapPin
@@ -125,7 +126,7 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
 
   const { data, error } = await query;
   if (error) throw error;
-  
+
   // Filtro de búsqueda en el cliente (filtra por CUPS, dirección y nombre del cliente)
   if (filter && filter.trim()) {
     const searchTerm = filter.toLowerCase().trim();
@@ -134,22 +135,22 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
       const direccion = punto.direccion_sum?.toLowerCase() || '';
       const localidad = punto.localidad_sum?.toLowerCase() || '';
       const provincia = punto.provincia_sum?.toLowerCase() || '';
-      const cliente = Array.isArray(punto.clientes) 
+      const cliente = Array.isArray(punto.clientes)
         ? punto.clientes[0]?.nombre?.toLowerCase() || ''
         : punto.clientes?.nombre?.toLowerCase() || '';
       const comercializadora = Array.isArray(punto.comercializadora)
         ? punto.comercializadora[0]?.nombre?.toLowerCase() || ''
         : punto.comercializadora?.nombre?.toLowerCase() || '';
-      
+
       return cups.includes(searchTerm) ||
-             direccion.includes(searchTerm) ||
-             localidad.includes(searchTerm) ||
-             provincia.includes(searchTerm) ||
-             cliente.includes(searchTerm) ||
-             comercializadora.includes(searchTerm);
+        direccion.includes(searchTerm) ||
+        localidad.includes(searchTerm) ||
+        provincia.includes(searchTerm) ||
+        cliente.includes(searchTerm) ||
+        comercializadora.includes(searchTerm);
     }) as PuntoConCliente[];
   }
-  
+
   return (data || []) as PuntoConCliente[];
 }
 
@@ -437,6 +438,31 @@ function EstadoDropdown({ puntoId, currentEstado, onUpdate }: EstadoDropdownProp
 }
 
 
+// ============ HELPER POTENCIA RANGO ============
+function getPotenciaRango(punto: PuntoConCliente): string {
+  const potencias = [punto.p1_kw, punto.p2_kw, punto.p3_kw, punto.p4_kw, punto.p5_kw, punto.p6_kw].filter((p): p is number => p != null && p > 0);
+  if (potencias.length === 0) return '—';
+  const min = Math.min(...potencias);
+  const max = Math.max(...potencias);
+  if (min === max) return `${min} kW`;
+  return `${min}-${max} kW`;
+}
+
+function getDireccionCompleta(punto: PuntoConCliente): string {
+  const parts = [punto.direccion_sum, punto.localidad_sum, punto.provincia_sum].filter(Boolean);
+  return parts.join(', ') || '—';
+}
+
+function getComercializadoraNombre(punto: PuntoConCliente): string {
+  if (punto.comercializadora && Array.isArray(punto.comercializadora) && punto.comercializadora[0]) {
+    return punto.comercializadora[0].nombre;
+  }
+  if (punto.comercializadora && !Array.isArray(punto.comercializadora) && (punto.comercializadora as any).nombre) {
+    return (punto.comercializadora as any).nombre;
+  }
+  return '—';
+}
+
 // ============ COMPONENTE PRINCIPAL ============
 export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean }) {
   const [filter, setFilter] = useState('');
@@ -447,6 +473,9 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
   const { theme } = useTheme();
+  const { rol } = useSession();
+  const navigate = useNavigate();
+  const isCliente = rol === 'cliente';
 
   // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
@@ -641,12 +670,11 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            {selectedIds.length > 0 ? (
-              /* Selection action bar */
+            {!isCliente && selectedIds.length > 0 ? (
+              /* Selection action bar - hidden for clients */
               <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
                 <span className="text-sm text-fenix-400 font-medium">{selectedIds.length} seleccionado(s)</span>
                 <div className="flex items-center gap-1 ml-2">
-                  {/* Actions... (simplified for brevity in this view, assuming standard actions exist or passing through) */}
                   {selectedIds.length === 1 && selectedIds[0] && (
                     <Link to="/app/puntos/$id" params={{ id: selectedIds[0] }} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors">
                       <Edit size={16} />
@@ -675,18 +703,22 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     onChange={e => setFilter(e.target.value)}
                   />
                 </div>
-                <ExportButton
-                  exportParams={{
-                    entity: 'puntos_suministro',
-                    filters: { search: filter || undefined }
-                  }}
-                />
-                <Link to="/app/puntos/nuevo">
-                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
-                    <MapPinPlus size={18} />
-                    <span className="hidden sm:inline">Nuevo Punto</span>
-                  </button>
-                </Link>
+                {!isCliente && (
+                  <ExportButton
+                    exportParams={{
+                      entity: 'puntos_suministro',
+                      filters: { search: filter || undefined }
+                    }}
+                  />
+                )}
+                {!isCliente && (
+                  <Link to="/app/puntos/nuevo">
+                    <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                      <MapPinPlus size={18} />
+                      <span className="hidden sm:inline">Nuevo Punto</span>
+                    </button>
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -785,70 +817,132 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                   className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
                   style={{ borderBottomColor: tableBorderColor }}
                 >
-                  <th className="w-10 p-4 text-left">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={input => { if (input) input.indeterminate = isIndeterminate; }}
-                      onChange={handleSelectAll}
-                      aria-label="Seleccionar todos los puntos"
-                      className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
-                    />
-                  </th>
-                  {!hideClienteColumn && (
-                    <th className="p-4 text-left">
-                      <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                        Cliente {renderSortIcon('cliente_nombre')}
-                      </button>
+                  {!isCliente && (
+                    <th className="w-10 p-4 text-left">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={input => { if (input) input.indeterminate = isIndeterminate; }}
+                        onChange={handleSelectAll}
+                        aria-label="Seleccionar todos los puntos"
+                        className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                      />
                     </th>
                   )}
-                  <th className="p-4 text-left">
-                    <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                      CUPS {renderSortIcon('cups')}
-                    </button>
-                  </th>
-
-                  <th className="p-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                        Estado {renderSortIcon('estado')}
-                      </button>
-                      <ColumnFilterDropdown
-                        columnName="Estado"
-                        options={filterOptions.estado}
-                        selectedOptions={columnFilters.estado}
-                        onChange={(selected) => handleColumnFilterChange('estado', selected)}
-                      />
-                    </div>
-                  </th>
-                  <th className="p-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                        Tarifa {renderSortIcon('tarifa')}
-                      </button>
-                      <ColumnFilterDropdown
-                        columnName="Tarifa"
-                        options={filterOptions.tarifa}
-                        selectedOptions={columnFilters.tarifa}
-                        onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
-                      />
-                    </div>
-                  </th>
-                  <th className="p-4 text-right">
-                    <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
-                      kWh/año {renderSortIcon('consumo_anual_kwh')}
-                    </button>
-                  </th>
-                  <th className="p-4 text-right">
-                    <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
-                      Creado {renderSortIcon('creado_en')}
-                    </button>
-                  </th>
+                  {isCliente ? (
+                    /* CLIENT VIEW: Dirección, Comercializadora, CUPS, Tipo (Luz/Gas), Tarifa */
+                    <>
+                      <th className="p-4 text-left">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
+                      </th>
+                      <th className="p-4 text-left">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                      </th>
+                      <th className="p-4 text-left">
+                        <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                          CUPS {renderSortIcon('cups')}
+                        </button>
+                      </th>
+                      <th className="p-4 text-left">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Tipo</span>
+                      </th>
+                      <th className="p-4 text-left">
+                        <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                          Tarifa {renderSortIcon('tarifa')}
+                        </button>
+                      </th>
+                    </>
+                  ) : (
+                    /* ADMIN / COMERCIAL VIEW: Original columns */
+                    <>
+                      {!hideClienteColumn && (
+                        <th className="p-4 text-left">
+                          <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                            Cliente {renderSortIcon('cliente_nombre')}
+                          </button>
+                        </th>
+                      )}
+                      <th className="p-4 text-left">
+                        <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                          CUPS {renderSortIcon('cups')}
+                        </button>
+                      </th>
+                      <th className="p-4 text-left">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                            Estado {renderSortIcon('estado')}
+                          </button>
+                          <ColumnFilterDropdown
+                            columnName="Estado"
+                            options={filterOptions.estado}
+                            selectedOptions={columnFilters.estado}
+                            onChange={(selected) => handleColumnFilterChange('estado', selected)}
+                          />
+                        </div>
+                      </th>
+                      <th className="p-4 text-left">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                            Tarifa {renderSortIcon('tarifa')}
+                          </button>
+                          <ColumnFilterDropdown
+                            columnName="Tarifa"
+                            options={filterOptions.tarifa}
+                            selectedOptions={columnFilters.tarifa}
+                            onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
+                          />
+                        </div>
+                      </th>
+                      <th className="p-4 text-right">
+                        <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                          kWh/año {renderSortIcon('consumo_anual_kwh')}
+                        </button>
+                      </th>
+                      <th className="p-4 text-right">
+                        <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                          Creado {renderSortIcon('creado_en')}
+                        </button>
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-fenix-500/10">
                 {displayedData.map(p => {
                   const isSelected = selectedIds.includes(p.id);
+
+                  if (isCliente) {
+                    // CLIENT ROW: Entire row is a link to detail page
+                    return (
+                      <tr
+                        key={p.id}
+                        className="hover:bg-fenix-500/8 transition-colors cursor-pointer"
+                        onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
+                      >
+                        <td className="p-4">
+                          <span className="text-primary text-sm">{getDireccionCompleta(p)}</span>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-primary text-sm">{getComercializadoraNombre(p)}</span>
+                        </td>
+                        <td className="p-4">
+                          <code className="font-bold text-fenix-600 dark:text-fourth font-mono text-sm">{p.cups}</code>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                            {p.tipo_factura || '—'}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                            {p.tarifa || '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // ADMIN/COMERCIAL ROW: Original behavior
                   return (
                     <tr key={p.id} className={clsx('hover:bg-fenix-500/8 transition-colors', isSelected && 'bg-fenix-500/15 hover:bg-fenix-500/20')}>
                       <td className="p-4">
@@ -882,9 +976,6 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                           {p.cups}
                         </button>
                       </td>
-
-
-
                       <td className="p-4">
                         <EstadoDropdown
                           puntoId={p.id}
@@ -958,27 +1049,29 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         )}
       </div>
 
-      {/* Modal detalle CUPS */}
-      {selectedPunto && (
+      {/* Modal detalle CUPS - Only for non-client roles */}
+      {!isCliente && selectedPunto && (
         <PuntoDetailModal punto={selectedPunto} onClose={() => setSelectedPunto(null)} />
       )}
 
-      {/* Modal confirmación eliminar */}
-      <ConfirmationModal
-        isOpen={idsToDelete.length > 0}
-        onClose={() => setIdsToDelete([])}
-        onConfirm={() => { deletePuntoMutation.mutate(idsToDelete); }}
-        title={`Confirmar Eliminación (${idsToDelete.length})`}
-        message={
-          idsToDelete.length === 1
-            ? `¿Estás seguro de que quieres eliminar el punto de suministro seleccionado? Si tiene contratos o datos asociados, no se podrá eliminar.`
-            : `¿Estás seguro de que quieres eliminar los ${idsToDelete.length} puntos de suministro seleccionados? Los puntos con contratos o datos asociados no se eliminarán.`
-        }
-        confirmText={`Sí, Eliminar ${idsToDelete.length}`}
-        cancelText="Cancelar"
-        confirmButtonClass="danger"
-        isConfirming={deletePuntoMutation.isPending}
-      />
+      {/* Modal confirmación eliminar - Only for non-client roles */}
+      {!isCliente && (
+        <ConfirmationModal
+          isOpen={idsToDelete.length > 0}
+          onClose={() => setIdsToDelete([])}
+          onConfirm={() => { deletePuntoMutation.mutate(idsToDelete); }}
+          title={`Confirmar Eliminación (${idsToDelete.length})`}
+          message={
+            idsToDelete.length === 1
+              ? `¿Estás seguro de que quieres eliminar el punto de suministro seleccionado? Si tiene contratos o datos asociados, no se podrá eliminar.`
+              : `¿Estás seguro de que quieres eliminar los ${idsToDelete.length} puntos de suministro seleccionados? Los puntos con contratos o datos asociados no se eliminarán.`
+          }
+          confirmText={`Sí, Eliminar ${idsToDelete.length}`}
+          cancelText="Cancelar"
+          confirmButtonClass="danger"
+          isConfirming={deletePuntoMutation.isPending}
+        />
+      )}
     </div>
   );
 }

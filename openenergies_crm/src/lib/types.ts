@@ -3594,3 +3594,5 @@ export const Constants = {
 export type UUID = string
 export type UsuarioApp = Database['public']['Tables']['usuarios_app']['Row']
 export type RolUsuario = Database['public']['Enums']['rol_usuario']
+export type EstadoPunto = Database['public']['Enums']['estado_punto']
+export type TipoFactura = Database['public']['Enums']['tipo_factura_enum']

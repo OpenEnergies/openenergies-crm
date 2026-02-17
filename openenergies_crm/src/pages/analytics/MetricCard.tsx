@@ -33,6 +33,7 @@ interface MetricCardProps {
   onDelete: (id: string) => void;
   canDelete: boolean;
   isFirst?: boolean;
+  isCliente?: boolean;
 }
 
 // ═══════════════════════════════════════════
@@ -41,7 +42,7 @@ interface MetricCardProps {
 
 export default function MetricCard({
   config, index, sharedFilters,
-  onUpdate, onDuplicate, onDelete, canDelete, isFirst = true,
+  onUpdate, onDuplicate, onDelete, canDelete, isFirst = true, isCliente = false,
 }: MetricCardProps) {
   const { theme } = useTheme();
 
@@ -465,13 +466,12 @@ export default function MetricCard({
                   <button
                     key={type}
                     onClick={() => onUpdate(config.id, { chartType: type })}
-                    className={`flex-1 h-full flex items-center justify-center rounded-md transition-all cursor-pointer ${
-                      isSelected
+                    className={`flex-1 h-full flex items-center justify-center rounded-md transition-all cursor-pointer ${isSelected
                         ? 'bg-fenix-500 text-white shadow-lg'
                         : theme === 'dark'
                           ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                           : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                     title={type.charAt(0).toUpperCase() + type.slice(1)}
                   >
                     <Icon size={13} />
@@ -490,9 +490,11 @@ export default function MetricCard({
               onChange={(e) => onUpdate(config.id, { groupBy: e.target.value as GroupByOption })}
               title="Agrupar por"
             >
-              {Object.entries(GROUP_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
+              {Object.entries(GROUP_LABELS)
+                .filter(([k]) => !(isCliente && k === 'client'))
+                .map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
             </select>
             <p className="text-[8px] text-secondary opacity-50 mt-0.5 px-1 leading-tight whitespace-nowrap">Agrupar por</p>
           </div>
@@ -514,19 +516,17 @@ export default function MetricCard({
 
           {/* 6 · Top / Bottom */}
           <div className="flex flex-col">
-            <div className={`flex items-center gap-0.5 p-0.5 rounded-lg border h-10 ${
-              !showTopControls ? 'opacity-40' : ''
-            } ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-100 border-gray-200'}`}>
+            <div className={`flex items-center gap-0.5 p-0.5 rounded-lg border h-10 ${!showTopControls ? 'opacity-40' : ''
+              } ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-100 border-gray-200'}`}>
               <button
                 onClick={() => showTopControls && onUpdate(config.id, { topMode: 'top' })}
                 disabled={!showTopControls}
-                className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${
-                  config.topMode === 'top'
+                className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${config.topMode === 'top'
                     ? 'bg-fenix-500 text-white shadow-lg'
                     : theme === 'dark'
                       ? 'text-gray-500 hover:text-gray-300'
                       : 'text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
                 title="Muestra los valores más altos"
               >
                 <ArrowUp size={10} /> Top
@@ -534,13 +534,12 @@ export default function MetricCard({
               <button
                 onClick={() => showTopControls && onUpdate(config.id, { topMode: 'bottom' })}
                 disabled={!showTopControls}
-                className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${
-                  config.topMode === 'bottom'
+                className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${config.topMode === 'bottom'
                     ? 'bg-fenix-500 text-white shadow-lg'
                     : theme === 'dark'
                       ? 'text-gray-500 hover:text-gray-300'
                       : 'text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
                 title="Muestra los valores más bajos"
               >
                 <ArrowDown size={10} /> Bot
@@ -553,11 +552,10 @@ export default function MetricCard({
           <div className="flex items-center gap-1 justify-center h-8">
             <button
               onClick={() => onDuplicate(config.id)}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                theme === 'dark'
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${theme === 'dark'
                   ? 'text-gray-500 hover:text-fenix-400 hover:bg-fenix-500/10'
                   : 'text-gray-400 hover:text-fenix-600 hover:bg-fenix-50'
-              }`}
+                }`}
               title="Duplicar métrica"
             >
               <Copy size={14} />
@@ -565,11 +563,10 @@ export default function MetricCard({
             {canDelete && (
               <button
                 onClick={() => onDelete(config.id)}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  theme === 'dark'
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${theme === 'dark'
                     ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
                     : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                }`}
+                  }`}
                 title="Eliminar métrica"
               >
                 <Trash2 size={14} />
@@ -615,12 +612,10 @@ export default function MetricCard({
               {renderChart()}
             </div>
             {/* Table */}
-            <div className={`lg:col-span-2 h-[350px] rounded-xl overflow-hidden border ${
-              theme === 'dark' ? 'border-white/5 bg-white/[0.02]' : 'border-gray-200 bg-gray-50/50'
-            }`}>
-              <div className={`px-3 py-2 border-b shrink-0 ${
-                theme === 'dark' ? 'border-white/5 bg-white/[0.03]' : 'border-gray-200 bg-gray-100/50'
+            <div className={`lg:col-span-2 h-[350px] rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-white/5 bg-white/[0.02]' : 'border-gray-200 bg-gray-50/50'
               }`}>
+              <div className={`px-3 py-2 border-b shrink-0 ${theme === 'dark' ? 'border-white/5 bg-white/[0.03]' : 'border-gray-200 bg-gray-100/50'
+                }`}>
                 <h5 className="text-[10px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
                   <List size={11} /> Tabla · {chartData.length} filas
                 </h5>

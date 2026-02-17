@@ -105,7 +105,7 @@ export default function Layout() {
           transition-opacity duration-200
           ${isCollapsed ? 'opacity-0' : 'opacity-100'}
         `}>
-          © {new Date().getFullYear()} Converly
+          © {new Date().getFullYear()} Converly Solutions
         </div>
       </aside>
 

@@ -102,7 +102,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
       icon: ChartNoAxesCombined,
       items: [
         { to: '/app/analiticas', label: 'Analíticas', module: 'estadisticas' },
-        { to: '/app/actividad', label: 'Actividad', module: 'estadisticas' },
+        { to: '/app/actividad', label: 'Actividad', module: 'actividad' },
       ],
     },
     {

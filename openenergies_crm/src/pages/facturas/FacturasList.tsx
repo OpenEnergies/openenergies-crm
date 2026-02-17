@@ -9,6 +9,7 @@ import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
+import { useSession } from '@hooks/useSession';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
@@ -68,7 +69,7 @@ interface FacturaCliente {
     observaciones: string | null;
     creado_en: string;
     // Joined relations
-    puntos_suministro: { cups: string } | null;
+    puntos_suministro: { cups: string; direccion_sum: string | null; localidad_sum: string | null; provincia_sum: string | null } | null;
     clientes: { id: string; nombre: string } | null;
     comercializadora: { nombre: string } | null;
 }
@@ -79,7 +80,7 @@ async function fetchFacturas(dateFilter: DateParts): Promise<FacturaCliente[]> {
         .from('facturacion_clientes')
         .select(`
       *,
-      puntos_suministro (cups),
+      puntos_suministro (cups, direccion_sum, localidad_sum, provincia_sum),
       clientes (id, nombre),
       comercializadora:empresas!comercializadora_id (nombre)
     `)
@@ -212,7 +213,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                     <div className="glass-card p-4 space-y-1">
                         <h4 className="text-sm font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider mb-3">Información General</h4>
                         {renderField('CUPS', cups)}
-                        {renderField('Cliente', nombreCliente)}
+                        {renderField('Sociedad', nombreCliente)}
                         {renderField('Comercializadora', nombreComercializadora)}
                         {renderField('Nº Factura', factura.numero_factura)}
                         {renderField('Fecha Emisión', formatDate(factura.fecha_emision))}
@@ -276,6 +277,8 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
 export default function FacturasList() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedFactura, setSelectedFactura] = useState<FacturaCliente | null>(null);
+    const { rol } = useSession();
+    const isCliente = rol === 'cliente';
 
     // PDF Preview state
     const [previewModal, setPreviewModal] = useState<{ url: string; name: string } | null>(null);
@@ -469,21 +472,25 @@ export default function FacturasList() {
                             },
                         }}
                     />
-                    <Link
-                        to="/app/facturas/importar"
-                        className="flex items-center justify-center h-11 px-4 bg-bg-intermediate border border-fenix-500/30 hover:border-fenix-500 text-primary rounded-lg transition-all shadow-lg shadow-black/20"
-                        title="Importar Facturas"
-                    >
-                        <FileUp size={20} className="text-fenix-400" />
-                        <span className="ml-2 hidden lg:inline">Importar</span>
-                    </Link>
-                    <Link
-                        to="/app/facturas/nuevo"
-                        className="flex items-center justify-center h-11 px-4 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20"
-                        title="Nueva Factura"
-                    >
-                        <Plus size={20} className="text-white" />
-                    </Link>
+                    {!isCliente && (
+                        <Link
+                            to="/app/facturas/importar"
+                            className="flex items-center justify-center h-11 px-4 bg-bg-intermediate border border-fenix-500/30 hover:border-fenix-500 text-primary rounded-lg transition-all shadow-lg shadow-black/20"
+                            title="Importar Facturas"
+                        >
+                            <FileUp size={20} className="text-fenix-400" />
+                            <span className="ml-2 hidden lg:inline">Importar</span>
+                        </Link>
+                    )}
+                    {!isCliente && (
+                        <Link
+                            to="/app/facturas/nuevo"
+                            className="flex items-center justify-center h-11 px-4 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20"
+                            title="Nueva Factura"
+                        >
+                            <Plus size={20} className="text-white" />
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -509,9 +516,13 @@ export default function FacturasList() {
                                         </button>
                                     </th>
                                     <th className="p-4 text-left">
-                                        <button onClick={() => handleSort('cliente_id' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                                            Cliente {renderSortIcon('cliente_id' as any)}
-                                        </button>
+                                        {isCliente ? (
+                                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
+                                        ) : (
+                                            <button onClick={() => handleSort('cliente_id' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                                Cliente {renderSortIcon('cliente_id' as any)}
+                                            </button>
+                                        )}
                                     </th>
                                     <th className="p-4 text-left">
                                         <button onClick={() => handleSort('puntos_suministro' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
@@ -558,7 +569,11 @@ export default function FacturasList() {
                                             </button>
                                         </td>
                                         <td className="p-4">
-                                            {factura.clientes ? (
+                                            {isCliente ? (
+                                                <span className="text-primary text-sm">
+                                                    {[factura.puntos_suministro?.direccion_sum, factura.puntos_suministro?.localidad_sum, factura.puntos_suministro?.provincia_sum].filter(Boolean).join(', ') || '—'}
+                                                </span>
+                                            ) : factura.clientes ? (
                                                 <Link
                                                     to="/app/clientes/$id"
                                                     params={{ id: factura.clientes.id }}
@@ -588,14 +603,16 @@ export default function FacturasList() {
                                         {/* Actions */}
                                         <td className="p-4">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Link
-                                                    to="/app/facturas/$id"
-                                                    params={{ id: factura.id }}
-                                                    className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all cursor-pointer"
-                                                    title="Editar factura"
-                                                >
-                                                    <Pencil size={16} />
-                                                </Link>
+                                                {!isCliente && (
+                                                    <Link
+                                                        to="/app/facturas/$id"
+                                                        params={{ id: factura.id }}
+                                                        className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-all cursor-pointer"
+                                                        title="Editar factura"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </Link>
+                                                )}
                                                 <button
                                                     onClick={() => handlePreviewPdf(factura)}
                                                     disabled={loadingPdfId === factura.id}

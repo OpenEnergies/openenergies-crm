@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { BarChart3, Plus, Users, Zap, XCircle } from 'lucide-react';
+import { useSession } from '@hooks/useSession';
 import MultiSearchableSelect from '@components/MultiSearchableSelect';
 import { format, subMonths } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -16,6 +17,8 @@ import {
 
 export default function AnalyticsPage() {
     const { theme } = useTheme();
+    const { rol } = useSession();
+    const isCliente = rol === 'cliente';
 
     // ─── Filter state ───
     const [selectedClients, setSelectedClients] = useState<string[] | null>(null);
@@ -162,32 +165,33 @@ export default function AnalyticsPage() {
                     </div>
                     <button
                         onClick={clearFilters}
-                        className={`ml-auto flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer shrink-0 ${
-                            theme === 'dark'
+                        className={`ml-auto flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer shrink-0 ${theme === 'dark'
                                 ? 'text-gray-500 hover:text-gray-300'
                                 : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                            }`}
                     >
                         <XCircle size={13} /> Limpiar filtros
                     </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Clientes */}
-                    <div>
-                        <MultiSearchableSelect
-                            label="Clientes"
-                            icon={<Users size={14} />}
-                            options={clientOptions}
-                            selectedValues={selectedClients}
-                            onChange={setSelectedClients}
-                            onDisabledClick={() => toast.error('No hay facturas registradas para este cliente')}
-                            placeholder="Todos los clientes"
-                        />
-                        <p className="text-[9px] text-secondary opacity-50 mt-1 px-1">
-                            Selecciona uno o varios para filtrar
-                        </p>
-                    </div>
+                    {/* Clientes — hidden for client role (RLS handles filtering) */}
+                    {!isCliente && (
+                        <div>
+                            <MultiSearchableSelect
+                                label="Clientes"
+                                icon={<Users size={14} />}
+                                options={clientOptions}
+                                selectedValues={selectedClients}
+                                onChange={setSelectedClients}
+                                onDisabledClick={() => toast.error('No hay facturas registradas para este cliente')}
+                                placeholder="Todos los clientes"
+                            />
+                            <p className="text-[9px] text-secondary opacity-50 mt-1 px-1">
+                                Selecciona uno o varios para filtrar
+                            </p>
+                        </div>
+                    )}
 
                     {/* Puntos de suministro */}
                     <div>
@@ -258,6 +262,7 @@ export default function AnalyticsPage() {
                         onDelete={deleteMetric}
                         canDelete={metricConfigs.length > 1}
                         isFirst={idx === 0}
+                        isCliente={isCliente}
                     />
                 ))}
             </div>
@@ -265,11 +270,10 @@ export default function AnalyticsPage() {
             {/* ═══════ Añadir métrica ═══════ */}
             <button
                 onClick={addMetric}
-                className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed transition-all group cursor-pointer ${
-                    theme === 'dark'
+                className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed transition-all group cursor-pointer ${theme === 'dark'
                         ? 'border-white/10 hover:border-fenix-500/40 bg-white/[0.02] hover:bg-fenix-500/5'
                         : 'border-gray-200 hover:border-fenix-500/40 bg-gray-50/50 hover:bg-fenix-50'
-                }`}
+                    }`}
             >
                 <Plus size={20} className="text-fenix-600 dark:text-fenix-400 group-hover:scale-110 transition-transform" />
                 <span className="text-sm font-semibold text-secondary group-hover:text-primary transition-colors">

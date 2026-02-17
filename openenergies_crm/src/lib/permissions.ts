@@ -1,9 +1,9 @@
 import type { RolUsuario } from './types';
 
-export function canSeeModule(rol: RolUsuario, module: 'empresas' | 'usuarios' | 'tarifas' | 'puntos' | 'contratos' | 'clientes' | 'documentos' | 'facturas' | 'consumos' | 'remesas' | 'notificaciones' | 'estadisticas' | 'comparativas' | 'agenda' | 'renovaciones' | 'canales'): boolean {
+export function canSeeModule(rol: RolUsuario, module: 'empresas' | 'usuarios' | 'tarifas' | 'puntos' | 'contratos' | 'clientes' | 'documentos' | 'facturas' | 'consumos' | 'remesas' | 'notificaciones' | 'estadisticas' | 'comparativas' | 'agenda' | 'renovaciones' | 'canales' | 'actividad'): boolean {
   // Mínimo viable según resumen de reglas y RLS (front solo para navegación)
   const matrix: Record<RolUsuario, string[]> = {
-    administrador: ['empresas', 'usuarios', 'tarifas', 'puntos', 'contratos', 'clientes', 'documentos', 'facturas', 'consumos', 'remesas', 'notificaciones', 'estadisticas', 'comparativas', 'agenda', 'renovaciones', 'canales'],
+    administrador: ['empresas', 'usuarios', 'tarifas', 'puntos', 'contratos', 'clientes', 'documentos', 'facturas', 'consumos', 'remesas', 'notificaciones', 'estadisticas', 'comparativas', 'agenda', 'renovaciones', 'canales', 'actividad'],
     comercial: ['puntos', 'clientes', 'documentos', 'estadisticas', 'facturas'],
     cliente: ['documentos', 'puntos', 'facturas', 'estadisticas'] // área de cliente
   };

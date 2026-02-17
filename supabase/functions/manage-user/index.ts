@@ -57,7 +57,7 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
   const finalEmpresaId = (rol === 'comercial' || rol === 'administrador') ? OPEN_ENERGIES_EMPRESA_ID : empresa_id;
 
   if (!finalEmpresaId) {
-      throw new Error("El campo 'empresa_id' es obligatorio.");
+    throw new Error("El campo 'empresa_id' es obligatorio.");
   }
 
   let newAuthUser = null;
@@ -83,7 +83,7 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
       if (error) throw error; // Lanza el error para ser capturado abajo
       newAuthUser = data.user;
     }
-  // --- Fin try...catch ---
+    // --- Fin try...catch ---
   } catch (error) {
     // --- 👇 Captura y verifica el error específico ---
     // Supabase a veces usa 'User already registered' o similar, comprobamos ambos
@@ -96,7 +96,7 @@ async function handleCreateUser(payload: any, supabaseAdmin: SupabaseClient) {
       console.error("Error inesperado en Auth:", error); // Loguea el error completo
       throw new Error(`Error al crear usuario en Auth: ${error.message}`); // Lanza un error más genérico pero informativo
     }
-  // --- Fin verificación ---
+    // --- Fin verificación ---
   }
 
   if (!newAuthUser) {
@@ -142,7 +142,7 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
     .insert(clienteInsertData) // <-- Usamos el objeto limpio
     .select()
     .single();
-    
+
   if (clientError) throw clientError;
 
   let newAuthUser = null;
@@ -151,7 +151,7 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
   if (createPortalAccess && userData) {
     // Para crear el usuario, NECESITAMOS una empresa_id. 
     // Si no venía en clientData, usamos la de Open Energies por defecto o lanzamos error.
-    const targetEmpresaId = empresa_id || OPEN_ENERGIES_EMPRESA_ID; 
+    const targetEmpresaId = empresa_id || OPEN_ENERGIES_EMPRESA_ID;
 
     try {
       // ... (Creación de usuario en Auth igual que antes) ...
@@ -162,7 +162,7 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
       });
       if (authError) throw authError;
       newAuthUser = data.user;
-      
+
       // 3. Crear perfil en 'usuarios_app'
       const { error: profileError } = await supabaseAdmin.from('usuarios_app').insert({
         user_id: newAuthUser.id,
@@ -195,17 +195,97 @@ async function handleOnboardClient(payload: any, supabaseAdmin: SupabaseClient) 
 }
 
 
+// --- 3. Lógica para crear usuario de acceso para un cliente EXISTENTE ---
+async function handleCreateClientUser(payload: any, supabaseAdmin: SupabaseClient) {
+  const { clienteId, email, password, clienteNombre } = payload;
+
+  if (!clienteId || !email || !password) {
+    throw new Error('Faltan datos obligatorios: clienteId, email y password.');
+  }
+
+  // Verificar que el cliente existe
+  const { data: cliente, error: clienteError } = await supabaseAdmin
+    .from('clientes')
+    .select('id, nombre')
+    .eq('id', clienteId)
+    .is('eliminado_en', null)
+    .single();
+  if (clienteError || !cliente) throw new Error('No se encontró el cliente especificado.');
+
+  // Verificar que no tenga ya un usuario vinculado
+  const { data: existingLink } = await supabaseAdmin
+    .from('contactos_cliente')
+    .select('user_id')
+    .eq('cliente_id', clienteId)
+    .is('eliminado_en', null)
+    .maybeSingle();
+  if (existingLink) throw new Error('Este cliente ya tiene un usuario de acceso asociado.');
+
+  // Extraer nombre y apellidos del nombre del cliente
+  const nombreCompleto = clienteNombre || cliente.nombre || 'Cliente';
+  const partes = nombreCompleto.trim().split(' ');
+  const nombre = partes[0];
+  const apellidos = partes.slice(1).join(' ') || '-';
+
+  // 1. Crear usuario en Auth
+  let newAuthUser = null;
+  try {
+    const { data, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (authError) throw authError;
+    newAuthUser = data.user;
+  } catch (error: any) {
+    const message = error.message?.toLowerCase() || '';
+    if (message.includes('user already registered') || message.includes('email address has already been registered')) {
+      throw new Error(`Ya existe un usuario registrado con el email ${email}.`);
+    }
+    throw new Error(`Error al crear usuario en Auth: ${error.message}`);
+  }
+
+  if (!newAuthUser) throw new Error('No se pudo crear el usuario en el sistema de autenticación.');
+
+  // 2. Crear perfil en usuarios_app
+  const { error: profileError } = await supabaseAdmin.from('usuarios_app').insert({
+    user_id: newAuthUser.id,
+    empresa_id: OPEN_ENERGIES_EMPRESA_ID,
+    rol: 'cliente',
+    nombre,
+    apellidos,
+    email,
+    activo: true,
+    forzar_cambio_password: true,
+    creado_en: new Date().toISOString(),
+  });
+  if (profileError) {
+    // Rollback: eliminar usuario de Auth
+    await supabaseAdmin.auth.admin.deleteUser(newAuthUser.id);
+    throw new Error(`Error al crear perfil de usuario: ${profileError.message}`);
+  }
+
+  // 3. Vincular en contactos_cliente
+  const { error: contactError } = await supabaseAdmin.from('contactos_cliente').insert({
+    cliente_id: clienteId,
+    user_id: newAuthUser.id,
+  });
+  if (contactError) {
+    // Rollback: eliminar perfil y usuario de Auth
+    await supabaseAdmin.from('usuarios_app').delete().eq('user_id', newAuthUser.id);
+    await supabaseAdmin.auth.admin.deleteUser(newAuthUser.id);
+    throw new Error(`Error al vincular usuario con cliente: ${contactError.message}`);
+  }
+}
+
 // --- FUNCIONES AUXILIARES (SIN CAMBIOS) ---
-// El resto de funciones que me pasaste (toggle-active, reset-password, delete)
-// no se ven afectadas por el cambio de rol y siguen siendo válidas.
-// Las incluyo aquí para que el fichero esté completo.
 
 async function handleToggleActive(payload: any, supabaseAdmin: SupabaseClient) {
   const { userId, newActiveState, modifiedBy } = payload;
   if (!userId || typeof newActiveState !== 'boolean') {
     throw new Error('Faltan datos para cambiar el estado del usuario.');
   }
-  const { error } = await supabaseAdmin.from('usuarios_app').update({ 
+  const { error } = await supabaseAdmin.from('usuarios_app').update({
     activo: newActiveState,
     // Campos de auditoría (securización BBDD)
     modificado_en: new Date().toISOString(),
@@ -217,7 +297,7 @@ async function handleToggleActive(payload: any, supabaseAdmin: SupabaseClient) {
 async function handleResetPassword(payload: any, supabaseAdmin: SupabaseClient) {
   const { email } = payload;
   if (!email) throw new Error('El email es necesario para restablecer la contraseña.');
-  
+
   // Usar resetPasswordForEmail para enviar el email de recuperación al usuario
   // generateLink solo genera el enlace pero NO envía el email
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
@@ -244,9 +324,9 @@ async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
       .select('cliente_id')
       .eq('user_id', userId)
       .single();
-      
+
     if (contactoError) throw new Error('No se pudo encontrar el cliente asociado para eliminarlo.');
-    
+
     const clienteId = contacto.cliente_id;
 
     // Borrar archivos de storage
@@ -275,7 +355,7 @@ async function handleDeleteUser(payload: any, supabaseAdmin: SupabaseClient) {
     // --- PASO 1: Soft delete de vacaciones asociadas ---
     const { error: vacacionesError } = await supabaseAdmin
       .from('vacaciones')
-      .update({ 
+      .update({
         eliminado_en: new Date().toISOString(),
         eliminado_por: adminUserId || null
       })
@@ -402,6 +482,10 @@ Deno.serve(async (req) => {
       case 'onboard-client':
         responseData = await handleOnboardClient(payload, supabaseAdmin);
         responseMessage = 'Cliente creado correctamente';
+        break;
+      case 'create-client-user':
+        await handleCreateClientUser(payload, supabaseAdmin);
+        responseMessage = 'Usuario de acceso creado correctamente para el cliente';
         break;
       default:
         throw new Error('Acción no válida');

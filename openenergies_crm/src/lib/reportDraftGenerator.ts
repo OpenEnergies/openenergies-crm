@@ -115,7 +115,11 @@ function calcularKPIsGlobales(
   // Calcular totales
   const consumo_total_kwh = resumen_por_tarifa.reduce((sum, t) => sum + t.total_consumo, 0);
   const coste_total_eur = resumen_por_tarifa.reduce((sum, t) => sum + t.total_coste, 0);
-  const precio_medio_eur_kwh = consumo_total_kwh > 0 ? coste_total_eur / consumo_total_kwh : 0;
+  // Precio medio global = media ponderada de precio_medio por tarifa (ya calculado con precio_eur_kwh en RPC)
+  // NO usar coste_total / consumo_total porque incluye costes fijos e impuestos
+  const precio_medio_eur_kwh = consumo_total_kwh > 0
+    ? resumen_por_tarifa.reduce((sum, t) => sum + t.precio_medio * t.total_consumo, 0) / consumo_total_kwh
+    : 0;
 
   // Contar facturas y meses Ãºnicos
   const mesesSet = new Set<string>();
@@ -127,14 +131,16 @@ function calcularKPIsGlobales(
     });
   });
 
-  // Encontrar mes con mÃ¡ximo coste/consumo/precio
-  const todosMeses: { mes: string; mes_nombre: string; consumo: number; coste: number; precio: number }[] = [];
+  // Encontrar mes con máximo coste/consumo/precio
+  // Acumular precio ponderado por consumo para calcular media ponderada por mes
+  const todosMeses: { mes: string; mes_nombre: string; consumo: number; coste: number; precio: number; _precio_x_consumo: number }[] = [];
   resumen_por_tarifa.forEach(t => {
     t.datos_mensuales.forEach(m => {
       const existing = todosMeses.find(x => x.mes === m.mes);
       if (existing) {
         existing.consumo += m.consumo_total;
         existing.coste += m.coste_total;
+        existing._precio_x_consumo += m.precio_medio_kwh * m.consumo_total;
       } else {
         todosMeses.push({
           mes: m.mes,
@@ -142,14 +148,15 @@ function calcularKPIsGlobales(
           consumo: m.consumo_total,
           coste: m.coste_total,
           precio: m.precio_medio_kwh,
+          _precio_x_consumo: m.precio_medio_kwh * m.consumo_total,
         });
       }
     });
   });
 
-  // Recalcular precio medio por mes
+  // Recalcular precio medio por mes como media ponderada (NO coste/consumo)
   todosMeses.forEach(m => {
-    m.precio = m.consumo > 0 ? m.coste / m.consumo : 0;
+    m.precio = m.consumo > 0 ? m._precio_x_consumo / m.consumo : 0;
   });
 
   const defaultMes = { mes: '', mes_nombre: '', coste: 0, consumo: 0, precio: 0 };

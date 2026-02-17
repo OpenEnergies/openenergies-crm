@@ -58,17 +58,17 @@ export default function Dashboard() {
   const { rol, nombre, apellidos } = useSession();
   const [viewSettings, setViewSettings] = useState<ViewSettings>(loadViewSettings);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [marketView, setMarketView] = useState<MarketView>('electricity');
+  const [marketView, setMarketView] = useState<MarketView>('indicators');
 
   // Permissions
   const isAdmin = rol === 'administrador';
   const isComercial = rol === 'comercial';
-  const canSeeAgendaWidget = isAdmin || isComercial;
-  const canSeeRenovacionesWidget = isAdmin || isComercial;
+  const canSeeAgendaWidget = isAdmin;
+  const canSeeRenovacionesWidget = isAdmin;
   const canSeeMisClientesWidget = isComercial;
   const canSeeEstadoMisClientesWidget = isComercial;
-  const canSeeEnergyAnalytics = isAdmin;
-  const canSeeMarketData = isAdmin || isComercial;
+  const canSeeEnergyAnalytics = isAdmin || isComercial;
+  const canSeeMarketData = isAdmin;
 
   // Save settings on change
   useEffect(() => {

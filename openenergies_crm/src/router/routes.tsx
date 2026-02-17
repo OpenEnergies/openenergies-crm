@@ -90,8 +90,8 @@ const notificacionesRoute = createRoute({
   path: '/notificaciones',
   component: NotificacionesPage, // Usar el componente creado
 });
-const agendaRoute = createRoute({ getParentRoute: () => appRoute, path: 'agenda', component: () => <RequireRole roles={['administrador', 'comercial']}><AgendaPage /></RequireRole>, })
-const vacacionesRoute = createRoute({ getParentRoute: () => appRoute, path: 'agenda/vacaciones', component: () => <RequireRole roles={['administrador', 'comercial']}><VacacionesPage /></RequireRole>, })
+const agendaRoute = createRoute({ getParentRoute: () => appRoute, path: 'agenda', component: () => <RequireRole roles={['administrador']}><AgendaPage /></RequireRole>, })
+const vacacionesRoute = createRoute({ getParentRoute: () => appRoute, path: 'agenda/vacaciones', component: () => <RequireRole roles={['administrador']}><VacacionesPage /></RequireRole>, })
 const dashboardRoute = createRoute({ getParentRoute: () => appRoute, path: '/', component: Dashboard, });
 const clientesRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes', component: ClientesList });
 const clientesNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes/nuevo', component: () => <ClienteForm /> });
@@ -109,7 +109,7 @@ const puntoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/pun
 const contratosRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos', component: ContratosList });
 const contratoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/nuevo', component: () => <ContratoForm /> });
 const contratoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/$id', component: function EditContrato() { const { id } = useParams({ from: contratoEditRoute.id }); return <ContratoForm id={id} />; } });
-const renovacionesRoute = createRoute({ getParentRoute: () => appRoute, path: '/renovaciones', component: () => <RequireRole roles={['administrador', 'comercial']}><RenovacionesPage /></RequireRole>, });
+const renovacionesRoute = createRoute({ getParentRoute: () => appRoute, path: '/renovaciones', component: () => <RequireRole roles={['administrador']}><RenovacionesPage /></RequireRole>, });
 const documentosRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/documentos',
@@ -148,7 +148,7 @@ const analyticsRoute = createRoute({
 const actividadRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/actividad',
-  component: () => <RequireRole roles={['administrador', 'comercial']}><ActividadPage /></RequireRole>,
+  component: () => <RequireRole roles={['administrador']}><ActividadPage /></RequireRole>,
 });
 
 // --- CORRECCIÓN AQUÍ ---
@@ -179,7 +179,7 @@ export const empresasEditRoute = createRoute({ getParentRoute: () => appRoute, p
 export const canalesRoute = createRoute({ getParentRoute: () => appRoute, path: '/canales', component: () => <RequireRole roles={['administrador']}><CanalesList /></RequireRole>, });
 
 export const comparativasNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/comparativas/nueva', component: ComparativaForm });
-export const informesMercadoRoute = createRoute({ getParentRoute: () => appRoute, path: '/informes', component: () => <RequireRole roles={['administrador', 'comercial']}><InformesPage /></RequireRole> });
+export const informesMercadoRoute = createRoute({ getParentRoute: () => appRoute, path: '/informes', component: () => <RequireRole roles={['administrador']}><InformesPage /></RequireRole> });
 
 
 // --- 4. CONTINUACIÓN: NOT FOUND COMPONENT ---

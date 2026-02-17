@@ -656,7 +656,7 @@ export function useAuditoriaEnergeticaData(
       return data as AuditoriaEnergeticaData;
     },
     enabled: enabled && !!clienteId && !!fechaInicio && !!fechaFin,
-    staleTime: 5 * 60 * 1000, // 5 minutos de cache
+    staleTime: 0, // Siempre refrescar datos al navegar entre pasos del wizard
   });
 }
 

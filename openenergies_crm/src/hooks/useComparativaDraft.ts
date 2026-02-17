@@ -2,7 +2,7 @@
 // Hook para gestión y persistencia del ComparativaDraft
 // Includes: computeFinalMarketPrice, seeded PRNG, reactive KPI recomputation
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type {
   ComparativaDraft,
   ComparativaPayload,
@@ -20,13 +20,7 @@ import {
 } from '@lib/comparativaDraftTypes';
 import type { UUID } from '@lib/types';
 
-// ============================================================================
-// STORAGE KEY
-// ============================================================================
 
-function getDraftStorageKey(clienteId: string, fechaInicio: string, fechaFin: string): string {
-  return `comparativa-draft-${clienteId}-${fechaInicio}-${fechaFin}`;
-}
 
 // ============================================================================
 // SEEDED PRNG — deterministic random for stable values across renders
@@ -432,9 +426,6 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const storageKey = getDraftStorageKey(clienteId, fechaInicio, fechaFin);
-
   // ─── Load or generate draft ───
   useEffect(() => {
     if (!enabled || !calculatedData || !clienteId) return;
@@ -443,7 +434,8 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
     setError(null);
 
     try {
-      // ALWAYS generate new draft from calculated data (no localStorage cache)
+      // ALWAYS generate new draft from calculated data (sin localStorage)
+      // Siempre datos frescos al pasar del paso 1 al 2
       // This ensures fresh data with gas prices on every load
       const rawDraft = buildDraftFromCalculatedData(calculatedData, {
         clienteId,
@@ -460,29 +452,13 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
       const newDraft = recomputeAllKpis(withPrices);
 
       setDraft(newDraft);
-      // Note: We still save to localStorage to allow manual edits persistence during the session
-      localStorage.setItem(storageKey, JSON.stringify(newDraft));
     } catch (err) {
       console.error('[ComparativaDraft] Error:', err);
       setError(err instanceof Error ? err : new Error('Error generando draft'));
     } finally {
       setIsLoading(false);
     }
-  }, [calculatedData, clienteId, clienteNombre, puntoIds, fechaInicio, fechaFin, titulo, enabled, storageKey]);
-
-  // ─── Debounced save ───
-  const debouncedSave = useCallback((d: ComparativaDraft) => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      try {
-        const updated = {
-          ...d,
-          metadata: { ...d.metadata, actualizado_at: new Date().toISOString(), version: d.metadata.version + 1 },
-        };
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch {}
-    }, 1000);
-  }, [storageKey]);
+  }, [calculatedData, clienteId, clienteNombre, puntoIds, fechaInicio, fechaFin, titulo, enabled]);
 
   // ─── Update texto section ───
   const updateTexto = useCallback((key: keyof ComparativaDraft['textos'], texto: string) => {
@@ -495,23 +471,20 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
       },
     };
     setDraft(updated);
-    debouncedSave(updated);
-  }, [draft, debouncedSave]);
+  }, [draft]);
 
   // ─── Toggle recomendaciones ───
   const toggleRecomendaciones = useCallback((en: boolean) => {
     if (!draft) return;
     const updated: ComparativaDraft = { ...draft, recomendaciones_enabled: en };
     setDraft(updated);
-    debouncedSave(updated);
-  }, [draft, debouncedSave]);
+  }, [draft]);
 
   const updateRecomendacionesText = useCallback((texto: string) => {
     if (!draft) return;
     const updated: ComparativaDraft = { ...draft, recomendaciones_text: texto };
     setDraft(updated);
-    debouncedSave(updated);
-  }, [draft, debouncedSave]);
+  }, [draft]);
 
   // ─── Update market price (triggers full KPI recalculation) ───
   const updateMarketPrice = useCallback((
@@ -542,13 +515,12 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
     const updated = recomputeAllKpis(withNewPrice);
 
     setDraft(updated);
-    debouncedSave(updated);
-  }, [draft, debouncedSave]);
+  }, [draft]);
 
   // ─── Regenerate ───
   const regenerate = useCallback(() => {
     if (!calculatedData || !clienteId) return;
-    
+
     // Build fresh draft (same as initial load, no cache)
     const rawDraft = buildDraftFromCalculatedData(calculatedData, {
       clienteId,
@@ -558,15 +530,14 @@ export function useComparativaDraft(options: UseComparativaDraftOptions): UseCom
       fechaFin,
       titulo,
     });
-    
+
     // Re-apply market price logic with fresh random + recompute KPIs
     const seedBase = `${clienteId}|${fechaInicio}|${fechaFin}`;
     const withPrices = applyMarketPriceLogic(rawDraft, seedBase);
     const newDraft = recomputeAllKpis(withPrices);
 
     setDraft(newDraft);
-    localStorage.setItem(storageKey, JSON.stringify(newDraft));
-  }, [calculatedData, clienteId, clienteNombre, puntoIds, fechaInicio, fechaFin, titulo, storageKey]);
+  }, [calculatedData, clienteId, clienteNombre, puntoIds, fechaInicio, fechaFin, titulo]);
 
   // ─── Build payload ───
   const getPayload = useCallback((): ComparativaPayload | null => {

@@ -48,7 +48,7 @@ async function updateUserPassword(newPassword: string) {
 }
 
 export default function PerfilPage() {
-  const { userId, nombre: sessionNombre, avatar_url: sessionAvatarUrl } = useSession();
+  const { userId, nombre: sessionNombre, avatar_url: sessionAvatarUrl, rol } = useSession();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -178,75 +178,77 @@ export default function PerfilPage() {
                 {displayNombre} {perfil?.apellidos ?? ''}
               </h3>
               <p className="text-secondary text-sm mt-1 mb-3 truncate px-2">{perfil?.email ?? 'No disponible'}</p>
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-fenix-500/10 border border-fenix-500/20 text-fenix-600 dark:text-fenix-400 text-xs font-bold uppercase tracking-wider">
-                {perfil?.rol ?? '...'}
+              {rol === 'administrador' && (
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-fenix-500/10 border border-fenix-500/20 text-fenix-600 dark:text-fenix-400 text-xs font-bold uppercase tracking-wider">
+                  {perfil?.rol ?? '...'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Appearance Config (Admin only) */}
+          {rol === 'administrador' && (
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-bold text-primary mb-6 flex items-center gap-2 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <Sun className="text-fenix-500" size={20} />
+                Configuración de Apariencia
+              </h3>
+
+              <div className="flex flex-col gap-4">
+                {/* Light Mode Button */}
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
+                    bg-white text-slate-900 border-2
+                    ${theme === 'light'
+                      ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
+                      : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-slate-100 text-slate-600">
+                      <Sun size={20} />
+                    </div>
+                    <div>
+                      <span className="block font-bold text-slate-900">Modo Claro</span>
+                      <span className="text-xs text-slate-500 font-medium">Apariencia luminosa</span>
+                    </div>
+                  </div>
+                  {theme === 'light' && (
+                    <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                  )}
+                </button>
+
+                {/* Dark Mode Button */}
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
+                    bg-slate-900 text-white border-2
+                    ${theme === 'dark'
+                      ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
+                      : 'border-slate-700 hover:border-slate-600 hover:shadow-md'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-slate-800 text-slate-300">
+                      <Moon size={20} />
+                    </div>
+                    <div>
+                      <span className="block font-bold text-white">Modo Oscuro</span>
+                      <span className="text-xs text-slate-400 font-medium">Menos fatiga visual</span>
+                    </div>
+                  </div>
+                  {theme === 'dark' && (
+                    <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                  )}
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* Card 2: Appearance Config (Immediately below Profile) */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-bold text-primary mb-6 flex items-center gap-2 pb-4 border-b border-gray-100 dark:border-gray-800">
-              <Sun className="text-fenix-500" size={20} />
-              Configuración de Apariencia
-            </h3>
-
-            <div className="flex flex-col gap-4">
-              {/* Light Mode Button - STRICT STATIC STYLES */}
-              {/* Background: Light, Text: Dark. Always. */}
-              <button
-                type="button"
-                onClick={() => setTheme('light')}
-                className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
-                  bg-white text-slate-900 border-2
-                  ${theme === 'light'
-                    ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
-                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-100 text-slate-600">
-                    <Sun size={20} />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-slate-900">Modo Claro</span>
-                    <span className="text-xs text-slate-500 font-medium">Apariencia luminosa</span>
-                  </div>
-                </div>
-                {theme === 'light' && (
-                  <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                )}
-              </button>
-
-              {/* Dark Mode Button - STRICT STATIC STYLES */}
-              {/* Background: Dark, Text: White. Always. */}
-              <button
-                type="button"
-                onClick={() => setTheme('dark')}
-                className={`relative flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer text-left
-                  bg-slate-900 text-white border-2
-                  ${theme === 'dark'
-                    ? 'border-fenix-500 shadow-lg shadow-fenix-500/20 ring-1 ring-fenix-500/50'
-                    : 'border-slate-700 hover:border-slate-600 hover:shadow-md'
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-800 text-slate-300">
-                    <Moon size={20} />
-                  </div>
-                  <div>
-                    <span className="block font-bold text-white">Modo Oscuro</span>
-                    <span className="text-xs text-slate-400 font-medium">Menos fatiga visual</span>
-                  </div>
-                </div>
-                {theme === 'dark' && (
-                  <div className="w-3 h-3 rounded-full bg-fenix-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                )}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column: Security & Personal Info (col-span-2) */}

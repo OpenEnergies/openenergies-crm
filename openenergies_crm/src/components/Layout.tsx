@@ -131,13 +131,15 @@ export default function Layout() {
             <span className="font-semibold text-primary">CRM Open Energies</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/app/agenda"
-              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
-              title="Agenda"
-            >
-              <CalendarDays size={20} />
-            </Link>
+            {rol === 'administrador' && (
+              <Link
+                to="/app/agenda"
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
+                title="Agenda"
+              >
+                <CalendarDays size={20} />
+              </Link>
+            )}
             <Link
               to="/app/notificaciones"
               className="relative p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
@@ -162,14 +164,16 @@ export default function Layout() {
           bg-bg-primary/80 backdrop-blur-sm
         ">
           <div className="flex items-center gap-3">
-            {/* Agenda */}
-            <Link
-              to="/app/agenda"
-              className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
-              title="Agenda"
-            >
-              <CalendarDays size={20} />
-            </Link>
+            {/* Agenda - Admin only */}
+            {rol === 'administrador' && (
+              <Link
+                to="/app/agenda"
+                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
+                title="Agenda"
+              >
+                <CalendarDays size={20} />
+              </Link>
+            )}
 
             {/* Notifications */}
             <Link
@@ -202,7 +206,9 @@ export default function Layout() {
               </div>
               <div className="hidden lg:flex flex-col">
                 <span className="text-sm text-primary truncate max-w-[120px]">{nombre ?? 'Usuario'}</span>
-                <span className="text-xs text-secondary capitalize">{rol}</span>
+                {rol === 'administrador' && (
+                  <span className="text-xs text-secondary capitalize">{rol}</span>
+                )}
               </div>
             </Link>
 

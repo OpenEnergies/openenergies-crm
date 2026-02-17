@@ -201,6 +201,12 @@ serve(async (req) => {
             .select(config.select)
             .is("eliminado_en", null);
 
+        // For renovaciones, exclude contracts pending date
+        if (entity === "renovaciones") {
+            query = query.eq("pendiente_fecha", false)
+                .is("nombre_carpeta_renovacion_pendiente_fecha", null);
+        }
+
         // Apply filters
         if (filters.search) {
             if (entity === "clientes") {

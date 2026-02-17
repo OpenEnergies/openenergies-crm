@@ -265,9 +265,12 @@ export default function ClienteDocumentos({
   const [newFolderName, setNewFolderName] = useState('');
 
   const canManage = rol === 'administrador' || rol === 'comercial';
+  const canSeeVisibilityColumn = rol === 'administrador';
   const canUpload = canManage;
   const canCreateFolder = canManage;
   const canDelete = canManage;
+  const isComercialMode = rol === 'comercial';
+  const effectiveClientMode = clientMode || isComercialMode;
   const currentPath = path || '';
 
   const [modalState, setModalState] = useState<{
@@ -285,13 +288,13 @@ export default function ClienteDocumentos({
   // --- Query (sin cambios, ya valida clienteId en enabled) ---
   // Busca el useQuery de 'files' y modifícalo:
   const { data: files, isLoading, isError } = useQuery({
-    queryKey: ['documentos', clienteId, currentPath, clientMode], // <-- Añadir clientMode
+    queryKey: ['documentos', clienteId, currentPath, effectiveClientMode],
     queryFn: () => {
       if (typeof clienteId !== 'string') {
         throw new Error("Cliente ID inválido para cargar documentos.");
       }
-      // Pasar clientMode a la función
-      return listFiles(clienteId, currentPath, clientMode);
+      // For comercial, use clientMode=true to only fetch visible documents
+      return listFiles(clienteId, currentPath, effectiveClientMode);
     },
     enabled: typeof clienteId === 'string',
   });
@@ -543,7 +546,7 @@ export default function ClienteDocumentos({
 
       // La invalidación sigue igual
       queryClient.invalidateQueries({
-        queryKey: ['documentos', clienteId, currentPath, clientMode],
+        queryKey: ['documentos', clienteId, currentPath, effectiveClientMode],
         exact: true
       });
     },
@@ -573,7 +576,7 @@ export default function ClienteDocumentos({
         toast.success("Visibilidad de la carpeta desactivada", { icon: <EyeOff size={18} /> });
       }
 
-      const queryKey = ['documentos', clienteId, currentPath, clientMode];
+      const queryKey = ['documentos', clienteId, currentPath, effectiveClientMode];
 
       // 1. Invalidar primero para marcar como obsoleto
       await queryClient.invalidateQueries({ queryKey, exact: true });
@@ -661,7 +664,7 @@ export default function ClienteDocumentos({
       {/* Renderizar tabla solo si hay archivos Y clienteId es válido */}
       {sortedFiles && sortedFiles.length > 0 && typeof clienteId === 'string' && (
         <table className="table file-explorer">
-          {canManage && (
+          {canSeeVisibilityColumn && (
             <thead>
               <tr>
                 <th style={{ width: '50px', textAlign: 'center' }}>Visible</th>
@@ -691,7 +694,7 @@ export default function ClienteDocumentos({
 
               return (
                 <tr key={file.id ?? file.name} className="border-b border-bg-intermediate hover:bg-bg-intermediate transition-colors cursor-pointer">
-                  {canManage && (
+                  {canSeeVisibilityColumn && (
                     <td className="text-center p-3">
                       <input
                         type="checkbox"

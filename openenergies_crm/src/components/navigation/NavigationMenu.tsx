@@ -307,7 +307,9 @@ export function NavigationMenu({
                     </div>
                     <div className="flex flex-col">
                         <span className="text-sm font-medium text-slate-900 dark:text-white">{userName}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">{userRole}</span>
+                        {userRole === 'administrador' && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">{userRole}</span>
+                        )}
                     </div>
                 </div>
 

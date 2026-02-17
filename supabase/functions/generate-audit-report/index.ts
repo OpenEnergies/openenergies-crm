@@ -15,6 +15,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLOUD_RUN_AUDIT_URL = Deno.env.get("CLOUD_RUN_AUDIT_URL");
+const INTERNAL_API_TOKEN = Deno.env.get("INTERNAL_API_TOKEN");
 
 // Types matching reportDraftTypes.ts FinalReportPayload
 interface RequestPayload {
@@ -115,9 +116,9 @@ async function getIdentityToken(audience: string): Promise<string> {
     return await response.text();
 }
 
-// Generate storage path: informes/auditoria/{org_id}/{informe_id}/informe.docx
-function generateStoragePath(empresaId: string, informeId: string): string {
-    return `informes/auditoria/${empresaId}/${informeId}/informe.docx`;
+// Generate storage path: informes/auditoria/{informe_id}/informe.docx
+function generateStoragePath(_empresaId: string, informeId: string): string {
+    return `informes/auditoria/${informeId}/informe.docx`;
 }
 
 // Transform FinalReportPayload to microservice schema (plantilla.json)
@@ -168,7 +169,7 @@ function transformToMicroservicePayload(
                     "Las potencias mostradas corresponden a la suma de potencias contratadas de puntos con datos disponibles para esta tarifa."
             },
             extremos_por_punto: tarifa.extremos ? {
-                enmascarar_identificadores: true,
+                enmascarar_identificadores: false,
                 top_mayor_consumo: tarifa.extremos.top_consumo.map(e => ({
                     punto_id: e.cups,
                     consumo_kwh: e.valor,
@@ -190,7 +191,7 @@ function transformToMicroservicePayload(
                     precio_medio_eur_kwh: e.precio_medio_eur_kwh
                 }))
             } : {
-                enmascarar_identificadores: true,
+                enmascarar_identificadores: false,
                 top_mayor_consumo: [],
                 bottom_menor_consumo: [],
                 top_mayor_coste: [],
@@ -366,43 +367,84 @@ serve(async (req) => {
             );
         }
 
-        // 4) Validate cliente_id access via RLS
-        const { data: cliente, error: clienteError } = await supabaseUser
+        // 4) Validate cliente_id exists (just validate it exists, no empresa_id in clientes table)
+        console.log("[DEBUG] Looking up cliente_id:", metadata.cliente_id);
+        console.log("[DEBUG] Authenticated user.id:", user.id);
+
+        const { data: cliente, error: clienteError } = await supabaseAdmin
             .from("clientes")
-            .select("id, nombre, empresa_id")
+            .select("id, nombre")
             .eq("id", metadata.cliente_id)
             .single();
 
         if (clienteError || !cliente) {
+            console.error("Cliente lookup error:", clienteError);
             return new Response(
-                JSON.stringify({ error: "Cliente no encontrado o sin acceso" }),
+                JSON.stringify({ error: "Cliente no encontrado", details: clienteError?.message }),
+                { status: 404, headers: { ...CORS, "Content-Type": "application/json" } }
+            );
+        }
+
+        // 5) Get empresa_id from authenticated user's profile in usuarios_app
+        const { data: usuarioApp, error: usuarioError } = await supabaseAdmin
+            .from("usuarios_app")
+            .select("empresa_id")
+            .eq("user_id", user.id)
+            .single();
+
+        if (usuarioError || !usuarioApp?.empresa_id) {
+            console.error("Usuario lookup error:", usuarioError);
+            return new Response(
+                JSON.stringify({ error: "No se pudo obtener la empresa del usuario", details: usuarioError?.message }),
                 { status: 403, headers: { ...CORS, "Content-Type": "application/json" } }
             );
         }
 
-        const empresaId = cliente.empresa_id;
+        const empresaId = usuarioApp.empresa_id;
 
-        // 5) Generate informe ID and storage path
+        // 6) Generate informe ID and storage path
         const informeId = crypto.randomUUID();
         const storagePath = generateStoragePath(empresaId, informeId);
 
-        // 6) Transform payload to microservice format
-        const microservicePayload = transformToMicroservicePayload(payload, informeId);
+        // 7) Transform payload to microservice format
+        console.log("[DEBUG] Step 7: About to transform payload");
+        console.log("[DEBUG] payload.tarifas.length:", payload.tarifas?.length);
+        console.log("[DEBUG] payload.metadata:", JSON.stringify(payload.metadata));
 
-        // 7) Call Cloud Run microservice
+        let microservicePayload;
+        try {
+            microservicePayload = transformToMicroservicePayload(payload, informeId);
+            console.log("[DEBUG] Transform successful");
+        } catch (transformError) {
+            console.error("[DEBUG] Transform error:", transformError);
+            return new Response(
+                JSON.stringify({
+                    error: "Error transformando payload",
+                    details: String(transformError)
+                }),
+                { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
+            );
+        }
+
+        // 8) Call Cloud Run microservice
+        console.log("[DEBUG] Step 8: About to call Cloud Run microservice");
+        console.log("[DEBUG] CLOUD_RUN_AUDIT_URL:", CLOUD_RUN_AUDIT_URL);
+        console.log("[DEBUG] empresaId:", empresaId);
+        console.log("[DEBUG] informeId:", informeId);
+        console.log("[DEBUG] storagePath:", storagePath);
+
         let docxBuffer: ArrayBuffer;
 
         if (CLOUD_RUN_AUDIT_URL) {
-            // Get Identity Token for IAM auth
-            let identityToken: string;
-            try {
-                identityToken = await getIdentityToken(CLOUD_RUN_AUDIT_URL);
-            } catch (tokenError) {
-                console.error("Failed to get identity token:", tokenError);
+            // Use INTERNAL_API_TOKEN for authentication (GCP metadata server not available in Supabase)
+            console.log("[DEBUG] Calling Cloud Run with INTERNAL_API_TOKEN...");
+
+            if (!INTERNAL_API_TOKEN) {
+                console.error("[DEBUG] INTERNAL_API_TOKEN not configured");
                 return new Response(
                     JSON.stringify({
-                        error: "Error de autenticación con Cloud Run",
-                        details: String(tokenError)
+                        error: "INTERNAL_API_TOKEN no configurado",
+                        details: "Configure el secret INTERNAL_API_TOKEN en Supabase"
                     }),
                     { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
                 );
@@ -412,7 +454,7 @@ serve(async (req) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${identityToken}`
+                    "X-API-Key": INTERNAL_API_TOKEN
                 },
                 body: JSON.stringify(microservicePayload)
             });
@@ -434,7 +476,11 @@ serve(async (req) => {
             docxBuffer = await upstream.arrayBuffer();
         } else {
             // Simulation mode: Return success without PDF
-            console.log("Microservice not configured, creating draft record only");
+            console.log("[DEBUG] Fallback mode: CLOUD_RUN_AUDIT_URL not configured");
+            console.log("[DEBUG] Creating draft record in informes_mercado...");
+            console.log("[DEBUG] informeId:", informeId);
+            console.log("[DEBUG] cliente_id:", metadata.cliente_id);
+            console.log("[DEBUG] user.id:", user.id);
 
             const { data: informeRecord, error: insertError } = await supabaseAdmin
                 .from("informes_mercado")
@@ -452,6 +498,9 @@ serve(async (req) => {
                 })
                 .select()
                 .single();
+
+            console.log("[DEBUG] Insert result - error:", insertError);
+            console.log("[DEBUG] Insert result - data:", informeRecord);
 
             // Insert targets
             if (!insertError && metadata.punto_ids?.length > 0) {

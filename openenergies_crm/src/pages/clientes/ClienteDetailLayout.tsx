@@ -1,10 +1,12 @@
 import { supabase } from '@lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { clienteDetailRoute } from '@router/routes';
 import { useSession } from '@hooks/useSession';
-import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, IdCard, UserCircle } from 'lucide-react';
+import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, IdCard, UserCircle, UserPlus } from 'lucide-react';
 import { formatIBAN } from '@lib/utils';
+import { useState } from 'react';
+import CrearUsuarioClienteModal from './CrearUsuarioClienteModal';
 
 interface ClienteDetallado {
   id: string;
@@ -70,6 +72,8 @@ export default function ClienteDetailLayout() {
   const { id: clienteId } = useParams({ from: clienteDetailRoute.id });
   const location = useLocation();
   const { rol } = useSession();
+  const queryClient = useQueryClient();
+  const [showCrearUsuarioModal, setShowCrearUsuarioModal] = useState(false);
 
   const { data: cliente, isLoading, isError } = useQuery({
     queryKey: ['cliente', clienteId],
@@ -77,13 +81,31 @@ export default function ClienteDetailLayout() {
     enabled: !!clienteId,
   });
 
+  // Verificar si el cliente tiene usuario vinculado
+  const { data: contactoCliente } = useQuery({
+    queryKey: ['contacto_cliente', clienteId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contactos_cliente')
+        .select('user_id')
+        .eq('cliente_id', clienteId)
+        .is('eliminado_en', null)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!clienteId,
+  });
+
+  const isAdmin = rol === 'administrador';
+  const clienteNoTieneUsuario = !contactoCliente;
+
   const basePath = `/app/clientes/${clienteId}`;
   const navLinks = [
     { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
-    { path: `${basePath}/contratos`, label: 'Contratos' },
+    ...(rol !== 'comercial' ? [{ path: `${basePath}/contratos`, label: 'Contratos' }] : []),
     { path: `${basePath}/documentos`, label: 'Documentos' },
     { path: `${basePath}/facturas`, label: 'Facturas' },
-    { path: `${basePath}/actividad`, label: 'Actividad' },
+    ...(rol !== 'comercial' ? [{ path: `${basePath}/actividad`, label: 'Actividad' }] : []),
   ];
 
   if (!clienteId) {
@@ -153,6 +175,22 @@ export default function ClienteDetailLayout() {
               </p>
             </div>
           </div>
+
+          {/* Create User Button (admin only) */}
+          {isAdmin && (
+            <button
+              onClick={() => clienteNoTieneUsuario && setShowCrearUsuarioModal(true)}
+              disabled={!clienteNoTieneUsuario}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold shadow-lg transition-all duration-200 whitespace-nowrap text-sm ${clienteNoTieneUsuario
+                ? 'bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white shadow-fenix-500/25 hover:shadow-fenix-500/40 cursor-pointer'
+                : 'bg-bg-intermediate text-secondary/50 shadow-none cursor-not-allowed opacity-60'
+                }`}
+              title={clienteNoTieneUsuario ? 'Crear acceso al portal para este cliente' : 'Este cliente ya tiene un usuario de acceso'}
+            >
+              <UserPlus size={16} />
+              {clienteNoTieneUsuario ? 'Crear Usuario' : 'Usuario Creado'}
+            </button>
+          )}
 
           {/* Center: Stats Cards */}
           <div className="flex gap-4 lg:gap-6">
@@ -268,6 +306,17 @@ export default function ClienteDetailLayout() {
 
       {/* Tab Content */}
       <Outlet />
+
+      {/* Modal Crear Usuario */}
+      <CrearUsuarioClienteModal
+        clienteId={clienteId}
+        clienteNombre={cliente?.nombre || ''}
+        open={showCrearUsuarioModal}
+        onClose={() => setShowCrearUsuarioModal(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['contacto_cliente', clienteId] });
+        }}
+      />
     </div>
   );
 }

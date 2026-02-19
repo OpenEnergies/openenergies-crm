@@ -5,13 +5,16 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useTheme } from '@hooks/ThemeContext';
 import {
-    MapPin, Zap, Receipt, ArrowLeft, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Flame
+    MapPin, Zap, Receipt, ArrowLeft, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Flame, Layers
 } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, Area, AreaChart
 } from 'recharts';
 import EmpresaLogo from '@components/EmpresaLogo';
+import { useAgrupacionPunto } from '@hooks/useAgrupaciones';
+import { getTipoBadgeClass } from '@components/agrupaciones/AgrupacionesGrid';
+import { useSession } from '@hooks/useSession';
 
 // ─── Types ───
 interface PuntoInfo {
@@ -28,6 +31,7 @@ interface PuntoInfo {
     p4_kw: number | null;
     p5_kw: number | null;
     p6_kw: number | null;
+    agrupacion_id: string | null;
     comercializadora: { nombre: string; logo_url: string | null } | { nombre: string; logo_url: string | null }[] | null;
 }
 
@@ -51,7 +55,7 @@ function usePuntoInfo(puntoId: string | undefined) {
                 .from('puntos_suministro')
                 .select(`
           id, cups, tarifa, tipo_factura, direccion_sum, localidad_sum, provincia_sum,
-          p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw,
+          p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw, agrupacion_id,
           comercializadora:empresas!current_comercializadora_id (nombre, logo_url)
         `)
                 .eq('id', puntoId)
@@ -90,11 +94,14 @@ export default function PuntoDetailPage() {
     const { id } = useParams({ strict: false }) as { id: string };
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const { rol } = useSession();
+    const isCliente = rol === 'cliente';
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
 
     const { data: punto, isLoading: loadingPunto } = usePuntoInfo(id);
     const { data: facturas, isLoading: loadingFacturas } = useFacturacionPuntoByYear(id, selectedYear);
+    const { data: agrupacionInfo } = useAgrupacionPunto(isCliente ? punto?.agrupacion_id : null);
 
     // ─── Derived Data ───
     const consumoAnual = useMemo(() => {
@@ -314,6 +321,21 @@ export default function PuntoDetailPage() {
                     <p className="text-secondary font-medium text-sm mt-1">
                         {[punto.localidad_sum, punto.provincia_sum].filter(Boolean).join(', ') || '—'}
                     </p>
+                    {isCliente && agrupacionInfo && (
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-fenix-500/10">
+                            <Layers className="w-3.5 h-3.5 text-secondary" />
+                            <span className="text-xs text-secondary">Agrupación:</span>
+                            <Link
+                                to={`/app/agrupaciones/${agrupacionInfo.id}` as string}
+                                className="text-xs font-bold text-fenix-600 dark:text-fenix-400 hover:underline"
+                            >
+                                {agrupacionInfo.nombre}
+                            </Link>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${getTipoBadgeClass(agrupacionInfo.tipo)}`}>
+                                {agrupacionInfo.tipo}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Información Adicional */}

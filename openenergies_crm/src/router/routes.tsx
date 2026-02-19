@@ -50,6 +50,8 @@ import AnalyticsPage from '@pages/analytics/AnalyticsPage';
 import ActividadPage from '@pages/analytics/ActividadPage';
 // Informes de Mercado
 import { InformesPage } from '@pages/informes';
+// Agrupaciones
+import AgrupacionDetailPage from '@pages/agrupaciones/AgrupacionDetailPage';
 
 
 // --- 1. RUTA RAÍZ ---
@@ -108,6 +110,7 @@ const puntosRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos
 const puntoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/nuevo', component: () => <PuntoForm /> });
 const puntoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id', component: function EditPunto() { const { id } = useParams({ from: puntoEditRoute.id }); return <PuntoForm id={id} />; } });
 const puntoDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id/detalle', component: PuntoDetailPage });
+const agrupacionDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/agrupaciones/$id', component: AgrupacionDetailPage });
 const contratosRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos', component: ContratosList });
 const contratoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/nuevo', component: () => <ContratoForm /> });
 const contratoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/$id', component: function EditContrato() { const { id } = useParams({ from: contratoEditRoute.id }); return <ContratoForm id={id} />; } });
@@ -237,6 +240,7 @@ const routeTree = rootRoute.addChildren([
     puntoNewRoute,
     puntoDetailRoute,
     puntoEditRoute,
+    agrupacionDetailRoute,
     contratosRoute,
     contratoNewRoute,
     contratoEditRoute,

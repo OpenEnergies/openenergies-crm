@@ -9,7 +9,7 @@ import { useTheme } from '@hooks/ThemeContext';
 import { useSession } from '@hooks/useSession';
 import {
   Trash2, MapPinPlus, XCircle, Edit, X, ExternalLink,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, MapPin
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, MapPin, Layers, Plus
 } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
@@ -18,6 +18,8 @@ import { EmptyState } from '@components/EmptyState';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { clsx } from '@lib/utils';
 import ExportButton from '@components/ExportButton';
+import AgrupacionesGrid from '@components/agrupaciones/AgrupacionesGrid';
+import CrearAgrupacionModal from '@components/agrupaciones/CrearAgrupacionModal';
 
 // ============ TIPOS ============
 interface PuntoConCliente {
@@ -476,6 +478,8 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const { rol } = useSession();
   const navigate = useNavigate();
   const isCliente = rol === 'cliente';
+  const [vistaAgrupaciones, setVistaAgrupaciones] = useState(false);
+  const [showCrearAgrupacion, setShowCrearAgrupacion] = useState(false);
 
   // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
@@ -667,6 +671,32 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
               <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
             </div>
             <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h1>
+            {/* Toggle Puntos / Agrupaciones (solo clientes) */}
+            {isCliente && (
+              <div className="flex items-center bg-bg-intermediate rounded-lg p-0.5 ml-2">
+                <button
+                  onClick={() => setVistaAgrupaciones(false)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                    !vistaAgrupaciones
+                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Puntos
+                </button>
+                <button
+                  onClick={() => setVistaAgrupaciones(true)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                    vistaAgrupaciones
+                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  <Layers size={12} />
+                  Agrupaciones
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -719,12 +749,29 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     </button>
                   </Link>
                 )}
+                {isCliente && (
+                  <button
+                    onClick={() => setShowCrearAgrupacion(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <Plus size={16} />
+                    <span className="hidden sm:inline">Nueva agrupación</span>
+                  </button>
+                )}
               </>
             )}
           </div>
         </div>
       )}
 
+      {/* ═══ Vista Agrupaciones (solo clientes) ═══ */}
+      {isCliente && vistaAgrupaciones && !isDetailView && (
+        <AgrupacionesGrid />
+      )}
+
+      {/* ═══ Vista Puntos (original) ═══ */}
+      {(!isCliente || !vistaAgrupaciones) && (
+      <>
       {/* Estados de carga / error */}
       {isLoading && !isDetailView && (
         <div className="glass-card p-12 flex items-center justify-center">
@@ -1070,6 +1117,16 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
           cancelText="Cancelar"
           confirmButtonClass="danger"
           isConfirming={deletePuntoMutation.isPending}
+        />
+      )}
+      </>
+      )}
+
+      {/* Modal crear agrupación - Solo clientes */}
+      {isCliente && (
+        <CrearAgrupacionModal
+          isOpen={showCrearAgrupacion}
+          onClose={() => setShowCrearAgrupacion(false)}
         />
       )}
     </div>

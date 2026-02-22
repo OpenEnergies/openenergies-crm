@@ -101,6 +101,7 @@ export default function ClienteDetailLayout() {
 
   const basePath = `/app/clientes/${clienteId}`;
   const navLinks = [
+    { path: `${basePath}/global`, label: 'Global' },
     { path: `${basePath}/puntos`, label: 'Puntos de Suministro' },
     ...(rol !== 'comercial' ? [{ path: `${basePath}/contratos`, label: 'Contratos' }] : []),
     { path: `${basePath}/documentos`, label: 'Documentos' },
@@ -151,13 +152,19 @@ export default function ClienteDetailLayout() {
   return (
     <div className="space-y-6">
       {/* Back Link */}
-      <Link
-        to="/app/clientes"
-        className="inline-flex items-center gap-2 text-secondary hover:text-primary transition-colors font-medium"
+      <button
+        onClick={() => {
+          if (window.history.length > 2) {
+            window.history.back();
+          } else {
+            window.location.href = '/app/clientes';
+          }
+        }}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
+        title="Volver"
       >
-        <ArrowLeft size={16} />
-        Volver a Clientes
-      </Link>
+        <ArrowLeft size={18} />
+      </button>
 
       {/* Client Header */}
       <div className="glass-card p-6">
@@ -291,6 +298,7 @@ export default function ClienteDetailLayout() {
             <Link
               key={link.path}
               to={link.path}
+              replace={true}
               className={`
                 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all duration-200
                 ${isActive

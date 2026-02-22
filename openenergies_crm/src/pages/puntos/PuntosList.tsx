@@ -478,8 +478,14 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const { rol } = useSession();
   const navigate = useNavigate();
   const isCliente = rol === 'cliente';
-  const [vistaAgrupaciones, setVistaAgrupaciones] = useState(false);
+  const [vistaAgrupaciones, setVistaAgrupaciones] = useState(() => {
+    return sessionStorage.getItem('vistaPuntos') === 'agrupaciones';
+  });
   const [showCrearAgrupacion, setShowCrearAgrupacion] = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem('vistaPuntos', vistaAgrupaciones ? 'agrupaciones' : 'puntos');
+  }, [vistaAgrupaciones]);
 
   // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
@@ -676,21 +682,19 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
               <div className="flex items-center bg-bg-intermediate rounded-lg p-0.5 ml-2">
                 <button
                   onClick={() => setVistaAgrupaciones(false)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
-                    !vistaAgrupaciones
-                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
-                      : 'text-secondary hover:text-primary'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${!vistaAgrupaciones
+                    ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                    : 'text-secondary hover:text-primary'
+                    }`}
                 >
                   Puntos
                 </button>
                 <button
                   onClick={() => setVistaAgrupaciones(true)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
-                    vistaAgrupaciones
-                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
-                      : 'text-secondary hover:text-primary'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${vistaAgrupaciones
+                    ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                    : 'text-secondary hover:text-primary'
+                    }`}
                 >
                   <Layers size={12} />
                   Agrupaciones
@@ -771,355 +775,378 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
 
       {/* ═══ Vista Puntos (original) ═══ */}
       {(!isCliente || !vistaAgrupaciones) && (
-      <>
-      {/* Estados de carga / error */}
-      {isLoading && !isDetailView && (
-        <div className="glass-card p-12 flex items-center justify-center">
-          <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
-          <p className="ml-3 text-secondary font-medium">Cargando puntos de suministro...</p>
-        </div>
-      )}
-
-      {isError && (
-        <div className="glass-card p-6 bg-red-500/10 border-red-500/20 text-red-200">
-          <p>Error al cargar puntos. Por favor intenta de nuevo.</p>
-        </div>
-      )}
-
-      <div className="glass-card overflow-hidden">
-        {/* Integrated Header for Detail View */}
-        {isDetailView && (
-          <div className="p-6 border-b border-bg-intermediate">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              {/* Left: Icon + Title + Counter */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-fenix-500" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h2>
-                  <p className="text-sm text-gray-400">
-                    {totalItems} puntos encontrados
-                  </p>
-                </div>
-              </div>
-
-              {/* Right: Search + Export */}
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className="flex items-center gap-2 flex-1 md:flex-initial">
-                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
-                    <Search size={16} />
-                    Buscar
-                  </label>
-                  <input
-                    placeholder="CUPS, Dirección..."
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
-                    className="glass-input w-full md:w-64"
-                  />
-                </div>
-                <ExportButton
-                  entity="puntos_suministro"
-                  preFilters={{
-                    cliente_id: clienteId,
-                    comercializadora_id: empresaId,
-                    search: filter
-                  }}
-                  label="Exportar"
-                />
-              </div>
+        <>
+          {/* Estados de carga / error */}
+          {isLoading && !isDetailView && (
+            <div className="glass-card p-12 flex items-center justify-center">
+              <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
+              <p className="ml-3 text-secondary font-medium">Cargando puntos de suministro...</p>
             </div>
-          </div>
-        )}
-        {/* Estados vacíos */}
-        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && !clienteId && (
-          <EmptyState
-            title="Sin puntos de suministro"
-            description="Aún no hay puntos de suministro (CUPS) registrados."
-            cta={<Link to="/app/puntos/nuevo"><button className="mt-4 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg">Crear el primero</button></Link>}
-          />
-        )}
-        {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (
-          <div className="p-12 text-center text-gray-400">
-            <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-bg-intermediate mx-auto">
-              <MapPin size={32} className="opacity-50" />
-            </div>
-            <p>Este cliente no tiene puntos de suministro asignados.</p>
-          </div>
-        )}
-        {!isLoading && !isError && fetchedData && fetchedData.length > 0 && displayedData.length === 0 && isFiltered && (
-          <div className="p-12 text-center text-gray-400">
-            <Search size={32} className="mx-auto mb-4 opacity-50" />
-            <p>No se encontraron puntos que coincidan con los filtros.</p>
-            <button onClick={() => { setFilter(''); setColumnFilters(initialColumnFilters); }} className="mt-2 text-fenix-400 hover:text-fenix-400">Limpiar filtros</button>
-          </div>
-        )}
+          )}
 
-        {/* Tabla */}
-        {!isLoading && !isError && displayedData && displayedData.length > 0 && (
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left">
-              <thead>
-                <tr
-                  className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
-                  style={{ borderBottomColor: tableBorderColor }}
-                >
-                  {!isCliente && (
-                    <th className="w-10 p-4 text-left">
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected}
-                        ref={input => { if (input) input.indeterminate = isIndeterminate; }}
-                        onChange={handleSelectAll}
-                        aria-label="Seleccionar todos los puntos"
-                        className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
-                      />
-                    </th>
-                  )}
-                  {isCliente ? (
-                    /* CLIENT VIEW: Dirección, Comercializadora, CUPS, Tipo (Luz/Gas), Tarifa */
-                    <>
-                      <th className="p-4 text-left">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
-                      </th>
-                      <th className="p-4 text-left">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
-                      </th>
-                      <th className="p-4 text-left">
-                        <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                          CUPS {renderSortIcon('cups')}
-                        </button>
-                      </th>
-                      <th className="p-4 text-left">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Tipo</span>
-                      </th>
-                      <th className="p-4 text-left">
-                        <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                          Tarifa {renderSortIcon('tarifa')}
-                        </button>
-                      </th>
-                    </>
-                  ) : (
-                    /* ADMIN / COMERCIAL VIEW: Original columns */
-                    <>
-                      {!hideClienteColumn && (
-                        <th className="p-4 text-left">
-                          <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                            Cliente {renderSortIcon('cliente_nombre')}
+          {isError && (
+            <div className="glass-card p-6 bg-red-500/10 border-red-500/20 text-red-200">
+              <p>Error al cargar puntos. Por favor intenta de nuevo.</p>
+            </div>
+          )}
+
+          <div className="glass-card overflow-hidden">
+            {/* Integrated Header for Detail View */}
+            {isDetailView && (
+              <div className="p-6 border-b border-bg-intermediate">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  {/* Left: Icon + Title + Counter */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-fenix-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h2>
+                      <p className="text-sm text-gray-400">
+                        {totalItems} puntos encontrados
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right: Search + Export */}
+                  <div className={`flex items-center gap-3 ${selectedIds.length > 0 ? 'w-full justify-between md:justify-end md:w-auto' : 'w-full md:w-auto'}`}>
+                    {!isCliente && selectedIds.length > 0 ? (
+                      /* Selection action bar */
+                      <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2 w-full md:w-auto justify-between md:justify-start">
+                        <span className="text-sm text-fenix-400 font-medium">{selectedIds.length} seleccionado(s)</span>
+                        <div className="flex items-center gap-1 ml-2">
+                          {selectedIds.length === 1 && selectedIds[0] && (
+                            <Link to="/app/puntos/$id" params={{ id: selectedIds[0] }} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer">
+                              <Edit size={16} />
+                            </Link>
+                          )}
+                          <button onClick={handleDeleteSelected} disabled={deletePuntoMutation.isPending} className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer">
+                            <Trash2 size={16} />
                           </button>
+                          <button onClick={() => setSelectedIds([])} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer">
+                            <XCircle size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                          <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                            <Search size={16} />
+                            Buscar
+                          </label>
+                          <input
+                            placeholder="CUPS, Dirección..."
+                            value={filter}
+                            onChange={e => setFilter(e.target.value)}
+                            className="glass-input w-full md:w-64"
+                          />
+                        </div>
+                        <ExportButton
+                          entity="puntos_suministro"
+                          preFilters={{
+                            cliente_id: clienteId,
+                            comercializadora_id: empresaId,
+                            search: filter
+                          }}
+                          label="Exportar"
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Estados vacíos */}
+            {!isLoading && !isError && fetchedData && fetchedData.length === 0 && !isFiltered && !clienteId && (
+              <EmptyState
+                title="Sin puntos de suministro"
+                description="Aún no hay puntos de suministro (CUPS) registrados."
+                cta={<Link to="/app/puntos/nuevo"><button className="mt-4 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg">Crear el primero</button></Link>}
+              />
+            )}
+            {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (
+              <div className="p-12 text-center text-gray-400">
+                <div className="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-bg-intermediate mx-auto">
+                  <MapPin size={32} className="opacity-50" />
+                </div>
+                <p>Este cliente no tiene puntos de suministro asignados.</p>
+              </div>
+            )}
+            {!isLoading && !isError && fetchedData && fetchedData.length > 0 && displayedData.length === 0 && isFiltered && (
+              <div className="p-12 text-center text-gray-400">
+                <Search size={32} className="mx-auto mb-4 opacity-50" />
+                <p>No se encontraron puntos que coincidan con los filtros.</p>
+                <button onClick={() => { setFilter(''); setColumnFilters(initialColumnFilters); }} className="mt-2 text-fenix-400 hover:text-fenix-400">Limpiar filtros</button>
+              </div>
+            )}
+
+            {/* Tabla */}
+            {!isLoading && !isError && displayedData && displayedData.length > 0 && (
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr
+                      className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
+                      style={{ borderBottomColor: tableBorderColor }}
+                    >
+                      {!isCliente && (
+                        <th className="w-10 p-4 text-left">
+                          <input
+                            type="checkbox"
+                            checked={isAllSelected}
+                            ref={input => { if (input) input.indeterminate = isIndeterminate; }}
+                            onChange={handleSelectAll}
+                            aria-label="Seleccionar todos los puntos"
+                            className="w-5 h-5 rounded-full border-2 border-slate-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                          />
                         </th>
                       )}
-                      <th className="p-4 text-left">
-                        <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                          CUPS {renderSortIcon('cups')}
-                        </button>
-                      </th>
-                      <th className="p-4 text-left">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                            Estado {renderSortIcon('estado')}
-                          </button>
-                          <ColumnFilterDropdown
-                            columnName="Estado"
-                            options={filterOptions.estado}
-                            selectedOptions={columnFilters.estado}
-                            onChange={(selected) => handleColumnFilterChange('estado', selected)}
-                          />
-                        </div>
-                      </th>
-                      <th className="p-4 text-left">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                            Tarifa {renderSortIcon('tarifa')}
-                          </button>
-                          <ColumnFilterDropdown
-                            columnName="Tarifa"
-                            options={filterOptions.tarifa}
-                            selectedOptions={columnFilters.tarifa}
-                            onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
-                          />
-                        </div>
-                      </th>
-                      <th className="p-4 text-right">
-                        <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
-                          kWh/año {renderSortIcon('consumo_anual_kwh')}
-                        </button>
-                      </th>
-                      <th className="p-4 text-right">
-                        <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
-                          Creado {renderSortIcon('creado_en')}
-                        </button>
-                      </th>
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-fenix-500/10">
-                {displayedData.map(p => {
-                  const isSelected = selectedIds.includes(p.id);
-
-                  if (isCliente) {
-                    // CLIENT ROW: Entire row is a link to detail page
-                    return (
-                      <tr
-                        key={p.id}
-                        className="hover:bg-fenix-500/8 transition-colors cursor-pointer"
-                        onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
-                      >
-                        <td className="p-4">
-                          <span className="text-primary text-sm">{getDireccionCompleta(p)}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-primary text-sm">{getComercializadoraNombre(p)}</span>
-                        </td>
-                        <td className="p-4">
-                          <code className="font-bold text-fenix-600 dark:text-fourth font-mono text-sm">{p.cups}</code>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
-                            {p.tipo_factura || '—'}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
-                            {p.tarifa || '—'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  // ADMIN/COMERCIAL ROW: Original behavior
-                  return (
-                    <tr key={p.id} className={clsx('hover:bg-fenix-500/8 transition-colors', isSelected && 'bg-fenix-500/15 hover:bg-fenix-500/20')}>
-                      <td className="p-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleRowSelect(p.id)}
-                          aria-label={`Seleccionar punto ${p.cups}`}
-                          className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
-                        />
-                      </td>
-                      {!hideClienteColumn && (
-                        <td className="p-4">
-                          {p.clientes && Array.isArray(p.clientes) && p.clientes[0] ? (
-                            <Link to="/app/clientes/$id" params={{ id: p.clientes[0].id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
-                              {p.clientes[0].nombre}
-                            </Link>
-                          ) : (p.clientes && !Array.isArray(p.clientes) && (p.clientes as any).nombre) ? (
-                            <Link to="/app/clientes/$id" params={{ id: (p.clientes as any).id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
-                              {(p.clientes as any).nombre}
-                            </Link>
-                          ) : <span className="text-secondary opacity-60">—</span>}
-                        </td>
+                      {isCliente ? (
+                        /* CLIENT VIEW: Dirección, Comercializadora, CUPS, Tipo (Luz/Gas), Tarifa */
+                        <>
+                          <th className="p-4 text-left">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
+                          </th>
+                          <th className="p-4 text-left">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                          </th>
+                          <th className="p-4 text-left">
+                            <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                              CUPS {renderSortIcon('cups')}
+                            </button>
+                          </th>
+                          <th className="p-4 text-left">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Tipo</span>
+                          </th>
+                          <th className="p-4 text-left">
+                            <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                              Tarifa {renderSortIcon('tarifa')}
+                            </button>
+                          </th>
+                        </>
+                      ) : (
+                        /* ADMIN / COMERCIAL VIEW: Original columns */
+                        <>
+                          {!hideClienteColumn && (
+                            <th className="p-4 text-left">
+                              <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Cliente {renderSortIcon('cliente_nombre')}
+                              </button>
+                            </th>
+                          )}
+                          <th className="p-4 text-left">
+                            <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                              CUPS {renderSortIcon('cups')}
+                            </button>
+                          </th>
+                          <th className="p-4 text-left">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Estado {renderSortIcon('estado')}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Estado"
+                                options={filterOptions.estado}
+                                selectedOptions={columnFilters.estado}
+                                onChange={(selected) => handleColumnFilterChange('estado', selected)}
+                              />
+                            </div>
+                          </th>
+                          <th className="p-4 text-left">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Tarifa {renderSortIcon('tarifa')}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Tarifa"
+                                options={filterOptions.tarifa}
+                                selectedOptions={columnFilters.tarifa}
+                                onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
+                              />
+                            </div>
+                          </th>
+                          <th className="p-4 text-right">
+                            <button onClick={() => handleSort('consumo_anual_kwh')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                              kWh/año {renderSortIcon('consumo_anual_kwh')}
+                            </button>
+                          </th>
+                          <th className="p-4 text-right">
+                            <button onClick={() => handleSort('creado_en')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer">
+                              Creado {renderSortIcon('creado_en')}
+                            </button>
+                          </th>
+                        </>
                       )}
-                      <td className="p-4">
-                        <button
-                          className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm"
-                          onClick={() => setSelectedPunto(p)}
-                          title="Ver detalle del punto"
-                        >
-                          {p.cups}
-                        </button>
-                      </td>
-                      <td className="p-4">
-                        <EstadoDropdown
-                          puntoId={p.id}
-                          currentEstado={p.estado}
-                          onUpdate={handleRefresh}
-                        />
-                      </td>
-                      <td className="p-4">
-                        <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
-                          {p.tarifa || '—'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right text-secondary font-bold">
-                        {p.consumo_anual_kwh?.toLocaleString() || '—'}
-                      </td>
-                      <td className="p-4 text-right text-sm text-secondary opacity-60 font-medium">
-                        {p.creado_en ? new Date(p.creado_en).toLocaleDateString('es-ES') : '—'}
-                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-fenix-500/10">
+                    {displayedData.map(p => {
+                      const isSelected = selectedIds.includes(p.id);
+
+                      if (isCliente) {
+                        // CLIENT ROW: Entire row is a link to detail page
+                        return (
+                          <tr
+                            key={p.id}
+                            className="hover:bg-fenix-500/8 transition-colors cursor-pointer"
+                            onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
+                          >
+                            <td className="p-4">
+                              <span className="text-primary text-sm">{getDireccionCompleta(p)}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-primary text-sm">{getComercializadoraNombre(p)}</span>
+                            </td>
+                            <td className="p-4">
+                              <code className="font-bold text-fenix-600 dark:text-fourth font-mono text-sm">{p.cups}</code>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                                {p.tipo_factura || '—'}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                                {p.tarifa || '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // ADMIN/COMERCIAL ROW: Original behavior
+                      return (
+                        <tr key={p.id} className={clsx('hover:bg-fenix-500/8 transition-colors', isSelected && 'bg-fenix-500/15 hover:bg-fenix-500/20')}>
+                          <td className="p-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleRowSelect(p.id)}
+                              aria-label={`Seleccionar punto ${p.cups}`}
+                              className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                            />
+                          </td>
+                          {!hideClienteColumn && (
+                            <td className="p-4">
+                              {p.clientes && Array.isArray(p.clientes) && p.clientes[0] ? (
+                                <Link to="/app/clientes/$id" params={{ id: p.clientes[0].id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
+                                  {p.clientes[0].nombre}
+                                </Link>
+                              ) : (p.clientes && !Array.isArray(p.clientes) && (p.clientes as any).nombre) ? (
+                                <Link to="/app/clientes/$id" params={{ id: (p.clientes as any).id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer">
+                                  {(p.clientes as any).nombre}
+                                </Link>
+                              ) : <span className="text-secondary opacity-60">—</span>}
+                            </td>
+                          )}
+                          <td className="p-4">
+                            <Link
+                              to="/app/puntos/$id/detalle"
+                              params={{ id: p.id }}
+                              className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm block min-w-max"
+                              title="Ver detalle del punto"
+                            >
+                              {p.cups}
+                            </Link>
+                          </td>
+                          <td className="p-4">
+                            <EstadoDropdown
+                              puntoId={p.id}
+                              currentEstado={p.estado}
+                              onUpdate={handleRefresh}
+                            />
+                          </td>
+                          <td className="p-4">
+                            <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                              {p.tarifa || '—'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right text-secondary font-bold">
+                            {p.consumo_anual_kwh?.toLocaleString() || '—'}
+                          </td>
+                          <td className="p-4 text-right text-sm text-secondary opacity-60 font-medium">
+                            {p.creado_en ? new Date(p.creado_en).toLocaleDateString('es-ES') : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Paginación */}
+            {!isLoading && !isError && totalItems > 0 && (
+              <div
+                className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t"
+                style={{ borderTopColor: tableBorderColor }}
+              >
+                <div className="text-sm text-secondary">
+                  Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    title="Primera página"
+                  >
+                    <ChevronsLeft size={18} />
+                  </button>
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    title="Página anterior"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    title="Página siguiente"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    title="Última página"
+                  >
+                    <ChevronsRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Paginación */}
-        {!isLoading && !isError && totalItems > 0 && (
-          <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t"
-            style={{ borderTopColor: tableBorderColor }}
-          >
-            <div className="text-sm text-secondary">
-              Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                title="Primera página"
-              >
-                <ChevronsLeft size={18} />
-              </button>
-              <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                title="Página anterior"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                title="Página siguiente"
-              >
-                <ChevronRight size={18} />
-              </button>
-              <button
-                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                title="Última página"
-              >
-                <ChevronsRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          {/* Modal detalle CUPS - Only for non-client roles */}
+          {!isCliente && selectedPunto && (
+            <PuntoDetailModal punto={selectedPunto} onClose={() => setSelectedPunto(null)} />
+          )}
 
-      {/* Modal detalle CUPS - Only for non-client roles */}
-      {!isCliente && selectedPunto && (
-        <PuntoDetailModal punto={selectedPunto} onClose={() => setSelectedPunto(null)} />
-      )}
-
-      {/* Modal confirmación eliminar - Only for non-client roles */}
-      {!isCliente && (
-        <ConfirmationModal
-          isOpen={idsToDelete.length > 0}
-          onClose={() => setIdsToDelete([])}
-          onConfirm={() => { deletePuntoMutation.mutate(idsToDelete); }}
-          title={`Confirmar Eliminación (${idsToDelete.length})`}
-          message={
-            idsToDelete.length === 1
-              ? `¿Estás seguro de que quieres eliminar el punto de suministro seleccionado? Si tiene contratos o datos asociados, no se podrá eliminar.`
-              : `¿Estás seguro de que quieres eliminar los ${idsToDelete.length} puntos de suministro seleccionados? Los puntos con contratos o datos asociados no se eliminarán.`
-          }
-          confirmText={`Sí, Eliminar ${idsToDelete.length}`}
-          cancelText="Cancelar"
-          confirmButtonClass="danger"
-          isConfirming={deletePuntoMutation.isPending}
-        />
-      )}
-      </>
+          {/* Modal confirmación eliminar - Only for non-client roles */}
+          {!isCliente && (
+            <ConfirmationModal
+              isOpen={idsToDelete.length > 0}
+              onClose={() => setIdsToDelete([])}
+              onConfirm={() => { deletePuntoMutation.mutate(idsToDelete); }}
+              title={`Confirmar Eliminación (${idsToDelete.length})`}
+              message={
+                idsToDelete.length === 1
+                  ? `¿Estás seguro de que quieres eliminar el punto de suministro seleccionado? Si tiene contratos o datos asociados, no se podrá eliminar.`
+                  : `¿Estás seguro de que quieres eliminar los ${idsToDelete.length} puntos de suministro seleccionados? Los puntos con contratos o datos asociados no se eliminarán.`
+              }
+              confirmText={`Sí, Eliminar ${idsToDelete.length}`}
+              cancelText="Cancelar"
+              confirmButtonClass="danger"
+              isConfirming={deletePuntoMutation.isPending}
+            />
+          )}
+        </>
       )}
 
       {/* Modal crear agrupación - Solo clientes */}

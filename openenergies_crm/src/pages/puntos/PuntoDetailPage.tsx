@@ -1,6 +1,6 @@
 // src/pages/puntos/PuntoDetailPage.tsx
 import { useState, useMemo } from 'react';
-import { useParams, Link } from '@tanstack/react-router';
+import { useParams, Link, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useTheme } from '@hooks/ThemeContext';
@@ -22,7 +22,10 @@ interface PuntoInfo {
     cups: string;
     tarifa: string | null;
     tipo_factura: string | null;
+    estado: string | null;
     direccion_sum: string;
+    direccion_fisc: string | null;
+    direccion_post: string | null;
     localidad_sum: string | null;
     provincia_sum: string | null;
     p1_kw: number | null;
@@ -33,6 +36,7 @@ interface PuntoInfo {
     p6_kw: number | null;
     agrupacion_id: string | null;
     comercializadora: { nombre: string; logo_url: string | null } | { nombre: string; logo_url: string | null }[] | null;
+    cliente: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
 }
 
 interface FacturaRow {
@@ -54,14 +58,38 @@ function usePuntoInfo(puntoId: string | undefined) {
             const { data, error } = await supabase
                 .from('puntos_suministro')
                 .select(`
-          id, cups, tarifa, tipo_factura, direccion_sum, localidad_sum, provincia_sum,
+          id, cups, tarifa, tipo_factura, estado, direccion_sum, direccion_fisc, direccion_post, localidad_sum, provincia_sum,
           p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw, agrupacion_id,
-          comercializadora:empresas!current_comercializadora_id (nombre, logo_url)
+          comercializadora:empresas!current_comercializadora_id (nombre, logo_url),
+          cliente:clientes!cliente_id (id, nombre)
         `)
                 .eq('id', puntoId)
                 .single();
             if (error) throw error;
             return data as PuntoInfo;
+        },
+        enabled: !!puntoId,
+    });
+}
+
+function usePuntoContrato(puntoId: string | undefined) {
+    return useQuery({
+        queryKey: ['punto-contrato', puntoId],
+        queryFn: async () => {
+            if (!puntoId) throw new Error('No punto ID');
+            const { data, error } = await supabase
+                .from('contratos')
+                .select(`
+                    id, estado, fotovoltaica, cobrado,
+                    fecha_activacion, fecha_renovacion, fecha_baja, 
+                    fecha_firma, permanencia, fecha_permanencia
+                `)
+                .eq('punto_id', puntoId)
+                .order('creado_en', { ascending: false })
+                .limit(1)
+                .single();
+            if (error && error.code !== 'PGRST116') throw error;
+            return data;
         },
         enabled: !!puntoId,
     });
@@ -92,6 +120,7 @@ function useFacturacionPuntoByYear(puntoId: string | undefined, year: number) {
 // ─── Main Component ───
 export default function PuntoDetailPage() {
     const { id } = useParams({ strict: false }) as { id: string };
+    const navigate = useNavigate();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const { rol } = useSession();
@@ -101,7 +130,18 @@ export default function PuntoDetailPage() {
 
     const { data: punto, isLoading: loadingPunto } = usePuntoInfo(id);
     const { data: facturas, isLoading: loadingFacturas } = useFacturacionPuntoByYear(id, selectedYear);
+    const { data: contractInfo, isLoading: loadingContract } = usePuntoContrato(id);
     const { data: agrupacionInfo } = useAgrupacionPunto(isCliente ? punto?.agrupacion_id : null);
+
+    const getEstadoBadge = (estado: string | null) => {
+        if (!estado) return null;
+        const e = estado.toLowerCase();
+        let bg = 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300';
+        if (e === 'activo') bg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400';
+        else if (e === 'baja') bg = 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
+        else if (e.includes('pte') || e.includes('proceso')) bg = 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400';
+        return <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${bg}`}>{estado}</span>;
+    };
 
     // ─── Derived Data ───
     const consumoAnual = useMemo(() => {
@@ -225,14 +265,28 @@ export default function PuntoDetailPage() {
         <div className="flex flex-col gap-5 animate-fade-in">
             {/* ─── Header ─── */}
             <div className="flex items-center gap-4">
-                <Link to="/app/puntos" className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors">
+                <button
+                    onClick={() => {
+                        if (window.history.length > 2) {
+                            window.history.back();
+                        } else {
+                            navigate({ to: '/app/puntos' });
+                        }
+                    }}
+                    className="p-2 cursor-pointer rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors"
+                >
                     <ArrowLeft size={20} />
-                </Link>
+                </button>
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
                         <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
                     </div>
-                    <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Detalle del Punto</h1>
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Detalle del Punto</h1>
+                            {getEstadoBadge(punto.estado)}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -307,22 +361,48 @@ export default function PuntoDetailPage() {
 
             {/* ═══ ROW 2: Dirección + Info Adicional ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Dirección de Suministro */}
+                {/* Direcciones (Admin sees sum, fisc, post. Cliente sees sum) */}
                 <div className="glass-card p-5">
                     <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-lg bg-fenix-500/15 flex items-center justify-center">
                             <MapPin className="w-4 h-4 text-fenix-500" />
                         </div>
-                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Dirección de Suministro</p>
+                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">
+                            {!isCliente ? "Direcciones" : "Dirección de Suministro"}
+                        </p>
                     </div>
-                    <p className="text-primary font-bold text-base leading-relaxed break-words">
-                        {punto.direccion_sum || '—'}
-                    </p>
-                    <p className="text-secondary font-medium text-sm mt-1">
-                        {[punto.localidad_sum, punto.provincia_sum].filter(Boolean).join(', ') || '—'}
-                    </p>
+
+                    <div className="space-y-4">
+                        <div>
+                            {!isCliente && <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-0.5">Suministro</span>}
+                            <p className="text-primary font-bold text-base leading-relaxed break-words">
+                                {punto.direccion_sum || '—'}
+                            </p>
+                            <p className="text-secondary font-medium text-sm mt-1">
+                                {[punto.localidad_sum, punto.provincia_sum].filter(Boolean).join(', ') || '—'}
+                            </p>
+                        </div>
+
+                        {!isCliente && (punto.direccion_fisc || punto.direccion_post) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-fenix-500/10">
+                                {punto.direccion_fisc && (
+                                    <div>
+                                        <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-0.5">Fiscal</span>
+                                        <p className="text-primary font-medium text-sm leading-snug break-words">{punto.direccion_fisc}</p>
+                                    </div>
+                                )}
+                                {punto.direccion_post && (
+                                    <div>
+                                        <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-0.5">Postal</span>
+                                        <p className="text-primary font-medium text-sm leading-snug break-words">{punto.direccion_post}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     {isCliente && agrupacionInfo && (
-                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-fenix-500/10">
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-fenix-500/10">
                             <Layers className="w-3.5 h-3.5 text-secondary" />
                             <span className="text-xs text-secondary">Agrupación:</span>
                             <Link
@@ -339,37 +419,107 @@ export default function PuntoDetailPage() {
                 </div>
 
                 {/* Información Adicional */}
-                <div className="glass-card p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                            <Receipt className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Información adicional</p>
-                    </div>
-                    <div className="flex items-stretch gap-4">
-                        {/* Left: Comercializadora + CUPS */}
-                        <div className="flex-1 space-y-3">
-                            <div>
-                                <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">Comercializadora</span>
-                                <span className="text-primary font-bold">{comercializadoraNombre}</span>
+                <div className="glass-card p-5 flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                                <Receipt className="w-4 h-4 text-blue-500" />
                             </div>
-                            <div>
-                                <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">CUPS</span>
-                                <code className="text-primary font-bold font-mono text-sm">{punto.cups}</code>
-                            </div>
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Información adicional</p>
                         </div>
-                        {/* Right: Logo large, vertically centered */}
-                        <div className="flex-1 flex items-center justify-center">
-                            <EmpresaLogo
-                                logoUrl={comercializadoraLogoUrl}
-                                nombre={comercializadoraNombre}
-                                size="lg"
-                                className="!w-24 !h-24 !rounded-2xl"
-                            />
+                        <div className="flex items-stretch gap-4">
+                            {/* Left: Comercializadora + CUPS + Cliente */}
+                            <div className="flex-1 space-y-3">
+                                <div>
+                                    <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">Comercializadora</span>
+                                    <span className="text-primary font-bold">{comercializadoraNombre}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] text-secondary font-medium uppercase tracking-wider mb-0.5">CUPS</span>
+                                    <code className="text-primary font-bold font-mono text-sm">{punto.cups}</code>
+
+                                    {!isCliente && punto.cliente && (
+                                        <div className="mt-1">
+                                            <span className="block text-[10px] text-secondary font-medium uppercase tracking-wider">Cliente</span>
+                                            <span className="text-sm font-bold text-fenix-600 dark:text-fenix-400 truncate block">
+                                                {Array.isArray(punto.cliente) ? punto.cliente[0]?.nombre : punto.cliente.nombre}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Right: Logo large */}
+                            <div className="flex-1 flex items-center justify-center">
+                                <EmpresaLogo
+                                    logoUrl={comercializadoraLogoUrl}
+                                    nombre={comercializadoraNombre}
+                                    size="lg"
+                                    className="!w-24 !h-24 !rounded-2xl"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* ═══ ROW 3: Datos del Contrato (Admin Only) ═══ */}
+            {!isCliente && (
+                <div className="glass-card p-5 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-fenix-500" />
+
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-fenix-500/15 flex items-center justify-center">
+                            <Receipt className="w-4 h-4 text-fenix-500" />
+                        </div>
+                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Datos del Contrato</p>
+                    </div>
+
+                    {loadingContract ? (
+                        <p className="text-sm text-secondary animate-pulse">Cargando contrato...</p>
+                    ) : contractInfo ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                            <div>
+                                <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-1">Estado</span>
+                                {getEstadoBadge(contractInfo.estado)}
+                            </div>
+                            <div>
+                                <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-1">Fotovoltaica</span>
+                                <span className="text-sm font-bold text-primary">{contractInfo.fotovoltaica || 'No definida'}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-1">Facturación</span>
+                                <span className="text-sm font-bold text-primary">
+                                    {contractInfo.cobrado ? 'Cobrado' : 'Pte. Cobro/Indefinido'}
+                                </span>
+                            </div>
+
+                            <div className="lg:col-span-1 space-y-2">
+                                <span className="block text-[10px] text-secondary font-bold uppercase tracking-wider mb-1">Fechas Clave</span>
+                                {contractInfo.fecha_activacion && (
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-secondary">Activación:</span>
+                                        <span className="font-medium text-primary">{new Date(contractInfo.fecha_activacion).toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                                {contractInfo.fecha_renovacion && (
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-secondary">Renovación:</span>
+                                        <span className="font-medium text-primary">{new Date(contractInfo.fecha_renovacion).toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                                {contractInfo.fecha_baja && (
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-secondary">Baja:</span>
+                                        <span className="font-medium text-red-500">{new Date(contractInfo.fecha_baja).toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-secondary italic">No se ha encontrado ningún contrato relacionado al punto.</p>
+                    )}
+                </div>
+            )}
 
             {/* ═══ YEAR SELECTOR ═══ */}
             <div className="flex items-center justify-center gap-4">

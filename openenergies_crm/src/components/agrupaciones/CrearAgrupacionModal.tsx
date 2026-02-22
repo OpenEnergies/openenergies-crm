@@ -21,7 +21,7 @@ interface Props {
 
 export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
   const [nombre, setNombre] = useState('');
-  const [tipo, setTipo] = useState<TipoAgrupacion>('grupo');
+  const [tipo, setTipo] = useState<TipoAgrupacion>('edificio');
   const [descripcion, setDescripcion] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
@@ -69,7 +69,7 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
 
   const resetAndClose = () => {
     setNombre('');
-    setTipo('grupo');
+    setTipo('edificio');
     setDescripcion('');
     setSelectedIds([]);
     setSearchFilter('');

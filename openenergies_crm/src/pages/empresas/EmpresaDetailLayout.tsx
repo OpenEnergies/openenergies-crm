@@ -76,6 +76,7 @@ export default function EmpresaDetailLayout() {
 
   const basePath = `/app/empresas/${empresaId}`;
   const navLinks = [
+    { path: `${basePath}/global`, label: 'Global' },
     { path: `${basePath}/clientes`, label: 'Clientes' },
     { path: `${basePath}/puntos`, label: 'Puntos' },
     { path: `${basePath}/contratos`, label: 'Contratos' },
@@ -86,7 +87,7 @@ export default function EmpresaDetailLayout() {
   if (!empresaId) {
     return (
       <div className="glass-card p-6 text-red-400">
-        Error: ID de empresa no encontrado en la URL.
+        Error: ID de comercializadora no encontrado en la URL.
       </div>
     );
   }
@@ -95,7 +96,7 @@ export default function EmpresaDetailLayout() {
     return (
       <div className="glass-card p-6 flex items-center justify-center gap-3">
         <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
-        <span className="text-secondary opacity-70 font-medium">Cargando ficha de empresa...</span>
+        <span className="text-secondary opacity-70 font-medium">Cargando ficha de comercializadora...</span>
       </div>
     );
   }
@@ -103,7 +104,7 @@ export default function EmpresaDetailLayout() {
   if (isError || !empresa) {
     return (
       <div className="glass-card p-6 text-red-400">
-        Error al cargar los datos de la empresa.
+        Error al cargar los datos de la comercializadora.
       </div>
     );
   }
@@ -111,13 +112,19 @@ export default function EmpresaDetailLayout() {
   return (
     <div className="space-y-6">
       {/* Back Link */}
-      <Link
-        to="/app/empresas"
-        className="inline-flex items-center gap-2 text-secondary hover:text-primary transition-colors font-medium text-sm"
+      <button
+        onClick={() => {
+          if (window.history.length > 2) {
+            window.history.back();
+          } else {
+            window.location.href = '/app/empresas';
+          }
+        }}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
+        title="Volver"
       >
-        <ArrowLeft size={16} />
-        Volver a Empresas
-      </Link>
+        <ArrowLeft size={18} />
+      </button>
 
 
       {/* Header Card */}
@@ -133,7 +140,7 @@ export default function EmpresaDetailLayout() {
             <div>
               <h2 className="text-2xl font-bold text-primary">{empresa.nombre}</h2>
               <p className="text-sm text-secondary opacity-70 mt-0.5 font-medium">
-                {empresa.tipo === 'comercializadora' ? 'Comercializadora' : 'Fenix New Energy'}
+                {empresa.tipo === 'comercializadora' ? 'Comercializadora' : 'Interna'}
               </p>
               {empresa.cif && (
                 <p className="text-xs text-secondary opacity-50 mt-1 font-mono">
@@ -150,7 +157,7 @@ export default function EmpresaDetailLayout() {
               to="/app/empresas/$id/editar"
               params={{ id: empresaId }}
               className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors"
-              title="Editar empresa"
+              title="Editar comercializadora"
             >
               <Pencil size={18} />
             </Link>
@@ -205,6 +212,7 @@ export default function EmpresaDetailLayout() {
             <Link
               key={link.path}
               to={link.path}
+              replace={true}
               className={`
                 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all duration-200
                 ${isActive

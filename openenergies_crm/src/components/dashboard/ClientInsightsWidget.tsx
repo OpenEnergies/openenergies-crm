@@ -25,21 +25,29 @@ interface FacturaRow {
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // ── Data Hook: all invoices for the last 12 months ─────────────
-function useClientFacturas() {
+function useClientFacturas(clienteId?: string, empresaId?: string) {
     return useQuery<FacturaRow[]>({
-        queryKey: ['client-dashboard-facturas'],
+        queryKey: ['client-dashboard-facturas', clienteId, empresaId],
         queryFn: async () => {
             const since = new Date();
             since.setFullYear(since.getFullYear() - 1);
             const sinceStr = since.toISOString().split('T')[0];
 
-            const { data, error } = await supabase
+            let query = supabase
                 .from('facturacion_clientes')
                 .select('fecha_emision, consumo_kwh, total, precio_eur_kwh, tipo_factura')
                 .is('eliminado_en', null)
                 .gte('fecha_emision', sinceStr)
                 .order('fecha_emision', { ascending: true });
 
+            if (clienteId) {
+                query = query.eq('cliente_id', clienteId);
+            }
+            if (empresaId) {
+                query = query.eq('comercializadora_id', empresaId);
+            }
+
+            const { data, error } = await query;
             if (error) throw error;
             return (data ?? []) as FacturaRow[];
         },
@@ -48,10 +56,10 @@ function useClientFacturas() {
 }
 
 // ── Main Component (KPIs + 3 monthly charts) ───────────────────
-export default function ClientInsightsWidget() {
+export default function ClientInsightsWidget({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas();
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId);
 
     // ── Derived data ──
     const consumoAnual = useMemo(() => {
@@ -261,10 +269,10 @@ export default function ClientInsightsWidget() {
 }
 
 // ── Cost Breakdown Widget (full-width, separate placement) ──────
-export function CostBreakdownWidget() {
+export function CostBreakdownWidget({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas();
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId);
 
     const costeAnual = useMemo(() => {
         if (!facturas) return 0;

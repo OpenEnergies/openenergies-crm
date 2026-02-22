@@ -19,7 +19,7 @@ const createUserSchema = (isAdmin: boolean, createWithPass: boolean, editing: bo
   telefono: z.string().optional(),
   email: z.string().email('Introduce un email válido'),
   rol: z.enum(['comercial', 'administrador', 'cliente']).optional(),
-  empresa_id: z.string().uuid('Debes seleccionar una empresa').optional().or(z.literal('')),
+  empresa_id: z.string().uuid('Debes seleccionar una comercializadora').optional().or(z.literal('')),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').optional().or(z.literal('')),
   confirmPassword: z.string().optional().or(z.literal('')),
 }).refine(data => {

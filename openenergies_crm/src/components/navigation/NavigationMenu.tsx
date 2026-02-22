@@ -93,7 +93,7 @@ export function NavigationMenu({
             icon: Handshake,
             items: [
                 { to: '/app/clientes', label: 'Clientes', module: 'clientes' },
-                { to: '/app/empresas', label: 'Empresas', module: 'empresas' },
+                { to: '/app/empresas', label: 'Comercializadoras', module: 'empresas' },
                 { to: '/app/puntos', label: 'Puntos de suministro', module: 'puntos' },
                 { to: '/app/contratos', label: 'Contratos', module: 'contratos' },
                 { to: '/app/renovaciones', label: 'Renovaciones', module: 'renovaciones' },

@@ -218,7 +218,7 @@ export default function UsuariosList() {
                       onClick={() => handleSort('empresa_nombre' as unknown as any)}
                       className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
-                      Empresa {renderSortIcon('empresa_nombre' as unknown as any)}
+                      Comercializadora {renderSortIcon('empresa_nombre' as unknown as any)}
                     </button>
                   </th>
                   <th className="p-4 text-left">

@@ -16,6 +16,7 @@ async function fetchEmpresas(archived: boolean) {
   const query = supabase
     .from('empresas')
     .select('*')
+    .eq('tipo', 'comercializadora')
     .order('creada_en', { ascending: false });
 
   if (archived) {
@@ -83,7 +84,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Empresa restaurada correctamente');
+      toast.success('Comercializadora restaurada correctamente');
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
       setSelectedIds([]);
     },
@@ -100,9 +101,9 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
           </div>
           <div>
             <h1 className={`text-2xl font-bold ${isArchivedMode ? 'text-secondary' : 'text-fenix-600 dark:text-fenix-500'}`}>
-              {isArchivedMode ? 'Empresas Archivadas' : 'Gestión de Empresas'}
+              {isArchivedMode ? 'Com. Archivadas' : 'Gestión de Comercializadoras'}
             </h1>
-            {isArchivedMode && <p className="text-sm text-secondary opacity-70">Empresas que han sido archivadas</p>}
+            {isArchivedMode && <p className="text-sm text-secondary opacity-70">Comercializadoras que han sido archivadas</p>}
           </div>
         </div>
 
@@ -127,7 +128,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                     to="/app/empresas/$id/editar"
                     params={{ id: selectedIds[0] }}
                     className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors cursor-pointer"
-                    title="Editar Empresa"
+                    title="Editar Comercializadora"
                   >
                     <Edit size={16} />
                   </Link>
@@ -136,7 +137,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   <button
                     onClick={() => restoreMutation.mutate(selectedIds[0]!)}
                     className="p-1.5 rounded-lg text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 hover:bg-fenix-500/10 transition-colors cursor-pointer"
-                    title="Restaurar Empresa"
+                    title="Restaurar Comercializadora"
                     disabled={restoreMutation.isPending}
                   >
                     <RotateCcw size={16} />
@@ -182,14 +183,14 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
 
         {isError && (
           <div className="text-center py-12">
-            <p className="text-red-400">Error al cargar las empresas.</p>
+            <p className="text-red-400">Error al cargar las comercializadoras.</p>
           </div>
         )}
 
         {fetchedData && fetchedData.length === 0 && !isLoading && (
           <EmptyState
-            title="Sin empresas"
-            description="Aún no hay empresas colaboradoras registradas."
+            title="Sin comercializadoras"
+            description="Aún no hay comercializadoras registradas."
             cta={
               <Link to="/app/empresas/nueva">
                 <button className="h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">
@@ -241,14 +242,6 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                   </th>
                   <th className="p-4 text-left">
                     <button
-                      onClick={() => handleSort('tipo')}
-                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
-                    >
-                      Tipo {renderSortIcon('tipo')}
-                    </button>
-                  </th>
-                  <th className="p-4 text-left">
-                    <button
                       onClick={() => handleSort('creada_en')}
                       className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
@@ -295,11 +288,6 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
                         </Link>
                       </td>
                       <td className="p-4 text-secondary font-medium">{e.cif ?? '—'}</td>
-                      <td className="p-4">
-                        <span className="px-2 py-1 text-xs font-bold rounded-md bg-bg-intermediate text-secondary">
-                          {e.tipo}
-                        </span>
-                      </td>
                       <td className="p-4 text-secondary text-sm font-medium">{fmtDate(e.creada_en)}</td>
                     </tr>
                   );

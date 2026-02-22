@@ -26,8 +26,8 @@ async function fetchEmpresaSummaryCounts(): Promise<EmpresaSummaryCounts> {
     comercializadora: 0,
   };
 
-  data?.forEach(e => {
-    if (tipos[e.tipo as Empresa['tipo']] !== undefined) {
+  (data || []).forEach(e => {
+    if (e.tipo && tipos[e.tipo as Empresa['tipo']] !== undefined) {
       tipos[e.tipo as Empresa['tipo']]++;
     }
   });
@@ -49,7 +49,7 @@ export default function ResumenEmpresasWidget() {
         <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
           <Building2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
         </div>
-        <h3 className="text-base font-bold text-primary">Empresas</h3>
+        <h3 className="text-base font-bold text-primary">Comercializadoras</h3>
       </div>
 
       {/* Loading */}
@@ -78,7 +78,7 @@ export default function ResumenEmpresasWidget() {
             <p className="text-xs text-secondary opacity-70 font-semibold uppercase tracking-tight">Comercializadoras</p>
           </Link>
 
-          {counts.tipos.openenergies > 0 && (
+          {(counts.tipos.openenergies ?? 0) > 0 && (
             <Link
               to="/app/empresas"
               className="flex flex-col items-center p-4 rounded-lg bg-bg-intermediate/50 hover:bg-bg-intermediate transition-colors"
@@ -98,7 +98,7 @@ export default function ResumenEmpresasWidget() {
         to="/app/empresas"
         className="flex items-center justify-end gap-1 mt-4 text-sm text-fenix-400 hover:text-fenix-300 transition-colors cursor-pointer"
       >
-        Ver empresas <ArrowRight size={14} />
+        Ver comercializadoras <ArrowRight size={14} />
       </Link>
     </div>
   );

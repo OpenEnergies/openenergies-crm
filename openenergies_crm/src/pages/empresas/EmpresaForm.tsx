@@ -13,7 +13,7 @@ import { useTheme } from '@hooks/ThemeContext';
 const schema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
   cif: z.string().optional().nullable(),
-  tipo: z.string().min(1, 'El tipo es obligatorio'),
+  tipo: z.string().default('comercializadora'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -39,7 +39,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
     if (!editing) return;
     const fetchEmpresa = async () => {
       const { data, error } = await supabase.from('empresas').select('*').eq('id', id!).maybeSingle();
-      if (error) setServerError(`Error al cargar la empresa: ${error.message}`);
+      if (error) setServerError(`Error al cargar la comercializadora: ${error.message}`);
       if (data) {
         reset(data as Empresa);
         setCurrentLogoUrl(data.logo_url || null);
@@ -117,7 +117,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
         setIsUploadingLogo(false);
       }
 
-      toast.success(editing ? 'Empresa actualizada correctamente' : 'Empresa creada correctamente');
+      toast.success(editing ? 'Comercializadora actualizada correctamente' : 'Comercializadora creada correctamente');
       navigate({ to: '/app/empresas' });
     } catch (e: any) {
       setServerError(`Error al guardar: ${e.message}`);
@@ -143,7 +143,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
             <Building2 className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
           <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
-            {editing ? 'Editar Empresa' : 'Nueva Empresa'}
+            {editing ? 'Editar Comercializadora' : 'Nueva Comercializadora'}
           </h1>
         </div>
       </div>
@@ -166,22 +166,21 @@ export default function EmpresaForm({ id }: { id?: string }) {
             onFileSelect={handleLogoFileSelect}
           />
 
-          {/* Nombre */}
-          <div>
-            <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
-              <Building2 size={16} />
-              Nombre de la empresa
-            </label>
-            <input
-              id="nombre"
-              {...register('nombre')}
-              className="glass-input w-full"
-            />
-            {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
-          </div>
-
-          {/* CIF + Tipo */}
+          {/* Nombre y CIF */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="nombre" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
+                <Building2 size={16} />
+                Nombre de la comercializadora
+              </label>
+              <input
+                id="nombre"
+                {...register('nombre')}
+                className="glass-input w-full"
+              />
+              {errors.nombre && <p className="text-sm text-red-400 mt-1">{errors.nombre.message}</p>}
+            </div>
+
             <div>
               <label htmlFor="cif" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
                 <FileText size={16} />
@@ -192,21 +191,6 @@ export default function EmpresaForm({ id }: { id?: string }) {
                 {...register('cif')}
                 className="glass-input w-full"
               />
-            </div>
-            <div>
-              <label htmlFor="tipo" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
-                <Tags size={16} />
-                Tipo de empresa
-              </label>
-              <select
-                id="tipo"
-                {...register('tipo')}
-                className="glass-input w-full appearance-none"
-              >
-                <option value="comercializadora">Comercializadora</option>
-                <option value="openenergies">Interna (Open Energies)</option>
-              </select>
-              {errors.tipo && <p className="text-sm text-red-400 mt-1">{errors.tipo.message}</p>}
             </div>
           </div>
 
@@ -228,7 +212,7 @@ export default function EmpresaForm({ id }: { id?: string }) {
               className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {(isSubmitting || isUploadingLogo) && <Loader2 size={16} className="animate-spin" />}
-              {isSubmitting || isUploadingLogo ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Empresa')}
+              {isSubmitting || isUploadingLogo ? 'Guardando...' : (editing ? 'Guardar Cambios' : 'Crear Comercializadora')}
             </button>
           </div>
         </div>

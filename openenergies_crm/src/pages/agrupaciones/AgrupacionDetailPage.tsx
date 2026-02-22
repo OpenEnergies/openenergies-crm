@@ -171,9 +171,18 @@ export default function AgrupacionDetailPage() {
       {/* ─── Header ─── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link to="/app/puntos" className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors">
+          <button
+            onClick={() => {
+              if (window.history.length > 2) {
+                window.history.back();
+              } else {
+                navigate({ to: '/app/puntos' });
+              }
+            }}
+            className="p-2 cursor-pointer rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors"
+          >
             <ArrowLeft size={20} />
-          </Link>
+          </button>
           <div className={`w-10 h-10 rounded-xl ${getTipoBg(agrupacion.tipo)} flex items-center justify-center`}>
             {getTipoIcon(agrupacion.tipo)}
           </div>
@@ -220,11 +229,10 @@ export default function AgrupacionDetailPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSelectedTipo(null)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
-              selectedTipo === null
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === null
                 ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 border border-fenix-500/30'
                 : 'text-secondary hover:text-primary hover:bg-bg-intermediate'
-            }`}
+              }`}
           >
             Todos
           </button>
@@ -232,11 +240,10 @@ export default function AgrupacionDetailPage() {
             <button
               key={tipo}
               onClick={() => setSelectedTipo(tipo === selectedTipo ? null : tipo)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
-                selectedTipo === tipo
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === tipo
                   ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 border border-fenix-500/30'
                   : 'text-secondary hover:text-primary hover:bg-bg-intermediate'
-              }`}
+                }`}
             >
               {tipo}
             </button>

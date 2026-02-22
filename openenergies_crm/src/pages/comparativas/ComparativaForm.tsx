@@ -494,7 +494,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
 
         {/* Derecha: selector de empresa (siempre visible) */}
         <div className="min-w-70">
-          <label htmlFor="empresa_precios" className="block text-sm font-medium text-slate-700 dark:text-gray-300">Empresa (opcional)</label>
+          <label htmlFor="empresa_precios" className="block text-sm font-medium text-slate-700 dark:text-gray-300">Comercializadora (opcional)</label>
           <div className="relative mt-1">
             <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <select
@@ -504,7 +504,7 @@ const RenderPropuestaOptions: React.FC<RenderPropuestaOptionsProps> = ({
               disabled={loadingEmpresasPrecios}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700 text-white focus:border-fenix-500 focus:ring-1 focus:ring-fenix-500/50 transition-all duration-200 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="" className="bg-gray-800 text-white">{loadingEmpresasPrecios ? 'Cargando empresas...' : 'Sin empresa'}</option>
+              <option value="" className="bg-gray-800 text-white">{loadingEmpresasPrecios ? 'Cargando comercializadoras...' : 'Sin comercializadora'}</option>
               {empresasConPrecios.map(e => <option key={e.id} value={e.id} className="bg-gray-800 text-white">{e.nombre}</option>)}
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">

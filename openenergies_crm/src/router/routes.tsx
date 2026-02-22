@@ -9,6 +9,7 @@ import ClienteDetailLayout from '@pages/clientes/ClienteDetailLayout';
 import ClienteDocumentos from '@pages/clientes/ClienteDocumentos';
 import ClienteActividad from '@pages/clientes/ClienteActividad';
 import ClienteFacturas from '@pages/clientes/ClienteFacturas';
+import ClienteGlobal from '@pages/clientes/ClienteGlobal';
 // Puntos
 import PuntosList from '@pages/puntos/PuntosList';
 import PuntoForm from '@pages/puntos/PuntoForm';
@@ -27,6 +28,7 @@ import UsuarioInviteForm from '@pages/usuarios/UsuarioInviteForm';
 import EmpresasList from '@pages/empresas/EmpresaList';
 import EmpresaForm from '@pages/empresas/EmpresaForm';
 import EmpresaDetailLayout from '@pages/empresas/EmpresaDetailLayout';
+import EmpresaGlobal from '@pages/empresas/EmpresaGlobal';
 import EmpresaFacturas from '@pages/empresas/EmpresaFacturas';
 import EmpresaActividad from '@pages/empresas/EmpresaActividad';
 import EmpresaClientes from '@pages/empresas/EmpresaClientes';
@@ -100,7 +102,8 @@ const clientesRoute = createRoute({ getParentRoute: () => appRoute, path: '/clie
 const clientesNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes/nuevo', component: () => <ClienteForm /> });
 export const clienteDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes/$id', component: ClienteDetailLayout, });
 export const clienteEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/clientes/$id/editar', component: function EditCliente() { const { id } = useParams({ from: clienteEditRoute.id }); return <ClienteForm id={id} />; } });
-const clienteDetailIndexRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/clientes/$id/puntos', params }); } });
+const clienteDetailIndexRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/clientes/$id/global', params }); } });
+const clienteGlobalRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'global', component: ClienteGlobal });
 const clientePuntosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'puntos', component: () => { const { id } = useParams({ from: clientePuntosRoute.id }); return <PuntosList clienteId={id} hideClienteColumn />; } });
 const clienteContratosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'contratos', component: () => { const { id } = useParams({ from: clienteContratosRoute.id }); return <ContratosList clienteId={id} hideClienteColumn />; } });
 export const clienteDocumentosRoute = createRoute({ getParentRoute: () => clienteDetailRoute, path: 'documentos/$', component: ClienteDocumentos, });
@@ -174,7 +177,8 @@ const perfilRoute = createRoute({ getParentRoute: () => appRoute, path: '/perfil
 export const empresasRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas', component: () => <RequireRole roles={['administrador']}><EmpresasList /></RequireRole>, });
 export const empresasNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/nueva', component: () => <RequireRole roles={['administrador']}><EmpresaForm /></RequireRole>, });
 export const empresaDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/empresas/$id', component: () => <RequireRole roles={['administrador']}><EmpresaDetailLayout /></RequireRole>, });
-const empresaDetailIndexRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/empresas/$id/clientes', params: { id: params.id } }); }, component: () => null });
+const empresaDetailIndexRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/empresas/$id/global', params: { id: params.id } }); }, component: () => null });
+const empresaGlobalRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'global', component: EmpresaGlobal });
 const empresaClientesRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'clientes', component: EmpresaClientes });
 const empresaPuntosRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'puntos', component: EmpresaPuntos });
 const empresaContratosRoute = createRoute({ getParentRoute: () => empresaDetailRoute, path: 'contratos', component: EmpresaContratos });
@@ -215,6 +219,7 @@ const routeTree = rootRoute.addChildren([
     empresasEditRoute,
     empresaDetailRoute.addChildren([
       empresaDetailIndexRoute,
+      empresaGlobalRoute,
       empresaClientesRoute,
       empresaPuntosRoute,
       empresaContratosRoute,
@@ -230,6 +235,7 @@ const routeTree = rootRoute.addChildren([
     clienteEditRoute,
     clienteDetailRoute.addChildren([
       clienteDetailIndexRoute,
+      clienteGlobalRoute,
       clientePuntosRoute,
       clienteContratosRoute,
       clienteDocumentosRoute,

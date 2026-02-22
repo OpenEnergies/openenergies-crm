@@ -110,7 +110,7 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
 
   const { data, error } = await query.limit(500);
   if (error) throw error;
-  
+
   // Filtro de búsqueda en el cliente (filtra por CUPS, nombre cliente y comercializadora)
   if (filter && filter.trim()) {
     const searchTerm = filter.toLowerCase().trim();
@@ -119,14 +119,14 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
       const clienteNombre = contrato.puntos_suministro?.clientes?.nombre?.toLowerCase() || '';
       const comercializadoraNombre = contrato.comercializadoras?.nombre?.toLowerCase() || '';
       const direccion = contrato.puntos_suministro?.direccion_sum?.toLowerCase() || '';
-      
+
       return cups.includes(searchTerm) ||
-             clienteNombre.includes(searchTerm) ||
-             comercializadoraNombre.includes(searchTerm) ||
-             direccion.includes(searchTerm);
+        clienteNombre.includes(searchTerm) ||
+        comercializadoraNombre.includes(searchTerm) ||
+        direccion.includes(searchTerm);
     });
   }
-  
+
   return (data as ContratoExtendido[]) || [];
 }
 
@@ -910,28 +910,68 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
               </div>
 
               {/* Right: Search + Export */}
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className="flex items-center gap-2 flex-1 md:flex-initial">
-                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
-                    <Search size={16} />
-                    Buscar
-                  </label>
-                  <input
-                    placeholder="Nº Contrato, CUPS..."
-                    value={filter}
-                    onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
-                    className="glass-input w-full md:w-64"
-                  />
-                </div>
-                <ExportButton
-                  entity="contratos"
-                  preFilters={{
-                    cliente_id: clienteId,
-                    comercializadora_id: empresaId,
-                    search: filter
-                  }}
-                  label="Exportar"
-                />
+              <div className={`flex items-center gap-3 ${selectedIds.length > 0 ? 'w-full justify-between md:justify-end md:w-auto' : 'w-full md:w-auto'}`}>
+                {selectedIds.length > 0 ? (
+                  /* Selection action bar - compact inline style */
+                  <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2 w-full md:w-auto justify-between md:justify-start">
+                    <span className="text-sm text-fenix-400 font-medium">
+                      {selectedIds.length} seleccionado(s)
+                    </span>
+                    <div className="flex items-center gap-1 ml-2">
+                      {selectedIds.length === 1 && canEdit && selectedIds[0] && (
+                        <Link
+                          to="/app/contratos/$id"
+                          params={{ id: selectedIds[0] }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                          title="Editar Contrato"
+                        >
+                          <Edit size={16} />
+                        </Link>
+                      )}
+                      {canDelete && (
+                        <button
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title={`Eliminar ${selectedIds.length} contrato(s)`}
+                          onClick={handleDeleteSelected}
+                          disabled={deleteContratoMutation.isPending}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <button
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-bg-intermediate transition-colors cursor-pointer"
+                        title="Cancelar selección"
+                        onClick={() => setSelectedIds([])}
+                      >
+                        <XCircle size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                      <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                        <Search size={16} />
+                        Buscar
+                      </label>
+                      <input
+                        placeholder="Nº Contrato, CUPS..."
+                        value={filter}
+                        onChange={e => { setFilter(e.target.value); setCurrentPage(1); }}
+                        className="glass-input w-full md:w-64"
+                      />
+                    </div>
+                    <ExportButton
+                      entity="contratos"
+                      preFilters={{
+                        cliente_id: clienteId,
+                        comercializadora_id: empresaId,
+                        search: filter
+                      }}
+                      label="Exportar"
+                    />
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1075,9 +1115,18 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                       </td>
                       {!hideClienteColumn && (
                         <td className="p-4">
-                          <span className="font-bold text-secondary truncate max-w-[150px] inline-block" title={c.puntos_suministro?.clientes?.nombre}>
-                            {c.puntos_suministro?.clientes?.nombre ?? '—'}
-                          </span>
+                          {c.puntos_suministro?.clientes ? (
+                            <Link
+                              to="/app/clientes/$id"
+                              params={{ id: c.puntos_suministro.clientes.id }}
+                              className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors"
+                              title={c.puntos_suministro.clientes.nombre}
+                            >
+                              {c.puntos_suministro.clientes.nombre}
+                            </Link>
+                          ) : (
+                            <span className="text-secondary opacity-60">—</span>
+                          )}
                         </td>
                       )}
                       <td className="p-4">

@@ -3596,3 +3596,30 @@ export type UsuarioApp = Database['public']['Tables']['usuarios_app']['Row']
 export type RolUsuario = Database['public']['Enums']['rol_usuario']
 export type EstadoPunto = Database['public']['Enums']['estado_punto']
 export type TipoFactura = Database['public']['Enums']['tipo_factura_enum']
+
+// Missing Types
+export type Empresa = Database['public']['Tables']['empresas']['Row']
+export type Cliente = Database['public']['Tables']['clientes']['Row']
+export type Contrato = Database['public']['Tables']['contratos']['Row']
+export type AgendaItem = Database['public']['Tables']['agenda_eventos']['Row']
+export type RootDocumentItem = Database['public']['Functions']['get_all_root_documents']['Returns'][number]
+
+export interface PreciosEnergia {
+  p1: number;
+  p2: number;
+  p3: number;
+  p4: number;
+  p5: number;
+  p6: number;
+}
+
+export interface PreciosPotencia {
+  p1: number;
+  p2: number;
+  p3: number;
+  p4: number;
+  p5: number;
+  p6: number;
+}
+
+export type EstadoCliente = 'activo' | 'procesando' | 'stand by' | 'desistido';

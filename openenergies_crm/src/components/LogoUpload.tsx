@@ -1,5 +1,5 @@
 // src/components/LogoUpload.tsx
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@lib/supabase';
 import { toast } from 'react-hot-toast';
 import { Upload, X, Loader2, ImageIcon } from 'lucide-react';
@@ -78,11 +78,11 @@ export default function LogoUpload({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Sync preview with currentLogoUrl prop changes
-    useState(() => {
+    useEffect(() => {
         if (currentLogoUrl !== previewUrl && !pendingFile) {
             setPreviewUrl(currentLogoUrl || null);
         }
-    });
+    }, [currentLogoUrl, pendingFile, previewUrl]);
 
     const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];

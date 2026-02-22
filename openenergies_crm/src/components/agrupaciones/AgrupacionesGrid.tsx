@@ -92,12 +92,14 @@ export default function AgrupacionesGrid() {
             {ag.nombre}
           </h3>
 
-          {/* Description (max 2 lines) */}
-          {ag.descripcion && (
-            <p className="text-sm text-secondary line-clamp-2 mb-3">
-              {ag.descripcion}
-            </p>
-          )}
+          {/* Description (max 2 lines fixed height) */}
+          <div className="h-10 mb-3">
+            {ag.descripcion && (
+              <p className="text-sm text-secondary line-clamp-2">
+                {ag.descripcion}
+              </p>
+            )}
+          </div>
 
           {/* Stats */}
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-fenix-500/10">

@@ -941,6 +941,9 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             </button>
                           </th>
                           <th className="p-4 text-left">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                          </th>
+                          <th className="p-4 text-left">
                             <div className="flex items-center gap-2">
                               <button onClick={() => handleSort('estado')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                                 Estado {renderSortIcon('estado')}
@@ -1049,6 +1052,11 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             >
                               {p.cups}
                             </Link>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm text-secondary">
+                              {getComercializadoraNombre(p) || '—'}
+                            </span>
                           </td>
                           <td className="p-4">
                             <EstadoDropdown

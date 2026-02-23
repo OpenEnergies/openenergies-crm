@@ -529,6 +529,9 @@ export default function FacturasList() {
                                             CUPS {renderSortIcon('puntos_suministro' as any)}
                                         </button>
                                     </th>
+                                    <th className="p-4 text-left">
+                                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                                    </th>
                                     <th className="p-4 text-right">
                                         <button onClick={() => handleSort('total' as any)} className="flex items-center justify-end gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                                             Importe {renderSortIcon('total' as any)}
@@ -588,6 +591,11 @@ export default function FacturasList() {
                                         <td className="p-4">
                                             <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs" title={factura.puntos_suministro?.cups}>
                                                 {factura.puntos_suministro?.cups ?? '—'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-secondary">
+                                                {factura.comercializadora?.nombre ?? '—'}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">

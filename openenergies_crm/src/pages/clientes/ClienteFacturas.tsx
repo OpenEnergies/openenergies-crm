@@ -493,6 +493,9 @@ export default function ClienteFacturas() {
                                     </button>
                                 </th>
                                 <th className="p-4">
+                                    <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                                </th>
+                                <th className="p-4">
                                     <button
                                         onClick={() => handleSort('potencia_kw_max' as any)}
                                         className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
@@ -557,6 +560,13 @@ export default function ClienteFacturas() {
                                     <td className="p-4">
                                         <span className="text-secondary font-mono text-sm">
                                             {factura.puntos_suministro?.cups || '—'}
+                                        </span>
+                                    </td>
+
+                                    {/* Comercializadora */}
+                                    <td className="p-4">
+                                        <span className="text-secondary text-sm">
+                                            {factura.comercializadora?.nombre ?? '—'}
                                         </span>
                                     </td>
 

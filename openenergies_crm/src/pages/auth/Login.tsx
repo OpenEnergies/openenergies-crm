@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, Loader2, Zap, BarChart3, RefreshCw } from 'lucide-react';
 import PasswordInput from '@components/PasswordInput';
 
 const schema = z.object({
@@ -15,6 +15,8 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+
+const ENV_LABEL = import.meta.env.VITE_ENV_LABEL || 'Producción';
 
 export default function Login() {
   const [isMfaStep, setIsMfaStep] = useState(false);
@@ -101,157 +103,186 @@ export default function Login() {
   }
 
   return (
-    <main className="
-      min-h-screen flex items-center justify-center p-4
-      bg-linear-to-br from-fenix-950 via-bg-primary to-bg-secondary
-    ">
-      {/* Login Card */}
-      <div
-        className="glass-modal w-full max-w-md p-6 sm:p-8 animate-slide-up"
-        aria-labelledby="login-title"
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-xl bg-white/90 flex items-center justify-center">
-            <img src="/logo_openenergies.png" alt="Open Energies" className="w-9 h-9" />
+    <main className="login-page">
+      {/* Full-screen background */}
+      <div className="login-bg" />
+
+      {/* Left side – branding */}
+      <div className="login-branding">
+        <div className="login-branding-inner">
+          {/* Logo */}
+          <div className="login-logo">
+            <div className="login-logo-icon">
+              <img src="/logo_openenergies.png" alt="Open Energies" />
+            </div>
+            <span className="login-logo-text">Open Energies</span>
           </div>
-          <span className="font-semibold text-lg whitespace-nowrap transition-opacity duration-200">Open Energies CRM</span>
+
+          {/* Headline */}
+          <h1 className="login-headline">
+            CRM<br />Intelligence Platform
+          </h1>
+          <p className="login-subheadline">
+            Centro de control energético para<br />comercializadoras y gestores.
+          </p>
+
+          {/* Feature list */}
+          <ul className="login-features">
+            <li>
+              <span className="login-feature-icon"><Zap size={18} /></span>
+              Gestión de contratos
+            </li>
+            <li>
+              <span className="login-feature-icon"><BarChart3 size={18} /></span>
+              Analítica avanzada
+            </li>
+            <li>
+              <span className="login-feature-icon"><RefreshCw size={18} /></span>
+              Automatización energética
+            </li>
+          </ul>
         </div>
+      </div>
 
-        {/* Title */}
-        <h1
-          id="login-title"
-          className="text-xl font-bold text-fenix-600 dark:text-fenix-500 text-center mb-2"
-        >
-          {isMfaStep ? 'Verificar Identidad' : 'Accede a tu cuenta'}
-        </h1>
+      {/* Right side – login card */}
+      <div className="login-form-wrapper">
+        <div className="login-card">
+          {/* Environment badge */}
+          <div className="login-env-badge">
+            Entorno. <em>{ENV_LABEL}</em>
+          </div>
 
-        {/* Hint text */}
-        <p className="text-gray-400 text-sm text-center mb-6 leading-relaxed">
-          {isMfaStep
-            ? `Introduce el código de 6 dígitos de tu app de autenticación para ${loginEmail}`
-            : 'Introduce tu email y contraseña. Si no la recuerdas, deja la contraseña en blanco para recibir un enlace mágico.'}
-        </p>
+          {/* Shield icon */}
+          <div className="login-shield">
+            <ShieldCheck size={32} />
+          </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Email */}
-          {!isMfaStep && (
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                <Mail size={16} />
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                {...register('email')}
-                placeholder="tu.email@ejemplo.com"
-                className="glass-input"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-400" role="alert">{errors.email.message}</p>
-              )}
-            </div>
-          )}
+          {/* Title */}
+          <h2 className="login-title">
+            {isMfaStep ? 'Verificar Identidad' : 'Acceso seguro al sistema'}
+          </h2>
 
-          {/* Password */}
-          {!isMfaStep && (
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                <Lock size={16} />
-                Contraseña <span className="text-gray-500 ml-1">(opcional)</span>
-              </label>
-              <PasswordInput
-                id="password"
-                autoComplete="current-password"
-                {...register('password')}
-                placeholder="********"
-                showIcon={false}
-              />
-              {errors.password && (
-                <p className="text-sm text-red-400" role="alert">{errors.password.message}</p>
-              )}
-            </div>
-          )}
+          <p className="login-subtitle">
+            {isMfaStep
+              ? `Introduce el código de 6 dígitos de tu app de autenticación para ${loginEmail}`
+              : 'Introduce tus credenciales corporativas'}
+          </p>
 
-          {/* MFA code */}
-          {isMfaStep && (
-            <div className="space-y-1.5">
-              <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-300">
-                Código de Autenticación
-              </label>
-              <div className="relative">
-                <ShieldCheck
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="login-form">
+            {/* Email */}
+            {!isMfaStep && (
+              <div className="login-field">
+                <label htmlFor="email" className="login-label">
+                  <Mail size={14} className="login-label-icon" />
+                  Email
+                </label>
                 <input
-                  id="mfaCode"
-                  type="tel"
-                  autoComplete="one-time-code"
-                  {...register('mfaCode')}
-                  placeholder="123456"
-                  maxLength={6}
-                  autoFocus
-                  className="glass-input pl-10 text-center text-lg tracking-[0.5em] font-mono"
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  {...register('email')}
+                  placeholder="tu.email@ejemplo.com"
+                  className="login-input"
                 />
+                {errors.email && (
+                  <p className="login-error" role="alert">{errors.email.message}</p>
+                )}
               </div>
-              {errors.mfaCode && (
-                <p className="text-sm text-red-400" role="alert">{errors.mfaCode.message}</p>
-              )}
-            </div>
-          )}
-
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="
-              w-full py-3 rounded-xl font-medium
-              bg-linear-to-r from-fenix-500 to-fenix-600
-              hover:from-fenix-400 hover:to-fenix-500
-              text-white shadow-lg shadow-fenix-500/25
-              transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
-              flex items-center justify-center gap-2
-            "
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Validando...
-              </>
-            ) : isMfaStep ? (
-              'Verificar y Entrar'
-            ) : (
-              'Entrar'
             )}
-          </button>
 
-          {/* Back to login */}
-          {isMfaStep && (
-            <div className="text-center">
-              <button
-                type="button"
-                className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
-                onClick={() => setIsMfaStep(false)}
-              >
-                ← Volver a Email/Contraseña
-              </button>
-            </div>
-          )}
-        </form>
+            {/* Password */}
+            {!isMfaStep && (
+              <div className="login-field">
+                <label htmlFor="password" className="login-label">
+                  <Lock size={14} className="login-label-icon" />
+                  Contraseña
+                </label>
+                <PasswordInput
+                  id="password"
+                  autoComplete="current-password"
+                  {...register('password')}
+                  placeholder="********"
+                  showIcon={false}
+                />
+                {errors.password && (
+                  <p className="login-error" role="alert">{errors.password.message}</p>
+                )}
+              </div>
+            )}
 
-        {/* Footer */}
-        <footer className="mt-8 pt-6 border-t border-bg-intermediate text-center">
-          <span className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Powered by Converly Solutions
-          </span>
-        </footer>
+            {/* MFA code */}
+            {isMfaStep && (
+              <div className="login-field">
+                <label htmlFor="mfaCode" className="login-label">
+                  Código de Autenticación
+                </label>
+                <div className="relative">
+                  <ShieldCheck
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ color: '#9CA3AF' }}
+                  />
+                  <input
+                    id="mfaCode"
+                    type="tel"
+                    autoComplete="one-time-code"
+                    {...register('mfaCode')}
+                    placeholder="123456"
+                    maxLength={6}
+                    autoFocus
+                    className="login-input login-input-mfa"
+                  />
+                </div>
+                {errors.mfaCode && (
+                  <p className="login-error" role="alert">{errors.mfaCode.message}</p>
+                )}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button type="submit" disabled={isSubmitting} className="login-submit">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Validando...
+                </>
+              ) : isMfaStep ? (
+                'Verificar y Entrar'
+              ) : (
+                'Entrar'
+              )}
+            </button>
+
+            {/* Back to login */}
+            {isMfaStep && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="login-back-btn"
+                  onClick={() => setIsMfaStep(false)}
+                >
+                  ← Volver a Email/Contraseña
+                </button>
+              </div>
+            )}
+
+            {/* Forgot password */}
+            {!isMfaStep && (
+              <p className="login-forgot">¿Has olvidado tu contraseña?</p>
+            )}
+          </form>
+
+          {/* Footer */}
+          <footer className="login-footer">
+            <p>
+              <Lock size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} />
+              Autenticación protegida con cifrado <strong>AES-256</strong>
+            </p>
+            <p>© {new Date().getFullYear()} Converly Solutions</p>
+          </footer>
+        </div>
       </div>
     </main>
   );
 }
-

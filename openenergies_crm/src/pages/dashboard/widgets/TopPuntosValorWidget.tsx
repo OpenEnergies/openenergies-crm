@@ -101,7 +101,7 @@ export default function TopPuntosValorWidget() {
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                                 <Link
-                                    to="/app/puntos/$id"
+                                    to="/app/puntos/$id/detalle"
                                     params={{ id: punto.id }}
                                     className="text-sm font-bold text-secondary hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors truncate block"
                                 >

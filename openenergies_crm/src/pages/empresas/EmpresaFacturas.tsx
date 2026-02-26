@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useParams } from '@tanstack/react-router';
 import { empresaDetailRoute } from '@router/routes';
 import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
@@ -66,7 +67,7 @@ interface FacturaCliente {
 
 // ============ FETCH FUNCTION ============
 async function fetchFacturasEmpresa(empresaId: string): Promise<FacturaCliente[]> {
-    const { data, error } = await supabase
+    const query = supabase
         .from('facturacion_clientes')
         .select(`
       *,
@@ -76,11 +77,9 @@ async function fetchFacturasEmpresa(empresaId: string): Promise<FacturaCliente[]
     `)
         .eq('comercializadora_id', empresaId)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false })
-        .range(0, 99999);
+        .order('fecha_emision', { ascending: false });
 
-    if (error) throw error;
-    return data as FacturaCliente[];
+    return await fetchAllRows<FacturaCliente>(query);
 }
 
 // ============ HELPER FUNCTIONS ============

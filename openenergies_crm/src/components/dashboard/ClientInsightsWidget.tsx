@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useTheme } from '@hooks/ThemeContext';
 import {
     BarChart3, TrendingUp, Zap, Loader2, Receipt,
@@ -50,9 +51,8 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
                 query = query.eq('comercializadora_id', empresaId);
             }
 
-            const { data, error } = await query;
-            if (error) throw error;
-            return (data ?? []) as FacturaRow[];
+            const data = await fetchAllRows<FacturaRow>(query);
+            return data;
         },
         staleTime: 5 * 60 * 1000,
     });

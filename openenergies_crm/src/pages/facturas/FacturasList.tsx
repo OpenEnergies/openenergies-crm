@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { Link } from '@tanstack/react-router';
 import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Pencil, FileUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -76,7 +77,7 @@ interface FacturaCliente {
 
 // ============ FETCH FUNCTION ============
 async function fetchFacturas(): Promise<FacturaCliente[]> {
-    const { data, error } = await supabase
+    const query = supabase
         .from('facturacion_clientes')
         .select(`
       *,
@@ -85,11 +86,9 @@ async function fetchFacturas(): Promise<FacturaCliente[]> {
       comercializadora:empresas!comercializadora_id (nombre)
     `)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false })
-        .range(0, 99999);
+        .order('fecha_emision', { ascending: false });
 
-    if (error) throw error;
-    return data as FacturaCliente[];
+    return await fetchAllRows<FacturaCliente>(query);
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -630,7 +629,7 @@ export default function FacturasList() {
                                         <td className="p-4">
                                             {factura.punto_id ? (
                                                 <Link
-                                                    to="/app/puntos/$id"
+                                                    to="/app/puntos/$id/detalle"
                                                     params={{ id: factura.punto_id }}
                                                     className="font-medium text-fenix-600 dark:text-fenix-400 hover:underline truncate max-w-[200px] inline-block font-mono text-xs transition-colors"
                                                     title={factura.puntos_suministro?.cups}

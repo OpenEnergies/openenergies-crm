@@ -3,6 +3,7 @@
 // via Nominatim with postal-code disambiguation + DB caching.
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 
 // ── Public types ─────────────────────────────────────────────────
 export interface GeocodedPunto {
@@ -217,15 +218,13 @@ async function saveCoordsToDB(coordsMap: Map<string, { lat: number; lng: number;
 
 // ── Core: fetch from DB, geocode missing, return all ─────────────
 async function fetchAndGeocode(): Promise<GeocodedPunto[]> {
-    const { data, error } = await supabase
+    const data = await fetchAllRows<PuntoRaw>(supabase
         .from('puntos_suministro')
         .select('id, cups, estado, direccion_sum, localidad_sum, provincia_sum, latitud, longitud, clientes(nombre)')
         .is('eliminado_en', null)
-        .order('creado_en', { ascending: false })
-        .range(0, 99999);
+        .order('creado_en', { ascending: false }));
 
-    if (error) throw error;
-    const puntos = (data ?? []) as PuntoRaw[];
+    const puntos = data ?? [];
 
     const results: GeocodedPunto[] = [];
     const toGeocode = new Map<string, GeoGroup>();

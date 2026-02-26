@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { Loader2, Zap, FileCheck, Clock } from 'lucide-react';
 
 type KPIData = {
@@ -16,14 +18,13 @@ async function fetchKPIData(): Promise<KPIData> {
         .eq('estado', 'En curso');
 
     // Fetch puntos con contrato activo para calcular energía gestionada
-    const { data: puntosActivos } = await supabase
+    const puntosActivos = await fetchAllRows<{ consumo_anual_kwh: number | null }>(supabase
         .from('puntos_suministro')
         .select(`
       consumo_anual_kwh,
       contratos!inner(estado)
     `)
-        .eq('contratos.estado', 'En curso')
-        .range(0, 99999);
+        .eq('contratos.estado', 'En curso'));
 
     const totalKwh = puntosActivos?.reduce((sum, p) => sum + (p.consumo_anual_kwh || 0), 0) || 0;
     const energiaGestionadaGWh = totalKwh / 1_000_000;
@@ -46,6 +47,7 @@ function KPICard({
     label,
     value,
     subValue,
+    to,
     iconColor = 'text-fenix-500',
     iconBgColor = 'bg-fenix-500/20'
 }: {
@@ -53,11 +55,12 @@ function KPICard({
     label: string;
     value: string | number;
     subValue?: string;
+    to?: string;
     iconColor?: string;
     iconBgColor?: string;
 }) {
-    return (
-        <div className="glass-card p-5 flex items-start gap-4">
+    const inner = (
+        <div className="glass-card p-5 flex items-start gap-4 transition-all hover:ring-1 hover:ring-fenix-500/30 hover:shadow-lg">
             <div className={`w-12 h-12 rounded-xl ${iconBgColor} flex items-center justify-center flex-shrink-0`}>
                 <Icon className={`w-6 h-6 ${iconColor}`} />
             </div>
@@ -68,6 +71,8 @@ function KPICard({
             </div>
         </div>
     );
+    if (to) return <Link to={to as any}>{inner}</Link>;
+    return inner;
 }
 
 export default function KPICardsSection() {
@@ -106,6 +111,7 @@ export default function KPICardsSection() {
                         label="Contratos Activos"
                         value={data.contratosActivos}
                         subValue="Firmados, contratados o en curso"
+                        to="/app/contratos"
                     />
                     <KPICard
                         icon={Zap}
@@ -114,6 +120,7 @@ export default function KPICardsSection() {
                         subValue="Consumo anual de contratos activos"
                         iconColor="text-amber-400"
                         iconBgColor="bg-amber-500/20"
+                        to="/app/puntos"
                     />
                     <KPICard
                         icon={Clock}
@@ -122,6 +129,7 @@ export default function KPICardsSection() {
                         subValue="Pendientes de firma"
                         iconColor="text-blue-400"
                         iconBgColor="bg-blue-500/20"
+                        to="/app/puntos"
                     />
                 </>
             )}

@@ -5,6 +5,7 @@ import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import {
     Receipt, Building2, Calendar, Users, Save, ArrowLeft,
     Zap, MapPin, Calculator, FileText, Flame, MessageSquare
@@ -113,7 +114,7 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
 }
 
 async function fetchAllPuntos(): Promise<PuntoOpt[]> {
-    const { data, error } = await supabase
+    const query = supabase
         .from('puntos_suministro')
         .select(`
             id, 
@@ -128,9 +129,8 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
             comercializadora:empresas!current_comercializadora_id (id, nombre)
         `)
         .is('eliminado_en', null)
-        .order('cups')
-        .range(0, 99999);
-    if (error) throw error;
+        .order('cups');
+    const data = await fetchAllRows(query);
     return (data || []) as unknown as PuntoOpt[];
 }
 

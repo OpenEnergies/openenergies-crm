@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Download, Filter, Loader2, FileSpreadsheet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useExportData, type ExportEntity, type ExportFilters } from '@hooks/useExportData';
 import MultiSearchableSelect, { type Option } from '@components/MultiSearchableSelect';
 
@@ -151,11 +152,11 @@ export default function ExportModal({
     const { data: provinciasData } = useQuery({
         queryKey: ['export-provincias-options'],
         queryFn: async () => {
-            const { data } = await supabase
+            const data = await fetchAllRows<{ provincia_sum: string }>(supabase
                 .from('puntos_suministro')
                 .select('provincia_sum')
                 .is('eliminado_en', null)
-                .not('provincia_sum', 'is', null);
+                .not('provincia_sum', 'is', null));
             const unique = [...new Set((data || []).map(p => p.provincia_sum).filter(Boolean))].sort();
             return unique;
         },
@@ -166,11 +167,11 @@ export default function ExportModal({
     const { data: tarifasData, isLoading: isLoadingTarifas } = useQuery({
         queryKey: ['export-tarifas-options'],
         queryFn: async () => {
-            const { data } = await supabase
+            const data = await fetchAllRows<{ tarifa: string }>(supabase
                 .from('puntos_suministro')
                 .select('tarifa')
                 .is('eliminado_en', null)
-                .not('tarifa', 'is', null);
+                .not('tarifa', 'is', null));
             const unique = [...new Set((data || []).map(p => p.tarifa).filter(Boolean))].sort();
             return unique;
         },

@@ -3,6 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useSession } from './useSession';
 import { useEmpresaId } from './useEmpresaId';
 import type {
@@ -74,12 +75,7 @@ export function useInformesList(options: UseInformesListOptions = {}) {
         query = query.limit(options.limit);
       }
 
-      const { data, error } = await query.range(0, 99999);
-
-      if (error) {
-        console.error('Error fetching informes:', error);
-        throw error;
-      }
+      const data = await fetchAllRows<InformeMercado>(query);
 
       // Obtener targets para cada informe
       if (data && data.length > 0) {
@@ -464,9 +460,7 @@ export function useClientesForSelect(
         .or(`nombre.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
         .order('nombre');
 
-      const { data: clientes, error: clientesError } = await clientesQuery.range(0, 99999);
-
-      if (clientesError) throw clientesError;
+      const clientes = await fetchAllRows<{ id: string; nombre: string; email: string | null }>(clientesQuery);
 
       if (!clientes || clientes.length === 0) {
         return []; // No hay clientes que coincidan con la búsqueda
@@ -480,18 +474,7 @@ export function useClientesForSelect(
         .gte('fecha_emision', startDate)
         .lte('fecha_emision', endDate);
 
-      const { data: facturas, error: facturasError } = await facturasQuery.range(0, 99999);
-
-      if (facturasError) {
-        console.error('Error fetching facturas for clientes:', facturasError);
-        // Si hay error, mostrar todos como deshabilitados
-        return clientes.map((c) => ({
-          value: c.id,
-          label: c.nombre,
-          subtitle: c.email || undefined,
-          disabled: true,
-        }));
-      }
+      const facturas = await fetchAllRows<{ cliente_id: string }>(facturasQuery);
 
       // Obtener IDs únicos de clientes con facturas
       const clientesConFacturas = new Set(
@@ -558,12 +541,7 @@ export function usePuntosForSelect(
         facturasQuery = facturasQuery.in('tipo_factura', ['Luz', 'Gas']);
       }
 
-      const { data: facturas, error: facturasError } = await facturasQuery.range(0, 99999);
-
-      if (facturasError) {
-        console.error('Error fetching facturas for puntos:', facturasError);
-        return [];
-      }
+      const facturas = await fetchAllRows<{ punto_id: string }>(facturasQuery);
 
       if (!facturas || facturas.length === 0) {
         return []; // No hay facturas, no hay puntos disponibles
@@ -589,9 +567,7 @@ export function usePuntosForSelect(
         puntosQuery = puntosQuery.or(`cups.ilike.%${searchTerm}%,direccion_sum.ilike.%${searchTerm}%`);
       }
 
-      const { data: puntos, error: puntosError } = await puntosQuery.range(0, 99999);
-
-      if (puntosError) throw puntosError;
+      const puntos = await fetchAllRows<{ id: string; cups: string; direccion_sum: string | null; cliente_id: string }>(puntosQuery);
 
       if (!puntos || puntos.length === 0) return [];
 

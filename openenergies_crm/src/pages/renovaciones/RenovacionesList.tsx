@@ -1,6 +1,7 @@
 // src/pages/renovaciones/RenovacionesList.tsx
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useState, useMemo } from 'react';
 import type { Contrato } from '@lib/types';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
@@ -67,16 +68,13 @@ async function fetchRenovaciones(
     comercializadoras:empresas!contratos_comercializadora_id_fkey ( nombre )
   `;
 
-  const { data, error } = await supabase
+  const data = await fetchAllRows<ContratoExtendido>(supabase
     .from('contratos')
     .select(selectQuery)
     .gte('fecha_renovacion', todayISO)
     .lte('fecha_renovacion', futureDateISO)
     .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
-    .order('fecha_renovacion', { ascending: true })
-    .range(0, 99999);
-  
-  if (error) throw error;
+    .order('fecha_renovacion', { ascending: true }));
   
   // Filtro de búsqueda en el cliente (filtra por CUPS, comercializadora y nombre del cliente)
   if (filter && filter.trim()) {

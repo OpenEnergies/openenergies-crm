@@ -1,4 +1,5 @@
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { empresaDetailRoute } from '@router/routes';
@@ -47,12 +48,11 @@ async function fetchEmpresa(empresaId: string): Promise<EmpresaDetallada> {
     .not('estado', 'in', '(Baja,Desiste,Bloqueado)')
     .is('eliminado_en', null);
 
-  const { data: clientesData } = await supabase
+  const clientesData = await fetchAllRows<{ cliente_id: string }>(supabase
     .from('puntos_suministro')
     .select('cliente_id')
     .eq('current_comercializadora_id', empresaId)
-    .is('eliminado_en', null)
-    .range(0, 99999);
+    .is('eliminado_en', null));
 
   const uniqueClienteIds = new Set(clientesData?.map(p => p.cliente_id).filter(Boolean));
 

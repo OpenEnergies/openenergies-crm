@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { Loader2, MapPin, FileText } from 'lucide-react';
 import type { EstadoCliente } from '@lib/types';
 
@@ -26,10 +27,9 @@ const ESTADO_CONTRATO_COLORS: Record<string, string> = {
 
 async function fetchChartData(): Promise<ChartData> {
     // Fetch clientes agrupados por estado (for supply points)
-    const { data: clientes } = await supabase
+    const clientes = await fetchAllRows<{ estado: string | null }>(supabase
         .from('puntos_suministro')
-        .select('estado')
-        .range(0, 99999);
+        .select('estado'));
 
     const puntosEstados: Record<string, number> = {};
     clientes?.forEach(c => {
@@ -38,10 +38,9 @@ async function fetchChartData(): Promise<ChartData> {
     });
 
     // Fetch contratos agrupados por estado
-    const { data: contratos } = await supabase
+    const contratos = await fetchAllRows<{ estado: string | null }>(supabase
         .from('contratos')
-        .select('estado')
-        .range(0, 99999);
+        .select('estado'));
 
     const contratosEstados: Record<string, number> = {};
     contratos?.forEach(c => {

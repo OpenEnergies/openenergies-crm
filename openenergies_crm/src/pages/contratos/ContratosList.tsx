@@ -3,6 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react'; // Added Re
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { Link } from '@tanstack/react-router';
 import {
   Trash2, BadgePlus, XCircle, Edit, X, ExternalLink,
@@ -108,9 +109,7 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
     query = query.eq('comercializadora_id', empresaId); // Filter by comercializadora (empresa)
   }
 
-  query = query.range(0, 99999);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllRows<ContratoExtendido>(query);
 
   // Filtro de búsqueda en el cliente (filtra por CUPS, nombre cliente y comercializadora)
   if (filter && filter.trim()) {
@@ -1132,7 +1131,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                       )}
                       <td className="p-4">
                         <Link
-                          to="/app/puntos/$id"
+                          to="/app/puntos/$id/detalle"
                           params={{ id: c.punto_id }}
                           className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors font-mono text-sm"
                           title="Ver detalle del punto"

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
+import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { EstadoPunto, TipoFactura } from '@lib/types';
 import { useTheme } from '@hooks/ThemeContext';
@@ -127,9 +128,7 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
     query = query.eq('current_comercializadora_id', empresaId);
   }
 
-  query = query.range(0, 99999);
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllRows<PuntoConCliente>(query);
 
   // Filtro de búsqueda en el cliente (filtra por CUPS, dirección y nombre del cliente)
   if (filter && filter.trim()) {

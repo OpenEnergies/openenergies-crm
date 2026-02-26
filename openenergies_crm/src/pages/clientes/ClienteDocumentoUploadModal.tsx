@@ -8,7 +8,6 @@ import { FileUp, Upload, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const schema = z.object({
-  tipo: z.string().min(1, "El tipo de documento es obligatorio"),
   archivo: z.instanceof(File, { message: 'Debes seleccionar un archivo' }),
 });
 type FormData = z.infer<typeof schema>;
@@ -36,7 +35,6 @@ export default function ClienteDocumentoUploadModal({ clienteId, currentPath, on
 
       const meta = {
         cliente_id: clienteId,
-        tipo: values.tipo,
         ruta_storage: filePath,
         nombre_archivo: file.name,
         mime_type: file.type,
@@ -82,20 +80,6 @@ export default function ClienteDocumentoUploadModal({ clienteId, currentPath, on
         </div>
 
         <div className="space-y-5">
-          {/* Tipo de documento */}
-          <div>
-            <label htmlFor="tipo" className="block text-sm font-medium text-gray-300 mb-2">
-              Tipo de Documento
-            </label>
-            <input
-              id="tipo"
-              placeholder="Ej: Factura Enero, Contrato..."
-              {...register('tipo')}
-              className="w-full px-4 py-3 bg-bg-intermediate border border-bg-intermediate rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
-            />
-            {errors.tipo && <p className="text-sm text-red-400 mt-1">{errors.tipo.message}</p>}
-          </div>
-
           {/* Selector de archivo */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">

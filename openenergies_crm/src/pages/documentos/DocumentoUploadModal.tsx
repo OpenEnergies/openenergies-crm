@@ -4,14 +4,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { buildStoragePath } from '@lib/utils';
-import { FileUp, Upload, X, Loader2, Users, FileText, ChevronDown } from 'lucide-react';
+import { FileUp, Upload, X, Loader2, Users, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import type { Cliente } from '@lib/types';
 
 const schema = z.object({
   cliente_id: z.string().uuid({ message: "Debes seleccionar un cliente" }),
-  tipo: z.string().min(1, "El tipo de documento es obligatorio"),
   archivo: z.instanceof(File, { message: 'Debes seleccionar un archivo' }),
 });
 
@@ -53,7 +52,6 @@ export default function DocumentoUploadModal({ onClose, onSuccess }: Props) {
 
       const meta = {
         cliente_id: values.cliente_id,
-        tipo: values.tipo,
         ruta_storage: path,
         nombre_archivo: file.name,
         mime_type: file.type,
@@ -128,23 +126,6 @@ export default function DocumentoUploadModal({ onClose, onSuccess }: Props) {
               </div>
             )}
             {errors.cliente_id && <p className="text-sm text-red-400 mt-1">{errors.cliente_id.message}</p>}
-          </div>
-
-          {/* Tipo de documento */}
-          <div>
-            <label htmlFor="tipo" className="block text-sm font-medium text-gray-300 mb-2">
-              Tipo de Documento
-            </label>
-            <div className="relative">
-              <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input
-                id="tipo"
-                placeholder="Ej: Factura Enero, DNI, Contrato..."
-                {...register('tipo')}
-                className="w-full pl-10 px-4 py-3 bg-bg-intermediate border border-bg-intermediate rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
-              />
-            </div>
-            {errors.tipo && <p className="text-sm text-red-400 mt-1">{errors.tipo.message}</p>}
           </div>
 
           {/* Selector de archivo */}

@@ -627,7 +627,6 @@ export default function ClienteDocumentos({
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-intermediate border border-fenix-500/20 text-gray-300 hover:bg-fenix-500/10 hover:border-fenix-500/30 hover:text-fenix-400 transition-all font-medium cursor-pointer"
               >
                 <FolderPlus size={18} className="text-fenix-500" />
-                <span className="hidden sm:inline text-sm">Nueva Carpeta</span>
               </button>
             )}
             {canUpload && (
@@ -636,7 +635,6 @@ export default function ClienteDocumentos({
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 cursor-pointer"
               >
                 <Upload size={18} />
-                <span className="hidden sm:inline text-sm">Subir Archivo</span>
               </button>
             )}
           </div>
@@ -835,7 +833,7 @@ export default function ClienteDocumentos({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="Ej: Facturas 2025"
-                className="w-full px-4 py-3 bg-bg-intermediate border border-bg-intermediate rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
+                className="w-full px-4 py-3 bg-bg-intermediate border border-bg-intermediate rounded-xl text-primary placeholder-gray-400 focus:ring-2 focus:ring-fenix-500/50 focus:border-fenix-500 transition-all"
                 autoFocus
               />
             </div>

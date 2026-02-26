@@ -18,6 +18,7 @@ export interface ExportFilters {
     cliente_id?: string;
     empresa_id?: string;
     comercializadora_id?: string;
+    punto_id?: string;
     estado?: string[];
     fotovoltaica?: string[];
     cobrado?: string[];

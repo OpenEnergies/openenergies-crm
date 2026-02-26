@@ -24,21 +24,24 @@ interface FacturaRow {
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-// ── Data Hook: all invoices for the last 12 months ─────────────
-function useClientFacturas(clienteId?: string, empresaId?: string) {
+// ── Data Hook: invoices for a given year (or last 12 months if no year) ─────
+function useClientFacturas(clienteId?: string, empresaId?: string, year?: number) {
     return useQuery<FacturaRow[]>({
-        queryKey: ['client-dashboard-facturas', clienteId, empresaId],
+        queryKey: ['client-dashboard-facturas', clienteId, empresaId, year ?? 'last12'],
         queryFn: async () => {
-            const since = new Date();
-            since.setFullYear(since.getFullYear() - 1);
-            const sinceStr = since.toISOString().split('T')[0];
-
             let query = supabase
                 .from('facturacion_clientes')
                 .select('fecha_emision, consumo_kwh, total, precio_eur_kwh, tipo_factura')
                 .is('eliminado_en', null)
-                .gte('fecha_emision', sinceStr)
                 .order('fecha_emision', { ascending: true });
+
+            if (year) {
+                query = query.gte('fecha_emision', `${year}-01-01`).lte('fecha_emision', `${year}-12-31`);
+            } else {
+                const since = new Date();
+                since.setFullYear(since.getFullYear() - 1);
+                query = query.gte('fecha_emision', since.toISOString().split('T')[0]);
+            }
 
             if (clienteId) {
                 query = query.eq('cliente_id', clienteId);
@@ -56,23 +59,32 @@ function useClientFacturas(clienteId?: string, empresaId?: string) {
 }
 
 // ── Main Component (KPIs + 3 monthly charts) ───────────────────
-export default function ClientInsightsWidget({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
+// year: if provided, fetches that year's data; otherwise last 12 months
+// month: 0-11, if provided KPIs aggregate only that month (charts stay full year)
+export default function ClientInsightsWidget({ clienteId, empresaId, year, month }: { clienteId?: string, empresaId?: string, year?: number, month?: number }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId);
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year);
 
-    // ── Derived data ──
+    // Filter facturas for KPIs when in monthly mode
+    const kpiFacturas = useMemo(() => {
+        if (!facturas) return [];
+        if (month === undefined) return facturas;
+        return facturas.filter(f => new Date(f.fecha_emision).getMonth() === month);
+    }, [facturas, month]);
+
+    // ── Derived data (uses kpiFacturas for KPIs) ──
     const consumoAnual = useMemo(() => {
-        if (!facturas) return 0;
-        return facturas.reduce((sum, f) => sum + (f.consumo_kwh || 0), 0);
-    }, [facturas]);
+        return kpiFacturas.reduce((sum, f) => sum + (f.consumo_kwh || 0), 0);
+    }, [kpiFacturas]);
 
     const costeAnual = useMemo(() => {
-        if (!facturas) return 0;
-        return facturas.reduce((sum, f) => sum + (f.total || 0), 0);
-    }, [facturas]);
+        return kpiFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
+    }, [kpiFacturas]);
 
-    const numFacturas = facturas?.length ?? 0;
+    const numFacturas = kpiFacturas.length;
+
+    const periodLabel = month !== undefined ? MONTH_LABELS[month] + ' ' + (year ?? '') : (year ? String(year) : '12 meses');
 
     // ── Monthly breakdown ──
     const monthlyData = useMemo(() => {
@@ -136,24 +148,24 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
         <div className="space-y-4">
             {/* ── KPI Cards ── */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Consumo Anual */}
+                {/* Consumo */}
                 <div className="glass-card p-4 flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
                         <BarChart3 className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div>
-                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Consumo (12 meses)</p>
+                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Consumo ({periodLabel})</p>
                         <p className="text-xl font-bold text-primary">{consumoAnual.toLocaleString('es-ES')} kWh</p>
                     </div>
                 </div>
 
-                {/* Coste Anual */}
+                {/* Coste */}
                 <div className="glass-card p-4 flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
                         <TrendingUp className="w-5 h-5 text-blue-500" />
                     </div>
                     <div>
-                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste (12 meses)</p>
+                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste ({periodLabel})</p>
                         <p className="text-xl font-bold text-primary">
                             {costeAnual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                         </p>
@@ -166,7 +178,7 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
                         <Receipt className="w-5 h-5 text-amber-500" />
                     </div>
                     <div>
-                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Facturas (12 meses)</p>
+                        <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Facturas ({periodLabel})</p>
                         <p className="text-xl font-bold text-primary">{numFacturas}</p>
                     </div>
                 </div>
@@ -198,7 +210,13 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
                                 formatter={(value: any) => [`${Number(value).toLocaleString('es-ES')} kWh`, 'Consumo']}
                             />
                             <Area type="monotone" dataKey="consumo" stroke={chartColors.consumo} strokeWidth={2.5}
-                                fill="url(#clConsumoGrad)" dot={{ fill: chartColors.consumo, r: 3 }} activeDot={{ r: 5 }}
+                                fill="url(#clConsumoGrad)"
+                                dot={(props: any) => {
+                                    const { cx, cy, index } = props;
+                                    const isSelected = month !== undefined && index === month;
+                                    return <circle cx={cx} cy={cy} r={isSelected ? 7 : 3} fill={chartColors.consumo} stroke={isSelected ? '#fff' : 'none'} strokeWidth={isSelected ? 2 : 0} style={isSelected ? { filter: `drop-shadow(0 0 6px ${chartColors.consumo})` } : undefined} />;
+                                }}
+                                activeDot={{ r: 5 }}
                                 connectNulls />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -228,7 +246,13 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
                                 formatter={(value: any) => [`${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 'Coste']}
                             />
                             <Area type="monotone" dataKey="coste" stroke={chartColors.coste} strokeWidth={2.5}
-                                fill="url(#clCosteGrad)" dot={{ fill: chartColors.coste, r: 3 }} activeDot={{ r: 5 }}
+                                fill="url(#clCosteGrad)"
+                                dot={(props: any) => {
+                                    const { cx, cy, index } = props;
+                                    const isSelected = month !== undefined && index === month;
+                                    return <circle cx={cx} cy={cy} r={isSelected ? 7 : 3} fill={chartColors.coste} stroke={isSelected ? '#fff' : 'none'} strokeWidth={isSelected ? 2 : 0} style={isSelected ? { filter: `drop-shadow(0 0 6px ${chartColors.coste})` } : undefined} />;
+                                }}
+                                activeDot={{ r: 5 }}
                                 connectNulls />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -258,7 +282,13 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
                                 formatter={(value: any) => [value != null ? `${Number(value).toFixed(4)} €/kWh` : 'N/D', 'Precio']}
                             />
                             <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5}
-                                fill="url(#clPrecioGrad)" dot={{ fill: chartColors.precio, r: 3 }} activeDot={{ r: 5 }}
+                                fill="url(#clPrecioGrad)"
+                                dot={(props: any) => {
+                                    const { cx, cy, index } = props;
+                                    const isSelected = month !== undefined && index === month;
+                                    return <circle cx={cx} cy={cy} r={isSelected ? 7 : 3} fill={chartColors.precio} stroke={isSelected ? '#fff' : 'none'} strokeWidth={isSelected ? 2 : 0} style={isSelected ? { filter: `drop-shadow(0 0 6px ${chartColors.precio})` } : undefined} />;
+                                }}
+                                activeDot={{ r: 5 }}
                                 connectNulls />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -269,19 +299,26 @@ export default function ClientInsightsWidget({ clienteId, empresaId }: { cliente
 }
 
 // ── Cost Breakdown Widget (full-width, separate placement) ──────
-export function CostBreakdownWidget({ clienteId, empresaId }: { clienteId?: string, empresaId?: string }) {
+// year/month: same logic as ClientInsightsWidget — month filters the breakdown data
+export function CostBreakdownWidget({ clienteId, empresaId, year, month }: { clienteId?: string, empresaId?: string, year?: number, month?: number }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId);
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year);
+
+    // Filter by month for breakdown if monthly mode
+    const filteredFacturas = useMemo(() => {
+        if (!facturas) return [];
+        if (month === undefined) return facturas;
+        return facturas.filter(f => new Date(f.fecha_emision).getMonth() === month);
+    }, [facturas, month]);
 
     const costeAnual = useMemo(() => {
-        if (!facturas) return 0;
-        return facturas.reduce((sum, f) => sum + (f.total || 0), 0);
-    }, [facturas]);
+        return filteredFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
+    }, [filteredFacturas]);
 
     const costByType = useMemo(() => {
         const totals = new Map<string, number>();
-        facturas?.forEach(f => {
+        filteredFacturas.forEach(f => {
             const tipo = f.tipo_factura || 'Otro';
             totals.set(tipo, (totals.get(tipo) || 0) + (f.total || 0));
         });
@@ -291,7 +328,9 @@ export function CostBreakdownWidget({ clienteId, empresaId }: { clienteId?: stri
         }));
         entries.sort((a, b) => b.total - a.total);
         return entries;
-    }, [facturas]);
+    }, [filteredFacturas]);
+
+    const periodLabel = month !== undefined ? `Mensual (${MONTH_LABELS[month]}) por Tipo` : 'Anual por Tipo';
 
     const SEGMENT_COLORS = [
         { bg: isDark ? '#60a5fa' : '#3b82f6', label: '#fff' },
@@ -310,7 +349,7 @@ export function CostBreakdownWidget({ clienteId, empresaId }: { clienteId?: stri
                     <Zap className="w-3.5 h-3.5 text-purple-500" />
                 </div>
                 <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">
-                    Desglose de Coste Anual por Tipo
+                    Desglose de Coste {periodLabel}
                 </h3>
             </div>
 

@@ -6,12 +6,11 @@ import { useEffect, useState } from 'react';
 import type { Cliente } from '@lib/types';
 import { buildStoragePath } from '@lib/utils';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { FileUp, ArrowLeft, Users, FileText, Loader2, Upload } from 'lucide-react';
+import { FileUp, ArrowLeft, Users, Loader2, Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const schema = z.object({
   cliente_id: z.string().uuid({ message: "Debes seleccionar un cliente" }),
-  tipo: z.string().min(1, "El tipo de documento es obligatorio"),
   archivo: z.any().refine(file => file instanceof File, 'Debes seleccionar un archivo'),
 });
 
@@ -38,7 +37,6 @@ export default function DocumentoUpload() {
 
       const meta = {
         cliente_id: values.cliente_id,
-        tipo: values.tipo,
         ruta_storage: path,
         nombre_archivo: file.name,
         mime_type: file.type,
@@ -93,23 +91,6 @@ export default function DocumentoUpload() {
               </select>
             </div>
             {errors.cliente_id && <p className="text-sm text-red-400 mt-1">{errors.cliente_id.message}</p>}
-          </div>
-
-          {/* Tipo */}
-          <div>
-            <label htmlFor="tipo" className="block text-sm font-medium text-gray-300 mb-2">
-              Tipo de Documento
-            </label>
-            <div className="relative">
-              <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                id="tipo"
-                placeholder="Ej: Factura Enero, DNI, Contrato..."
-                {...register('tipo')}
-                className="glass-input pl-10 w-full"
-              />
-            </div>
-            {errors.tipo && <p className="text-sm text-red-400 mt-1">{errors.tipo.message}</p>}
           </div>
 
           {/* Archivo */}

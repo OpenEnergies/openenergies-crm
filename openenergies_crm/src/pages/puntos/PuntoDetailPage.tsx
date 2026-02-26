@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useTheme } from '@hooks/ThemeContext';
 import {
-    MapPin, Zap, Receipt, ArrowLeft, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Flame, Layers
+    MapPin, Zap, Receipt, ArrowLeft, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Flame, Layers, FileText
 } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -15,6 +15,7 @@ import EmpresaLogo from '@components/EmpresaLogo';
 import { useAgrupacionPunto } from '@hooks/useAgrupaciones';
 import { getTipoBadgeClass } from '@components/agrupaciones/AgrupacionesGrid';
 import { useSession } from '@hooks/useSession';
+import PuntoFacturas from './PuntoFacturas';
 
 // ─── Types ───
 interface PuntoInfo {
@@ -127,6 +128,7 @@ export default function PuntoDetailPage() {
     const isCliente = rol === 'cliente';
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
+    const [activeTab, setActiveTab] = useState<'detalles' | 'facturas'>('detalles');
 
     const { data: punto, isLoading: loadingPunto } = usePuntoInfo(id);
     const { data: facturas, isLoading: loadingFacturas } = useFacturacionPuntoByYear(id, selectedYear);
@@ -290,6 +292,39 @@ export default function PuntoDetailPage() {
                 </div>
             </div>
 
+            {/* ─── Tab Selector ─── */}
+            <div className="flex gap-1 bg-bg-intermediate rounded-xl p-1 w-fit">
+                <button
+                    onClick={() => setActiveTab('detalles')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'detalles'
+                        ? 'bg-fenix-500 text-white shadow-md'
+                        : 'text-secondary hover:text-primary hover:bg-white/5'
+                        }`}
+                >
+                    <span className="flex items-center gap-2">
+                        <MapPin size={15} />
+                        Detalles
+                    </span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('facturas')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'facturas'
+                        ? 'bg-fenix-500 text-white shadow-md'
+                        : 'text-secondary hover:text-primary hover:bg-white/5'
+                        }`}
+                >
+                    <span className="flex items-center gap-2">
+                        <FileText size={15} />
+                        Facturas
+                    </span>
+                </button>
+            </div>
+
+            {/* ─── Tab Content ─── */}
+            {activeTab === 'facturas' ? (
+                <PuntoFacturas puntoId={id} />
+            ) : (
+            <>
             {/* ═══ ROW 1: Tarifa+Tipo | Potencias (only Luz) | Consumo+Coste ═══ */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${isLuz ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-4`}>
                 {/* Tarifa + Tipo (stacked) */}
@@ -622,6 +657,8 @@ export default function PuntoDetailPage() {
                         </ResponsiveContainer>
                     </div>
                 </div>
+            )}
+            </>
             )}
         </div>
     );

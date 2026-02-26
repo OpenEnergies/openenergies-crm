@@ -44,7 +44,8 @@ export function useAgrupacionesCliente() {
         .select('id, cliente_id, nombre, tipo, descripcion, creado_en')
         .eq('cliente_id', clienteId)
         .is('eliminado_en', null)
-        .order('creado_en', { ascending: false });
+        .order('creado_en', { ascending: false })
+        .range(0, 99999);
 
       if (agErr) throw agErr;
       if (!agrupaciones || agrupaciones.length === 0) return [];
@@ -57,7 +58,8 @@ export function useAgrupacionesCliente() {
         .select('id, agrupacion_id')
         .in('agrupacion_id', agrupacionIds)
         .eq('cliente_id', clienteId)
-        .is('eliminado_en', null);
+        .is('eliminado_en', null)
+        .range(0, 99999);
 
       if (pErr) throw pErr;
 
@@ -76,7 +78,8 @@ export function useAgrupacionesCliente() {
           .in('punto_id', puntoIds)
           .eq('cliente_id', clienteId)
           .gte('fecha_emision', sinceStr)
-          .is('eliminado_en', null);
+          .is('eliminado_en', null)
+          .range(0, 99999);
 
         if (fErr) throw fErr;
         facturacionData = facturas || [];
@@ -154,7 +157,8 @@ export function useAgrupacionPuntos(agrupacionId: string | undefined) {
         .select('id, cups, direccion_sum, localidad_sum, provincia_sum, tipo_factura, tarifa')
         .eq('agrupacion_id', agrupacionId)
         .eq('cliente_id', clienteId)
-        .is('eliminado_en', null);
+        .is('eliminado_en', null)
+        .range(0, 99999);
 
       if (error) throw error;
       return data || [];
@@ -187,7 +191,8 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
         .select('id')
         .eq('agrupacion_id', agrupacionId)
         .eq('cliente_id', clienteId)
-        .is('eliminado_en', null);
+        .is('eliminado_en', null)
+        .range(0, 99999);
 
       if (pErr) throw pErr;
       const puntoIds = (puntos || []).map(p => p.id);
@@ -204,7 +209,8 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
         .gte('fecha_emision', startDate)
         .lte('fecha_emision', endDate)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: true });
+        .order('fecha_emision', { ascending: true })
+        .range(0, 99999);
 
       if (fErr) throw fErr;
       return (facturas || []) as AgrupacionFacturaRow[];
@@ -227,7 +233,8 @@ export function useAgrupacionTiposFactura(agrupacionId: string | undefined) {
         .select('tipo_factura')
         .eq('agrupacion_id', agrupacionId)
         .eq('cliente_id', clienteId)
-        .is('eliminado_en', null);
+        .is('eliminado_en', null)
+        .range(0, 99999);
 
       if (error) throw error;
       const tipos = new Set<string>();
@@ -255,7 +262,8 @@ export function usePuntosSinAgrupar() {
         .eq('cliente_id', clienteId)
         .is('agrupacion_id', null)
         .is('eliminado_en', null)
-        .order('direccion_sum', { ascending: true });
+        .order('direccion_sum', { ascending: true })
+        .range(0, 99999);
 
       if (error) throw error;
       return (data || []) as PuntoSinAgrupar[];

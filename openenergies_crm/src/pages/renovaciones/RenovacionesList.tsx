@@ -74,7 +74,7 @@ async function fetchRenovaciones(
     .lte('fecha_renovacion', futureDateISO)
     .in('estado', ['En curso', 'Contratado', 'Pendiente renovacion'])
     .order('fecha_renovacion', { ascending: true })
-    .limit(100);
+    .range(0, 99999);
   
   if (error) throw error;
   

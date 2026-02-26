@@ -13,7 +13,8 @@ type EmpresaSummaryCounts = {
 async function fetchEmpresaSummaryCounts(): Promise<EmpresaSummaryCounts> {
   const { data, error, count } = await supabase
     .from('empresas')
-    .select('tipo', { count: 'exact' });
+    .select('tipo', { count: 'exact' })
+    .range(0, 99999);
 
   if (error) {
     console.error("Error fetching empresa summary counts:", error);

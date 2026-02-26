@@ -75,8 +75,8 @@ interface FacturaCliente {
 }
 
 // ============ FETCH FUNCTION ============
-async function fetchFacturas(dateFilter: DateParts): Promise<FacturaCliente[]> {
-    let query = supabase
+async function fetchFacturas(): Promise<FacturaCliente[]> {
+    const { data, error } = await supabase
         .from('facturacion_clientes')
         .select(`
       *,
@@ -85,30 +85,8 @@ async function fetchFacturas(dateFilter: DateParts): Promise<FacturaCliente[]> {
       comercializadora:empresas!comercializadora_id (nombre)
     `)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false });
-
-    if (dateFilter.year) {
-        if (dateFilter.month) {
-            if (dateFilter.day) {
-                const dateStr = `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}`;
-                query = query.eq('fecha_emision', dateStr);
-            } else {
-                const start = `${dateFilter.year}-${dateFilter.month}-01`;
-                const y = parseInt(dateFilter.year);
-                const m = parseInt(dateFilter.month);
-                const nextY = m === 12 ? y + 1 : y;
-                const nextM = m === 12 ? 1 : m + 1;
-                const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
-                query = query.gte('fecha_emision', start).lt('fecha_emision', end);
-            }
-        } else {
-            const start = `${dateFilter.year}-01-01`;
-            const end = `${parseInt(dateFilter.year) + 1}-01-01`;
-            query = query.gte('fecha_emision', start).lt('fecha_emision', end);
-        }
-    }
-
-    const { data, error } = await query.limit(1000);
+        .order('fecha_emision', { ascending: false })
+        .range(0, 99999);
 
     if (error) throw error;
     return data as FacturaCliente[];
@@ -289,19 +267,34 @@ export default function FacturasList() {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const [columnFilters, setColumnFilters] = useState<{ comercializadora: string[]; tarifa: string[] }>({ comercializadora: [], tarifa: [] });
     const { theme } = useTheme();
 
     // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
     const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
     const { data: facturas = [], isLoading, isError } = useQuery({
-        queryKey: ['facturas-global', dateFilter],
-        queryFn: () => fetchFacturas(dateFilter),
+        queryKey: ['facturas-global'],
+        queryFn: () => fetchFacturas(),
     });
 
     const dateOptions = useMemo(() => {
         return facturas.map(f => new Date(f.fecha_emision));
     }, [facturas]);
+
+    // Column filter options
+    const filterOptions = useMemo(() => {
+        if (!facturas) return { comercializadora: [], tarifa: [] };
+        return {
+            comercializadora: Array.from(new Set(facturas.map(f => f.comercializadora?.nombre).filter(Boolean) as string[])).sort(),
+            tarifa: Array.from(new Set(facturas.map(f => f.tarifa).filter(Boolean) as string[])).sort(),
+        };
+    }, [facturas]);
+
+    const handleColumnFilterChange = (column: 'comercializadora' | 'tarifa', selected: string[]) => {
+        setColumnFilters(prev => ({ ...prev, [column]: selected }));
+        setCurrentPage(1);
+    };
 
     // Get or create signed URL with caching
     const getSignedUrl = useCallback(async (facturaId: string, comercializadoraNombre: string | null | undefined, numeroFactura: string): Promise<string | null> => {
@@ -377,18 +370,39 @@ export default function FacturasList() {
         }
     }, [getSignedUrl]);
 
-    // Filter by search term
+    // Filter by date, search term and column filters
     const filteredFacturas = useMemo(() => {
         if (!facturas) return [];
-        if (!searchTerm) return facturas;
+        let data = facturas;
+
+        // Date filter (client-side)
+        if (dateFilter.year) {
+            data = data.filter(f => {
+                const d = new Date(f.fecha_emision);
+                if (d.getFullYear().toString() !== dateFilter.year) return false;
+                if (dateFilter.month && (d.getMonth() + 1).toString().padStart(2, '0') !== dateFilter.month) return false;
+                if (dateFilter.day && d.getDate().toString().padStart(2, '0') !== dateFilter.day) return false;
+                return true;
+            });
+        }
+
+        // Column filters
+        if (columnFilters.comercializadora.length > 0) {
+            data = data.filter(f => f.comercializadora?.nombre && columnFilters.comercializadora.includes(f.comercializadora.nombre));
+        }
+        if (columnFilters.tarifa.length > 0) {
+            data = data.filter(f => f.tarifa && columnFilters.tarifa.includes(f.tarifa));
+        }
+
+        if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
-        return facturas.filter(f =>
+        return data.filter(f =>
             f.numero_factura.toLowerCase().includes(term) ||
             f.puntos_suministro?.cups?.toLowerCase().includes(term) ||
             f.clientes?.nombre?.toLowerCase().includes(term) ||
             f.direccion_suministro?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm]);
+    }, [facturas, searchTerm, columnFilters, dateFilter]);
 
     // Sorting with useSortableTable hook
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
@@ -398,6 +412,8 @@ export default function FacturasList() {
             numero_factura: (item: FacturaCliente) => item.numero_factura,
             cliente_id: (item: FacturaCliente) => item.clientes?.nombre || '', // Sort by name
             puntos_suministro: (item: FacturaCliente) => item.puntos_suministro?.cups || '',
+            comercializadora: (item: FacturaCliente) => item.comercializadora?.nombre || '',
+            tarifa: (item: FacturaCliente) => item.tarifa || '',
             potencia_kw_max: (item: FacturaCliente) => item.potencia_kw_max || 0,
             total: (item: FacturaCliente) => item.total,
             consumo_kwh: (item: FacturaCliente) => item.consumo_kwh || 0,
@@ -413,10 +429,10 @@ export default function FacturasList() {
         return sortedData.slice(start, start + ITEMS_PER_PAGE);
     }, [sortedData, currentPage]);
 
-    // Reset page when search changes
+    // Reset page when search or filters change
     useMemo(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, columnFilters, dateFilter]);
 
     if (isLoading) {
         return (
@@ -530,7 +546,30 @@ export default function FacturasList() {
                                         </button>
                                     </th>
                                     <th className="p-4 text-left">
-                                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleSort('comercializadora' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                                Comercializadora {renderSortIcon('comercializadora' as any)}
+                                            </button>
+                                            <ColumnFilterDropdown
+                                                columnName="Comercializadora"
+                                                options={filterOptions.comercializadora}
+                                                selectedOptions={columnFilters.comercializadora}
+                                                onChange={(selected) => handleColumnFilterChange('comercializadora', selected)}
+                                            />
+                                        </div>
+                                    </th>
+                                    <th className="p-4 text-left">
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleSort('tarifa' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                                Tarifa {renderSortIcon('tarifa' as any)}
+                                            </button>
+                                            <ColumnFilterDropdown
+                                                columnName="Tarifa"
+                                                options={filterOptions.tarifa}
+                                                selectedOptions={columnFilters.tarifa}
+                                                onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
+                                            />
+                                        </div>
                                     </th>
                                     <th className="p-4 text-right">
                                         <button onClick={() => handleSort('total' as any)} className="flex items-center justify-end gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
@@ -589,14 +628,28 @@ export default function FacturasList() {
                                             )}
                                         </td>
                                         <td className="p-4">
-                                            <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs" title={factura.puntos_suministro?.cups}>
-                                                {factura.puntos_suministro?.cups ?? '—'}
-                                            </span>
+                                            {factura.punto_id ? (
+                                                <Link
+                                                    to="/app/puntos/$id"
+                                                    params={{ id: factura.punto_id }}
+                                                    className="font-medium text-fenix-600 dark:text-fenix-400 hover:underline truncate max-w-[200px] inline-block font-mono text-xs transition-colors"
+                                                    title={factura.puntos_suministro?.cups}
+                                                >
+                                                    {factura.puntos_suministro?.cups ?? '—'}
+                                                </Link>
+                                            ) : (
+                                                <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs" title={factura.puntos_suministro?.cups}>
+                                                    {factura.puntos_suministro?.cups ?? '—'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="p-4">
                                             <span className="text-sm text-secondary">
                                                 {factura.comercializadora?.nombre ?? '—'}
                                             </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-secondary">{factura.tarifa ?? '—'}</span>
                                         </td>
                                         <td className="p-4 text-right">
                                             <span className="font-bold text-secondary">

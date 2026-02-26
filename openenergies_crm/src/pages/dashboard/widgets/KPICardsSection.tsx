@@ -22,7 +22,8 @@ async function fetchKPIData(): Promise<KPIData> {
       consumo_anual_kwh,
       contratos!inner(estado)
     `)
-        .eq('contratos.estado', 'En curso');
+        .eq('contratos.estado', 'En curso')
+        .range(0, 99999);
 
     const totalKwh = puntosActivos?.reduce((sum, p) => sum + (p.consumo_anual_kwh || 0), 0) || 0;
     const energiaGestionadaGWh = totalKwh / 1_000_000;

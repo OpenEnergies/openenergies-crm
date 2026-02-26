@@ -25,6 +25,7 @@ async function fetchEmpresas(archived: boolean) {
     query.or('is_archived.is.null,is_archived.eq.false');
   }
 
+  query.range(0, 99999);
   const { data, error } = await query;
   if (error) throw error;
   return data as Empresa[];

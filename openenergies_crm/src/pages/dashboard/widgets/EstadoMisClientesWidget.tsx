@@ -38,7 +38,8 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
         cliente_id
       )
     `)
-    .eq('comercial_user_id', comercialUserId) as { data: AsignacionConCliente[] | null; error: any };
+    .eq('comercial_user_id', comercialUserId)
+    .range(0, 99999) as { data: AsignacionConCliente[] | null; error: any };
 
   if (asignError) {
     console.error("Error fetching asignaciones:", asignError);
@@ -58,7 +59,8 @@ async function fetchEstadoClientesAsignados(comercialUserId: string | null): Pro
   const { data: clientes, error: clientesError } = await supabase
     .from('clientes')
     .select('id') // Removed 'estado'
-    .in('id', clienteIds);
+    .in('id', clienteIds)
+    .range(0, 99999);
 
   if (clientesError) {
     console.error("Error fetching estado clientes:", clientesError);

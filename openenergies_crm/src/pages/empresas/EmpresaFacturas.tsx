@@ -76,7 +76,8 @@ async function fetchFacturasEmpresa(empresaId: string): Promise<FacturaCliente[]
     `)
         .eq('comercializadora_id', empresaId)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false });
+        .order('fecha_emision', { ascending: false })
+        .range(0, 99999);
 
     if (error) throw error;
     return data as FacturaCliente[];

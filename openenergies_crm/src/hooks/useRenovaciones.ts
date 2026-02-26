@@ -74,7 +74,8 @@ async function fetchContratosParaRenovacion(
     .is('nombre_carpeta_renovacion_pendiente_fecha', null)
     .is('eliminado_en', null)
     .in('estado', ESTADOS_RENOVACION)
-    .order('fecha_renovacion', { ascending: true });
+    .order('fecha_renovacion', { ascending: true })
+    .range(0, 99999);
 
   if (error) throw error;
   return data as unknown as ContratoRenovacion[];
@@ -103,7 +104,8 @@ async function fetchContratosPendientesFecha(): Promise<ContratoRenovacion[]> {
     .eq('pendiente_fecha', true)
     .not('nombre_carpeta_renovacion_pendiente_fecha', 'is', null)
     .is('eliminado_en', null)
-    .order('nombre_carpeta_renovacion_pendiente_fecha', { ascending: true });
+    .order('nombre_carpeta_renovacion_pendiente_fecha', { ascending: true })
+    .range(0, 99999);
 
   if (error) throw error;
   return data as unknown as ContratoRenovacion[];
@@ -123,7 +125,8 @@ async function fetchComercializadoras(): Promise<{ id: string; nombre: string }[
     .select('id, nombre')
     .eq('tipo', 'comercializadora')
     .is('eliminado_en', null)
-    .order('nombre');
+    .order('nombre')
+    .range(0, 99999);
 
   if (error) throw error;
   return data || [];

@@ -21,6 +21,7 @@ interface ClienteConAgregados {
   creado_en: string;
   puntos_count: number;
   total_kwh: number;
+  activo: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -37,7 +38,8 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
       puntos_suministro!inner (
         id,
         consumo_anual_kwh,
-        current_comercializadora_id
+        current_comercializadora_id,
+        estado
       )
     `)
     .is('eliminado_en', null)
@@ -74,7 +76,8 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
           puntos_suministro!inner (
              id,
              consumo_anual_kwh,
-             current_comercializadora_id
+             current_comercializadora_id,
+             estado
           )
         `)
       .eq('puntos_suministro.current_comercializadora_id', empresaId)
@@ -91,7 +94,9 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
           creado_en,
           puntos_suministro (
              id,
-             consumo_anual_kwh
+             consumo_anual_kwh,
+             current_comercializadora_id,
+             estado
           )
         `)
       .is('eliminado_en', null)
@@ -102,16 +107,15 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
     query = query.or(`nombre.ilike.%${search}%,dni.ilike.%${search}%,cif.ilike.%${search}%`);
   }
 
+  query = query.range(0, 99999);
   const { data, error } = await query;
 
   if (error) throw error;
 
   return (data || []).map((cliente: any) => {
     const puntos = cliente.puntos_suministro || [];
-    // If filtering by empresa, we might only want to count points OF that empresa? 
-    // Usually yes, but the type `ClienteConAgregados` just shows aggregate data.
-    // For now, simple mapping.
     const puntosActivos = puntos.filter((p: any) => p.id);
+    const activo = puntosActivos.some((p: any) => p.estado === 'Aceptado');
 
     return {
       id: cliente.id,
@@ -121,6 +125,7 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
       creado_en: cliente.creado_en,
       puntos_count: puntosActivos.length,
       total_kwh: puntosActivos.reduce((acc: number, p: any) => acc + (Number(p.consumo_anual_kwh) || 0), 0),
+      activo,
     };
   });
 }
@@ -297,7 +302,8 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   <th className="p-4">DNI / CIF</th>
                   <th className="p-4 text-center">Puntos</th>
                   <th className="p-4 text-right">Consumo Anual</th>
-                  <th className="p-4 rounded-tr-lg text-center">Acciones</th>
+                  <th className="p-4 text-center">Activo</th>
+                  <th className="p-4 rounded-tr-lg text-center">Creado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-fenix-500/10">
@@ -317,13 +323,12 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                     <td className="p-4 text-right font-mono text-sm text-secondary">
                       {cliente.total_kwh ? `${cliente.total_kwh.toLocaleString()} kWh` : '—'}
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link to="/app/clientes/$id" params={{ id: cliente.id }} className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-bg-intermediate transition-colors" title="Ver detalle">
-                          <Eye size={16} />
-                        </Link>
-                      </div>
+                    <td className="p-4 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${cliente.activo ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                        {cliente.activo ? 'ACTIVO' : 'INACTIVO'}
+                      </span>
                     </td>
+                    <td className="p-4 text-center text-secondary text-sm">{fmtDate(cliente.creado_en)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -501,14 +506,6 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                     </th>
                     <th className="p-4 text-left">
                       <button
-                        onClick={() => handleSort('creado_en')}
-                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
-                      >
-                        Creado {renderSortIcon('creado_en')}
-                      </button>
-                    </th>
-                    <th className="p-4 text-left">
-                      <button
                         onClick={() => handleSort('puntos_count')}
                         className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
@@ -521,6 +518,22 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                         className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                       >
                         KWH {renderSortIcon('total_kwh')}
+                      </button>
+                    </th>
+                    <th className="p-4 text-center">
+                      <button
+                        onClick={() => handleSort('activo')}
+                        className="flex items-center justify-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                      >
+                        Activo {renderSortIcon('activo')}
+                      </button>
+                    </th>
+                    <th className="p-4 text-left">
+                      <button
+                        onClick={() => handleSort('creado_en')}
+                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                      >
+                        Creado {renderSortIcon('creado_en')}
                       </button>
                     </th>
                   </tr>
@@ -557,15 +570,20 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                             </Link>
                           </td>
                           <td className="p-4 text-gray-400">{c.dni || c.cif || '—'}</td>
-                          <td className="p-4 text-gray-400">{fmtDate(c.creado_en)}</td>
                           <td className="p-4 text-gray-400">{c.puntos_count}</td>
                           <td className="p-4 text-gray-400">{c.total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</td>
+                          <td className="p-4 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${c.activo ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                              {c.activo ? 'ACTIVO' : 'INACTIVO'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-gray-400">{fmtDate(c.creado_en)}</td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-400">
+                      <td colSpan={8} className="p-8 text-center text-gray-400">
                         Sin resultados que coincidan con la búsqueda.
                       </td>
                     </tr>

@@ -23,7 +23,8 @@ async function fetchUsuarios(): Promise<UsuarioConEmpresa[]> {
   const { data, error } = await supabase
     .from('usuarios_app')
     .select('*, empresas(nombre)')
-    .order('creado_en', { ascending: false });
+    .order('creado_en', { ascending: false })
+    .range(0, 99999);
 
   if (error) throw error;
   return data as UsuarioConEmpresa[];

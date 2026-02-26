@@ -108,7 +108,8 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
     query = query.eq('comercializadora_id', empresaId); // Filter by comercializadora (empresa)
   }
 
-  const { data, error } = await query.limit(500);
+  query = query.range(0, 99999);
+  const { data, error } = await query;
   if (error) throw error;
 
   // Filtro de búsqueda en el cliente (filtra por CUPS, nombre cliente y comercializadora)
@@ -1130,13 +1131,14 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                         </td>
                       )}
                       <td className="p-4">
-                        <button
-                          className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors cursor-pointer font-mono text-sm"
-                          onClick={() => setSelectedContrato(c)}
-                          title="Ver detalle"
+                        <Link
+                          to="/app/puntos/$id"
+                          params={{ id: c.punto_id }}
+                          className="font-bold text-fenix-600 dark:text-fourth hover:underline text-left transition-colors font-mono text-sm"
+                          title="Ver detalle del punto"
                         >
                           {c.puntos_suministro?.cups ?? '—'}
-                        </button>
+                        </Link>
                       </td>
                       <td className="p-4">
                         <EstadoDropdown

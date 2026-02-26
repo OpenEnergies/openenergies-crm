@@ -263,7 +263,15 @@ export default function DocumentosList() {
                           </button>
                         )}
                       </td>
-                      <td className="p-4 text-slate-600 dark:text-slate-400">{item.cliente_nombre}</td>
+                      <td className="p-4">
+                        <Link
+                          to="/app/clientes/$id"
+                          params={{ id: item.cliente_id }}
+                          className="text-fenix-600 dark:text-fenix-400 font-medium hover:underline transition-colors"
+                        >
+                          {item.cliente_nombre}
+                        </Link>
+                      </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {!item.is_folder && (

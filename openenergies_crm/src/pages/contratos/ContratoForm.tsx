@@ -74,7 +74,8 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
     .from('empresas')
     .select('id, nombre')
     .eq('tipo', 'comercializadora')
-    .order('nombre');
+    .order('nombre')
+    .range(0, 99999);
   if (error) throw error;
   return data || [];
 }
@@ -83,7 +84,8 @@ async function fetchCanales(): Promise<CanalOpt[]> {
   const { data, error } = await supabase
     .from('canales')
     .select('id, nombre')
-    .order('nombre');
+    .order('nombre')
+    .range(0, 99999);
   if (error) throw error;
   return data || [];
 }
@@ -93,7 +95,8 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
     .from('clientes')
     .select('id, nombre, cif, numero_cuenta')
     .is('eliminado_en', null)
-    .order('nombre');
+    .order('nombre')
+    .range(0, 99999);
   if (error) throw error;
   return data || [];
 }
@@ -103,7 +106,8 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
     .from('puntos_suministro')
     .select('id, cups, direccion_sum, cliente_id, current_comercializadora_id')
     .is('eliminado_en', null)
-    .order('cups');
+    .order('cups')
+    .range(0, 99999);
   if (error) throw error;
   return data || [];
 }

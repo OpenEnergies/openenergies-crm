@@ -476,9 +476,13 @@ export default function PuntoDetailPage() {
                                     {!isCliente && punto.cliente && (
                                         <div className="mt-1">
                                             <span className="block text-[10px] text-secondary font-medium uppercase tracking-wider">Cliente</span>
-                                            <span className="text-sm font-bold text-fenix-600 dark:text-fenix-400 truncate block">
+                                            <Link
+                                                to="/app/clientes/$id"
+                                                params={{ id: (Array.isArray(punto.cliente) ? punto.cliente[0]?.id : punto.cliente.id) ?? '' }}
+                                                className="text-sm font-bold text-fenix-600 dark:text-fenix-400 hover:underline truncate block transition-colors"
+                                            >
                                                 {Array.isArray(punto.cliente) ? punto.cliente[0]?.nombre : punto.cliente.nombre}
-                                            </span>
+                                            </Link>
                                         </div>
                                     )}
                                 </div>
@@ -650,9 +654,15 @@ export default function PuntoDetailPage() {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
                                 <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
-                                <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={['auto', 'auto']} />
+                                <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={[(dataMin: number) => Number.isFinite(dataMin) ? dataMin * 0.9 : 0, 'auto']} />
                                 <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [value != null ? `${Number(value).toFixed(4)} €/kWh` : 'N/D', 'Precio']} />
-                                <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5} fill="url(#precioGrad)" dot={{ fill: chartColors.precio, r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                                <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5} fill="url(#precioGrad)"
+                                    dot={(props: any) => {
+                                        const { cx, cy, index, value } = props;
+                                        if (value == null || !Number.isFinite(cx) || !Number.isFinite(cy)) return <g key={`dot-precio-${index}`} />;
+                                        return <circle key={`dot-precio-${index}`} cx={cx} cy={cy} r={3} fill={chartColors.precio} />;
+                                    }}
+                                    activeDot={{ r: 5 }} connectNulls />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>

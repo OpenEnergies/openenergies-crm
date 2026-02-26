@@ -28,7 +28,8 @@ async function fetchChartData(): Promise<ChartData> {
     // Fetch clientes agrupados por estado (for supply points)
     const { data: clientes } = await supabase
         .from('puntos_suministro')
-        .select('estado');
+        .select('estado')
+        .range(0, 99999);
 
     const puntosEstados: Record<string, number> = {};
     clientes?.forEach(c => {
@@ -39,7 +40,8 @@ async function fetchChartData(): Promise<ChartData> {
     // Fetch contratos agrupados por estado
     const { data: contratos } = await supabase
         .from('contratos')
-        .select('estado');
+        .select('estado')
+        .range(0, 99999);
 
     const contratosEstados: Record<string, number> = {};
     contratos?.forEach(c => {

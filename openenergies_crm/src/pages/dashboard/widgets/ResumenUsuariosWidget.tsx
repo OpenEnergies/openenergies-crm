@@ -15,7 +15,8 @@ type UserSummaryCounts = {
 async function fetchUserSummaryCounts(): Promise<UserSummaryCounts> {
   const { data, error } = await supabase
     .from('usuarios_app')
-    .select('activo, rol', { count: 'exact' });
+    .select('activo, rol', { count: 'exact' })
+    .range(0, 99999);
 
   if (error) {
     console.error("Error fetching user summary counts:", error);

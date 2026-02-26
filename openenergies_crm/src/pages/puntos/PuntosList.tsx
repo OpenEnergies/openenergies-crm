@@ -74,6 +74,7 @@ const ITEMS_PER_PAGE = 50;
 const initialColumnFilters = {
   estado: [] as string[],
   tarifa: [] as string[],
+  comercializadora: [] as string[],
 };
 
 // ============ FETCH FUNCTION ============
@@ -126,6 +127,7 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
     query = query.eq('current_comercializadora_id', empresaId);
   }
 
+  query = query.range(0, 99999);
   const { data, error } = await query;
   if (error) throw error;
 
@@ -507,6 +509,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
     return {
       estado: getUnique('estado'),
       tarifa: getUnique('tarifa'),
+      comercializadora: Array.from(new Set(fetchedData.map(p => getComercializadoraNombre(p)).filter(n => n !== '—'))).sort(),
     };
   }, [fetchedData]);
 
@@ -516,10 +519,12 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
     return fetchedData.filter(item => {
       const estado = item.estado ?? null;
       const tarifaAcceso = item.tarifa ?? null;
+      const comercializadoraNombre = getComercializadoraNombre(item);
 
       return (
         (columnFilters.estado.length === 0 || (estado && columnFilters.estado.includes(estado))) &&
-        (columnFilters.tarifa.length === 0 || (tarifaAcceso && columnFilters.tarifa.includes(tarifaAcceso)))
+        (columnFilters.tarifa.length === 0 || (tarifaAcceso && columnFilters.tarifa.includes(tarifaAcceso))) &&
+        (columnFilters.comercializadora.length === 0 || (comercializadoraNombre !== '—' && columnFilters.comercializadora.includes(comercializadoraNombre)))
       );
     });
   }, [fetchedData, columnFilters]);
@@ -538,6 +543,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         return Array.isArray(c) ? c[0]?.nombre : (c as any)?.nombre;
       },
       cups: (item: PuntoConCliente) => item.cups,
+      comercializadora_nombre: (item: PuntoConCliente) => getComercializadoraNombre(item),
       estado: (item: PuntoConCliente) => item.estado,
       tarifa: (item: PuntoConCliente) => item.tarifa,
       consumo_anual_kwh: (item: PuntoConCliente) => item.consumo_anual_kwh,
@@ -909,7 +915,17 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
                           </th>
                           <th className="p-4 text-left">
-                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('comercializadora_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Comercializadora {renderSortIcon('comercializadora_nombre' as any)}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Comercializadora"
+                                options={filterOptions.comercializadora}
+                                selectedOptions={columnFilters.comercializadora}
+                                onChange={(selected) => handleColumnFilterChange('comercializadora', selected)}
+                              />
+                            </div>
                           </th>
                           <th className="p-4 text-left">
                             <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
@@ -941,7 +957,17 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             </button>
                           </th>
                           <th className="p-4 text-left">
-                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('comercializadora_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Comercializadora {renderSortIcon('comercializadora_nombre' as any)}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Comercializadora"
+                                options={filterOptions.comercializadora}
+                                selectedOptions={columnFilters.comercializadora}
+                                onChange={(selected) => handleColumnFilterChange('comercializadora', selected)}
+                              />
+                            </div>
                           </th>
                           <th className="p-4 text-left">
                             <div className="flex items-center gap-2">

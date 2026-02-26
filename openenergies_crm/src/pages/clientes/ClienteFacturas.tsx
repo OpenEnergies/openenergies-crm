@@ -12,6 +12,7 @@ import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
 import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
+import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
 import ExportButton from '@components/ExportButton';
 
@@ -85,7 +86,8 @@ async function fetchFacturas(clienteId: string): Promise<FacturaCliente[]> {
     `)
         .eq('cliente_id', clienteId)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: false });
+        .order('fecha_emision', { ascending: false })
+        .range(0, 99999);
 
     if (error) throw error;
     return data as FacturaCliente[];
@@ -264,6 +266,7 @@ export default function ClienteFacturas() {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const [columnFilters, setColumnFilters] = useState<{ comercializadora: string[]; tarifa: string[] }>({ comercializadora: [], tarifa: [] });
 
     const { data: facturas = [], isLoading, isError } = useQuery({
         queryKey: ['cliente-facturas', clienteId],
@@ -275,6 +278,20 @@ export default function ClienteFacturas() {
 
     // Border color for table separators: green in dark mode, gray in light mode (matches FacturasList)
     const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
+
+    // Column filter options
+    const filterOptions = useMemo(() => {
+        if (!facturas) return { comercializadora: [], tarifa: [] };
+        return {
+            comercializadora: Array.from(new Set(facturas.map(f => f.comercializadora?.nombre).filter(Boolean) as string[])).sort(),
+            tarifa: Array.from(new Set(facturas.map(f => f.tarifa).filter(Boolean) as string[])).sort(),
+        };
+    }, [facturas]);
+
+    const handleColumnFilterChange = (column: 'comercializadora' | 'tarifa', selected: string[]) => {
+        setColumnFilters(prev => ({ ...prev, [column]: selected }));
+        setCurrentPage(1);
+    };
 
     // Get or create signed URL with caching
     const getSignedUrl = useCallback(async (facturaId: string, comercializadoraNombre: string | null | undefined, numeroFactura: string): Promise<string | null> => {
@@ -366,6 +383,14 @@ export default function ClienteFacturas() {
             });
         }
 
+        // Column filters
+        if (columnFilters.comercializadora.length > 0) {
+            data = data.filter(f => f.comercializadora?.nombre && columnFilters.comercializadora.includes(f.comercializadora.nombre));
+        }
+        if (columnFilters.tarifa.length > 0) {
+            data = data.filter(f => f.tarifa && columnFilters.tarifa.includes(f.tarifa));
+        }
+
         if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
         return data.filter(f =>
@@ -373,7 +398,7 @@ export default function ClienteFacturas() {
             f.puntos_suministro?.cups?.toLowerCase().includes(term) ||
             f.direccion_suministro?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm, dateFilter]);
+    }, [facturas, searchTerm, dateFilter, columnFilters]);
 
     // Sorting with useSortableTable hook
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
@@ -382,6 +407,8 @@ export default function ClienteFacturas() {
         sortValueAccessors: {
             numero_factura: (item: FacturaCliente) => item.numero_factura,
             puntos_suministro: (item: FacturaCliente) => item.puntos_suministro?.cups,
+            comercializadora: (item: FacturaCliente) => item.comercializadora?.nombre || '',
+            tarifa: (item: FacturaCliente) => item.tarifa || '',
             potencia_kw_max: (item: FacturaCliente) => item.potencia_kw_max,
             total: (item: FacturaCliente) => item.total,
             consumo_kwh: (item: FacturaCliente) => item.consumo_kwh,
@@ -400,7 +427,7 @@ export default function ClienteFacturas() {
     // Reset page when search or date filter changes
     useMemo(() => {
         setCurrentPage(1);
-    }, [searchTerm, dateFilter]);
+    }, [searchTerm, dateFilter, columnFilters]);
 
     if (isLoading) {
         return (
@@ -493,7 +520,36 @@ export default function ClienteFacturas() {
                                     </button>
                                 </th>
                                 <th className="p-4">
-                                    <span className="text-xs font-bold text-primary uppercase tracking-wider">Comercializadora</span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleSort('comercializadora' as any)}
+                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
+                                        >
+                                            Comercializadora {renderSortIcon('comercializadora' as any)}
+                                        </button>
+                                        <ColumnFilterDropdown
+                                            columnName="Comercializadora"
+                                            options={filterOptions.comercializadora}
+                                            selectedOptions={columnFilters.comercializadora}
+                                            onChange={(selected) => handleColumnFilterChange('comercializadora', selected)}
+                                        />
+                                    </div>
+                                </th>
+                                <th className="p-4">
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleSort('tarifa' as any)}
+                                            className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
+                                        >
+                                            Tarifa {renderSortIcon('tarifa' as any)}
+                                        </button>
+                                        <ColumnFilterDropdown
+                                            columnName="Tarifa"
+                                            options={filterOptions.tarifa}
+                                            selectedOptions={columnFilters.tarifa}
+                                            onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
+                                        />
+                                    </div>
                                 </th>
                                 <th className="p-4">
                                     <button
@@ -505,18 +561,18 @@ export default function ClienteFacturas() {
                                 </th>
                                 <th className="p-4 text-right">
                                     <button
-                                        onClick={() => handleSort('total' as any)}
-                                        className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer"
-                                    >
-                                        Total {renderSortIcon('total' as any)}
-                                    </button>
-                                </th>
-                                <th className="p-4 text-right">
-                                    <button
                                         onClick={() => handleSort('consumo_kwh' as any)}
                                         className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer"
                                     >
                                         Consumo (kWh) {renderSortIcon('consumo_kwh' as any)}
+                                    </button>
+                                </th>
+                                <th className="p-4 text-right">
+                                    <button
+                                        onClick={() => handleSort('total' as any)}
+                                        className="flex items-center gap-1 hover:text-fenix-400 transition-colors ml-auto cursor-pointer"
+                                    >
+                                        Total {renderSortIcon('total' as any)}
                                     </button>
                                 </th>
                                 <th className="p-4">
@@ -570,6 +626,11 @@ export default function ClienteFacturas() {
                                         </span>
                                     </td>
 
+                                    {/* Tarifa */}
+                                    <td className="p-4">
+                                        <span className="text-secondary text-sm">{factura.tarifa ?? '—'}</span>
+                                    </td>
+
                                     {/* Potencia */}
                                     <td className="p-4">
                                         <span className="text-secondary text-sm">
@@ -579,17 +640,17 @@ export default function ClienteFacturas() {
                                         </span>
                                     </td>
 
+                                    {/* Consumo */}
+                                    <td className="p-4 text-right">
+                                        <span className="text-secondary">
+                                            {factura.consumo_kwh !== null ? formatNumber(factura.consumo_kwh) : '—'}
+                                        </span>
+                                    </td>
+
                                     {/* Total */}
                                     <td className="p-4 text-right">
                                         <span className="font-bold text-secondary">
                                             {formatCurrency(factura.total)}
-                                        </span>
-                                    </td>
-
-                                    {/* Consumo */}
-                                    <td className="p-4 text-right">
-                                        <span className="text-secondary">
-                                            {factura.consumo_kwh !== null ? `${formatNumber(factura.consumo_kwh)} kWh` : '—'}
                                         </span>
                                     </td>
 

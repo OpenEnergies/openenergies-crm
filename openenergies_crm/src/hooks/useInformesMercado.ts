@@ -74,7 +74,7 @@ export function useInformesList(options: UseInformesListOptions = {}) {
         query = query.limit(options.limit);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.range(0, 99999);
 
       if (error) {
         console.error('Error fetching informes:', error);
@@ -87,7 +87,8 @@ export function useInformesList(options: UseInformesListOptions = {}) {
         const { data: targets } = await supabase
           .from('informes_targets')
           .select('informe_id, punto_id')
-          .in('informe_id', informeIds);
+          .in('informe_id', informeIds)
+          .range(0, 99999);
 
         // Agrupar targets por informe
         const targetsMap = new Map<string, string[]>();
@@ -141,7 +142,8 @@ export function useInformeDetail(id: string | undefined) {
         const { data: targets } = await supabase
           .from('informes_targets')
           .select('punto_id')
-          .eq('informe_id', id);
+          .eq('informe_id', id)
+          .range(0, 99999);
 
         const puntoIds = (targets || []).map(t => t.punto_id);
 
@@ -151,6 +153,7 @@ export function useInformeDetail(id: string | undefined) {
             .from('puntos_suministro')
             .select('id, cups, direccion_sum')
             .in('id', puntoIds)
+            .range(0, 99999)
           : { data: [] };
 
         return {
@@ -461,7 +464,7 @@ export function useClientesForSelect(
         .or(`nombre.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
         .order('nombre');
 
-      const { data: clientes, error: clientesError } = await clientesQuery;
+      const { data: clientes, error: clientesError } = await clientesQuery.range(0, 99999);
 
       if (clientesError) throw clientesError;
 
@@ -477,7 +480,7 @@ export function useClientesForSelect(
         .gte('fecha_emision', startDate)
         .lte('fecha_emision', endDate);
 
-      const { data: facturas, error: facturasError } = await facturasQuery;
+      const { data: facturas, error: facturasError } = await facturasQuery.range(0, 99999);
 
       if (facturasError) {
         console.error('Error fetching facturas for clientes:', facturasError);
@@ -555,7 +558,7 @@ export function usePuntosForSelect(
         facturasQuery = facturasQuery.in('tipo_factura', ['Luz', 'Gas']);
       }
 
-      const { data: facturas, error: facturasError } = await facturasQuery;
+      const { data: facturas, error: facturasError } = await facturasQuery.range(0, 99999);
 
       if (facturasError) {
         console.error('Error fetching facturas for puntos:', facturasError);
@@ -586,7 +589,7 @@ export function usePuntosForSelect(
         puntosQuery = puntosQuery.or(`cups.ilike.%${searchTerm}%,direccion_sum.ilike.%${searchTerm}%`);
       }
 
-      const { data: puntos, error: puntosError } = await puntosQuery;
+      const { data: puntos, error: puntosError } = await puntosQuery.range(0, 99999);
 
       if (puntosError) throw puntosError;
 
@@ -601,7 +604,8 @@ export function usePuntosForSelect(
         const { data: clientes, error: clientesError } = await supabase
           .from('clientes')
           .select('id, nombre')
-          .in('id', uniqueClienteIds);
+          .in('id', uniqueClienteIds)
+          .range(0, 99999);
 
         if (!clientesError && clientes) {
           clientesMap = clientes.reduce((acc, curr) => {

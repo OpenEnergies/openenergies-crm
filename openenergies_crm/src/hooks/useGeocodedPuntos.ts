@@ -221,7 +221,8 @@ async function fetchAndGeocode(): Promise<GeocodedPunto[]> {
         .from('puntos_suministro')
         .select('id, cups, estado, direccion_sum, localidad_sum, provincia_sum, latitud, longitud, clientes(nombre)')
         .is('eliminado_en', null)
-        .order('creado_en', { ascending: false });
+        .order('creado_en', { ascending: false })
+        .range(0, 99999);
 
     if (error) throw error;
     const puntos = (data ?? []) as PuntoRaw[];

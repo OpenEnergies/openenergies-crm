@@ -51,7 +51,8 @@ async function fetchEmpresa(empresaId: string): Promise<EmpresaDetallada> {
     .from('puntos_suministro')
     .select('cliente_id')
     .eq('current_comercializadora_id', empresaId)
-    .is('eliminado_en', null);
+    .is('eliminado_en', null)
+    .range(0, 99999);
 
   const uniqueClienteIds = new Set(clientesData?.map(p => p.cliente_id).filter(Boolean));
 

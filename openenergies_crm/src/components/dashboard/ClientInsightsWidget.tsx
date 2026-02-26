@@ -276,7 +276,7 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
                             <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
-                            <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={['auto', 'auto']} />
+                            <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={[(dataMin: number) => Number.isFinite(dataMin) ? dataMin * 0.9 : 0, 'auto']} />
                             <Tooltip
                                 contentStyle={tooltipStyle}
                                 formatter={(value: any) => [value != null ? `${Number(value).toFixed(4)} €/kWh` : 'N/D', 'Precio']}
@@ -284,9 +284,10 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
                             <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5}
                                 fill="url(#clPrecioGrad)"
                                 dot={(props: any) => {
-                                    const { cx, cy, index } = props;
+                                    const { cx, cy, index, value } = props;
+                                    if (value == null || !Number.isFinite(cx) || !Number.isFinite(cy)) return <g key={`dot-precio-${index}`} />;
                                     const isSelected = month !== undefined && index === month;
-                                    return <circle cx={cx} cy={cy} r={isSelected ? 7 : 3} fill={chartColors.precio} stroke={isSelected ? '#fff' : 'none'} strokeWidth={isSelected ? 2 : 0} style={isSelected ? { filter: `drop-shadow(0 0 6px ${chartColors.precio})` } : undefined} />;
+                                    return <circle key={`dot-precio-${index}`} cx={cx} cy={cy} r={isSelected ? 7 : 3} fill={chartColors.precio} stroke={isSelected ? '#fff' : 'none'} strokeWidth={isSelected ? 2 : 0} style={isSelected ? { filter: `drop-shadow(0 0 6px ${chartColors.precio})` } : undefined} />;
                                 }}
                                 activeDot={{ r: 5 }}
                                 connectNulls />

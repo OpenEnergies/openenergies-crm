@@ -56,8 +56,8 @@ export default function ClienteGlobal() {
     return (
         <div className="space-y-6 animate-fade-in w-full">
             {/* ═══ View Mode Toggle + Period Selector ═══ */}
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-                {/* Anual / Mensual Toggle */}
+            <div className="relative flex items-center">
+                {/* Anual / Mensual Toggle — pinned left */}
                 <div className="flex gap-1 bg-bg-intermediate rounded-xl p-1">
                     <button
                         onClick={() => setViewMode('anual')}
@@ -79,8 +79,9 @@ export default function ClienteGlobal() {
                     </button>
                 </div>
 
-                {/* Period Navigator */}
-                <div className="flex items-center gap-3 flex-1 justify-center">
+                {/* Period Navigator — absolutely centered in the full row */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="flex items-center gap-3 pointer-events-auto">
                     <button
                         onClick={handlePrev}
                         className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer"
@@ -98,6 +99,7 @@ export default function ClienteGlobal() {
                     >
                         <ChevronRight size={20} />
                     </button>
+                    </div>
                 </div>
             </div>
 

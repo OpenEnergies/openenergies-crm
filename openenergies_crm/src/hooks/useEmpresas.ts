@@ -14,7 +14,8 @@ export function useEmpresas() {
       const { data, error } = await supabase
         .from('empresas')
         .select('id, nombre')
-        .order('nombre', { ascending: true });
+        .order('nombre', { ascending: true })
+        .range(0, 99999);
 
       if (error) {
         console.error('Error al cargar la lista de empresas:', error);

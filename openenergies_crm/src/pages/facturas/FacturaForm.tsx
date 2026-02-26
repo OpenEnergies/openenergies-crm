@@ -95,7 +95,8 @@ async function fetchComercializadoras(): Promise<ComercializadoraOpt[]> {
         .from('empresas')
         .select('id, nombre')
         .eq('tipo', 'comercializadora')
-        .order('nombre');
+        .order('nombre')
+        .range(0, 99999);
     if (error) throw error;
     return data || [];
 }
@@ -105,7 +106,8 @@ async function fetchAllClientes(): Promise<ClienteOpt[]> {
         .from('clientes')
         .select('id, nombre')
         .is('eliminado_en', null)
-        .order('nombre');
+        .order('nombre')
+        .range(0, 99999);
     if (error) throw error;
     return data || [];
 }
@@ -126,7 +128,8 @@ async function fetchAllPuntos(): Promise<PuntoOpt[]> {
             comercializadora:empresas!current_comercializadora_id (id, nombre)
         `)
         .is('eliminado_en', null)
-        .order('cups');
+        .order('cups')
+        .range(0, 99999);
     if (error) throw error;
     return (data || []) as unknown as PuntoOpt[];
 }

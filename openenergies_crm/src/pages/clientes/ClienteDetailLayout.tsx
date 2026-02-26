@@ -48,7 +48,8 @@ async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
     .from('puntos_suministro')
     .select('p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw')
     .eq('cliente_id', clienteId)
-    .is('eliminado_en', null);
+    .is('eliminado_en', null)
+    .range(0, 99999);
 
   const puntosCount = puntos?.length || 0;
   const totalKwh = (puntos || []).reduce((acc, p) => {

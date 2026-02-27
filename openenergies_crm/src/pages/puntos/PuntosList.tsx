@@ -480,6 +480,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const { rol } = useSession();
   const navigate = useNavigate();
   const isCliente = rol === 'cliente';
+  const isComercial = rol === 'comercial';
   const isDetailView = !!(clienteId || empresaId);
   const [vistaAgrupaciones, setVistaAgrupaciones] = useState(() => {
     // Only client role in global view restores from session; everything else starts on puntos
@@ -843,7 +844,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                 </div>
               </div>
 
-              {/* Right: Search */}
+              {/* Right: Search + Create */}
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <div className="flex items-center gap-2 flex-1 md:flex-initial">
                   <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
@@ -857,6 +858,14 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     className="glass-input w-full md:w-64"
                   />
                 </div>
+                <button
+                  onClick={() => setShowCrearAgrupacion(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  title="Nueva agrupación"
+                >
+                  <Plus size={16} />
+                  <span className="hidden sm:inline">Nueva agrupación</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1005,7 +1014,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                       className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
                       style={{ borderBottomColor: tableBorderColor }}
                     >
-                      {!isCliente && (
+                      {!isCliente && !isComercial && (
                         <th className="w-10 p-4 text-left">
                           <input
                             type="checkbox"
@@ -1048,6 +1057,51 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                               Tarifa {renderSortIcon('tarifa')}
                             </button>
+                          </th>
+                        </>
+                      ) : isComercial ? (
+                        /* COMERCIAL VIEW: Sociedad, Dirección, CUPS, Comercializadora, Tarifa */
+                        <>
+                          {!hideClienteColumn && (
+                            <th className="p-4 text-left">
+                              <button onClick={() => handleSort('cliente_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Sociedad {renderSortIcon('cliente_nombre')}
+                              </button>
+                            </th>
+                          )}
+                          <th className="p-4 text-left">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Dirección</span>
+                          </th>
+                          <th className="p-4 text-left">
+                            <button onClick={() => handleSort('cups')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                              CUPS {renderSortIcon('cups')}
+                            </button>
+                          </th>
+                          <th className="p-4 text-left">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('comercializadora_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Comercializadora {renderSortIcon('comercializadora_nombre' as any)}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Comercializadora"
+                                options={filterOptions.comercializadora}
+                                selectedOptions={columnFilters.comercializadora}
+                                onChange={(selected) => handleColumnFilterChange('comercializadora', selected)}
+                              />
+                            </div>
+                          </th>
+                          <th className="p-4 text-left">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleSort('tarifa')} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                                Tarifa {renderSortIcon('tarifa')}
+                              </button>
+                              <ColumnFilterDropdown
+                                columnName="Tarifa"
+                                options={filterOptions.tarifa}
+                                selectedOptions={columnFilters.tarifa}
+                                onChange={(selected) => handleColumnFilterChange('tarifa', selected)}
+                              />
+                            </div>
                           </th>
                         </>
                       ) : (
@@ -1153,7 +1207,48 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                         );
                       }
 
-                      // ADMIN/COMERCIAL ROW: Original behavior
+                      if (isComercial) {
+                        // COMERCIAL ROW: Sociedad, Dirección, CUPS, Comercializadora, Tarifa
+                        return (
+                          <tr
+                            key={p.id}
+                            className="hover:bg-fenix-500/8 transition-colors cursor-pointer"
+                            onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
+                          >
+                            {!hideClienteColumn && (
+                              <td className="p-4">
+                                {p.clientes && Array.isArray(p.clientes) && p.clientes[0] ? (
+                                  <Link to="/app/clientes/$id" params={{ id: p.clientes[0].id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer" onClick={e => e.stopPropagation()}>
+                                    {p.clientes[0].nombre}
+                                  </Link>
+                                ) : (p.clientes && !Array.isArray(p.clientes) && (p.clientes as any).nombre) ? (
+                                  <Link to="/app/clientes/$id" params={{ id: (p.clientes as any).id }} className="font-bold text-fenix-600 dark:text-fourth hover:underline transition-colors cursor-pointer" onClick={e => e.stopPropagation()}>
+                                    {(p.clientes as any).nombre}
+                                  </Link>
+                                ) : <span className="text-secondary opacity-60">—</span>}
+                              </td>
+                            )}
+                            <td className="p-4">
+                              <span className="text-primary text-xs">{getDireccionCompleta(p)}</span>
+                            </td>
+                            <td className="p-4">
+                              <code className="font-bold text-fenix-600 dark:text-fourth font-mono text-sm">{p.cups}</code>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-sm text-secondary">
+                                {getComercializadoraNombre(p) || '—'}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold text-secondary text-xs bg-bg-intermediate px-1.5 py-0.5 rounded">
+                                {p.tarifa || '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // ADMIN ROW: Original behavior
                       return (
                         <tr key={p.id} className={clsx('hover:bg-fenix-500/8 transition-colors', isSelected && 'bg-fenix-500/15 hover:bg-fenix-500/20')}>
                           <td className="p-4">
@@ -1296,6 +1391,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
       <CrearAgrupacionModal
         isOpen={showCrearAgrupacion}
         onClose={() => setShowCrearAgrupacion(false)}
+        clienteId={clienteId}
       />
     </div>
   );

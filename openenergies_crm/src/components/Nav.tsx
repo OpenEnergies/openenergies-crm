@@ -69,6 +69,8 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
     });
   };
 
+  const isComercial = rol === 'comercial';
+
   // Estructura de navegación
   const navStructure: NavEntry[] = [
     { to: '/app', label: 'Inicio', icon: Home, module: 'inicio', exact: true },
@@ -77,7 +79,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
       label: 'Gestión comercial',
       icon: Handshake,
       items: [
-        { to: '/app/clientes', label: 'Clientes', module: 'clientes' },
+        { to: '/app/clientes', label: isComercial ? 'Sociedades' : 'Clientes', module: 'clientes' },
         { to: '/app/empresas', label: 'Comercializadoras', module: 'empresas' },
         { to: '/app/puntos', label: 'Puntos de suministro', module: 'puntos' },
         { to: '/app/contratos', label: 'Contratos', module: 'contratos' },

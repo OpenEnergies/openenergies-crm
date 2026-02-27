@@ -627,17 +627,17 @@ export default function FacturasList() {
                                             )}
                                         </td>
                                         <td className="p-4">
-                                            {factura.punto_id ? (
+                                            {factura.punto_id && factura.puntos_suministro?.cups ? (
                                                 <Link
                                                     to="/app/puntos/$id/detalle"
                                                     params={{ id: factura.punto_id }}
                                                     className="font-medium text-fenix-600 dark:text-fenix-400 hover:underline truncate max-w-[200px] inline-block font-mono text-xs transition-colors"
-                                                    title={factura.puntos_suministro?.cups}
+                                                    title={factura.puntos_suministro.cups}
                                                 >
-                                                    {factura.puntos_suministro?.cups ?? '—'}
+                                                    {factura.puntos_suministro.cups}
                                                 </Link>
                                             ) : (
-                                                <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs" title={factura.puntos_suministro?.cups}>
+                                                <span className="font-medium text-secondary truncate max-w-[200px] inline-block font-mono text-xs">
                                                     {factura.puntos_suministro?.cups ?? '—'}
                                                 </span>
                                             )}

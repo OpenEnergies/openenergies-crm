@@ -66,8 +66,9 @@ function usePuntoInfo(puntoId: string | undefined) {
         `)
                 .eq('id', puntoId)
                 .single();
-            if (error) throw error;
-            return data as PuntoInfo;
+            // PGRST116 = no rows found (RLS may block access), treat as null
+            if (error && error.code !== 'PGRST116') throw error;
+            return (data as PuntoInfo) ?? null;
         },
         enabled: !!puntoId,
     });
@@ -126,6 +127,7 @@ export default function PuntoDetailPage() {
     const isDark = theme === 'dark';
     const { rol } = useSession();
     const isCliente = rol === 'cliente';
+    const isComercial = rol === 'comercial';
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [activeTab, setActiveTab] = useState<'detalles' | 'facturas'>('detalles');
@@ -502,7 +504,7 @@ export default function PuntoDetailPage() {
             </div>
 
             {/* ═══ ROW 3: Datos del Contrato (Admin Only) ═══ */}
-            {!isCliente && (
+            {!isCliente && !isComercial && (
                 <div className="glass-card p-5 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1 h-full bg-fenix-500" />
 

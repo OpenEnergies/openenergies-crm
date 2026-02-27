@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { clienteDetailRoute } from '@router/routes';
 import { useSession } from '@hooks/useSession';
-import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, IdCard, UserCircle, UserPlus } from 'lucide-react';
+import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, UserCircle, UserPlus } from 'lucide-react';
 import { formatIBAN } from '@lib/utils';
 import { useState } from 'react';
 import CrearUsuarioClienteModal from './CrearUsuarioClienteModal';
@@ -231,21 +231,8 @@ export default function ClienteDetailLayout() {
 
         {/* Contact Info Row */}
         <div className="flex flex-wrap gap-x-6 gap-y-3 mt-4 pt-2">
-          {/* DNI o CIF */}
-          {(cliente.dni || cliente.cif) && (
-            <div className="flex items-center gap-2 text-sm">
-              <IdCard size={14} className="text-secondary opacity-60" />
-              <span className="text-secondary opacity-70 font-medium">
-                {cliente.tipo === 'Persona fisica' ? 'DNI:' : 'CIF:'}
-              </span>
-              <span className="text-primary font-bold">
-                {cliente.dni || cliente.cif}
-              </span>
-            </div>
-          )}
-
-          {/* Email */}
-          {cliente.email && (
+          {/* Email - hidden for comercial */}
+          {rol !== 'comercial' && cliente.email && (
             <div className="flex items-center gap-2 text-sm">
               <Mail size={14} className="text-secondary opacity-70" />
               <a
@@ -257,8 +244,8 @@ export default function ClienteDetailLayout() {
             </div>
           )}
 
-          {/* Teléfonos */}
-          {cliente.telefonos && (
+          {/* Teléfonos - hidden for comercial */}
+          {rol !== 'comercial' && cliente.telefonos && (
             <div className="flex items-center gap-2 text-sm">
               <Phone size={14} className="text-secondary opacity-70" />
               <span className="text-primary font-bold">
@@ -267,8 +254,8 @@ export default function ClienteDetailLayout() {
             </div>
           )}
 
-          {/* Número de cuenta (IBAN) */}
-          {cliente.numero_cuenta && (
+          {/* Número de cuenta (IBAN) - hidden for comercial */}
+          {rol !== 'comercial' && cliente.numero_cuenta && (
             <div className="flex items-center gap-2 text-sm">
               <CreditCard size={14} className="text-secondary opacity-70" />
               <span className="text-secondary opacity-70 font-medium">IBAN:</span>
@@ -278,8 +265,8 @@ export default function ClienteDetailLayout() {
             </div>
           )}
 
-          {/* Representante */}
-          {cliente.representante && (
+          {/* Representante - hidden for comercial */}
+          {rol !== 'comercial' && cliente.representante && (
             <div className="flex items-center gap-2 text-sm">
               <UserCircle size={14} className="text-secondary opacity-60" />
               <span className="text-secondary opacity-70 font-medium">Representante:</span>

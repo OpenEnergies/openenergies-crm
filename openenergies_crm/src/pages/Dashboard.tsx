@@ -13,6 +13,11 @@ import KPICardsSection from './dashboard/widgets/KPICardsSection';
 import EstadoCharts from './dashboard/widgets/EstadoCharts';
 import TopPuntosValorWidget from './dashboard/widgets/TopPuntosValorWidget';
 
+// New comercial dashboard widgets
+import TopPuntosKwhWidget from './dashboard/widgets/TopPuntosKwhWidget';
+import TopPuntosEurosWidget from './dashboard/widgets/TopPuntosEurosWidget';
+import ComercialStatsWidget from './dashboard/widgets/ComercialStatsWidget';
+
 // New OMIE-style Market Dashboard
 import MercadoDashboard from './dashboard/widgets/market/MercadoDashboard';
 import GasDashboard from './dashboard/widgets/market/GasDashboard';
@@ -21,8 +26,6 @@ import MarketTabSelector, { type MarketView } from './dashboard/widgets/market/M
 // Existing widgets
 import ProximosEventosWidget from './dashboard/widgets/ProximosEventosWidget';
 import ContratosPorVencerWidget from './dashboard/widgets/ContratosPorVencerWidget';
-import MisClientesAsignadosWidget from './dashboard/widgets/MisClientesAsignadosWidget';
-import EstadoMisClientesWidget from './dashboard/widgets/EstadoMisClientesWidget';
 
 type ViewSettings = {
   showKPIs: boolean;
@@ -120,9 +123,7 @@ export default function Dashboard() {
   const isCliente = rol === 'cliente';
   const canSeeAgendaWidget = isAdmin;
   const canSeeRenovacionesWidget = isAdmin;
-  const canSeeMisClientesWidget = isComercial;
-  const canSeeEstadoMisClientesWidget = isComercial;
-  const canSeeEnergyAnalytics = isAdmin || isComercial;
+  const canSeeEnergyAnalytics = isAdmin;
   const canSeeMarketData = isAdmin;
 
   // Save settings on change
@@ -143,7 +144,7 @@ export default function Dashboard() {
             {nombre ? `Bienvenido, ${nombre}${apellidos ? ` ${apellidos}` : ''}` : 'Bienvenido'}
           </h1>
           <p className="text-fenix-500/70 text-sm sm:text-base">
-            {isCliente
+            {isCliente || isComercial
               ? 'Gestiona tus suministros desde un único lugar.'
               : 'Gestiona tus clientes, contratos y documentos desde un único lugar.'}
           </p>
@@ -200,11 +201,11 @@ export default function Dashboard() {
       </div>
 
       {/* ============ CLIENT DASHBOARD ============ */}
-      {isCliente && (
+      {(isCliente || isComercial) && (
         <Suspense fallback={
           <div className="glass-card p-8 flex items-center justify-center gap-3">
             <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
-            <span className="text-sm text-secondary">Cargando panel de cliente…</span>
+            <span className="text-sm text-secondary">{isComercial ? 'Cargando panel comercial…' : 'Cargando panel de cliente…'}</span>
           </div>
         }>
           {/* View Mode Toggle + Period Selector */}
@@ -254,15 +255,24 @@ export default function Dashboard() {
           </div>
 
           <ClientInsightsWidget
-            clienteId={clienteId ?? undefined}
+            clienteId={isCliente ? (clienteId ?? undefined) : undefined}
             year={clientYear}
             month={clientViewMode === 'mensual' ? clientMonth : undefined}
           />
           <CostBreakdownWidget
-            clienteId={clienteId ?? undefined}
+            clienteId={isCliente ? (clienteId ?? undefined) : undefined}
             year={clientYear}
             month={clientViewMode === 'mensual' ? clientMonth : undefined}
           />
+
+          {/* Comercial-specific bottom widgets */}
+          {isComercial && (
+            <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
+              <TopPuntosKwhWidget />
+              <TopPuntosEurosWidget />
+              <ComercialStatsWidget />
+            </div>
+          )}
         </Suspense>
       )}
 
@@ -302,10 +312,6 @@ export default function Dashboard() {
             {canSeeRenovacionesWidget && viewSettings.showRenovaciones && (
               <ContratosPorVencerWidget />
             )}
-
-            {/* Comercial-specific widgets */}
-            {canSeeMisClientesWidget && <MisClientesAsignadosWidget />}
-            {canSeeEstadoMisClientesWidget && <EstadoMisClientesWidget />}
           </div>
         </>
       )}

@@ -17,9 +17,10 @@ const TIPOS: { value: TipoAgrupacion; label: string }[] = [
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  clienteId?: string;
 }
 
-export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
+export default function CrearAgrupacionModal({ isOpen, onClose, clienteId }: Props) {
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<TipoAgrupacion>('edificio');
   const [codigo, setCodigo] = useState('');
@@ -28,8 +29,8 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
 
-  const { data: puntosSinAgrupar, isLoading: loadingPuntos } = usePuntosSinAgrupar();
-  const crearMutation = useCrearAgrupacion();
+  const { data: puntosSinAgrupar, isLoading: loadingPuntos } = usePuntosSinAgrupar(clienteId);
+  const crearMutation = useCrearAgrupacion(clienteId);
 
   const filteredPuntos = useMemo(() => {
     if (!puntosSinAgrupar) return [];

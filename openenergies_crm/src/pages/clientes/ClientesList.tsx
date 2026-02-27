@@ -21,6 +21,7 @@ interface ClienteConAgregados {
   creado_en: string;
   puntos_count: number;
   total_kwh: number;
+  total_euros: number;
   activo: boolean;
 }
 
@@ -112,6 +113,37 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
 
   if (error) throw error;
 
+  // Fetch decrypted DNI/CIF via RPC (works for admin + comercial)
+  const { data: decryptedList } = await supabase.rpc('obtener_clientes_completos', {
+    p_limit: 100000,
+    p_offset: 0,
+  });
+
+  const decryptedMap: Record<string, { dni: string | null; cif: string | null }> = {};
+  if (Array.isArray(decryptedList)) {
+    decryptedList.forEach((c: any) => {
+      decryptedMap[c.id] = { dni: c.dni, cif: c.cif };
+    });
+  }
+
+  // Fetch €/año from facturacion_clientes (last 365 days aggregate per client)
+  const since = new Date();
+  since.setFullYear(since.getFullYear() - 1);
+  const sinceStr = since.toISOString().split('T')[0];
+
+  const { data: factData } = await supabase
+    .from('facturacion_clientes')
+    .select('cliente_id, total')
+    .is('eliminado_en', null)
+    .gte('fecha_emision', sinceStr);
+
+  const eurosByCliente: Record<string, number> = {};
+  (factData || []).forEach((f: any) => {
+    if (f.cliente_id) {
+      eurosByCliente[f.cliente_id] = (eurosByCliente[f.cliente_id] || 0) + (Number(f.total) || 0);
+    }
+  });
+
   return (data || []).map((cliente: any) => {
     const puntos = cliente.puntos_suministro || [];
     const puntosActivos = puntos.filter((p: any) => p.id);
@@ -120,11 +152,12 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
     return {
       id: cliente.id,
       nombre: cliente.nombre,
-      dni: cliente.dni,
-      cif: cliente.cif,
+      dni: decryptedMap[cliente.id]?.dni ?? cliente.dni,
+      cif: decryptedMap[cliente.id]?.cif ?? cliente.cif,
       creado_en: cliente.creado_en,
       puntos_count: puntosActivos.length,
       total_kwh: puntosActivos.reduce((acc: number, p: any) => acc + (Number(p.consumo_anual_kwh) || 0), 0),
+      total_euros: eurosByCliente[cliente.id] || 0,
       activo,
     };
   });
@@ -188,8 +221,9 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
   const endIndex = startIndex + PAGE_SIZE;
   const displayedData = sortedData.slice(startIndex, endIndex);
 
+  const isComercial = rol === 'comercial';
   const canDelete = rol === 'administrador';
-  const canEdit = rol === 'administrador' || rol === 'comercial';
+  const canEdit = rol === 'administrador';
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
@@ -231,9 +265,9 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                 <Users className="w-5 h-5 text-fenix-500" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Clientes</h2>
+                <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">{isComercial ? 'Sociedades' : 'Clientes'}</h2>
                 <p className="text-sm text-gray-400">
-                  {totalItems} cliente{totalItems !== 1 ? 's' : ''} encontrado{totalItems !== 1 ? 's' : ''}
+                  {totalItems} {isComercial ? 'sociedad' : 'cliente'}{totalItems !== 1 ? (isComercial ? 'es' : 's') : ''} encontrad{totalItems !== 1 ? (isComercial ? 'as' : 'os') : (isComercial ? 'a' : 'o')}
                 </p>
               </div>
             </div>
@@ -373,11 +407,11 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
           <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
             <Users className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
           </div>
-          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Clientes</h1>
+          <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">{isComercial ? 'Sociedades' : 'Clientes'}</h1>
         </div>
 
         <div className="flex items-center gap-3">
-          {selectedIds.length > 0 ? (
+          {!isComercial && selectedIds.length > 0 ? (
             /* Selection action bar */
             <div className="flex items-center gap-2 bg-fenix-500/10 border border-fenix-500/30 rounded-lg px-3 py-2">
               <span className="text-sm text-fenix-400 font-medium">
@@ -436,12 +470,14 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   filters: { search: filter || undefined },
                 }}
               />
-              <Link to="/app/clientes/nuevo">
-                <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
-                  <Plus size={18} />
-                  <span className="hidden sm:inline">Nuevo Cliente</span>
-                </button>
-              </Link>
+              {!isComercial && (
+                <Link to="/app/clientes/nuevo">
+                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                    <Plus size={18} />
+                    <span className="hidden sm:inline">Nuevo Cliente</span>
+                  </button>
+                </Link>
+              )}
             </>
           )}
         </div>
@@ -464,9 +500,9 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
 
         {!isLoading && !isError && (!fetchedData || fetchedData.length === 0) && !filter && (
           <EmptyState
-            title="Sin clientes"
-            description="Aún no hay clientes registrados."
-            cta={<Link to="/app/clientes/nuevo"><button className="h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">Crear el primero</button></Link>}
+            title={isComercial ? 'Sin sociedades' : 'Sin clientes'}
+            description={isComercial ? 'Aún no hay sociedades registradas.' : 'Aún no hay clientes registrados.'}
+            cta={!isComercial ? <Link to="/app/clientes/nuevo"><button className="h-11 px-4 rounded-lg bg-fenix-500 hover:bg-fenix-400 text-white font-medium transition-colors cursor-pointer">Crear el primero</button></Link> : undefined}
           />
         )}
 
@@ -479,18 +515,20 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                     className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
                     style={{ borderBottomColor: tableBorderColor }}
                   >
-                    <th className="w-10 p-4 text-left">
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected}
-                        ref={input => {
-                          if (input) input.indeterminate = isIndeterminate;
-                        }}
-                        onChange={handleSelectAll}
-                        aria-label="Seleccionar todos"
-                        className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
-                      />
-                    </th>
+                    {!isComercial && (
+                      <th className="w-10 p-4 text-left">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          ref={input => {
+                            if (input) input.indeterminate = isIndeterminate;
+                          }}
+                          onChange={handleSelectAll}
+                          aria-label="Seleccionar todos"
+                          className="w-5 h-5 rounded-full border-2 border-gray-500 bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                        />
+                      </th>
+                    )}
                     <th className="p-4 text-left">
                       <button
                         onClick={() => handleSort('nombre')}
@@ -512,30 +550,44 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                         Puntos {renderSortIcon('puntos_count')}
                       </button>
                     </th>
-                    <th className="p-4 text-left">
+                    {isComercial && (
+                      <th className="p-4 text-right">
+                        <button
+                          onClick={() => handleSort('total_euros')}
+                          className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors ml-auto cursor-pointer"
+                        >
+                          €/Año {renderSortIcon('total_euros')}
+                        </button>
+                      </th>
+                    )}
+                    <th className={`p-4 ${isComercial ? 'text-right' : 'text-left'}`}>
                       <button
                         onClick={() => handleSort('total_kwh')}
-                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                        className={`flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer ${isComercial ? 'ml-auto' : ''}`}
                       >
                         KWH {renderSortIcon('total_kwh')}
                       </button>
                     </th>
-                    <th className="p-4 text-center">
-                      <button
-                        onClick={() => handleSort('activo')}
-                        className="flex items-center justify-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
-                      >
-                        Activo {renderSortIcon('activo')}
-                      </button>
-                    </th>
-                    <th className="p-4 text-left">
-                      <button
-                        onClick={() => handleSort('creado_en')}
-                        className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
-                      >
-                        Creado {renderSortIcon('creado_en')}
-                      </button>
-                    </th>
+                    {!isComercial && (
+                      <>
+                        <th className="p-4 text-center">
+                          <button
+                            onClick={() => handleSort('activo')}
+                            className="flex items-center justify-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                          >
+                            Activo {renderSortIcon('activo')}
+                          </button>
+                        </th>
+                        <th className="p-4 text-left">
+                          <button
+                            onClick={() => handleSort('creado_en')}
+                            className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                          >
+                            Creado {renderSortIcon('creado_en')}
+                          </button>
+                        </th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-fenix-500/10">
@@ -551,15 +603,17 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                               : 'hover:bg-fenix-500/8'}
                           `}
                         >
-                          <td className="p-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleRowSelect(c.id)}
-                              aria-label={`Seleccionar ${c.nombre}`}
-                              className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
-                            />
-                          </td>
+                          {!isComercial && (
+                            <td className="p-4">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleRowSelect(c.id)}
+                                aria-label={`Seleccionar ${c.nombre}`}
+                                className="w-5 h-5 rounded-full border-2 border-primary bg-bg-intermediate checked:bg-fenix-500/80 checked:border-fenix-500/80 focus:ring-2 focus:ring-fenix-400/30 focus:ring-offset-0 cursor-pointer transition-all accent-fenix-500"
+                              />
+                            </td>
+                          )}
                           <td className="p-4">
                             <Link
                               to="/app/clientes/$id"
@@ -571,19 +625,30 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                           </td>
                           <td className="p-4 text-gray-400">{c.dni || c.cif || '—'}</td>
                           <td className="p-4 text-gray-400">{c.puntos_count}</td>
-                          <td className="p-4 text-gray-400">{c.total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${c.activo ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
-                              {c.activo ? 'ACTIVO' : 'INACTIVO'}
-                            </span>
+                          {isComercial && (
+                            <td className="p-4 text-right text-gray-400 font-mono text-sm">
+                              {c.total_euros ? `${c.total_euros.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €` : '—'}
+                            </td>
+                          )}
+                          <td className={`p-4 text-gray-400 ${isComercial ? 'text-right font-mono text-sm' : ''}`}>
+                            {c.total_kwh.toLocaleString('es-ES', { maximumFractionDigits: 2 })}{isComercial ? ' kWh' : ''}
                           </td>
-                          <td className="p-4 text-gray-400">{fmtDate(c.creado_en)}</td>
+                          {!isComercial && (
+                            <>
+                              <td className="p-4 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${c.activo ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                                  {c.activo ? 'ACTIVO' : 'INACTIVO'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-gray-400">{fmtDate(c.creado_en)}</td>
+                            </>
+                          )}
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-gray-400">
+                      <td colSpan={isComercial ? 5 : 7} className="p-8 text-center text-gray-400">
                         Sin resultados que coincidan con la búsqueda.
                       </td>
                     </tr>

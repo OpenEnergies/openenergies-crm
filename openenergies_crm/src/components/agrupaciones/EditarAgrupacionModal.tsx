@@ -18,18 +18,23 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   agrupacion: Agrupacion;
+  clienteId?: string;
 }
 
-export default function EditarAgrupacionModal({ isOpen, onClose, agrupacion }: Props) {
+export default function EditarAgrupacionModal({ isOpen, onClose, agrupacion, clienteId }: Props) {
   const [nombre, setNombre] = useState(agrupacion.nombre);
   const [tipo, setTipo] = useState<TipoAgrupacion>(agrupacion.tipo);
+  const [codigo, setCodigo] = useState(agrupacion.codigo || '');
+  const [direccion, setDireccion] = useState(agrupacion.direccion || '');
   const [descripcion, setDescripcion] = useState(agrupacion.descripcion || '');
-  const editarMutation = useEditarAgrupacion();
+  const editarMutation = useEditarAgrupacion(clienteId);
 
   useEffect(() => {
     if (isOpen) {
       setNombre(agrupacion.nombre);
       setTipo(agrupacion.tipo);
+      setCodigo(agrupacion.codigo || '');
+      setDireccion(agrupacion.direccion || '');
       setDescripcion(agrupacion.descripcion || '');
     }
   }, [isOpen, agrupacion]);
@@ -45,6 +50,8 @@ export default function EditarAgrupacionModal({ isOpen, onClose, agrupacion }: P
         id: agrupacion.id,
         nombre: nombre.trim(),
         tipo,
+        codigo: codigo.trim() || undefined,
+        direccion: direccion.trim() || undefined,
         descripcion: descripcion.trim() || undefined,
       });
       toast.success('Agrupación actualizada');
@@ -89,11 +96,33 @@ export default function EditarAgrupacionModal({ isOpen, onClose, agrupacion }: P
           </div>
 
           <div>
+            <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Código identificador</label>
+            <input
+              type="text"
+              value={codigo}
+              onChange={e => setCodigo(e.target.value)}
+              placeholder="Código único de la agrupación"
+              className="glass-input w-full"
+            />
+          </div>
+
+          <div>
             <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Nombre *</label>
             <input
               type="text"
               value={nombre}
               onChange={e => setNombre(e.target.value)}
+              className="glass-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Dirección</label>
+            <input
+              type="text"
+              value={direccion}
+              onChange={e => setDireccion(e.target.value)}
+              placeholder="Dirección de la agrupación"
               className="glass-input w-full"
             />
           </div>

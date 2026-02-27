@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useSession } from '@hooks/useSession';
-import { Settings, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Settings, Eye, EyeOff, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useClienteId } from '@hooks/useClienteId';
 
 // Lazy-loaded client widgets (code-split, only loaded for client role)
 const MapWidget = lazy(() => import('@components/map/MapWidget'));
@@ -43,6 +44,8 @@ const DEFAULT_VIEW_SETTINGS: ViewSettings = {
 
 const STORAGE_KEY = 'dashboard-view-settings';
 
+const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 function loadViewSettings(): ViewSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -64,6 +67,52 @@ export default function Dashboard() {
   const [viewSettings, setViewSettings] = useState<ViewSettings>(loadViewSettings);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [marketView, setMarketView] = useState<MarketView>('indicators');
+
+  // Client dashboard state
+  const { clienteId } = useClienteId();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const [clientViewMode, setClientViewMode] = useState<'anual' | 'mensual'>('anual');
+  const [clientYear, setClientYear] = useState(currentYear);
+  const [clientMonth, setClientMonth] = useState(currentMonth);
+
+  const handleClientPrev = () => {
+    if (clientViewMode === 'anual') {
+      setClientYear(y => y - 1);
+    } else {
+      if (clientMonth === 0) {
+        setClientMonth(11);
+        setClientYear(y => y - 1);
+      } else {
+        setClientMonth(m => m - 1);
+      }
+    }
+  };
+
+  const handleClientNext = () => {
+    if (clientViewMode === 'anual') {
+      if (clientYear < currentYear) setClientYear(y => y + 1);
+    } else {
+      const isCurrentPeriod = clientYear === currentYear && clientMonth === currentMonth;
+      if (!isCurrentPeriod) {
+        if (clientMonth === 11) {
+          setClientMonth(0);
+          setClientYear(y => y + 1);
+        } else {
+          setClientMonth(m => m + 1);
+        }
+      }
+    }
+  };
+
+  const isClientNextDisabled = clientViewMode === 'anual'
+    ? clientYear >= currentYear
+    : clientYear === currentYear && clientMonth >= currentMonth;
+
+  const clientPeriodDisplay = clientViewMode === 'anual'
+    ? String(clientYear)
+    : `${MONTH_LABELS[clientMonth]} ${clientYear}`;
 
   // Permissions
   const isAdmin = rol === 'administrador';
@@ -150,7 +199,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ============ CLIENT DASHBOARD (Map + Insights + Cost Breakdown) ============ */}
+      {/* ============ CLIENT DASHBOARD ============ */}
       {isCliente && (
         <Suspense fallback={
           <div className="glass-card p-8 flex items-center justify-center gap-3">
@@ -158,19 +207,62 @@ export default function Dashboard() {
             <span className="text-sm text-secondary">Cargando panel de cliente…</span>
           </div>
         }>
-          {/* Row 1: KPIs & Charts (full width, map hidden) */}
-          <div className="flex flex-col gap-4">
-            {/* Map hidden from UI – logic and imports preserved
-            <div className="w-full lg:w-1/4 lg:self-stretch">
-              <MapWidget />
+          {/* View Mode Toggle + Period Selector */}
+          <div className="relative flex items-center">
+            <div className="flex gap-1 bg-bg-intermediate rounded-xl p-1">
+              <button
+                onClick={() => setClientViewMode('anual')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${clientViewMode === 'anual'
+                  ? 'bg-fenix-500 text-white shadow-md'
+                  : 'text-secondary hover:text-primary hover:bg-white/5'
+                }`}
+              >
+                Anual
+              </button>
+              <button
+                onClick={() => setClientViewMode('mensual')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${clientViewMode === 'mensual'
+                  ? 'bg-fenix-500 text-white shadow-md'
+                  : 'text-secondary hover:text-primary hover:bg-white/5'
+                }`}
+              >
+                Mensual
+              </button>
             </div>
-            */}
-            <div className="w-full">
-              <ClientInsightsWidget />
+
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-3 pointer-events-auto">
+                <button
+                  onClick={handleClientPrev}
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-2 min-w-[120px] justify-center">
+                  <Calendar size={16} className="text-fenix-500" />
+                  <span className="text-lg font-bold text-primary">{clientPeriodDisplay}</span>
+                </div>
+                <button
+                  onClick={handleClientNext}
+                  disabled={isClientNextDisabled}
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
             </div>
           </div>
-          {/* Row 2: Cost breakdown full width */}
-          <CostBreakdownWidget />
+
+          <ClientInsightsWidget
+            clienteId={clienteId ?? undefined}
+            year={clientYear}
+            month={clientViewMode === 'mensual' ? clientMonth : undefined}
+          />
+          <CostBreakdownWidget
+            clienteId={clienteId ?? undefined}
+            year={clientYear}
+            month={clientViewMode === 'mensual' ? clientMonth : undefined}
+          />
         </Suspense>
       )}
 

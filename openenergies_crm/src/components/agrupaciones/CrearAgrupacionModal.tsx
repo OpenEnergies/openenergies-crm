@@ -22,6 +22,8 @@ interface Props {
 export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<TipoAgrupacion>('edificio');
+  const [codigo, setCodigo] = useState('');
+  const [direccion, setDireccion] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
@@ -57,6 +59,8 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
       await crearMutation.mutateAsync({
         nombre: nombre.trim(),
         tipo,
+        codigo: codigo.trim() || undefined,
+        direccion: direccion.trim() || undefined,
         descripcion: descripcion.trim() || undefined,
         puntoIds: selectedIds,
       });
@@ -70,6 +74,8 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
   const resetAndClose = () => {
     setNombre('');
     setTipo('edificio');
+    setCodigo('');
+    setDireccion('');
     setDescripcion('');
     setSelectedIds([]);
     setSearchFilter('');
@@ -111,6 +117,18 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
             </select>
           </div>
 
+          {/* Código */}
+          <div>
+            <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Código identificador</label>
+            <input
+              type="text"
+              value={codigo}
+              onChange={e => setCodigo(e.target.value)}
+              placeholder="Código único de la agrupación"
+              className="glass-input w-full"
+            />
+          </div>
+
           {/* Nombre */}
           <div>
             <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Nombre *</label>
@@ -119,6 +137,18 @@ export default function CrearAgrupacionModal({ isOpen, onClose }: Props) {
               value={nombre}
               onChange={e => setNombre(e.target.value)}
               placeholder="Nombre de la agrupación"
+              className="glass-input w-full"
+            />
+          </div>
+
+          {/* Dirección */}
+          <div>
+            <label className="block text-xs text-secondary font-medium uppercase tracking-wider mb-1.5">Dirección</label>
+            <input
+              type="text"
+              value={direccion}
+              onChange={e => setDireccion(e.target.value)}
+              placeholder="Dirección de la agrupación"
               className="glass-input w-full"
             />
           </div>

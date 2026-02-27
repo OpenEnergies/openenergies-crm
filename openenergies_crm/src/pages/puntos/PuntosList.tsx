@@ -20,6 +20,7 @@ import { useSortableTable } from '@hooks/useSortableTable';
 import { clsx } from '@lib/utils';
 import ExportButton from '@components/ExportButton';
 import AgrupacionesGrid from '@components/agrupaciones/AgrupacionesGrid';
+import { useAgrupacionesCliente } from '@hooks/useAgrupaciones';
 import CrearAgrupacionModal from '@components/agrupaciones/CrearAgrupacionModal';
 
 // ============ TIPOS ============
@@ -479,14 +480,36 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const { rol } = useSession();
   const navigate = useNavigate();
   const isCliente = rol === 'cliente';
+  const isDetailView = !!(clienteId || empresaId);
   const [vistaAgrupaciones, setVistaAgrupaciones] = useState(() => {
+    // Only client role in global view restores from session; everything else starts on puntos
+    if (isDetailView || !isCliente) return false;
     return sessionStorage.getItem('vistaPuntos') === 'agrupaciones';
   });
   const [showCrearAgrupacion, setShowCrearAgrupacion] = useState(false);
+  const [agrupacionFilter, setAgrupacionFilter] = useState('');
+
+  // Agrupaciones data for count display
+  const { data: agrupacionesData } = useAgrupacionesCliente(clienteId);
+  const filteredAgrupacionesCount = useMemo(() => {
+    if (!agrupacionesData) return 0;
+    if (!agrupacionFilter.trim()) return agrupacionesData.length;
+    const term = agrupacionFilter.toLowerCase().trim();
+    return agrupacionesData.filter(ag =>
+      (ag.nombre || '').toLowerCase().includes(term) ||
+      (ag.direccion || '').toLowerCase().includes(term) ||
+      (ag.descripcion || '').toLowerCase().includes(term) ||
+      (ag.codigo || '').toLowerCase().includes(term)
+    ).length;
+  }, [agrupacionesData, agrupacionFilter]);
+  const totalAgrupacionesCount = agrupacionesData?.length ?? 0;
 
   useEffect(() => {
-    sessionStorage.setItem('vistaPuntos', vistaAgrupaciones ? 'agrupaciones' : 'puntos');
-  }, [vistaAgrupaciones]);
+    // Only persist toggle for the global client view
+    if (!isDetailView) {
+      sessionStorage.setItem('vistaPuntos', vistaAgrupaciones ? 'agrupaciones' : 'puntos');
+    }
+  }, [vistaAgrupaciones, isDetailView]);
 
   // Border color for table separators: green in dark mode, gray in light mode (matches ClientesList)
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
@@ -668,10 +691,6 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
     }
   };
 
-
-
-  const isDetailView = !!(clienteId || empresaId);
-
   return (
     <div className={isDetailView ? "animate-fade-in" : "flex flex-col gap-6 animate-fade-in"}>
       {/* Encabezado GLOBAL - Solo visible si no estamos en vista detalle */}
@@ -679,10 +698,15 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-fenix-500/20 flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+              {vistaAgrupaciones
+                ? <Layers className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+                : <MapPin className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
+              }
             </div>
-            <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">Puntos de Suministro</h1>
-            {/* Toggle Puntos / Agrupaciones (solo clientes) */}
+            <h1 className="text-2xl font-bold text-fenix-600 dark:text-fenix-500">
+              {vistaAgrupaciones ? 'Agrupaciones' : 'Puntos de Suministro'}
+            </h1>
+            {/* Toggle Puntos / Agrupaciones - solo para clientes en vista global */}
             {isCliente && (
               <div className="flex items-center bg-bg-intermediate rounded-lg p-0.5 ml-2">
                 <button
@@ -730,16 +754,16 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
                     <Search size={16} />
                     Buscar
                   </label>
                   <input
                     type="text"
-                    placeholder="CUPS o dirección..."
+                    placeholder={vistaAgrupaciones ? 'Nombre, código, dirección...' : 'CUPS o dirección...'}
                     className="glass-input w-64"
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
+                    value={vistaAgrupaciones ? agrupacionFilter : filter}
+                    onChange={e => vistaAgrupaciones ? setAgrupacionFilter(e.target.value) : setFilter(e.target.value)}
                   />
                 </div>
                 {!isCliente && (
@@ -758,7 +782,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     </button>
                   </Link>
                 )}
-                {isCliente && (
+                {isCliente && vistaAgrupaciones && (
                   <button
                     onClick={() => setShowCrearAgrupacion(true)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
@@ -773,13 +797,77 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         </div>
       )}
 
-      {/* ═══ Vista Agrupaciones (solo clientes) ═══ */}
-      {isCliente && vistaAgrupaciones && !isDetailView && (
-        <AgrupacionesGrid />
+      {/* ═══ Vista Agrupaciones (solo clientes en vista global) ═══ */}
+      {vistaAgrupaciones && !isDetailView && isCliente && (
+        <AgrupacionesGrid searchTerm={agrupacionFilter} />
+      )}
+
+      {/* ═══ Vista Agrupaciones inside detail view (client viewed by admin/commercial) ═══ */}
+      {vistaAgrupaciones && isDetailView && clienteId && (
+        <div className="glass-card overflow-hidden">
+          {/* Header matching puntos style */}
+          <div className="p-6 border-b border-bg-intermediate">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              {/* Left: Icon + Title + Counter + Toggle */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
+                  <Layers className="w-5 h-5 text-fenix-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-fenix-600 dark:text-fenix-500">Agrupaciones</h2>
+                  <p className="text-sm text-gray-400">
+                    {filteredAgrupacionesCount} agrupaciones encontradas
+                  </p>
+                </div>
+                {/* Toggle Puntos / Agrupaciones */}
+                <div className="flex items-center bg-bg-intermediate rounded-lg p-0.5 ml-2">
+                  <button
+                    onClick={() => setVistaAgrupaciones(false)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${!vistaAgrupaciones
+                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                      }`}
+                  >
+                    Puntos
+                  </button>
+                  <button
+                    onClick={() => setVistaAgrupaciones(true)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${vistaAgrupaciones
+                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                      : 'text-secondary hover:text-primary'
+                      }`}
+                  >
+                    <Layers size={12} />
+                    Agrupaciones
+                  </button>
+                </div>
+              </div>
+
+              {/* Right: Search */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                  <label className="flex items-center gap-2 text-sm font-medium text-fenix-600 dark:text-fenix-400 whitespace-nowrap">
+                    <Search size={16} />
+                    Buscar
+                  </label>
+                  <input
+                    placeholder="Nombre, código, dirección..."
+                    value={agrupacionFilter}
+                    onChange={e => setAgrupacionFilter(e.target.value)}
+                    className="glass-input w-full md:w-64"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <AgrupacionesGrid clienteId={clienteId} searchTerm={agrupacionFilter} />
+          </div>
+        </div>
       )}
 
       {/* ═══ Vista Puntos (original) ═══ */}
-      {(!isCliente || !vistaAgrupaciones) && (
+      {!vistaAgrupaciones && (
         <>
           {/* Estados de carga / error */}
           {isLoading && !isDetailView && (
@@ -800,7 +888,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
             {isDetailView && (
               <div className="p-6 border-b border-bg-intermediate">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left: Icon + Title + Counter */}
+                  {/* Left: Icon + Title + Counter + Toggle */}
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-fenix-500/20 flex items-center justify-center">
                       <MapPin className="w-5 h-5 text-fenix-500" />
@@ -810,6 +898,28 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                       <p className="text-sm text-gray-400">
                         {totalItems} puntos encontrados
                       </p>
+                    </div>
+                    {/* Toggle Puntos / Agrupaciones in detail view */}
+                    <div className="flex items-center bg-bg-intermediate rounded-lg p-0.5 ml-2">
+                      <button
+                        onClick={() => setVistaAgrupaciones(false)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${!vistaAgrupaciones
+                          ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                          : 'text-secondary hover:text-primary'
+                          }`}
+                      >
+                        Puntos
+                      </button>
+                      <button
+                        onClick={() => setVistaAgrupaciones(true)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${vistaAgrupaciones
+                          ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                          : 'text-secondary hover:text-primary'
+                          }`}
+                      >
+                        <Layers size={12} />
+                        Agrupaciones
+                      </button>
                     </div>
                   </div>
 
@@ -1182,13 +1292,11 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         </>
       )}
 
-      {/* Modal crear agrupación - Solo clientes */}
-      {isCliente && (
-        <CrearAgrupacionModal
-          isOpen={showCrearAgrupacion}
-          onClose={() => setShowCrearAgrupacion(false)}
-        />
-      )}
+      {/* Modal crear agrupación */}
+      <CrearAgrupacionModal
+        isOpen={showCrearAgrupacion}
+        onClose={() => setShowCrearAgrupacion(false)}
+      />
     </div>
   );
 }

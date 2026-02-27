@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from '@tanstack/react-router';
 import { useTheme } from '@hooks/ThemeContext';
+import { useSession } from '@hooks/useSession';
 import {
   useAgrupacionDetail,
   useAgrupacionPuntos,
@@ -14,9 +15,10 @@ import { getTipoIcon, getTipoBg, getTipoBadgeClass } from '@components/agrupacio
 import AnadirPuntosModal from '@components/agrupaciones/AnadirPuntosModal';
 import EditarAgrupacionModal from '@components/agrupaciones/EditarAgrupacionModal';
 import ConfirmationModal from '@components/ConfirmationModal';
+import AgrupacionFacturas from '@components/agrupaciones/AgrupacionFacturas';
 import {
   ArrowLeft, Edit, Plus, Trash2, BarChart3, TrendingUp, Receipt, MapPin,
-  ChevronLeft, ChevronRight, Loader2, X
+  ChevronLeft, ChevronRight, Loader2, X, Calendar, FileText, Info
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -31,9 +33,15 @@ export default function AgrupacionDetailPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
+  const { rol } = useSession();
+  const isCliente = rol === 'cliente';
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
 
+  const [activeTab, setActiveTab] = useState<'detalles' | 'puntos' | 'facturas'>('detalles');
+  const [viewMode, setViewMode] = useState<'anual' | 'mensual'>('anual');
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedTipo, setSelectedTipo] = useState<string | null>(null);
   const [showAnadirModal, setShowAnadirModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -44,34 +52,84 @@ export default function AgrupacionDetailPage() {
   const { data: puntos } = useAgrupacionPuntos(id);
   const { data: facturas, isLoading: loadingFacturas } = useAgrupacionFacturacion(id, selectedYear);
   const { data: tiposFactura } = useAgrupacionTiposFactura(id);
-  const eliminarMutation = useEliminarAgrupacion();
-  const quitarPuntoMutation = useQuitarPuntoDeAgrupacion();
+  const eliminarMutation = useEliminarAgrupacion(agrupacion?.cliente_id);
+  const quitarPuntoMutation = useQuitarPuntoDeAgrupacion(agrupacion?.cliente_id);
+
+  // ── Period navigation ──
+  const handlePrev = () => {
+    if (viewMode === 'anual') {
+      setSelectedYear(y => y - 1);
+    } else {
+      if (selectedMonth === 0) {
+        setSelectedMonth(11);
+        setSelectedYear(y => y - 1);
+      } else {
+        setSelectedMonth(m => m - 1);
+      }
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === 'anual') {
+      if (selectedYear < currentYear) setSelectedYear(y => y + 1);
+    } else {
+      const isCurrentPeriod = selectedYear === currentYear && selectedMonth === currentMonth;
+      if (!isCurrentPeriod) {
+        if (selectedMonth === 11) {
+          setSelectedMonth(0);
+          setSelectedYear(y => y + 1);
+        } else {
+          setSelectedMonth(m => m + 1);
+        }
+      }
+    }
+  };
+
+  const isNextDisabled = viewMode === 'anual'
+    ? selectedYear >= currentYear
+    : selectedYear === currentYear && selectedMonth >= currentMonth;
+
+  const periodDisplay = viewMode === 'anual'
+    ? String(selectedYear)
+    : `${MONTH_LABELS[selectedMonth]} ${selectedYear}`;
 
   // ── Filter facturas by selected tipo ──
   const filteredFacturas = useMemo(() => {
     if (!facturas) return [];
-    if (!selectedTipo) return facturas;
-    // Get punto IDs that match the selected tipo
-    const puntosDelTipo = new Set(
-      (puntos || []).filter(p => p.tipo_factura === selectedTipo).map(p => p.id)
-    );
-    return facturas.filter(f => puntosDelTipo.has(f.punto_id));
+    let filtered = facturas;
+    if (selectedTipo) {
+      const puntosDelTipo = new Set(
+        (puntos || []).filter(p => p.tipo_factura === selectedTipo).map(p => p.id)
+      );
+      filtered = filtered.filter(f => puntosDelTipo.has(f.punto_id));
+    }
+    return filtered;
   }, [facturas, selectedTipo, puntos]);
+
+  // ── KPI facturas (filtered by month in mensual mode) ──
+  const kpiFacturas = useMemo(() => {
+    if (viewMode === 'mensual') {
+      return filteredFacturas.filter(f => new Date(f.fecha_emision).getMonth() === selectedMonth);
+    }
+    return filteredFacturas;
+  }, [filteredFacturas, viewMode, selectedMonth]);
 
   // ── KPIs ──
   const consumoAnual = useMemo(() => {
-    return filteredFacturas.reduce((sum, f) => sum + (f.consumo_kwh || 0), 0);
-  }, [filteredFacturas]);
+    return kpiFacturas.reduce((sum, f) => sum + (f.consumo_kwh || 0), 0);
+  }, [kpiFacturas]);
 
   const costeAnual = useMemo(() => {
-    return filteredFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
-  }, [filteredFacturas]);
+    return kpiFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
+  }, [kpiFacturas]);
 
   const numPuntos = useMemo(() => {
     if (!puntos) return 0;
     if (!selectedTipo) return puntos.length;
     return puntos.filter(p => p.tipo_factura === selectedTipo).length;
   }, [puntos, selectedTipo]);
+
+  const periodLabel = viewMode === 'mensual' ? `${MONTH_LABELS[selectedMonth]} ${selectedYear}` : String(selectedYear);
 
   // ── Monthly data ──
   const monthlyData = useMemo(() => {
@@ -119,6 +177,9 @@ export default function AgrupacionDetailPage() {
     color: isDark ? '#e2e8f0' : '#1e293b',
     fontSize: '12px',
   };
+
+  // ── Punto IDs for facturas tab (must be above early returns to respect Rules of Hooks) ──
+  const puntoIdsInAgrupacion = useMemo(() => (puntos || []).map(p => p.id), [puntos]);
 
   const handleDelete = async () => {
     try {
@@ -193,9 +254,22 @@ export default function AgrupacionDetailPage() {
                 {agrupacion.tipo}
               </span>
             </div>
-            {agrupacion.descripcion && (
-              <p className="text-sm text-secondary mt-0.5">{agrupacion.descripcion}</p>
-            )}
+            <div className="flex items-center gap-3 mt-0.5">
+              {agrupacion.codigo && (
+                <span className="text-xs font-mono font-bold text-secondary">
+                  {agrupacion.codigo}
+                </span>
+              )}
+              {agrupacion.direccion && (
+                <span className="text-sm text-secondary flex items-center gap-1">
+                  <MapPin size={12} className="text-secondary/60" />
+                  {agrupacion.direccion}
+                </span>
+              )}
+              {agrupacion.descripcion && (
+                <span className="text-sm text-secondary">{agrupacion.descripcion}</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -214,248 +288,345 @@ export default function AgrupacionDetailPage() {
             <Plus size={16} />
             Añadir puntos
           </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 rounded-lg text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-            title="Eliminar agrupación"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* ─── Tipo Factura Tabs ─── */}
-      {tiposFactura && tiposFactura.length > 1 && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSelectedTipo(null)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === null
-                ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 border border-fenix-500/30'
-                : 'text-secondary hover:text-primary hover:bg-bg-intermediate'
-              }`}
-          >
-            Todos
-          </button>
-          {tiposFactura.map(tipo => (
+          {isCliente && (
             <button
-              key={tipo}
-              onClick={() => setSelectedTipo(tipo === selectedTipo ? null : tipo)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === tipo
-                  ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 border border-fenix-500/30'
-                  : 'text-secondary hover:text-primary hover:bg-bg-intermediate'
-                }`}
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-2 rounded-lg text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+              title="Eliminar agrupación"
             >
-              {tipo}
+              <Trash2 size={18} />
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* ─── KPI Cards ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
-            <BarChart3 className="w-5 h-5 text-emerald-500" />
-          </div>
-          <div>
-            <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Consumo Anual</p>
-            <p className="text-xl font-bold text-primary">{consumoAnual.toLocaleString('es-ES')} kWh</p>
-          </div>
-        </div>
-
-        <div className="glass-card p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-          </div>
-          <div>
-            <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste Anual</p>
-            <p className="text-xl font-bold text-primary">
-              {costeAnual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-            </p>
-          </div>
-        </div>
-
-        <div className="glass-card p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-fenix-500/15 flex items-center justify-center shrink-0">
-            <MapPin className="w-5 h-5 text-fenix-500" />
-          </div>
-          <div>
-            <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Puntos de Suministro</p>
-            <p className="text-xl font-bold text-primary">{numPuntos}</p>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ─── Year Selector ─── */}
-      <div className="flex items-center justify-center gap-4">
+      {/* ─── Tab Selector ─── */}
+      <div className="flex gap-1 bg-bg-intermediate rounded-xl p-1 w-fit">
         <button
-          onClick={() => setSelectedYear(y => y - 1)}
-          className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer"
+          onClick={() => setActiveTab('detalles')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'detalles'
+            ? 'bg-fenix-500 text-white shadow-md'
+            : 'text-secondary hover:text-primary hover:bg-white/5'
+          }`}
         >
-          <ChevronLeft size={20} />
+          <span className="flex items-center gap-2">
+            <Info size={15} />
+            Detalles
+          </span>
         </button>
-        <span className="text-lg font-bold text-primary min-w-[60px] text-center">{selectedYear}</span>
         <button
-          onClick={() => setSelectedYear(y => y + 1)}
-          disabled={selectedYear >= currentYear}
-          className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          onClick={() => setActiveTab('puntos')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'puntos'
+            ? 'bg-fenix-500 text-white shadow-md'
+            : 'text-secondary hover:text-primary hover:bg-white/5'
+          }`}
         >
-          <ChevronRight size={20} />
+          <span className="flex items-center gap-2">
+            <MapPin size={15} />
+            Puntos ({puntos?.length || 0})
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('facturas')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'facturas'
+            ? 'bg-fenix-500 text-white shadow-md'
+            : 'text-secondary hover:text-primary hover:bg-white/5'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <FileText size={15} />
+            Facturas
+          </span>
         </button>
       </div>
 
-      {/* ─── Charts ─── */}
-      {loadingFacturas ? (
-        <div className="glass-card p-12 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
-          <p className="ml-3 text-secondary font-medium text-sm">Cargando gráficos de {selectedYear}...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Consumo Mensual */}
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-                <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-              <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Consumo Mensual (kWh)</h3>
+      {/* ═══════════════════════════════════════════════════
+          TAB: DETALLES
+          ═══════════════════════════════════════════════════ */}
+      {activeTab === 'detalles' && (
+        <>
+          {/* ─── View Mode Toggle + Period Selector + Tipo Filter ─── */}
+          <div className="relative flex items-center">
+            {/* Anual / Mensual Toggle — left */}
+            <div className="flex gap-1 bg-bg-intermediate rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('anual')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${viewMode === 'anual'
+                  ? 'bg-fenix-500 text-white shadow-md'
+                  : 'text-secondary hover:text-primary hover:bg-white/5'
+                }`}
+              >
+                Anual
+              </button>
+              <button
+                onClick={() => setViewMode('mensual')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${viewMode === 'mensual'
+                  ? 'bg-fenix-500 text-white shadow-md'
+                  : 'text-secondary hover:text-primary hover:bg-white/5'
+                }`}
+              >
+                Mensual
+              </button>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="agConsumoGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.consumo} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={chartColors.consumo} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
-                <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${Number(value).toLocaleString('es-ES')} kWh`, 'Consumo']} />
-                <Area type="monotone" dataKey="consumo" stroke={chartColors.consumo} strokeWidth={2.5} fill="url(#agConsumoGrad)" dot={{ fill: chartColors.consumo, r: 3 }} activeDot={{ r: 5 }} connectNulls />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
 
-          {/* Coste Mensual */}
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                <Receipt className="w-3.5 h-3.5 text-blue-500" />
+            {/* Period Navigator — centered */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-3 pointer-events-auto">
+                <button
+                  onClick={handlePrev}
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-2 min-w-[120px] justify-center">
+                  <Calendar size={16} className="text-fenix-500" />
+                  <span className="text-lg font-bold text-primary">{periodDisplay}</span>
+                </div>
+                <button
+                  onClick={handleNext}
+                  disabled={isNextDisabled}
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={20} />
+                </button>
               </div>
-              <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Coste Mensual (€)</h3>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="agCosteGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.coste} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={chartColors.coste} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
-                <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 'Coste']} />
-                <Area type="monotone" dataKey="coste" stroke={chartColors.coste} strokeWidth={2.5} fill="url(#agCosteGrad)" dot={{ fill: chartColors.coste, r: 3 }} activeDot={{ r: 5 }} connectNulls />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
 
-          {/* Precio kWh */}
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Precio Medio (€/kWh)</h3>
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="agPrecioGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.precio} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={chartColors.precio} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
-                <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={['auto', 'auto']} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [value != null ? `${Number(value).toFixed(4)} €/kWh` : 'N/D', 'Precio']} />
-                <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5} fill="url(#agPrecioGrad)" dot={{ fill: chartColors.precio, r: 3 }} activeDot={{ r: 5 }} connectNulls />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Puntos List ─── */}
-      <div className="glass-card overflow-hidden">
-        <div className="p-4 border-b border-fenix-500/10 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-fenix-500" />
-            Puntos en esta agrupación ({puntos?.length || 0})
-          </h3>
-        </div>
-        {puntos && puntos.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-fenix-500/10">
-                  <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Dirección</th>
-                  <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">CUPS</th>
-                  <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Tipo</th>
-                  <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Tarifa</th>
-                  <th className="p-3 w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-fenix-500/5">
-                {puntos.map(p => (
-                  <tr
-                    key={p.id}
-                    className="hover:bg-fenix-500/5 transition-colors cursor-pointer"
-                    onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
+            {/* Tipo Factura Filter — right */}
+            {tiposFactura && tiposFactura.length > 1 && (
+              <div className="flex items-center gap-1 ml-auto bg-bg-intermediate rounded-xl p-1">
+                <button
+                  onClick={() => setSelectedTipo(null)}
+                  className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === null
+                    ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                    : 'text-secondary hover:text-primary hover:bg-white/5'
+                  }`}
+                >
+                  Todos
+                </button>
+                {tiposFactura.map(tipo => (
+                  <button
+                    key={tipo}
+                    onClick={() => setSelectedTipo(tipo === selectedTipo ? null : tipo)}
+                    className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === tipo
+                      ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
+                      : 'text-secondary hover:text-primary hover:bg-white/5'
+                    }`}
                   >
-                    <td className="p-3 text-primary text-xs">
-                      {p.direccion_sum}
-                      {p.localidad_sum ? `, ${p.localidad_sum}` : ''}
-                    </td>
-                    <td className="p-3">
-                      <code className="text-xs font-mono text-fenix-600 dark:text-fourth">{p.cups}</code>
-                    </td>
-                    <td className="p-3">
-                      <span className="text-xs text-secondary bg-bg-intermediate px-1.5 py-0.5 rounded font-bold">
-                        {p.tipo_factura || '—'}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <span className="text-xs text-secondary bg-bg-intermediate px-1.5 py-0.5 rounded font-bold">
-                        {(p as any).tarifa || '—'}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          setPuntoToRemove(p.id);
-                        }}
-                        className="p-1.5 rounded-lg text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                        title="Quitar de la agrupación"
-                      >
-                        <X size={14} />
-                      </button>
-                    </td>
-                  </tr>
+                    {tipo}
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="p-8 text-center text-sm text-secondary">
-            No hay puntos en esta agrupación
+
+          {/* ─── KPI Cards ─── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="glass-card p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <BarChart3 className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Consumo ({periodLabel})</p>
+                <p className="text-xl font-bold text-primary">{consumoAnual.toLocaleString('es-ES')} kWh</p>
+              </div>
+            </div>
+
+            <div className="glass-card p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste ({periodLabel})</p>
+                <p className="text-xl font-bold text-primary">
+                  {costeAnual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </p>
+              </div>
+            </div>
+
+            <div className="glass-card p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-fenix-500/15 flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5 text-fenix-500" />
+              </div>
+              <div>
+                <p className="text-[11px] text-secondary font-medium uppercase tracking-wider">Puntos de Suministro</p>
+                <p className="text-xl font-bold text-primary">{numPuntos}</p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* ─── Charts ─── */}
+          {loadingFacturas ? (
+            <div className="glass-card p-12 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
+              <p className="ml-3 text-secondary font-medium text-sm">Cargando gráficos de {selectedYear}...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Consumo Mensual */}
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                    <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Consumo Mensual (kWh)</h3>
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="agConsumoGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartColors.consumo} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={chartColors.consumo} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                    <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
+                    <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${Number(value).toLocaleString('es-ES')} kWh`, 'Consumo']} />
+                    <Area type="monotone" dataKey="consumo" stroke={chartColors.consumo} strokeWidth={2.5} fill="url(#agConsumoGrad)" dot={{ fill: chartColors.consumo, r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Coste Mensual */}
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                    <Receipt className="w-3.5 h-3.5 text-blue-500" />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Coste Mensual (€)</h3>
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="agCosteGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartColors.coste} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={chartColors.coste} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                    <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
+                    <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${Number(value).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 'Coste']} />
+                    <Area type="monotone" dataKey="coste" stroke={chartColors.coste} strokeWidth={2.5} fill="url(#agCosteGrad)" dot={{ fill: chartColors.coste, r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Precio kWh */}
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                    <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-primary uppercase tracking-wider">Precio Medio (€/kWh)</h3>
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="agPrecioGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartColors.precio} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={chartColors.precio} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                    <XAxis dataKey="mes" tick={{ fill: chartColors.text, fontSize: 10 }} />
+                    <YAxis tick={{ fill: chartColors.text, fontSize: 10 }} domain={['auto', 'auto']} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [value != null ? `${Number(value).toFixed(4)} €/kWh` : 'N/D', 'Precio']} />
+                    <Area type="monotone" dataKey="precio" stroke={chartColors.precio} strokeWidth={2.5} fill="url(#agPrecioGrad)" dot={{ fill: chartColors.precio, r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════════
+          TAB: PUNTOS
+          ═══════════════════════════════════════════════════ */}
+      {activeTab === 'puntos' && (
+        <div className="glass-card overflow-hidden">
+          <div className="p-4 border-b border-fenix-500/10 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-fenix-500" />
+              Puntos en esta agrupación ({puntos?.length || 0})
+            </h3>
+            <button
+              onClick={() => setShowAnadirModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 hover:bg-fenix-500/30 transition-colors cursor-pointer text-xs font-bold"
+            >
+              <Plus size={14} />
+              Añadir
+            </button>
+          </div>
+          {puntos && puntos.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-fenix-500/10">
+                    <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Dirección</th>
+                    <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">CUPS</th>
+                    <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Tipo</th>
+                    <th className="p-3 text-left text-[10px] font-bold text-secondary uppercase tracking-wider">Tarifa</th>
+                    <th className="p-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-fenix-500/5">
+                  {puntos.map(p => (
+                    <tr
+                      key={p.id}
+                      className="hover:bg-fenix-500/5 transition-colors cursor-pointer"
+                      onClick={() => navigate({ to: '/app/puntos/$id/detalle', params: { id: p.id } })}
+                    >
+                      <td className="p-3 text-primary text-xs">
+                        {p.direccion_sum}
+                        {p.localidad_sum ? `, ${p.localidad_sum}` : ''}
+                      </td>
+                      <td className="p-3">
+                        <code className="text-xs font-mono text-fenix-600 dark:text-fourth">{p.cups}</code>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-xs text-secondary bg-bg-intermediate px-1.5 py-0.5 rounded font-bold">
+                          {p.tipo_factura || '—'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-xs text-secondary bg-bg-intermediate px-1.5 py-0.5 rounded font-bold">
+                          {(p as any).tarifa || '—'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPuntoToRemove(p.id);
+                          }}
+                          className="p-1.5 rounded-lg text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Quitar de la agrupación"
+                        >
+                          <X size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-sm text-secondary">
+              No hay puntos en esta agrupación
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════
+          TAB: FACTURAS
+          ═══════════════════════════════════════════════════ */}
+      {activeTab === 'facturas' && (
+        <AgrupacionFacturas puntoIds={puntoIdsInAgrupacion} />
+      )}
 
       {/* ─── Modals ─── */}
       {showAnadirModal && (
@@ -464,6 +635,7 @@ export default function AgrupacionDetailPage() {
           onClose={() => setShowAnadirModal(false)}
           agrupacionId={id}
           agrupacionNombre={agrupacion.nombre}
+          clienteId={agrupacion.cliente_id}
         />
       )}
 
@@ -472,6 +644,7 @@ export default function AgrupacionDetailPage() {
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           agrupacion={agrupacion}
+          clienteId={agrupacion.cliente_id}
         />
       )}
 

@@ -9,14 +9,15 @@ interface Props {
   onClose: () => void;
   agrupacionId: string;
   agrupacionNombre: string;
+  clienteId?: string;
 }
 
-export default function AnadirPuntosModal({ isOpen, onClose, agrupacionId, agrupacionNombre }: Props) {
+export default function AnadirPuntosModal({ isOpen, onClose, agrupacionId, agrupacionNombre, clienteId }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
 
-  const { data: puntosSinAgrupar, isLoading: loadingPuntos } = usePuntosSinAgrupar();
-  const anadirMutation = useAnadirPuntosAgrupacion();
+  const { data: puntosSinAgrupar, isLoading: loadingPuntos } = usePuntosSinAgrupar(clienteId);
+  const anadirMutation = useAnadirPuntosAgrupacion(clienteId);
 
   const filteredPuntos = useMemo(() => {
     if (!puntosSinAgrupar) return [];

@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useClienteId } from './useClienteId';
+import { useSession } from './useSession';
 
 // ── Types ──
 export type TipoAgrupacion = 'edificio' | 'grupo' | 'proyecto' | 'zona' | 'cartera' | 'delegación' | 'centro';
@@ -11,6 +12,8 @@ export interface Agrupacion {
   cliente_id: string;
   nombre: string;
   tipo: TipoAgrupacion;
+  codigo: string | null;
+  direccion: string | null;
   descripcion: string | null;
   creado_en: string;
 }
@@ -30,8 +33,9 @@ export interface PuntoSinAgrupar {
 }
 
 // ── Fetch agrupaciones del cliente autenticado ──
-export function useAgrupacionesCliente() {
-  const { clienteId } = useClienteId();
+export function useAgrupacionesCliente(overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const clienteId = overrideClienteId || ownClienteId;
 
   return useQuery({
     queryKey: ['agrupaciones-cliente', clienteId],
@@ -41,7 +45,7 @@ export function useAgrupacionesCliente() {
       // 1. Fetch agrupaciones
       const { data: agrupaciones, error: agErr } = await supabase
         .from('agrupaciones_puntos')
-        .select('id, cliente_id, nombre, tipo, descripcion, creado_en')
+        .select('id, cliente_id, nombre, tipo, codigo, direccion, descripcion, creado_en')
         .eq('cliente_id', clienteId)
         .is('eliminado_en', null)
         .order('creado_en', { ascending: false })
@@ -120,50 +124,58 @@ export function useAgrupacionesCliente() {
 }
 
 // ── Fetch single agrupación detail ──
-export function useAgrupacionDetail(agrupacionId: string | undefined) {
-  const { clienteId } = useClienteId();
+export function useAgrupacionDetail(agrupacionId: string | undefined, overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['agrupacion-detail', agrupacionId, clienteId],
     queryFn: async () => {
-      if (!agrupacionId || !clienteId) return null;
+      if (!agrupacionId) return null;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('agrupaciones_puntos')
-        .select('id, cliente_id, nombre, tipo, descripcion, creado_en')
+        .select('id, cliente_id, nombre, tipo, codigo, direccion, descripcion, creado_en')
         .eq('id', agrupacionId)
-        .eq('cliente_id', clienteId)
-        .is('eliminado_en', null)
-        .single();
+        .is('eliminado_en', null);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { data, error } = await query.single();
       if (error) throw error;
       return data as Agrupacion;
     },
-    enabled: !!agrupacionId && !!clienteId,
+    enabled: !!agrupacionId && (!!clienteId || isStaff),
   });
 }
 
 // ── Fetch puntos of an agrupación ──
-export function useAgrupacionPuntos(agrupacionId: string | undefined) {
-  const { clienteId } = useClienteId();
+export function useAgrupacionPuntos(agrupacionId: string | undefined, overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['agrupacion-puntos', agrupacionId, clienteId],
     queryFn: async () => {
-      if (!agrupacionId || !clienteId) return [];
+      if (!agrupacionId) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('puntos_suministro')
         .select('id, cups, direccion_sum, localidad_sum, provincia_sum, tipo_factura, tarifa')
         .eq('agrupacion_id', agrupacionId)
-        .eq('cliente_id', clienteId)
-        .is('eliminado_en', null)
-        .range(0, 99999);
+        .is('eliminado_en', null);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { data, error } = await query.range(0, 99999);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!agrupacionId && !!clienteId,
+    enabled: !!agrupacionId && (!!clienteId || isStaff),
   });
 }
 
@@ -177,23 +189,27 @@ export interface AgrupacionFacturaRow {
   punto_id: string;
 }
 
-export function useAgrupacionFacturacion(agrupacionId: string | undefined, year: number) {
-  const { clienteId } = useClienteId();
+export function useAgrupacionFacturacion(agrupacionId: string | undefined, year: number, overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['agrupacion-facturacion', agrupacionId, clienteId, year],
     queryFn: async () => {
-      if (!agrupacionId || !clienteId) return [];
+      if (!agrupacionId) return [];
 
-      // Get punto IDs in this agrupación for this client
-      const { data: puntos, error: pErr } = await supabase
+      // Get punto IDs in this agrupación
+      let pQuery = supabase
         .from('puntos_suministro')
         .select('id')
         .eq('agrupacion_id', agrupacionId)
-        .eq('cliente_id', clienteId)
-        .is('eliminado_en', null)
-        .range(0, 99999);
+        .is('eliminado_en', null);
 
+      if (clienteId) pQuery = pQuery.eq('cliente_id', clienteId);
+
+      const { data: puntos, error: pErr } = await pQuery.range(0, 99999);
       if (pErr) throw pErr;
       const puntoIds = (puntos || []).map(p => p.id);
       if (puntoIds.length === 0) return [];
@@ -201,41 +217,46 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
       const startDate = `${year}-01-01`;
       const endDate = `${year}-12-31`;
 
-      const { data: facturas, error: fErr } = await supabase
+      let fQuery = supabase
         .from('facturacion_clientes')
         .select('fecha_emision, consumo_kwh, total, precio_eur_kwh, tipo_factura, punto_id')
         .in('punto_id', puntoIds)
-        .eq('cliente_id', clienteId)
         .gte('fecha_emision', startDate)
         .lte('fecha_emision', endDate)
         .is('eliminado_en', null)
-        .order('fecha_emision', { ascending: true })
-        .range(0, 99999);
+        .order('fecha_emision', { ascending: true });
 
+      if (clienteId) fQuery = fQuery.eq('cliente_id', clienteId);
+
+      const { data: facturas, error: fErr } = await fQuery.range(0, 99999);
       if (fErr) throw fErr;
       return (facturas || []) as AgrupacionFacturaRow[];
     },
-    enabled: !!agrupacionId && !!clienteId,
+    enabled: !!agrupacionId && (!!clienteId || isStaff),
   });
 }
 
 // ── Fetch distinct tipo_factura for agrupación ──
-export function useAgrupacionTiposFactura(agrupacionId: string | undefined) {
-  const { clienteId } = useClienteId();
+export function useAgrupacionTiposFactura(agrupacionId: string | undefined, overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['agrupacion-tipos', agrupacionId, clienteId],
     queryFn: async () => {
-      if (!agrupacionId || !clienteId) return [];
+      if (!agrupacionId) return [];
 
-      const { data: puntos, error } = await supabase
+      let query = supabase
         .from('puntos_suministro')
         .select('tipo_factura')
         .eq('agrupacion_id', agrupacionId)
-        .eq('cliente_id', clienteId)
-        .is('eliminado_en', null)
-        .range(0, 99999);
+        .is('eliminado_en', null);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { data: puntos, error } = await query.range(0, 99999);
       if (error) throw error;
       const tipos = new Set<string>();
       (puntos || []).forEach(p => {
@@ -243,69 +264,79 @@ export function useAgrupacionTiposFactura(agrupacionId: string | undefined) {
       });
       return Array.from(tipos).sort();
     },
-    enabled: !!agrupacionId && !!clienteId,
+    enabled: !!agrupacionId && (!!clienteId || isStaff),
   });
 }
 
 // ── Fetch puntos without agrupación (for selector) ──
-export function usePuntosSinAgrupar() {
-  const { clienteId } = useClienteId();
+export function usePuntosSinAgrupar(overrideClienteId?: string) {
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['puntos-sin-agrupar', clienteId],
     queryFn: async () => {
-      if (!clienteId) return [];
+      if (!clienteId && !isStaff) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('puntos_suministro')
         .select('id, cups, direccion_sum, localidad_sum, provincia_sum, tipo_factura')
-        .eq('cliente_id', clienteId)
         .is('agrupacion_id', null)
         .is('eliminado_en', null)
-        .order('direccion_sum', { ascending: true })
-        .range(0, 99999);
+        .order('direccion_sum', { ascending: true });
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { data, error } = await query.range(0, 99999);
       if (error) throw error;
       return (data || []) as PuntoSinAgrupar[];
     },
-    enabled: !!clienteId,
+    enabled: !!clienteId || isStaff,
   });
 }
 
 // ── Fetch agrupación info for a punto (for badge display) ──
 export function useAgrupacionPunto(agrupacionId: string | null | undefined) {
   const { clienteId } = useClienteId();
+  const { rol } = useSession();
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useQuery({
     queryKey: ['agrupacion-punto-badge', agrupacionId, clienteId],
     queryFn: async () => {
-      if (!agrupacionId || !clienteId) return null;
+      if (!agrupacionId) return null;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('agrupaciones_puntos')
         .select('id, nombre, tipo')
         .eq('id', agrupacionId)
-        .eq('cliente_id', clienteId)
-        .is('eliminado_en', null)
-        .single();
+        .is('eliminado_en', null);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { data, error } = await query.single();
       if (error) return null;
       return data as { id: string; nombre: string; tipo: TipoAgrupacion };
     },
-    enabled: !!agrupacionId && !!clienteId,
+    enabled: !!agrupacionId && (!!clienteId || isStaff),
   });
 }
 
 // ── Mutations ──
 
-export function useCrearAgrupacion() {
+export function useCrearAgrupacion(overrideClienteId?: string) {
   const queryClient = useQueryClient();
-  const { clienteId } = useClienteId();
+  const { clienteId: ownClienteId } = useClienteId();
+  const clienteId = overrideClienteId || ownClienteId;
 
   return useMutation({
     mutationFn: async (params: {
       nombre: string;
       tipo: TipoAgrupacion;
+      codigo?: string;
+      direccion?: string;
       descripcion?: string;
       puntoIds: string[];
     }) => {
@@ -318,6 +349,8 @@ export function useCrearAgrupacion() {
           cliente_id: clienteId,
           nombre: params.nombre,
           tipo: params.tipo,
+          codigo: params.codigo || null,
+          direccion: params.direccion || null,
           descripcion: params.descripcion || null,
         })
         .select('id')
@@ -345,13 +378,16 @@ export function useCrearAgrupacion() {
   });
 }
 
-export function useAnadirPuntosAgrupacion() {
+export function useAnadirPuntosAgrupacion(overrideClienteId?: string) {
   const queryClient = useQueryClient();
-  const { clienteId } = useClienteId();
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useMutation({
     mutationFn: async (params: { agrupacionId: string; puntoIds: string[] }) => {
-      if (!clienteId) throw new Error('No se pudo determinar el cliente');
+      if (!clienteId && !isStaff) throw new Error('No se pudo determinar el cliente');
 
       // Assign via RPC (handles ownership & RLS checks server-side)
       const { error } = await supabase.rpc('asignar_puntos_agrupacion', {
@@ -372,29 +408,38 @@ export function useAnadirPuntosAgrupacion() {
   });
 }
 
-export function useEditarAgrupacion() {
+export function useEditarAgrupacion(overrideClienteId?: string) {
   const queryClient = useQueryClient();
-  const { clienteId } = useClienteId();
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useMutation({
     mutationFn: async (params: {
       id: string;
       nombre: string;
       tipo: TipoAgrupacion;
+      codigo?: string;
+      direccion?: string;
       descripcion?: string;
     }) => {
-      if (!clienteId) throw new Error('No se pudo determinar el cliente');
+      if (!clienteId && !isStaff) throw new Error('No se pudo determinar el cliente');
 
-      const { error } = await supabase
+      let query = supabase
         .from('agrupaciones_puntos')
         .update({
           nombre: params.nombre,
           tipo: params.tipo,
+          codigo: params.codigo || null,
+          direccion: params.direccion || null,
           descripcion: params.descripcion || null,
         })
-        .eq('id', params.id)
-        .eq('cliente_id', clienteId);
+        .eq('id', params.id);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { error } = await query;
       if (error) throw error;
     },
     onSuccess: () => {
@@ -404,13 +449,16 @@ export function useEditarAgrupacion() {
   });
 }
 
-export function useEliminarAgrupacion() {
+export function useEliminarAgrupacion(overrideClienteId?: string) {
   const queryClient = useQueryClient();
-  const { clienteId } = useClienteId();
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useMutation({
     mutationFn: async (agrupacionId: string) => {
-      if (!clienteId) throw new Error('No se pudo determinar el cliente');
+      if (!clienteId && !isStaff) throw new Error('No se pudo determinar el cliente');
 
       // 1. Unassign all puntos via RPC
       const { error: pErr } = await supabase.rpc('desasignar_todos_puntos_agrupacion', {
@@ -420,12 +468,14 @@ export function useEliminarAgrupacion() {
       if (pErr) throw pErr;
 
       // 2. Soft-delete agrupación
-      const { error } = await supabase
+      let query = supabase
         .from('agrupaciones_puntos')
         .update({ eliminado_en: new Date().toISOString() })
-        .eq('id', agrupacionId)
-        .eq('cliente_id', clienteId);
+        .eq('id', agrupacionId);
 
+      if (clienteId) query = query.eq('cliente_id', clienteId);
+
+      const { error } = await query;
       if (error) throw error;
     },
     onSuccess: () => {
@@ -436,13 +486,16 @@ export function useEliminarAgrupacion() {
   });
 }
 
-export function useQuitarPuntoDeAgrupacion() {
+export function useQuitarPuntoDeAgrupacion(overrideClienteId?: string) {
   const queryClient = useQueryClient();
-  const { clienteId } = useClienteId();
+  const { clienteId: ownClienteId } = useClienteId();
+  const { rol } = useSession();
+  const clienteId = overrideClienteId || ownClienteId;
+  const isStaff = rol === 'administrador' || rol === 'comercial';
 
   return useMutation({
     mutationFn: async (params: { puntoId: string; agrupacionId: string }) => {
-      if (!clienteId) throw new Error('No se pudo determinar el cliente');
+      if (!clienteId && !isStaff) throw new Error('No se pudo determinar el cliente');
 
       // Desasignar via RPC (handles RLS bypass)
       const { error } = await supabase.rpc('desasignar_punto_agrupacion', {

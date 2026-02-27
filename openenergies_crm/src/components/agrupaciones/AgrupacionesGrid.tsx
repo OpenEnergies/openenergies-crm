@@ -1,7 +1,8 @@
 // src/components/agrupaciones/AgrupacionesGrid.tsx
+import { useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAgrupacionesCliente, type TipoAgrupacion } from '@hooks/useAgrupaciones';
-import { Building2, Layers, FolderOpen, MapIcon, Loader2, Package } from 'lucide-react';
+import { Building2, Layers, FolderOpen, MapIcon, Loader2, Package, Search } from 'lucide-react';
 import { EmptyState } from '@components/EmptyState';
 
 // ── Icon map for tipo ──
@@ -46,9 +47,23 @@ export function getTipoBadgeClass(tipo: TipoAgrupacion): string {
   return map[tipo] || 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border border-gray-500/30';
 }
 
-export default function AgrupacionesGrid() {
-  const { data: agrupaciones, isLoading } = useAgrupacionesCliente();
+export default function AgrupacionesGrid({ clienteId, searchTerm = '' }: { clienteId?: string; searchTerm?: string }) {
+  const { data: agrupaciones, isLoading } = useAgrupacionesCliente(clienteId);
   const navigate = useNavigate();
+
+  // Client-side filtering by nombre, dirección, descripción, codigo
+  const filteredAgrupaciones = useMemo(() => {
+    if (!agrupaciones) return [];
+    if (!searchTerm.trim()) return agrupaciones;
+    const term = searchTerm.toLowerCase().trim();
+    return agrupaciones.filter(ag => {
+      const nombre = (ag.nombre || '').toLowerCase();
+      const direccion = (ag.direccion || '').toLowerCase();
+      const descripcion = (ag.descripcion || '').toLowerCase();
+      const codigo = (ag.codigo || '').toLowerCase();
+      return nombre.includes(term) || direccion.includes(term) || descripcion.includes(term) || codigo.includes(term);
+    });
+  }, [agrupaciones, searchTerm]);
 
   if (isLoading) {
     return (
@@ -70,52 +85,67 @@ export default function AgrupacionesGrid() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {agrupaciones.map(ag => (
-        <div
-          key={ag.id}
-          className="glass-card p-5 cursor-pointer hover:ring-2 hover:ring-fenix-500/30 transition-all duration-200 hover:scale-[1.01] group"
-          onClick={() => navigate({ to: `/app/agrupaciones/${ag.id}` as string })}
-        >
-          {/* Icon + Tipo */}
-          <div className="flex items-start justify-between mb-3">
-            <div className={`w-10 h-10 rounded-xl ${getTipoBg(ag.tipo)} flex items-center justify-center`}>
-              {getTipoIcon(ag.tipo)}
-            </div>
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getTipoBadgeClass(ag.tipo)}`}>
-              {ag.tipo}
-            </span>
-          </div>
+    <>
+      {filteredAgrupaciones.length === 0 ? (
+        <EmptyState
+          icon={<Search className="w-10 h-10 text-fenix-500/50" />}
+          title="Sin resultados"
+          description="No se encontraron agrupaciones que coincidan con la búsqueda."
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAgrupaciones.map(ag => (
+            <div
+              key={ag.id}
+              className="glass-card p-5 cursor-pointer hover:ring-2 hover:ring-fenix-500/30 transition-all duration-200 hover:scale-[1.01] group"
+              onClick={() => navigate({ to: `/app/agrupaciones/${ag.id}` as string })}
+            >
+              {/* Icon + Code + Tipo */}
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-10 h-10 rounded-xl ${getTipoBg(ag.tipo)} flex items-center justify-center`}>
+                  {getTipoIcon(ag.tipo)}
+                </div>
+                {ag.codigo && (
+                  <span className="text-xs font-mono font-bold text-primary tracking-wide">
+                    {ag.codigo}
+                  </span>
+                )}
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getTipoBadgeClass(ag.tipo)}`}>
+                  {ag.tipo}
+                </span>
+              </div>
 
-          {/* Name */}
-          <h3 className="text-base font-bold text-primary mb-1 group-hover:text-fenix-600 dark:group-hover:text-fenix-400 transition-colors">
-            {ag.nombre}
-          </h3>
+              {/* Name */}
+              <h3 className="text-base font-bold text-primary mb-1 group-hover:text-fenix-600 dark:group-hover:text-fenix-400 transition-colors">
+                {ag.nombre}
+              </h3>
 
-          {/* Description (max 2 lines fixed height) */}
-          <div className="h-10 mb-3">
-            {ag.descripcion && (
-              <p className="text-sm text-secondary line-clamp-2">
-                {ag.descripcion}
-              </p>
-            )}
-          </div>
+              {/* Description (max 2 lines fixed height) */}
+              <div className="h-10 mb-3">
+                {ag.descripcion && (
+                  <p className="text-sm text-secondary line-clamp-2">
+                    {ag.descripcion}
+                  </p>
+                )}
+              </div>
 
-          {/* Stats */}
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-fenix-500/10">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-secondary font-medium uppercase tracking-wider">Puntos</span>
-              <span className="text-sm font-bold text-primary">{ag.numPuntos}</span>
+              {/* Stats */}
+              <div className="flex items-center justify-between mt-auto pt-3 border-t border-fenix-500/10">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-secondary font-medium uppercase tracking-wider">Puntos</span>
+                  <span className="text-sm font-bold text-primary">{ag.numPuntos}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste anual</span>
+                  <span className="text-sm font-bold text-primary">
+                    {ag.costeAnual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-secondary font-medium uppercase tracking-wider">Coste anual</span>
-              <span className="text-sm font-bold text-primary">
-                {ag.costeAnual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </span>
-            </div>
-          </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }

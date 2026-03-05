@@ -6,6 +6,7 @@ import { FileSpreadsheet, ChevronDown, FileText, Database, Table2 } from 'lucide
 import type { ExportParams } from '@hooks/useExportData';
 import ExportModal from './ExportModal';
 import SageExportModal from './SageExportModal';
+import XlsxExportModal from './XlsxExportModal';
 
 interface ExportDropdownFacturasProps {
     exportParams: ExportParams;
@@ -30,6 +31,7 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
     const [isOpen, setIsOpen] = useState(false);
     const [showCsvModal, setShowCsvModal] = useState(false);
     const [showSageModal, setShowSageModal] = useState(false);
+    const [showXlsxModal, setShowXlsxModal] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -100,17 +102,16 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
                         <span>Exportar a Sage 200</span>
                     </button>
 
-                    <hr className="my-1 border-primary opacity-20" />
-
-                    {/* XLSX - disabled */}
+                    {/* XLSX */}
                     <button
-                        disabled
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-secondary/40 rounded-md cursor-not-allowed"
-                        title="Próximamente"
+                        onClick={() => {
+                            setIsOpen(false);
+                            setShowXlsxModal(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <Table2 size={16} className="opacity-40" />
+                        <Table2 size={16} className="text-green-500" />
                         <span>Exportar a XLSX</span>
-                        <span className="ml-auto text-[10px] uppercase tracking-wider bg-bg-intermediate/50 px-1.5 py-0.5 rounded text-secondary/50">Próx.</span>
                     </button>
                 </div>,
                 document.body
@@ -128,6 +129,12 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
             <SageExportModal
                 isOpen={showSageModal}
                 onClose={() => setShowSageModal(false)}
+            />
+
+            {/* XLSX Export Modal */}
+            <XlsxExportModal
+                isOpen={showXlsxModal}
+                onClose={() => setShowXlsxModal(false)}
             />
         </>
     );

@@ -1,21 +1,21 @@
-// src/components/SageExportModal.tsx
-// Modal de exportación Sage 200 con filtros: fecha inicio/fin, comercializadora, tipo factura, agrupación
+// src/components/XlsxExportModal.tsx
+// Modal de exportación XLSX con filtros: fecha inicio/fin, comercializadora, tipo factura, agrupación
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, FileSpreadsheet, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import { useExportSage } from '@hooks/useExportSage';
+import { useExportXlsx } from '@hooks/useExportXlsx';
 import { useClienteId } from '@hooks/useClienteId';
 import toast from 'react-hot-toast';
 
-interface SageExportModalProps {
+interface XlsxExportModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-export default function SageExportModal({ isOpen, onClose }: SageExportModalProps) {
-    const { exportSage } = useExportSage();
+export default function XlsxExportModal({ isOpen, onClose }: XlsxExportModalProps) {
+    const { exportXlsx } = useExportXlsx();
     const { clienteId } = useClienteId();
 
     const CIRCUMFERENCE = 2 * Math.PI * 40;
@@ -57,29 +57,28 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
         }
     }, [isOpen]);
 
-    // Progress simulation: irregular random increments from 0 → 90% over ~10s
+    // Progress simulation: irregular random increments from 0 → 90% over ~5s
     useEffect(() => {
         if (exportPhase !== 'loading') return;
         progressRef.current = 0;
         setProgress(0);
         const step = () => {
             if (progressRef.current >= 90) return;
-            const increment = Math.floor(Math.random() * 10) + 2;
+            const increment = Math.floor(Math.random() * 12) + 3;
             const next = Math.min(progressRef.current + increment, 90);
             progressRef.current = next;
             setProgress(next);
-            // Delay grows as progress increases (faster start, slower near 90%)
-            const base = 300 + (next / 90) * 800;
-            const jitter = (Math.random() - 0.5) * 300;
-            timerRef.current = setTimeout(step, Math.max(150, base + jitter));
+            const base = 150 + (next / 90) * 400;
+            const jitter = (Math.random() - 0.5) * 150;
+            timerRef.current = setTimeout(step, Math.max(80, base + jitter));
         };
-        timerRef.current = setTimeout(step, 200);
+        timerRef.current = setTimeout(step, 150);
         return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     }, [exportPhase]);
 
     // Fetch comercializadoras
     const { data: comercializadoras = [] } = useQuery({
-        queryKey: ['sage-comercializadoras'],
+        queryKey: ['xlsx-comercializadoras'],
         queryFn: async () => {
             const { data } = await supabase
                 .from('empresas')
@@ -94,7 +93,7 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
 
     // Fetch agrupaciones del cliente
     const { data: agrupaciones = [] } = useQuery({
-        queryKey: ['sage-agrupaciones', clienteId],
+        queryKey: ['xlsx-agrupaciones', clienteId],
         queryFn: async () => {
             if (!clienteId) return [];
             const { data } = await supabase
@@ -132,7 +131,7 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
             return;
         }
         setExportPhase('loading');
-        const success = await exportSage({
+        const success = await exportXlsx({
             cliente_id: clienteId,
             fecha_desde: fechaDesde || undefined,
             fecha_hasta: fechaHasta || undefined,
@@ -169,7 +168,7 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
                             <FileSpreadsheet size={20} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400">Exportar Sage 200</h3>
+                            <h3 className="text-xl font-bold text-fenix-600 dark:text-fenix-400">Exportar XLSX</h3>
                             <p className="text-xs text-secondary font-medium uppercase tracking-wider">
                                 Facturas
                             </p>
@@ -214,7 +213,7 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
                         </div>
                         <div className="text-center">
                             <p className="text-base font-semibold text-primary">
-                                {exportPhase === 'done' ? '¡Archivo descargado!' : 'Generando archivo Sage 200...'}
+                                {exportPhase === 'done' ? '¡Archivo descargado!' : 'Generando archivo XLSX...'}
                             </p>
                             {exportPhase === 'loading' && (
                                 <p className="text-xs text-secondary mt-1">Esto puede tardar unos segundos</p>

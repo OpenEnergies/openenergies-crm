@@ -1,10 +1,10 @@
-// src/hooks/useExportSage.ts
-// Hook para exportar facturas en formato Sage 200 via RPC + webhook n8n
+// src/hooks/useExportXlsx.ts
+// Hook para exportar facturas en formato XLSX via RPC + webhook n8n
 import { useState } from 'react';
 import { supabase } from '@lib/supabase';
 import toast from 'react-hot-toast';
 
-export interface SageExportFilters {
+export interface XlsxExportFilters {
     cliente_id: string;
     fecha_desde?: string;
     fecha_hasta?: string;
@@ -13,12 +13,12 @@ export interface SageExportFilters {
     tipos_suministro?: string[];
 }
 
-const N8N_WEBHOOK_URL = 'https://n8n.converlysolutions.com/webhook/917ee33f-9f65-4a38-9cb7-6a27c343c029';
+const N8N_WEBHOOK_URL = 'https://n8n.converlysolutions.com/webhook/67cc5442-a52b-4605-888d-e7445d4d13a6';
 
-export function useExportSage() {
+export function useExportXlsx() {
     const [isExporting, setIsExporting] = useState(false);
 
-    const exportSage = async (filters: SageExportFilters): Promise<boolean> => {
+    const exportXlsx = async (filters: XlsxExportFilters): Promise<boolean> => {
         setIsExporting(true);
 
         try {
@@ -31,31 +31,29 @@ export function useExportSage() {
                 p_tipos_suministro: (filters.tipos_suministro && filters.tipos_suministro.length > 0) ? filters.tipos_suministro : null,
             };
 
-            const { data: sageData, error: rpcError } = await supabase.rpc('export_sage_facturas', rpcParams);
+            const { data: xlsxData, error: rpcError } = await supabase.rpc('export_xlsx_facturas', rpcParams);
 
             if (rpcError) {
-                throw new Error(rpcError.message || 'Error al obtener datos de Sage');
+                throw new Error(rpcError.message || 'Error al obtener datos para XLSX');
             }
 
-            if (!sageData || (Array.isArray(sageData) && sageData.length === 0)) {
+            if (!xlsxData || (Array.isArray(xlsxData) && xlsxData.length === 0)) {
                 throw new Error('No se encontraron facturas con los filtros seleccionados');
             }
 
-            // 2. Send JSON to n8n webhook and get back XLSX
             const webhookResponse = await fetch(N8N_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(sageData),
+                body: JSON.stringify(xlsxData),
             });
 
             if (!webhookResponse.ok) {
                 throw new Error(`Error del servidor de exportación: ${webhookResponse.status}`);
             }
 
-            // 3. Download the XLSX response
             const blob = await webhookResponse.blob();
             const url = window.URL.createObjectURL(blob);
-            const filename = `exportacione_sage200_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const filename = `facturas_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
             const link = document.createElement('a');
             link.href = url;
@@ -69,12 +67,12 @@ export function useExportSage() {
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error desconocido';
             toast.error(message);
-            console.error('Sage export error:', error);
+            console.error('XLSX export error:', error);
             return false;
         } finally {
             setIsExporting(false);
         }
     };
 
-    return { exportSage, isExporting };
+    return { exportXlsx, isExporting };
 }

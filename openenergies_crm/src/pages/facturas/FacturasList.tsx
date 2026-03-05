@@ -15,6 +15,7 @@ import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
 import ExportButton from '@components/ExportButton';
+import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 import toast from 'react-hot-toast';
 
 // ============ STORAGE HELPERS ============
@@ -477,16 +478,29 @@ export default function FacturasList() {
                             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
-                    <ExportButton
-                        exportParams={{
-                            entity: 'facturas',
-                            filters: {
-                                search: searchTerm || undefined,
-                                fecha_desde: dateFilter.year && dateFilter.month ? `${dateFilter.year}-${dateFilter.month}-01` : undefined,
-                                fecha_hasta: dateFilter.year && dateFilter.month && dateFilter.day ? `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}` : undefined,
-                            },
-                        }}
-                    />
+                    {isCliente ? (
+                        <ExportDropdownFacturas
+                            exportParams={{
+                                entity: 'facturas',
+                                filters: {
+                                    search: searchTerm || undefined,
+                                    fecha_desde: dateFilter.year && dateFilter.month ? `${dateFilter.year}-${dateFilter.month}-01` : undefined,
+                                    fecha_hasta: dateFilter.year && dateFilter.month && dateFilter.day ? `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}` : undefined,
+                                },
+                            }}
+                        />
+                    ) : (
+                        <ExportButton
+                            exportParams={{
+                                entity: 'facturas',
+                                filters: {
+                                    search: searchTerm || undefined,
+                                    fecha_desde: dateFilter.year && dateFilter.month ? `${dateFilter.year}-${dateFilter.month}-01` : undefined,
+                                    fecha_hasta: dateFilter.year && dateFilter.month && dateFilter.day ? `${dateFilter.year}-${dateFilter.month}-${dateFilter.day}` : undefined,
+                                },
+                            }}
+                        />
+                    )}
                     {!isCliente && (
                         <Link
                             to="/app/facturas/importar"

@@ -1,10 +1,10 @@
 // src/components/ExportDropdownFacturas.tsx
-// Desplegable de exportación para facturas (cliente): CSV, Sage 200, XLSX (deshabilitado)
+// Desplegable de exportación para facturas (cliente): CSV, Excel (XLSX), Sage200
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FileSpreadsheet, ChevronDown, FileText, Database, Table2 } from 'lucide-react';
+import { FileSpreadsheet, ChevronDown } from 'lucide-react';
 import type { ExportParams } from '@hooks/useExportData';
-import ExportModal from './ExportModal';
+import CsvExportModal from './CsvExportModal';
 import SageExportModal from './SageExportModal';
 import XlsxExportModal from './XlsxExportModal';
 
@@ -34,25 +34,31 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
     const [showXlsxModal, setShowXlsxModal] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
     useOnClickOutside(menuRef, () => setIsOpen(false));
 
-    const getMenuPosition = () => {
-        if (!buttonRef.current) return {};
-        const rect = buttonRef.current.getBoundingClientRect();
-        const menuWidth = 220;
+    // Recalculate position whenever dropdown opens or window scrolls/resizes
+    useEffect(() => {
+        if (!isOpen || !buttonRef.current) return;
 
-        let left = rect.left;
-        if (rect.left + menuWidth > window.innerWidth) {
-            left = window.innerWidth - menuWidth - 16;
-        }
-
-        return {
-            top: `${rect.bottom + 4}px`,
-            left: `${left}px`,
-            position: 'fixed' as React.CSSProperties['position'],
+        const updatePosition = () => {
+            if (!buttonRef.current) return;
+            const rect = buttonRef.current.getBoundingClientRect();
+            setMenuPos({
+                top: rect.bottom + 4,
+                right: window.innerWidth - rect.right,
+            });
         };
-    };
+
+        updatePosition();
+        window.addEventListener('scroll', updatePosition, true);
+        window.addEventListener('resize', updatePosition);
+        return () => {
+            window.removeEventListener('scroll', updatePosition, true);
+            window.removeEventListener('resize', updatePosition);
+        };
+    }, [isOpen]);
 
     return (
         <>
@@ -75,54 +81,57 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
             {isOpen && createPortal(
                 <div
                     ref={menuRef}
-                    className="glass-modal p-2 min-w-[220px] animate-fade-in shadow-2xl"
-                    style={{ ...getMenuPosition(), zIndex: 9999 }}
+                    className="glass-modal p-1.5 min-w-[180px] animate-fade-in shadow-2xl"
+                    style={{
+                        position: 'fixed',
+                        top: `${menuPos.top}px`,
+                        right: `${menuPos.right}px`,
+                        zIndex: 9999,
+                    }}
                 >
+                    {/* Excel (XLSX) */}
+                    <button
+                        onClick={() => {
+                            setIsOpen(false);
+                            setShowXlsxModal(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                    >
+                        <img src="/logo-excel.png" alt="Excel" className="w-5 h-5 object-contain" />
+                        <span className="font-medium">Excel</span>
+                    </button>
+
                     {/* CSV */}
                     <button
                         onClick={() => {
                             setIsOpen(false);
                             setShowCsvModal(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <FileText size={16} className="text-emerald-500" />
-                        <span>Exportar a CSV</span>
+                        <img src="/logo-csv.png" alt="CSV" className="w-5 h-5 object-contain" />
+                        <span className="font-medium">CSV</span>
                     </button>
 
-                    {/* Sage 200 */}
+                    {/* Sage200 */}
                     <button
                         onClick={() => {
                             setIsOpen(false);
                             setShowSageModal(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <Database size={16} className="text-blue-500" />
-                        <span>Exportar a Sage 200</span>
-                    </button>
-
-                    {/* XLSX */}
-                    <button
-                        onClick={() => {
-                            setIsOpen(false);
-                            setShowXlsxModal(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
-                    >
-                        <Table2 size={16} className="text-green-500" />
-                        <span>Exportar a XLSX</span>
+                        <img src="/logo-sage200.png" alt="Sage200" className="w-5 h-5 object-contain" />
+                        <span className="font-medium">Sage200</span>
                     </button>
                 </div>,
                 document.body
             )}
 
-            {/* CSV Export Modal (same as before) */}
-            <ExportModal
+            {/* CSV Export Modal */}
+            <CsvExportModal
                 isOpen={showCsvModal}
                 onClose={() => setShowCsvModal(false)}
-                entity={exportParams.entity}
-                preFilters={exportParams.filters}
             />
 
             {/* Sage 200 Export Modal */}

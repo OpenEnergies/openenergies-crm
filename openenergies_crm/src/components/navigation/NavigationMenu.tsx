@@ -305,7 +305,7 @@ export function NavigationMenu({
 
                 {/* User Info */}
                 <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-                    <div className="w-10 h-10 rounded-full bg-slate-600 dark:bg-slate-700 flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 dark:text-slate-500 shadow-sm border border-slate-200 dark:border-slate-700">
                         <User size={20} />
                     </div>
                     <div className="flex flex-col">

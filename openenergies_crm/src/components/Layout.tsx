@@ -83,7 +83,7 @@ export default function Layout() {
             to="/app"
             className="flex items-center gap-3 text-primary hover:text-fenix-500 transition-colors"
           >
-            <div className="w-9 h-9 rounded-lg bg-white/90 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
               <img src="/logo_openenergies.png" alt="OE" className="w-9 h-9" />
             </div>
             <h1 className={`
@@ -197,7 +197,7 @@ export default function Layout() {
               to="/app/perfil"
               className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-intermediate transition-colors group"
             >
-              <div className="w-8 h-8 rounded-full bg-fenix-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden ring-2 ring-transparent group-hover:ring-fenix-500 transition-all">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-fenix-600 dark:text-fenix-500 text-sm font-bold overflow-hidden ring-2 ring-fenix-500/20 group-hover:ring-fenix-500 transition-all shadow-sm">
                 {avatar_url ? (
                   <img src={avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (

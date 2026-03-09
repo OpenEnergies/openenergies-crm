@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import {
@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { useTheme } from '@hooks/ThemeContext';
+import { useNavigate } from '@tanstack/react-router';
 import {
   MetricConfig, SharedFilters, AggregateResponseSchema,
   MEASURE_LABELS, AGG_LABELS, GROUP_LABELS, GroupByOption,
@@ -34,6 +35,7 @@ interface MetricCardProps {
   canDelete: boolean;
   isFirst?: boolean;
   isCliente?: boolean;
+  isComercial?: boolean;
 }
 
 // ═══════════════════════════════════════════
@@ -42,9 +44,10 @@ interface MetricCardProps {
 
 export default function MetricCard({
   config, index, sharedFilters,
-  onUpdate, onDuplicate, onDelete, canDelete, isFirst = true, isCliente = false,
+  onUpdate, onDuplicate, onDelete, canDelete, isFirst = true, isCliente = false, isComercial = false,
 }: MetricCardProps) {
   const { theme } = useTheme();
+  const navigate = useNavigate();
 
   // ─── Debounced query params ───
   const [debouncedParams, setDebouncedParams] = useState<any>(null);
@@ -124,6 +127,19 @@ export default function MetricCard({
   const gridStroke = theme === 'dark' ? '#1f2937' : '#e5e7eb';
   const pieLabelColor = theme === 'dark' ? '#d1d5db' : '#374151';
 
+  // ─── Dynamic label for group_by (rename "Cliente" → "Sociedad" for comercial) ───
+  const getGroupLabel = useCallback((key: string) => {
+    if (key === 'client' && isComercial) return 'Sociedad';
+    return GROUP_LABELS[key as keyof typeof GROUP_LABELS] ?? key;
+  }, [isComercial]);
+
+  // ─── Navigate to punto detail when clicking CUPS ───
+  const handleCupsClick = useCallback((puntoId: string) => {
+    if (config.groupBy === 'point' && puntoId) {
+      navigate({ to: '/app/puntos/$id/detalle', params: { id: puntoId } });
+    }
+  }, [config.groupBy, navigate]);
+
   // ═══════════════════════════════════════
   // Chart renderer
   // ═══════════════════════════════════════
@@ -166,7 +182,11 @@ export default function MetricCard({
     // ── Line ──
     if (currentChartType === 'line') {
       return (
-        <LineChart data={chartData}>
+        <LineChart data={chartData} onClick={(e: any) => {
+          if (config.groupBy === 'point' && e?.activePayload?.[0]?.payload?.group_key) {
+            handleCupsClick(e.activePayload[0].payload.group_key);
+          }
+        }}>
           <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
           <XAxis
             dataKey={config.groupBy === 'month' ? 'group_key' : 'group_label'}
@@ -185,6 +205,7 @@ export default function MetricCard({
               config.groupBy === 'month' ? format(new Date(val), 'MMMM yyyy', { locale: es }) : val
             }
             formatter={(val: any) => [formatValue(Number(val) || 0, config.measure), MEASURE_LABELS[config.measure]]}
+            wrapperStyle={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
           />
           <Line
             type="monotone"
@@ -192,7 +213,7 @@ export default function MetricCard({
             stroke={chartColor}
             strokeWidth={3}
             dot={{ r: 4, strokeWidth: 2 }}
-            activeDot={{ r: 6 }}
+            activeDot={{ r: 6, cursor: config.groupBy === 'point' ? 'pointer' : 'default' }}
             name={MEASURE_LABELS[config.measure]}
           />
         </LineChart>
@@ -203,7 +224,13 @@ export default function MetricCard({
     if (currentChartType === 'bar') {
       const isHorizontal = config.groupBy === 'month' || config.groupBy === 'invoice_type' || config.groupBy === 'tariff';
       return (
-        <BarChart data={chartData} layout={isHorizontal ? 'horizontal' : 'vertical'}>
+        <BarChart data={chartData} layout={isHorizontal ? 'horizontal' : 'vertical'}
+          onClick={(e: any) => {
+            if (config.groupBy === 'point' && e?.activePayload?.[0]?.payload?.group_key) {
+              handleCupsClick(e.activePayload[0].payload.group_key);
+            }
+          }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
           {isHorizontal ? (
             <>
@@ -228,12 +255,14 @@ export default function MetricCard({
             labelStyle={labelTextStyle}
             itemStyle={itemTextStyle}
             formatter={(val: any) => [formatValue(Number(val) || 0, config.measure), MEASURE_LABELS[config.measure]]}
+            wrapperStyle={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
           />
           <Bar
             dataKey={measureKey}
             fill={chartColor}
             radius={isHorizontal ? [4, 4, 0, 0] : [0, 4, 4, 0]}
             name={MEASURE_LABELS[config.measure]}
+            cursor={config.groupBy === 'point' ? 'pointer' : 'default'}
           />
         </BarChart>
       );
@@ -292,6 +321,12 @@ export default function MetricCard({
             name={MEASURE_LABELS[config.measure]}
             data={scatterData}
             fill={chartColor}
+            cursor={config.groupBy === 'point' ? 'pointer' : 'default'}
+            onClick={(data: any) => {
+              if (config.groupBy === 'point' && data?.group_key) {
+                handleCupsClick(data.group_key);
+              }
+            }}
           />
         </ScatterChart>
       );
@@ -330,12 +365,19 @@ export default function MetricCard({
                 textAnchor={x > pcx ? 'start' : 'end'}
                 dominantBaseline="central"
                 fontSize={10}
+                style={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
               >
                 {`${group_label} (${(percent * 100).toFixed(0)}%)`}
               </text>
             );
           }}
           fontSize={10}
+          onClick={(data: any) => {
+            if (config.groupBy === 'point' && data?.group_key) {
+              handleCupsClick(data.group_key);
+            }
+          }}
+          cursor={config.groupBy === 'point' ? 'pointer' : 'default'}
         >
           {pieData.map((_, i) => (
             <Cell key={`cell-${i}`} fill={getChartColor(i)} />
@@ -378,7 +420,7 @@ export default function MetricCard({
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="bg-bg-intermediate text-[10px] uppercase tracking-wider text-primary font-bold border-b-2 border-primary">
-              <th className="px-3 py-2">{GROUP_LABELS[config.groupBy]}</th>
+              <th className="px-3 py-2">{getGroupLabel(config.groupBy)}</th>
               <th className="px-3 py-2 text-right">
                 {MEASURE_LABELS[config.measure]} ({AGG_LABELS[config.aggregation]})
               </th>
@@ -387,7 +429,11 @@ export default function MetricCard({
           <tbody className="divide-y divide-white/5">
             {chartData.map((row, idx) => (
               <tr key={idx} className="hover:bg-bg-intermediate/50 transition-colors">
-                <td className="px-3 py-1.5 text-xs text-primary truncate max-w-[180px]">
+                <td
+                  className={`px-3 py-1.5 text-xs text-primary truncate max-w-[180px] ${config.groupBy === 'point' ? 'cursor-pointer hover:text-fenix-500 hover:underline transition-colors' : ''
+                    }`}
+                  onClick={() => config.groupBy === 'point' && handleCupsClick(row.group_key)}
+                >
                   {config.groupBy === 'month'
                     ? format(new Date(row.group_key), 'MMM yyyy', { locale: es })
                     : row.group_label}
@@ -467,10 +513,10 @@ export default function MetricCard({
                     key={type}
                     onClick={() => onUpdate(config.id, { chartType: type })}
                     className={`flex-1 h-full flex items-center justify-center rounded-md transition-all cursor-pointer ${isSelected
-                        ? 'bg-fenix-500 text-white shadow-lg'
-                        : theme === 'dark'
-                          ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
+                      ? 'bg-fenix-500 text-white shadow-lg'
+                      : theme === 'dark'
+                        ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
                       }`}
                     title={type.charAt(0).toUpperCase() + type.slice(1)}
                   >
@@ -492,8 +538,8 @@ export default function MetricCard({
             >
               {Object.entries(GROUP_LABELS)
                 .filter(([k]) => !(isCliente && k === 'client'))
-                .map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                .map(([k, _v]) => (
+                  <option key={k} value={k}>{getGroupLabel(k)}</option>
                 ))}
             </select>
             <p className="text-[8px] text-secondary opacity-50 mt-0.5 px-1 leading-tight whitespace-nowrap">Agrupar por</p>
@@ -522,10 +568,10 @@ export default function MetricCard({
                 onClick={() => showTopControls && onUpdate(config.id, { topMode: 'top' })}
                 disabled={!showTopControls}
                 className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${config.topMode === 'top'
-                    ? 'bg-fenix-500 text-white shadow-lg'
-                    : theme === 'dark'
-                      ? 'text-gray-500 hover:text-gray-300'
-                      : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-fenix-500 text-white shadow-lg'
+                  : theme === 'dark'
+                    ? 'text-gray-500 hover:text-gray-300'
+                    : 'text-gray-400 hover:text-gray-600'
                   }`}
                 title="Muestra los valores más altos"
               >
@@ -535,10 +581,10 @@ export default function MetricCard({
                 onClick={() => showTopControls && onUpdate(config.id, { topMode: 'bottom' })}
                 disabled={!showTopControls}
                 className={`flex-1 h-full flex items-center justify-center rounded-md transition-all text-[10px] gap-0.5 cursor-pointer ${config.topMode === 'bottom'
-                    ? 'bg-fenix-500 text-white shadow-lg'
-                    : theme === 'dark'
-                      ? 'text-gray-500 hover:text-gray-300'
-                      : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-fenix-500 text-white shadow-lg'
+                  : theme === 'dark'
+                    ? 'text-gray-500 hover:text-gray-300'
+                    : 'text-gray-400 hover:text-gray-600'
                   }`}
                 title="Muestra los valores más bajos"
               >
@@ -553,8 +599,8 @@ export default function MetricCard({
             <button
               onClick={() => onDuplicate(config.id)}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${theme === 'dark'
-                  ? 'text-gray-500 hover:text-fenix-400 hover:bg-fenix-500/10'
-                  : 'text-gray-400 hover:text-fenix-600 hover:bg-fenix-50'
+                ? 'text-gray-500 hover:text-fenix-400 hover:bg-fenix-500/10'
+                : 'text-gray-400 hover:text-fenix-600 hover:bg-fenix-50'
                 }`}
               title="Duplicar métrica"
             >
@@ -564,8 +610,8 @@ export default function MetricCard({
               <button
                 onClick={() => onDelete(config.id)}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${theme === 'dark'
-                    ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
-                    : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                  ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+                  : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                   }`}
                 title="Eliminar métrica"
               >
@@ -586,7 +632,7 @@ export default function MetricCard({
             </div>
           )}
           <span className="text-secondary font-normal text-xs">
-            {MEASURE_LABELS[config.measure]} ({AGG_LABELS[config.aggregation]}) — {GROUP_LABELS[config.groupBy]} · {currentChartType}
+            {MEASURE_LABELS[config.measure]} ({AGG_LABELS[config.aggregation]}) — {getGroupLabel(config.groupBy)} · {currentChartType}
           </span>
           {isPieFallback && (
             <span className="text-[9px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">

@@ -566,6 +566,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         return Array.isArray(c) ? c[0]?.nombre : (c as any)?.nombre;
       },
       cups: (item: PuntoConCliente) => item.cups,
+      direccion_sum: (item: PuntoConCliente) => getDireccionCompleta(item),
       comercializadora_nombre: (item: PuntoConCliente) => getComercializadoraNombre(item),
       estado: (item: PuntoConCliente) => item.estado,
       tarifa: (item: PuntoConCliente) => item.tarifa,
@@ -1120,6 +1121,11 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             </button>
                           </th>
                           <th className="p-4 text-left">
+                            <button onClick={() => handleSort('direccion_sum' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                              Dir. Suministro {renderSortIcon('direccion_sum' as any)}
+                            </button>
+                          </th>
+                          <th className="p-4 text-left">
                             <div className="flex items-center gap-2">
                               <button onClick={() => handleSort('comercializadora_nombre' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
                                 Comercializadora {renderSortIcon('comercializadora_nombre' as any)}
@@ -1282,6 +1288,9 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             >
                               {p.cups}
                             </Link>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-xs text-secondary">{getDireccionCompleta(p)}</span>
                           </td>
                           <td className="p-4">
                             <span className="text-sm text-secondary">

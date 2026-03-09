@@ -73,11 +73,12 @@ interface ContratoExtendido {
 
 const ITEMS_PER_PAGE = 50;
 
-const initialColumnFilters = {
-  estado: [] as string[],
-  fotovoltaica: [] as string[],
-  cobrado: [] as string[],
-  fecha_renovacion: { year: null, month: null, day: null } as DateParts,
+const initialColumnFilters: { estado: string[], fotovoltaica: string[], cobrado: string[], fecha_renovacion: DateParts, comercializadora: string[] } = {
+  estado: [],
+  fotovoltaica: [],
+  cobrado: [],
+  fecha_renovacion: { day: null, month: null, year: null },
+  comercializadora: [],
 };
 
 // ============ FETCH ============
@@ -640,6 +641,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
       estado: getUnique('estado'),
       fotovoltaica: Array.from(new Set(fetchedData.map(c => c.fotovoltaica || 'No'))).sort(),
       cobrado: ['Sí', 'No'],
+      comercializadora: Array.from(new Set(fetchedData.map(c => c.comercializadoras?.nombre || '—'))).sort(),
       fecha_renovacion: getUniqueDates('fecha_renovacion'),
     };
   }, [fetchedData]);
@@ -656,6 +658,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
       const estado = item.estado ?? null;
       const fotovoltaica = item.fotovoltaica ?? 'No';
       const cobrado = item.cobrado ? 'Sí' : 'No';
+      const comercializadora = item.comercializadoras?.nombre ?? '—';
       const renovacion = item.fecha_renovacion ? new Date(item.fecha_renovacion) : null;
 
       const checkDate = (date: Date | null, filter: DateParts) => {
@@ -671,6 +674,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
         (columnFilters.estado.length === 0 || columnFilters.estado.includes(estado)) &&
         (columnFilters.fotovoltaica.length === 0 || columnFilters.fotovoltaica.includes(fotovoltaica)) &&
         (columnFilters.cobrado.length === 0 || columnFilters.cobrado.includes(cobrado)) &&
+        (columnFilters.comercializadora.length === 0 || columnFilters.comercializadora.includes(comercializadora)) &&
         checkDate(renovacion, columnFilters.fecha_renovacion)
       );
     });
@@ -1054,9 +1058,17 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                     </div>
                   </th>
                   <th className="p-4 text-left">
-                    <button onClick={() => handleSort('comercializadoras' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
-                      Comercializadora {renderSortIcon('comercializadoras' as any)}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleSort('comercializadoras' as any)} className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer">
+                        Comercializadora {renderSortIcon('comercializadoras' as any)}
+                      </button>
+                      <ColumnFilterDropdown
+                        columnName="Comercializadora"
+                        options={filterOptions.comercializadora}
+                        selectedOptions={columnFilters.comercializadora}
+                        onChange={(selected) => handleColumnFilterChange('comercializadora', selected as string[])}
+                      />
+                    </div>
                   </th>
                   <th className="p-4 text-left">
                     <div className="flex items-center gap-2">

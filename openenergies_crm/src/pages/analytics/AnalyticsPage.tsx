@@ -19,6 +19,7 @@ export default function AnalyticsPage() {
     const { theme } = useTheme();
     const { rol } = useSession();
     const isCliente = rol === 'cliente';
+    const isComercial = rol === 'comercial';
 
     // ─── Filter state ───
     const [selectedClients, setSelectedClients] = useState<string[] | null>(null);
@@ -160,14 +161,14 @@ export default function AnalyticsPage() {
                     <div className="min-w-0">
                         <h3 className="font-bold text-primary text-sm">Paso 1: Filtra tus datos</h3>
                         <p className="text-[11px] text-secondary opacity-70">
-                            Selecciona clientes, puntos de suministro y rango de fechas para acotar el análisis.
+                            Selecciona {isComercial ? 'sociedades' : 'clientes'}, puntos de suministro y rango de fechas para acotar el análisis.
                         </p>
                     </div>
                     <button
                         onClick={clearFilters}
                         className={`ml-auto flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer shrink-0 ${theme === 'dark'
-                                ? 'text-gray-500 hover:text-gray-300'
-                                : 'text-gray-400 hover:text-gray-600'
+                            ? 'text-gray-500 hover:text-gray-300'
+                            : 'text-gray-400 hover:text-gray-600'
                             }`}
                     >
                         <XCircle size={13} /> Limpiar filtros
@@ -175,17 +176,17 @@ export default function AnalyticsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Clientes — hidden for client role (RLS handles filtering) */}
+                    {/* Clientes/Sociedades — hidden for client role (RLS handles filtering) */}
                     {!isCliente && (
                         <div>
                             <MultiSearchableSelect
-                                label="Clientes"
+                                label={isComercial ? 'Sociedades' : 'Clientes'}
                                 icon={<Users size={14} />}
                                 options={clientOptions}
                                 selectedValues={selectedClients}
                                 onChange={setSelectedClients}
-                                onDisabledClick={() => toast.error('No hay facturas registradas para este cliente')}
-                                placeholder="Todos los clientes"
+                                onDisabledClick={() => toast.error(isComercial ? 'No hay facturas registradas para esta sociedad' : 'No hay facturas registradas para este cliente')}
+                                placeholder={isComercial ? 'Todas las sociedades' : 'Todos los clientes'}
                             />
                             <p className="text-[9px] text-secondary opacity-50 mt-1 px-1">
                                 Selecciona uno o varios para filtrar
@@ -263,6 +264,7 @@ export default function AnalyticsPage() {
                         canDelete={metricConfigs.length > 1}
                         isFirst={idx === 0}
                         isCliente={isCliente}
+                        isComercial={isComercial}
                     />
                 ))}
             </div>
@@ -271,8 +273,8 @@ export default function AnalyticsPage() {
             <button
                 onClick={addMetric}
                 className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed transition-all group cursor-pointer ${theme === 'dark'
-                        ? 'border-white/10 hover:border-fenix-500/40 bg-white/[0.02] hover:bg-fenix-500/5'
-                        : 'border-gray-200 hover:border-fenix-500/40 bg-gray-50/50 hover:bg-fenix-50'
+                    ? 'border-white/10 hover:border-fenix-500/40 bg-white/[0.02] hover:bg-fenix-500/5'
+                    : 'border-gray-200 hover:border-fenix-500/40 bg-gray-50/50 hover:bg-fenix-50'
                     }`}
             >
                 <Plus size={20} className="text-fenix-600 dark:text-fenix-400 group-hover:scale-110 transition-transform" />

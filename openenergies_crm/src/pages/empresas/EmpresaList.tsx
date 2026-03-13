@@ -11,6 +11,7 @@ import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
 import EmpresaLogo from '@components/EmpresaLogo';
 import ExportButton from '@components/ExportButton';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 async function fetchEmpresas(archived: boolean) {
   const query = supabase
@@ -177,9 +178,7 @@ export default function EmpresasList({ mode = 'active' }: EmpresasListProps) {
       {/* Table Card */}
       <div className="glass-card overflow-hidden">
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          </div>
+          <DataTableSkeleton rowCount={6} columnCount={5} />
         )}
 
         {isError && (

@@ -8,6 +8,7 @@ import { useTheme } from '@hooks/ThemeContext'
 import { EmptyState } from '@components/EmptyState'
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import { saveAs } from 'file-saver';
 import FilePreviewModal from '@components/FilePreviewModal';
 import DocumentoUploadModal from './DocumentoUploadModal';
@@ -185,10 +186,7 @@ export default function DocumentosList() {
       {/* Table Card */}
       <div className="glass-card overflow-hidden">
         {isLoading && (
-          <div className="flex items-center justify-center gap-3 py-12">
-            <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
-            <span className="text-slate-500 dark:text-slate-400">Cargando...</span>
-          </div>
+          <DataTableSkeleton rowCount={8} columnCount={3} />
         )}
         {isError && (
           <div className="text-center py-12">

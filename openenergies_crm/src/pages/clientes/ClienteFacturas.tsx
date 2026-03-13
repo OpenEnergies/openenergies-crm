@@ -15,6 +15,7 @@ import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
 import ExportButton from '@components/ExportButton';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -431,8 +432,8 @@ export default function ClienteFacturas() {
 
     if (isLoading) {
         return (
-            <div className="glass-card p-12 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
+            <div className="glass-card overflow-hidden">
+                <DataTableSkeleton rowCount={8} columnCount={6} />
             </div>
         );
     }

@@ -84,6 +84,7 @@ export default {
                 'slide-up': 'slideUp 0.3s ease-out',
                 'slide-down': 'slideDown 0.3s ease-out',
                 'pulse-slow': 'pulse 3s infinite',
+                'progress-indeterminate': 'progressIndeterminate 1.5s infinite linear',
             },
 
             keyframes: {
@@ -98,6 +99,10 @@ export default {
                 slideDown: {
                     '0%': { transform: 'translateY(-10px)', opacity: '0' },
                     '100%': { transform: 'translateY(0)', opacity: '1' },
+                },
+                progressIndeterminate: {
+                    '0%': { transform: 'translateX(-100%)', width: '50%' },
+                    '100%': { transform: 'translateX(200%)', width: '50%' },
                 },
             },
         },

@@ -9,6 +9,7 @@ import { LogOut, Bell, Loader2, User, MoreVertical, Leaf, CalendarDays } from 'l
 import { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '@hooks/useNotifications';
 import ChatWidget from '@features/chat/ChatWidget';
+import { GlobalLoadingScreen } from './ui/GlobalLoadingScreen';
 
 export default function Layout() {
   const { rol, nombre, avatar_url, loading: sessionLoading, userId } = useSession();
@@ -39,14 +40,7 @@ export default function Layout() {
   const fallbackInitial = nombre ? nombre.charAt(0).toUpperCase() : '?';
 
   if (sessionLoading) {
-    return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <div className="glass-card p-8 flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          <span className="text-secondary">Cargando sesión...</span>
-        </div>
-      </div>
-    );
+    return <GlobalLoadingScreen />;
   }
 
   if (!userId && !sessionLoading) {

@@ -3,6 +3,7 @@ import type { RolUsuario } from '@lib/types';
 import { Navigate, useLocation } from '@tanstack/react-router';
 import { supabase } from '@lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import { GlobalLoadingScreen } from './ui/GlobalLoadingScreen';
 
 // Función para obtener el perfil completo del usuario, incluida la nueva bandera
 const fetchUserProfile = async (userId: string | null) => {
@@ -30,7 +31,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const isLoading = sessionLoading || profileLoading;
 
   if (isLoading) {
-    return <div className="card">Cargando sesión...</div>;
+    return <GlobalLoadingScreen />;
   }
 
   if (!userId) {
@@ -41,17 +42,17 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (userProfile?.forzar_cambio_password && location.pathname !== '/force-change-password') {
     return <Navigate to="/force-change-password" />;
   }
-  
+
   // Si el usuario ya está en la página de cambio de contraseña, no lo redirijas de nuevo
   if (!userProfile?.forzar_cambio_password && location.pathname === '/force-change-password') {
-      return <Navigate to="/app" />;
+    return <Navigate to="/app" />;
   }
 
 
   return <>{children}</>;
 }
 
-export function RequireRole({ roles, children }:{ roles: RolUsuario[]; children: React.ReactNode }) {
+export function RequireRole({ roles, children }: { roles: RolUsuario[]; children: React.ReactNode }) {
   const { loading, rol } = useSession();
   if (loading) return <div className="card">Comprobando permisos…</div>;
   if (!rol || !roles.includes(rol)) {

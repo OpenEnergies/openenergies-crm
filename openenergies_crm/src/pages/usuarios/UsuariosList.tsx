@@ -12,6 +12,7 @@ import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
 import ExportButton from '@components/ExportButton';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 type UsuarioConEmpresa = UsuarioApp & { empresas: { nombre: string } | null };
 
@@ -156,9 +157,7 @@ export default function UsuariosList() {
       {/* Table Card */}
       <div className="glass-card overflow-hidden">
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          </div>
+          <DataTableSkeleton rowCount={6} columnCount={6} />
         )}
 
         {isError && (

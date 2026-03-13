@@ -16,6 +16,7 @@ import ConfirmationModal from '@components/ConfirmationModal';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import { toast } from 'react-hot-toast';
 import { EmptyState } from '@components/EmptyState';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { clsx } from '@lib/utils';
 import ExportButton from '@components/ExportButton';
@@ -881,9 +882,8 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
         <>
           {/* Estados de carga / error */}
           {isLoading && !isDetailView && (
-            <div className="glass-card p-12 flex items-center justify-center">
-              <div className="animate-spin text-fenix-500"><MapPin size={32} /></div>
-              <p className="ml-3 text-secondary font-medium">Cargando puntos de suministro...</p>
+            <div className="glass-card overflow-hidden">
+              <DataTableSkeleton rowCount={10} columnCount={8} />
             </div>
           )}
 

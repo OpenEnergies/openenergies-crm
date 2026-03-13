@@ -4,7 +4,7 @@
       "type": "sse",
       "url": "https://mcp.supabase.com/mcp?project_ref=uyyftxwdahmkahebqrhp&read_only=true&features=database,development",
       "headers": {
-        "Authorization": "Bearer sbp_ad4853a88dd872a23acff21dbb8e35a376964b69"
+        "Authorization": "Bearer sbp_7d7b6d9961b4491064e29683e6a30f7ac2a86168"
       }
     }
   }

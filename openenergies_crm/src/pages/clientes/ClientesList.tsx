@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { useSortableTable } from '@hooks/useSortableTable';
 import ConfirmationModal from '@components/ConfirmationModal';
 import ExportButton from '@components/ExportButton';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 interface ClienteConAgregados {
   id: string;
@@ -303,9 +304,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
 
         {/* Table Content (Reusing the same table structure, just wrapped differently) */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          </div>
+          <DataTableSkeleton rowCount={8} columnCount={6} />
         )}
 
         {isError && (
@@ -487,9 +486,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
       {/* Table Card */}
       <div className="glass-card overflow-hidden">
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-          </div>
+          <DataTableSkeleton rowCount={10} columnCount={7} />
         )}
 
         {isError && (

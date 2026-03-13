@@ -16,6 +16,7 @@ import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import FilePreviewModal from '@components/FilePreviewModal';
 import ExportButton from '@components/ExportButton';
 import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import toast from 'react-hot-toast';
 
 // ============ STORAGE HELPERS ============
@@ -435,13 +436,7 @@ export default function FacturasList() {
         setCurrentPage(1);
     }, [searchTerm, columnFilters, dateFilter]);
 
-    if (isLoading) {
-        return (
-            <div className="glass-card p-12 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-            </div>
-        );
-    }
+
 
     if (isError) {
         return (
@@ -527,7 +522,9 @@ export default function FacturasList() {
 
             <div className="glass-card overflow-hidden">
                 {/* Table */}
-                {displayedData.length === 0 ? (
+                {isLoading ? (
+                    <DataTableSkeleton rowCount={10} columnCount={7} />
+                ) : displayedData.length === 0 ? (
                     <EmptyState
                         icon={<FileText className="text-fenix-500" size={48} />}
                         title="Sin facturas"

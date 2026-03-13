@@ -7,6 +7,7 @@ import { Radio, Plus, Trash2, Loader2, XCircle, X, Layers, Search } from 'lucide
 import { useSortableTable } from '@hooks/useSortableTable';
 import { useTheme } from '@hooks/ThemeContext';
 import { toast } from 'react-hot-toast';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 type Canal = {
     id: string;
@@ -200,9 +201,7 @@ export default function CanalesList() {
             {/* Table Card */}
             <div className="glass-card overflow-hidden">
                 {isLoading && (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-                    </div>
+                    <DataTableSkeleton rowCount={6} columnCount={4} />
                 )}
 
                 {isError && (

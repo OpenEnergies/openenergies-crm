@@ -205,10 +205,23 @@ export default function AgrupacionDetailPage() {
   // ── Loading ──
   if (loadingAgrupacion) {
     return (
-      <div className="flex flex-col gap-6 animate-fade-in">
-        <div className="glass-card p-12 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
-          <p className="ml-3 text-secondary font-medium">Cargando agrupación...</p>
+      <div className="flex flex-col gap-5 animate-pulse">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-bg-intermediate/60"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-bg-intermediate/60"></div>
+            <div className="h-8 w-48 bg-bg-intermediate/60 rounded"></div>
+          </div>
+        </div>
+        <div className="flex gap-2 p-1 rounded-xl bg-bg-intermediate w-fit">
+          <div className="h-8 w-28 bg-bg-intermediate/60 rounded-lg"></div>
+          <div className="h-8 w-28 bg-bg-intermediate/60 rounded-lg"></div>
+          <div className="h-8 w-28 bg-bg-intermediate/60 rounded-lg"></div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="glass-card h-24 bg-bg-intermediate/30"></div>
+          <div className="glass-card h-24 bg-bg-intermediate/30"></div>
+          <div className="glass-card h-24 bg-bg-intermediate/30"></div>
         </div>
       </div>
     );
@@ -307,7 +320,7 @@ export default function AgrupacionDetailPage() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'detalles'
             ? 'bg-fenix-500 text-white shadow-md'
             : 'text-secondary hover:text-primary hover:bg-white/5'
-          }`}
+            }`}
         >
           <span className="flex items-center gap-2">
             <Info size={15} />
@@ -319,7 +332,7 @@ export default function AgrupacionDetailPage() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'puntos'
             ? 'bg-fenix-500 text-white shadow-md'
             : 'text-secondary hover:text-primary hover:bg-white/5'
-          }`}
+            }`}
         >
           <span className="flex items-center gap-2">
             <MapPin size={15} />
@@ -331,7 +344,7 @@ export default function AgrupacionDetailPage() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === 'facturas'
             ? 'bg-fenix-500 text-white shadow-md'
             : 'text-secondary hover:text-primary hover:bg-white/5'
-          }`}
+            }`}
         >
           <span className="flex items-center gap-2">
             <FileText size={15} />
@@ -354,7 +367,7 @@ export default function AgrupacionDetailPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${viewMode === 'anual'
                   ? 'bg-fenix-500 text-white shadow-md'
                   : 'text-secondary hover:text-primary hover:bg-white/5'
-                }`}
+                  }`}
               >
                 Anual
               </button>
@@ -363,7 +376,7 @@ export default function AgrupacionDetailPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${viewMode === 'mensual'
                   ? 'bg-fenix-500 text-white shadow-md'
                   : 'text-secondary hover:text-primary hover:bg-white/5'
-                }`}
+                  }`}
               >
                 Mensual
               </button>
@@ -400,7 +413,7 @@ export default function AgrupacionDetailPage() {
                   className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === null
                     ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
                     : 'text-secondary hover:text-primary hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   Todos
                 </button>
@@ -411,7 +424,7 @@ export default function AgrupacionDetailPage() {
                     className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${selectedTipo === tipo
                       ? 'bg-fenix-500/20 text-fenix-600 dark:text-fenix-400 shadow-sm'
                       : 'text-secondary hover:text-primary hover:bg-white/5'
-                    }`}
+                      }`}
                   >
                     {tipo}
                   </button>
@@ -457,9 +470,10 @@ export default function AgrupacionDetailPage() {
 
           {/* ─── Charts ─── */}
           {loadingFacturas ? (
-            <div className="glass-card p-12 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 text-fenix-500 animate-spin" />
-              <p className="ml-3 text-secondary font-medium text-sm">Cargando gráficos de {selectedYear}...</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-pulse">
+              <div className="glass-card h-64 bg-bg-intermediate/30"></div>
+              <div className="glass-card h-64 bg-bg-intermediate/30"></div>
+              <div className="glass-card h-64 bg-bg-intermediate/30"></div>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

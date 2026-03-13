@@ -15,6 +15,7 @@ import { toast } from 'react-hot-toast'
 import ConfirmationModal from '@components/ConfirmationModal'
 import { th } from 'date-fns/locale/th'
 import FilePreviewModal from '@components/FilePreviewModal';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 
 // --- (2) Eliminar tipos innecesarios ---
 // Ya no necesitamos ClienteDocParams ni DocClienteParams
@@ -642,9 +643,7 @@ export default function ClienteDocumentos({
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-fenix-500 animate-spin" />
-        </div>
+        <DataTableSkeleton rowCount={5} columnCount={3} />
       )}
       {isError && <div className="text-red-400 text-center py-8">Error al cargar los documentos.</div>}
 

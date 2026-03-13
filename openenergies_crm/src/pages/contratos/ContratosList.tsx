@@ -10,6 +10,7 @@ import {
   Calendar, Sun, CheckCircle, Circle, AlertCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, FileText
 } from 'lucide-react';
 import ConfirmationModal from '@components/ConfirmationModal';
+import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import { Pagination } from '@components/Pagination';
@@ -883,9 +884,8 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
 
       {/* Estados de carga / error */}
       {isLoading && !isDetailView && (
-        <div className="glass-card p-12 flex items-center justify-center">
-          <div className="animate-spin text-fenix-500"><Sun size={32} /></div>
-          <p className="ml-3 text-gray-400 font-medium">Cargando contratos...</p>
+        <div className="glass-card overflow-hidden">
+          <DataTableSkeleton rowCount={10} columnCount={8} />
         </div>
       )}
 

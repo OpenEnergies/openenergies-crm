@@ -67,9 +67,20 @@ export default function AgrupacionesGrid({ clienteId, searchTerm = '' }: { clien
 
   if (isLoading) {
     return (
-      <div className="glass-card p-12 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-fenix-500 animate-spin" />
-        <p className="ml-3 text-secondary font-medium">Cargando agrupaciones...</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="glass-card p-5 h-[160px] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-bg-intermediate/60"></div>
+              <div className="h-4 w-16 bg-bg-intermediate/60 rounded-full"></div>
+            </div>
+            <div className="h-5 w-3/4 bg-bg-intermediate/60 rounded mb-3"></div>
+            <div className="mt-auto pt-3 border-t border-fenix-500/10 flex justify-between">
+              <div className="h-4 w-12 bg-bg-intermediate/60 rounded"></div>
+              <div className="h-4 w-16 bg-bg-intermediate/60 rounded"></div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

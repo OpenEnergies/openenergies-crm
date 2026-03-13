@@ -3,11 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, FileText, Check } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@lib/supabase';
 import { useExportCsv } from '@hooks/useExportCsv';
-import { useClienteId } from '@hooks/useClienteId';
-import toast from 'react-hot-toast';
+import { useFacturaExportFilters } from '@hooks/useFacturaExportFilters';
 
 interface CsvExportModalProps {
     isOpen: boolean;
@@ -16,29 +13,40 @@ interface CsvExportModalProps {
 
 export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps) {
     const { exportCsv } = useExportCsv();
-    const { clienteId } = useClienteId();
+    const {
+        isComercial,
+        clienteId,
+        fechaDesde,
+        setFechaDesde,
+        fechaHasta,
+        setFechaHasta,
+        minFecha,
+        maxFecha,
+        comercializadoraOptions,
+        selectedComercializadoras,
+        setSelectedComercializadoras,
+        tipoOptions,
+        selectedTipos,
+        setSelectedTipos,
+        sociedadOptions,
+        selectedSociedades,
+        setSelectedSociedades,
+        agrupaciones,
+        selectedAgrupaciones,
+        setSelectedAgrupaciones,
+        isInitializingFilters,
+    } = useFacturaExportFilters(isOpen);
 
     const CIRCUMFERENCE = 2 * Math.PI * 40;
     const [exportPhase, setExportPhase] = useState<'idle' | 'loading' | 'done'>('idle');
     const [progress, setProgress] = useState(0);
     const progressRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Filter states
-    const [fechaDesde, setFechaDesde] = useState('');
-    const [fechaHasta, setFechaHasta] = useState('');
-    const [selectedComercializadoras, setSelectedComercializadoras] = useState<string[]>([]);
-    const [selectedTipos, setSelectedTipos] = useState<string[]>([]);
-    const [selectedAgrupaciones, setSelectedAgrupaciones] = useState<string[]>([]);
+    const isFiltersLoading = exportPhase === 'idle' && isInitializingFilters;
 
     // Reset filters and export phase when modal opens/closes
     useEffect(() => {
         if (isOpen) {
-            setFechaDesde('');
-            setFechaHasta('');
-            setSelectedComercializadoras([]);
-            setSelectedTipos([]);
-            setSelectedAgrupaciones([]);
             setExportPhase('idle');
             setProgress(0);
         } else {
@@ -76,37 +84,6 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
         return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     }, [exportPhase]);
 
-    // Fetch comercializadoras
-    const { data: comercializadoras = [] } = useQuery({
-        queryKey: ['csv-comercializadoras'],
-        queryFn: async () => {
-            const { data } = await supabase
-                .from('empresas')
-                .select('id, nombre')
-                .eq('tipo', 'comercializadora')
-                .is('eliminado_en', null)
-                .order('nombre');
-            return data || [];
-        },
-        enabled: isOpen,
-    });
-
-    // Fetch agrupaciones del cliente
-    const { data: agrupaciones = [] } = useQuery({
-        queryKey: ['csv-agrupaciones', clienteId],
-        queryFn: async () => {
-            if (!clienteId) return [];
-            const { data } = await supabase
-                .from('agrupaciones_puntos')
-                .select('id, nombre')
-                .eq('cliente_id', clienteId)
-                .is('eliminado_en', null)
-                .order('nombre');
-            return data || [];
-        },
-        enabled: isOpen && !!clienteId,
-    });
-
     const toggleComercializadora = (id: string) => {
         setSelectedComercializadoras(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -126,13 +103,10 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
     };
 
     const handleExport = async () => {
-        if (!clienteId) {
-            toast.error('No se pudo determinar el cliente');
-            return;
-        }
         setExportPhase('loading');
         const success = await exportCsv({
-            cliente_id: clienteId,
+            cliente_id: isComercial ? null : (clienteId ?? null),
+            cliente_ids: isComercial ? selectedSociedades : undefined,
             fecha_desde: fechaDesde || undefined,
             fecha_hasta: fechaHasta || undefined,
             comercializadoras: selectedComercializadoras.length > 0 ? selectedComercializadoras : undefined,
@@ -224,7 +198,14 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
 
                 {/* Body */}
                 {exportPhase === 'idle' && (
-                    <div className="p-6 overflow-y-auto custom-scrollbar bg-bg-primary/30">
+                    <div className="relative p-6 overflow-y-auto custom-scrollbar bg-bg-primary/30">
+                        {isFiltersLoading && (
+                            <div className="absolute inset-0 z-10 bg-bg-primary/70 backdrop-blur-[1px] flex items-center justify-center">
+                                <p className="text-sm font-semibold text-primary">Cargando filtros...</p>
+                            </div>
+                        )}
+
+                        <fieldset disabled={isFiltersLoading} className={isFiltersLoading ? 'opacity-60' : ''}>
                         <div className="space-y-6">
                             {/* Date range */}
                             <div className="grid grid-cols-2 gap-3">
@@ -234,6 +215,8 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                         type="date"
                                         className="glass-input mt-1 w-full"
                                         value={fechaDesde}
+                                        min={minFecha || undefined}
+                                        max={fechaHasta || maxFecha || undefined}
                                         onChange={e => setFechaDesde(e.target.value)}
                                     />
                                 </label>
@@ -243,6 +226,8 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                         type="date"
                                         className="glass-input mt-1 w-full"
                                         value={fechaHasta}
+                                        min={fechaDesde || minFecha || undefined}
+                                        max={maxFecha || undefined}
                                         onChange={e => setFechaHasta(e.target.value)}
                                     />
                                 </label>
@@ -254,7 +239,7 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                 <div className="space-y-1">
                                     <label className="text-xs text-secondary font-medium uppercase tracking-wider">Comercializadora</label>
                                     <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-bg-intermediate/20 rounded-lg border border-primary/10">
-                                        {comercializadoras.map(c => (
+                                        {comercializadoraOptions.map(c => (
                                             <label key={c.id} className="flex items-center gap-2 cursor-pointer group">
                                                 <input
                                                     type="checkbox"
@@ -265,7 +250,7 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                                 <span className="text-sm text-secondary group-hover:text-primary transition-colors">{c.nombre}</span>
                                             </label>
                                         ))}
-                                        {comercializadoras.length === 0 && (
+                                        {comercializadoraOptions.length === 0 && (
                                             <p className="text-xs text-secondary/50 py-1">Sin comercializadoras</p>
                                         )}
                                     </div>
@@ -275,7 +260,7 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                 <div className="space-y-1">
                                     <label className="text-xs text-secondary font-medium uppercase tracking-wider">Tipo de factura</label>
                                     <div className="space-y-2 p-2 bg-bg-intermediate/20 rounded-lg border border-primary/10">
-                                        {['Luz', 'Gas'].map(tipo => (
+                                        {tipoOptions.map(tipo => (
                                             <label key={tipo} className="flex items-center gap-2 cursor-pointer group">
                                                 <input
                                                     type="checkbox"
@@ -286,9 +271,34 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                                 <span className="text-sm text-secondary group-hover:text-primary transition-colors">{tipo}</span>
                                             </label>
                                         ))}
+                                        {tipoOptions.length === 0 && (
+                                            <p className="text-xs text-secondary/50 py-1">Sin tipos de factura</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
+
+                            {isComercial && (
+                                <div className="space-y-1">
+                                    <label className="text-xs text-secondary font-medium uppercase tracking-wider">Sociedades</label>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-bg-intermediate/20 rounded-lg border border-primary/10">
+                                        {sociedadOptions.map(s => (
+                                            <label key={s.id} className="flex items-center gap-2 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedSociedades.includes(s.id)}
+                                                    onChange={() => setSelectedSociedades(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                                                    className="rounded border-primary/30 text-fenix-500 focus:ring-fenix-500 bg-bg-primary group-hover:border-fenix-500 transition-colors"
+                                                />
+                                                <span className="text-sm text-secondary group-hover:text-primary transition-colors">{s.nombre}</span>
+                                            </label>
+                                        ))}
+                                        {sociedadOptions.length === 0 && (
+                                            <p className="text-xs text-secondary/50 py-1">Sin sociedades con facturas en el periodo</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Agrupación */}
                             {agrupaciones.length > 0 && (
@@ -310,6 +320,7 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                                 </div>
                             )}
                         </div>
+                        </fieldset>
                     </div>
                 )}
 
@@ -324,7 +335,8 @@ export default function CsvExportModal({ isOpen, onClose }: CsvExportModalProps)
                         </button>
                         <button
                             onClick={handleExport}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fenix-500 hover:bg-fenix-400 text-white font-bold shadow-lg shadow-fenix-500/25 transition-all cursor-pointer"
+                            disabled={isFiltersLoading}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fenix-500 hover:bg-fenix-400 disabled:bg-fenix-500/50 disabled:cursor-not-allowed text-white font-bold shadow-lg shadow-fenix-500/25 transition-all cursor-pointer"
                         >
                             <Download size={18} />
                             Exportar

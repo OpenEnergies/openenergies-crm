@@ -1,8 +1,8 @@
 // src/components/ExportDropdownFacturas.tsx
-// Desplegable de exportación para facturas (cliente): CSV, Excel (XLSX), Sage200
+// Desplegable de exportación para facturas: CSV, XLSX y opcionalmente Sage 200
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { FileSpreadsheet, ChevronDown, FileText, Database, Table2 } from 'lucide-react';
 import type { ExportParams } from '@hooks/useExportData';
 import CsvExportModal from './CsvExportModal';
 import SageExportModal from './SageExportModal';
@@ -10,6 +10,7 @@ import XlsxExportModal from './XlsxExportModal';
 
 interface ExportDropdownFacturasProps {
     exportParams: ExportParams;
+    showSage?: boolean;
 }
 
 function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
@@ -27,38 +28,32 @@ function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: ()
     }, [ref, handler]);
 }
 
-export default function ExportDropdownFacturas({ exportParams }: ExportDropdownFacturasProps) {
+export default function ExportDropdownFacturas({ exportParams: _exportParams, showSage = true }: ExportDropdownFacturasProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [showCsvModal, setShowCsvModal] = useState(false);
     const [showSageModal, setShowSageModal] = useState(false);
     const [showXlsxModal, setShowXlsxModal] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
-    const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
     useOnClickOutside(menuRef, () => setIsOpen(false));
 
-    // Recalculate position whenever dropdown opens or window scrolls/resizes
-    useEffect(() => {
-        if (!isOpen || !buttonRef.current) return;
+    const getMenuPosition = () => {
+        if (!buttonRef.current) return {};
+        const rect = buttonRef.current.getBoundingClientRect();
+        const menuWidth = 220;
 
-        const updatePosition = () => {
-            if (!buttonRef.current) return;
-            const rect = buttonRef.current.getBoundingClientRect();
-            setMenuPos({
-                top: rect.bottom + 4,
-                right: window.innerWidth - rect.right,
-            });
-        };
+        let left = rect.left;
+        if (rect.left + menuWidth > window.innerWidth) {
+            left = window.innerWidth - menuWidth - 16;
+        }
 
-        updatePosition();
-        window.addEventListener('scroll', updatePosition, true);
-        window.addEventListener('resize', updatePosition);
-        return () => {
-            window.removeEventListener('scroll', updatePosition, true);
-            window.removeEventListener('resize', updatePosition);
+        return {
+            top: `${rect.bottom + 4}px`,
+            left: `${left}px`,
+            position: 'fixed' as React.CSSProperties['position'],
         };
-    }, [isOpen]);
+    };
 
     return (
         <>
@@ -81,64 +76,62 @@ export default function ExportDropdownFacturas({ exportParams }: ExportDropdownF
             {isOpen && createPortal(
                 <div
                     ref={menuRef}
-                    className="glass-modal p-1.5 min-w-[180px] animate-fade-in shadow-2xl"
-                    style={{
-                        position: 'fixed',
-                        top: `${menuPos.top}px`,
-                        right: `${menuPos.right}px`,
-                        zIndex: 9999,
-                    }}
+                    className="glass-modal p-2 min-w-[220px] animate-fade-in shadow-2xl"
+                    style={{ ...getMenuPosition(), zIndex: 9999 }}
                 >
-                    {/* Excel (XLSX) */}
-                    <button
-                        onClick={() => {
-                            setIsOpen(false);
-                            setShowXlsxModal(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
-                    >
-                        <img src="/logo-excel.png" alt="Excel" className="w-5 h-5 object-contain" />
-                        <span className="font-medium">Excel</span>
-                    </button>
-
                     {/* CSV */}
                     <button
                         onClick={() => {
                             setIsOpen(false);
                             setShowCsvModal(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <img src="/logo-csv.png" alt="CSV" className="w-5 h-5 object-contain" />
-                        <span className="font-medium">CSV</span>
+                        <FileText size={16} className="text-emerald-500" />
+                        <span>Exportar a CSV</span>
                     </button>
 
-                    {/* Sage200 */}
+                    {showSage && (
+                        <button
+                            onClick={() => {
+                                setIsOpen(false);
+                                setShowSageModal(true);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                        >
+                            <Database size={16} className="text-blue-500" />
+                            <span>Exportar a Sage 200</span>
+                        </button>
+                    )}
+
+                    {/* XLSX */}
                     <button
                         onClick={() => {
                             setIsOpen(false);
-                            setShowSageModal(true);
+                            setShowXlsxModal(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <img src="/logo-sage200.png" alt="Sage200" className="w-5 h-5 object-contain" />
-                        <span className="font-medium">Sage200</span>
+                        <Table2 size={16} className="text-green-500" />
+                        <span>Exportar a XLSX</span>
                     </button>
                 </div>,
                 document.body
             )}
 
-            {/* CSV Export Modal */}
+            {/* CSV Export Modal (webhook n8n) */}
             <CsvExportModal
                 isOpen={showCsvModal}
                 onClose={() => setShowCsvModal(false)}
             />
 
             {/* Sage 200 Export Modal */}
-            <SageExportModal
-                isOpen={showSageModal}
-                onClose={() => setShowSageModal(false)}
-            />
+            {showSage && (
+                <SageExportModal
+                    isOpen={showSageModal}
+                    onClose={() => setShowSageModal(false)}
+                />
+            )}
 
             {/* XLSX Export Modal */}
             <XlsxExportModal

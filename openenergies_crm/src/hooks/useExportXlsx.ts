@@ -5,7 +5,8 @@ import { supabase } from '@lib/supabase';
 import toast from 'react-hot-toast';
 
 export interface XlsxExportFilters {
-    cliente_id: string;
+    cliente_id?: string | null;
+    cliente_ids?: string[];
     fecha_desde?: string;
     fecha_hasta?: string;
     comercializadoras?: string[];
@@ -22,19 +23,31 @@ export function useExportXlsx() {
         setIsExporting(true);
 
         try {
-            const rpcParams = {
-                p_cliente_id: filters.cliente_id,
-                p_fecha_desde: filters.fecha_desde ?? null,
-                p_fecha_hasta: filters.fecha_hasta ?? null,
-                p_comercializadoras: (filters.comercializadoras && filters.comercializadoras.length > 0) ? filters.comercializadoras : null,
-                p_agrupaciones: (filters.agrupaciones && filters.agrupaciones.length > 0) ? filters.agrupaciones : null,
-                p_tipos_suministro: (filters.tipos_suministro && filters.tipos_suministro.length > 0) ? filters.tipos_suministro : null,
-            };
+            const targetClienteIds = (filters.cliente_ids && filters.cliente_ids.length > 0)
+                ? filters.cliente_ids
+                : [filters.cliente_id ?? null];
 
-            const { data: xlsxData, error: rpcError } = await supabase.rpc('export_xlsx_facturas', rpcParams);
+            let xlsxData: any[] = [];
 
-            if (rpcError) {
-                throw new Error(rpcError.message || 'Error al obtener datos para XLSX');
+            for (const targetClienteId of targetClienteIds) {
+                const rpcParams = {
+                    p_cliente_id: targetClienteId,
+                    p_fecha_desde: filters.fecha_desde ?? null,
+                    p_fecha_hasta: filters.fecha_hasta ?? null,
+                    p_comercializadoras: (filters.comercializadoras && filters.comercializadoras.length > 0) ? filters.comercializadoras : null,
+                    p_agrupaciones: (filters.agrupaciones && filters.agrupaciones.length > 0) ? filters.agrupaciones : null,
+                    p_tipos_suministro: (filters.tipos_suministro && filters.tipos_suministro.length > 0) ? filters.tipos_suministro : null,
+                };
+
+                const { data, error: rpcError } = await supabase.rpc('export_xlsx_facturas', rpcParams);
+
+                if (rpcError) {
+                    throw new Error(rpcError.message || 'Error al obtener datos para XLSX');
+                }
+
+                if (Array.isArray(data) && data.length > 0) {
+                    xlsxData = xlsxData.concat(data);
+                }
             }
 
             if (!xlsxData || (Array.isArray(xlsxData) && xlsxData.length === 0)) {

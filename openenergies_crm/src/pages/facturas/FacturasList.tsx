@@ -257,6 +257,7 @@ export default function FacturasList() {
     const [selectedFactura, setSelectedFactura] = useState<FacturaCliente | null>(null);
     const { rol } = useSession();
     const isCliente = rol === 'cliente';
+    const isComercial = rol === 'comercial';
 
     // PDF Preview state
     const [previewModal, setPreviewModal] = useState<{ url: string; name: string } | null>(null);
@@ -478,8 +479,9 @@ export default function FacturasList() {
                             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
-                    {isCliente ? (
+                    {isCliente || isComercial ? (
                         <ExportDropdownFacturas
+                            showSage={isCliente}
                             exportParams={{
                                 entity: 'facturas',
                                 filters: {

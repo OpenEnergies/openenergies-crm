@@ -17,7 +17,35 @@ import {
 // ── Types ──────────────────────────────────────────────────────
 interface FacturaRow {
     fecha_emision: string;
+    factura_id: string;
+    punto_id: string | null;
     consumo_kwh: number | null;
+    total: number;
+    precio_eur_kwh: number | null;
+    tipo_factura: string | null;
+    source: 'consumo' | 'factura';
+}
+
+interface ConsumoFacturacionRow {
+    mes: string;
+    consumo_kwh: number | null;
+    punto_id: string;
+    factura: {
+        id: string;
+        cliente_id: string;
+        comercializadora_id: string;
+        eliminado_en: string | null;
+    } | {
+        id: string;
+        cliente_id: string;
+        comercializadora_id: string;
+        eliminado_en: string | null;
+    }[] | null;
+}
+
+interface FacturacionClienteRow {
+    id: string;
+    fecha_emision: string;
     total: number;
     precio_eur_kwh: number | null;
     tipo_factura: string | null;
@@ -30,29 +58,73 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
     return useQuery<FacturaRow[]>({
         queryKey: ['client-dashboard-facturas', clienteId, empresaId, year ?? 'last12'],
         queryFn: async () => {
-            let query = supabase
+            let consumoQuery = supabase
+                .from('consumos_facturacion')
+                .select('mes, consumo_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, comercializadora_id, eliminado_en)')
+                .is('eliminado_en', null)
+                .order('mes', { ascending: true });
+
+            let facturaQuery = supabase
                 .from('facturacion_clientes')
-                .select('fecha_emision, consumo_kwh, total, precio_eur_kwh, tipo_factura')
+                .select('id, fecha_emision, total, precio_eur_kwh, tipo_factura')
                 .is('eliminado_en', null)
                 .order('fecha_emision', { ascending: true });
 
             if (year) {
-                query = query.gte('fecha_emision', `${year}-01-01`).lte('fecha_emision', `${year}-12-31`);
+                consumoQuery = consumoQuery.gte('mes', `${year}-01-01`).lte('mes', `${year}-12-31`);
+                facturaQuery = facturaQuery.gte('fecha_emision', `${year}-01-01`).lte('fecha_emision', `${year}-12-31`);
             } else {
                 const since = new Date();
                 since.setFullYear(since.getFullYear() - 1);
-                query = query.gte('fecha_emision', since.toISOString().split('T')[0]);
+                const sinceStr = since.toISOString().split('T')[0];
+                consumoQuery = consumoQuery.gte('mes', sinceStr);
+                facturaQuery = facturaQuery.gte('fecha_emision', sinceStr);
             }
 
             if (clienteId) {
-                query = query.eq('cliente_id', clienteId);
+                consumoQuery = consumoQuery.eq('cliente_id', clienteId);
+                facturaQuery = facturaQuery.eq('cliente_id', clienteId);
             }
             if (empresaId) {
-                query = query.eq('comercializadora_id', empresaId);
+                facturaQuery = facturaQuery.eq('comercializadora_id', empresaId);
             }
 
-            const data = await fetchAllRows<FacturaRow>(query);
-            return data;
+            const [consumosData, facturasData] = await Promise.all([
+                fetchAllRows<ConsumoFacturacionRow>(consumoQuery),
+                fetchAllRows<FacturacionClienteRow>(facturaQuery),
+            ]);
+
+            const consumoRows = consumosData
+                .map((row) => {
+                    const factura = Array.isArray(row.factura) ? row.factura[0] : row.factura;
+                    if (!factura || factura.eliminado_en) return null;
+                    if (empresaId && factura.comercializadora_id !== empresaId) return null;
+
+                    return {
+                        fecha_emision: row.mes,
+                        factura_id: factura.id,
+                        punto_id: row.punto_id,
+                        consumo_kwh: Number(row.consumo_kwh) || 0,
+                        total: 0,
+                        precio_eur_kwh: null,
+                        tipo_factura: null,
+                        source: 'consumo',
+                    } as FacturaRow;
+                })
+                .filter((row): row is FacturaRow => row !== null);
+
+            const facturaRows = facturasData.map((row) => ({
+                fecha_emision: row.fecha_emision,
+                factura_id: row.id,
+                punto_id: null,
+                consumo_kwh: null,
+                total: Number(row.total) || 0,
+                precio_eur_kwh: row.precio_eur_kwh,
+                tipo_factura: row.tipo_factura,
+                source: 'factura' as const,
+            }));
+
+            return [...consumoRows, ...facturaRows].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
         },
         staleTime: 5 * 60 * 1000,
     });
@@ -82,7 +154,10 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
         return kpiFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
     }, [kpiFacturas]);
 
-    const numFacturas = kpiFacturas.length;
+    const numFacturas = useMemo(() => {
+        const ids = new Set(kpiFacturas.filter(f => f.source === 'factura').map(f => f.factura_id));
+        return ids.size;
+    }, [kpiFacturas]);
 
     const periodLabel = month !== undefined ? MONTH_LABELS[month] + ' ' + (year ?? '') : (year ? String(year) : '12 meses');
 
@@ -100,9 +175,13 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
         facturas?.forEach(f => {
             const mIdx = new Date(f.fecha_emision).getMonth();
             if (months[mIdx]) {
-                months[mIdx].consumo += f.consumo_kwh || 0;
-                months[mIdx].coste += f.total || 0;
-                if (f.precio_eur_kwh) {
+                if (f.source === 'consumo') {
+                    months[mIdx].consumo += f.consumo_kwh || 0;
+                }
+                if (f.source === 'factura') {
+                    months[mIdx].coste += f.total || 0;
+                }
+                if (f.source === 'factura' && f.precio_eur_kwh) {
                     months[mIdx]._precioSum += f.precio_eur_kwh;
                     months[mIdx]._precioCount += 1;
                 }
@@ -320,6 +399,7 @@ export function CostBreakdownWidget({ clienteId, empresaId, year, month }: { cli
     const costByType = useMemo(() => {
         const totals = new Map<string, number>();
         filteredFacturas.forEach(f => {
+            if ((f.total || 0) <= 0) return;
             const tipo = f.tipo_factura || 'Otro';
             totals.set(tipo, (totals.get(tipo) || 0) + (f.total || 0));
         });

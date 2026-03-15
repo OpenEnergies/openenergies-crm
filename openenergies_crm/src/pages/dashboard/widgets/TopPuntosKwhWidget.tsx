@@ -1,8 +1,9 @@
 // src/pages/dashboard/widgets/TopPuntosKwhWidget.tsx
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
-import { Loader2, TrendingUp, Zap } from 'lucide-react';
+import { Loader2, TrendingUp, Zap, Info } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
 type TopPuntoKwh = {
     punto_id: string;
@@ -17,10 +18,10 @@ async function fetchTopPuntosKwh(): Promise<TopPuntoKwh[]> {
     const sinceStr = since.toISOString().split('T')[0];
 
     const { data, error } = await supabase
-        .from('facturacion_clientes')
+        .from('consumos_facturacion')
         .select('punto_id, consumo_kwh, puntos_suministro!inner(id, cups, clientes!inner(nombre))')
         .is('eliminado_en', null)
-        .gte('fecha_emision', sinceStr);
+        .gte('mes', sinceStr);
 
     if (error) throw error;
 
@@ -47,6 +48,8 @@ async function fetchTopPuntosKwh(): Promise<TopPuntoKwh[]> {
 }
 
 export default function TopPuntosKwhWidget() {
+    const [showInfo, setShowInfo] = useState(false);
+
     const { data, isLoading, isError } = useQuery({
         queryKey: ['dashboard-top-puntos-kwh'],
         queryFn: fetchTopPuntosKwh,
@@ -62,6 +65,23 @@ export default function TopPuntosKwhWidget() {
                         <TrendingUp className="w-5 h-5 text-fenix-600 dark:text-fenix-400" />
                     </div>
                     <h3 className="text-base font-bold text-primary">Top 5 Puntos por kWh</h3>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowInfo(prev => !prev)}
+                            aria-label="Mostrar información del cálculo de Top 5 por kWh"
+                            className="w-7 h-7 rounded-full border border-fenix-500/30 text-fenix-600 dark:text-fenix-400 hover:bg-fenix-500/10 transition-colors flex items-center justify-center"
+                        >
+                            <Info className="w-4 h-4" />
+                        </button>
+                        {showInfo && (
+                            <div className="absolute left-0 top-9 z-20 w-80 p-3 rounded-lg border border-fenix-500/20 bg-white dark:bg-slate-900 shadow-xl text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+                                Top 5 por kWh = suma de <span className="font-semibold">consumo_kwh</span> por <span className="font-semibold">punto_id</span>
+                                en los ultimos 12 meses, usando <span className="font-semibold">consumos_facturacion.mes</span> y excluyendo registros
+                                eliminados. Se ordena de mayor a menor y se muestran 5 resultados.
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <Link
                     to="/app/puntos"

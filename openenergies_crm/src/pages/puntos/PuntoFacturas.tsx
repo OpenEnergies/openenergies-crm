@@ -14,6 +14,7 @@ import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
 import ExportButton from '@components/ExportButton';
+import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -60,6 +61,8 @@ interface FacturaCliente {
     precio_eur_kwh: number | null;
     observaciones: string | null;
     creado_en: string;
+    periodo_inicio_mes: string | null;
+    periodo_fin_mes: string | null;
     puntos_suministro: { cups: string } | null;
     clientes: { nombre: string } | null;
     comercializadora: { nombre: string } | null;
@@ -81,7 +84,18 @@ async function fetchFacturasByPunto(puntoId: string): Promise<FacturaCliente[]> 
         .range(0, 99999);
 
     if (error) throw error;
-    return data as FacturaCliente[];
+
+    const facturas = (data || []) as FacturaCliente[];
+    const periodosMap = await fetchFacturaPeriodos(facturas.map(f => f.id));
+
+    return facturas.map((factura) => {
+        const periodo = periodosMap[factura.id] || { periodo_inicio_mes: null, periodo_fin_mes: null };
+        return {
+            ...factura,
+            periodo_inicio_mes: periodo.periodo_inicio_mes,
+            periodo_fin_mes: periodo.periodo_fin_mes,
+        };
+    });
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -185,6 +199,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                         {renderField('Fecha Emisión', formatDate(factura.fecha_emision))}
                         {renderField('Tipo Factura', factura.tipo_factura)}
                         {renderField('Tarifa', factura.tarifa)}
+                        {renderField('Periodo Facturación', formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes))}
                     </div>
 
                     {(factura.direccion_suministro || factura.provincia || factura.potencia_kw_min || factura.potencia_kw_max) && (
@@ -243,6 +258,8 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
     const [signedUrlCache, setSignedUrlCache] = useState<Record<string, { url: string; expires: number }>>({});
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const [periodoInicioFilter, setPeriodoInicioFilter] = useState('');
+    const [periodoFinFilter, setPeriodoFinFilter] = useState('');
     const [columnFilters, setColumnFilters] = useState<{ comercializadora: string[]; tarifa: string[] }>({ comercializadora: [], tarifa: [] });
 
     const { data: facturas = [], isLoading, isError } = useQuery({
@@ -345,6 +362,20 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
             data = data.filter(f => f.tarifa && columnFilters.tarifa.includes(f.tarifa));
         }
 
+        if (periodoInicioFilter) {
+            data = data.filter((f) => {
+                const inicio = toMonthKey(f.periodo_inicio_mes);
+                return !!inicio && inicio >= periodoInicioFilter;
+            });
+        }
+
+        if (periodoFinFilter) {
+            data = data.filter((f) => {
+                const fin = toMonthKey(f.periodo_fin_mes);
+                return !!fin && fin <= periodoFinFilter;
+            });
+        }
+
         if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
         return data.filter(f =>
@@ -352,7 +383,7 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
             f.direccion_suministro?.toLowerCase().includes(term) ||
             f.comercializadora?.nombre?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm, dateFilter, columnFilters]);
+    }, [facturas, searchTerm, dateFilter, columnFilters, periodoInicioFilter, periodoFinFilter]);
 
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
         initialSortKey: 'fecha_emision',
@@ -365,6 +396,7 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
             total: (item: FacturaCliente) => item.total,
             consumo_kwh: (item: FacturaCliente) => item.consumo_kwh,
             fecha_emision: (item: FacturaCliente) => item.fecha_emision,
+            periodo_facturacion: (item: FacturaCliente) => item.periodo_inicio_mes || '',
         },
     });
 
@@ -375,7 +407,7 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
         return sortedData.slice(start, start + ITEMS_PER_PAGE);
     }, [sortedData, currentPage]);
 
-    useMemo(() => { setCurrentPage(1); }, [searchTerm, dateFilter, columnFilters]);
+    useMemo(() => { setCurrentPage(1); }, [searchTerm, dateFilter, columnFilters, periodoInicioFilter, periodoFinFilter]);
 
     if (isLoading) {
         return (
@@ -431,6 +463,24 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
                                 },
                             }}
                         />
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-secondary">Periodo desde</label>
+                            <input
+                                type="month"
+                                value={periodoInicioFilter}
+                                onChange={(e) => setPeriodoInicioFilter(e.target.value)}
+                                className="glass-input w-36"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-secondary">Periodo hasta</label>
+                            <input
+                                type="month"
+                                value={periodoFinFilter}
+                                onChange={(e) => setPeriodoFinFilter(e.target.value)}
+                                className="glass-input w-36"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -509,6 +559,14 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
                                         />
                                     </div>
                                 </th>
+                                <th className="p-4">
+                                    <button
+                                        onClick={() => handleSort('periodo_facturacion' as any)}
+                                        className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
+                                    >
+                                        Periodo Facturación {renderSortIcon('periodo_facturacion' as any)}
+                                    </button>
+                                </th>
                                 <th className="p-4 text-right">
                                     <span className="text-xs">PDF</span>
                                 </th>
@@ -548,6 +606,11 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
                                     </td>
                                     <td className="p-4">
                                         <span className="text-secondary text-sm font-medium">{formatDate(factura.fecha_emision)}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-secondary text-sm font-medium">
+                                            {formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes)}
+                                        </span>
                                     </td>
                                     <td className="p-4">
                                         <div className="flex items-center justify-end gap-2">

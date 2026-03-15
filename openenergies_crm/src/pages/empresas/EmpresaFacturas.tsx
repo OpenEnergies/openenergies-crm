@@ -15,6 +15,7 @@ import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import toast from 'react-hot-toast';
 import ExportButton from '@components/ExportButton';
+import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -61,6 +62,8 @@ interface FacturaCliente {
     precio_eur_kwh: number | null;
     observaciones: string | null;
     creado_en: string;
+    periodo_inicio_mes: string | null;
+    periodo_fin_mes: string | null;
     puntos_suministro: { cups: string } | null;
     clientes: { nombre: string } | null;
     comercializadora: { nombre: string } | null;
@@ -80,7 +83,17 @@ async function fetchFacturasEmpresa(empresaId: string): Promise<FacturaCliente[]
         .is('eliminado_en', null)
         .order('fecha_emision', { ascending: false });
 
-    return await fetchAllRows<FacturaCliente>(query);
+    const facturas = await fetchAllRows<FacturaCliente>(query);
+    const periodosMap = await fetchFacturaPeriodos(facturas.map(f => f.id));
+
+    return facturas.map((factura) => {
+        const periodo = periodosMap[factura.id] || { periodo_inicio_mes: null, periodo_fin_mes: null };
+        return {
+            ...factura,
+            periodo_inicio_mes: periodo.periodo_inicio_mes,
+            periodo_fin_mes: periodo.periodo_fin_mes,
+        };
+    });
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -158,6 +171,7 @@ function FacturaDetailModal({ factura, onClose }: { factura: FacturaCliente, onC
                         {renderField('Comercializadora', factura.comercializadora?.nombre)}
                         {renderField('Nº Factura', factura.numero_factura)}
                         {renderField('Fecha Emisión', formatDate(factura.fecha_emision))}
+                        {renderField('Periodo Facturación', formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes))}
                     </div>
                     <div className="glass-card p-4 space-y-1">
                         <h4 className="text-sm font-semibold text-fenix-400 mb-3">Totales</h4>
@@ -181,6 +195,8 @@ export default function EmpresaFacturas() {
     const [signedUrlCache, setSignedUrlCache] = useState<Record<string, { url: string; expires: number }>>({});
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const [periodoInicioFilter, setPeriodoInicioFilter] = useState('');
+    const [periodoFinFilter, setPeriodoFinFilter] = useState('');
 
     const { data: facturas = [], isLoading, isError } = useQuery({
         queryKey: ['empresa-facturas', empresaId],
@@ -232,6 +248,21 @@ export default function EmpresaFacturas() {
                 return true;
             });
         }
+
+        if (periodoInicioFilter) {
+            data = data.filter((f) => {
+                const inicio = toMonthKey(f.periodo_inicio_mes);
+                return !!inicio && inicio >= periodoInicioFilter;
+            });
+        }
+
+        if (periodoFinFilter) {
+            data = data.filter((f) => {
+                const fin = toMonthKey(f.periodo_fin_mes);
+                return !!fin && fin <= periodoFinFilter;
+            });
+        }
+
         if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
         return data.filter(f =>
@@ -239,7 +270,7 @@ export default function EmpresaFacturas() {
             f.puntos_suministro?.cups?.toLowerCase().includes(term) ||
             f.clientes?.nombre?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm, dateFilter]);
+    }, [facturas, searchTerm, dateFilter, periodoInicioFilter, periodoFinFilter]);
 
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
         initialSortKey: 'fecha_emision',
@@ -250,6 +281,7 @@ export default function EmpresaFacturas() {
             cups: (item) => item.puntos_suministro?.cups,
             total: (item) => item.total,
             fecha_emision: (item) => item.fecha_emision,
+            periodo_facturacion: (item) => item.periodo_inicio_mes || '',
         },
     });
 
@@ -260,7 +292,7 @@ export default function EmpresaFacturas() {
         return sortedData.slice(start, start + ITEMS_PER_PAGE);
     }, [sortedData, currentPage]);
 
-    useMemo(() => { setCurrentPage(1); }, [searchTerm, dateFilter]);
+    useMemo(() => { setCurrentPage(1); }, [searchTerm, dateFilter, periodoInicioFilter, periodoFinFilter]);
 
     if (isLoading) {
         return (
@@ -307,6 +339,24 @@ export default function EmpresaFacturas() {
                                 },
                             }}
                         />
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-secondary">Periodo desde</label>
+                            <input
+                                type="month"
+                                value={periodoInicioFilter}
+                                onChange={(e) => setPeriodoInicioFilter(e.target.value)}
+                                className="glass-input w-36"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-secondary">Periodo hasta</label>
+                            <input
+                                type="month"
+                                value={periodoFinFilter}
+                                onChange={(e) => setPeriodoFinFilter(e.target.value)}
+                                className="glass-input w-36"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -331,6 +381,14 @@ export default function EmpresaFacturas() {
                                         <DateFilterDropdown columnName="Emisión" options={facturas.map(f => new Date(f.fecha_emision))} selectedDate={dateFilter} onChange={setDateFilter} />
                                     </div>
                                 </th>
+                                <th className="p-4">
+                                    <button
+                                        onClick={() => handleSort('periodo_facturacion' as any)}
+                                        className="flex items-center gap-1 hover:text-fenix-400 transition-colors cursor-pointer"
+                                    >
+                                        Periodo Facturación {renderSortIcon('periodo_facturacion' as any)}
+                                    </button>
+                                </th>
                                 <th className="p-4 text-right">PDF</th>
                             </tr>
                         </thead>
@@ -342,6 +400,7 @@ export default function EmpresaFacturas() {
                                     <td className="p-4 text-secondary font-mono text-sm">{factura.puntos_suministro?.cups || '—'}</td>
                                     <td className="p-4 text-right text-primary font-bold">{formatCurrency(factura.total)}</td>
                                     <td className="p-4 text-secondary text-sm">{formatDate(factura.fecha_emision)}</td>
+                                    <td className="p-4 text-secondary text-sm">{formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes)}</td>
                                     <td className="p-4">
                                         <div className="flex items-center justify-end gap-2">
                                             <button onClick={() => handlePreviewPdf(factura)} disabled={loadingPdfId === factura.id} className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all cursor-pointer disabled:opacity-50">{loadingPdfId === factura.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}</button>

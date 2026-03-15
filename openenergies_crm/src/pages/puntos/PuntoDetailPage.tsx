@@ -42,7 +42,28 @@ interface PuntoInfo {
 
 interface FacturaRow {
     fecha_emision: string;
+    factura_id: string;
     consumo_kwh: number | null;
+    total: number;
+    precio_eur_kwh: number | null;
+    source: 'consumo' | 'factura';
+}
+
+interface ConsumoFacturacionRow {
+    mes: string;
+    consumo_kwh: number | null;
+    factura: {
+        id: string;
+        eliminado_en: string | null;
+    } | {
+        id: string;
+        eliminado_en: string | null;
+    }[] | null;
+}
+
+interface FacturacionPuntoRow {
+    id: string;
+    fecha_emision: string;
     total: number;
     precio_eur_kwh: number | null;
 }
@@ -104,16 +125,59 @@ function useFacturacionPuntoByYear(puntoId: string | undefined, year: number) {
             if (!puntoId) throw new Error('No punto ID');
             const startDate = `${year}-01-01`;
             const endDate = `${year}-12-31`;
-            const { data, error } = await supabase
+            const consumoQuery = supabase
+                .from('consumos_facturacion')
+                .select('mes, consumo_kwh, factura:facturacion_clientes!inner(id, eliminado_en)')
+                .eq('punto_id', puntoId)
+                .gte('mes', startDate)
+                .lte('mes', endDate)
+                .is('eliminado_en', null)
+                .order('mes', { ascending: true });
+
+            const facturaQuery = supabase
                 .from('facturacion_clientes')
-                .select('fecha_emision, consumo_kwh, total, precio_eur_kwh')
+                .select('id, fecha_emision, total, precio_eur_kwh')
                 .eq('punto_id', puntoId)
                 .gte('fecha_emision', startDate)
                 .lte('fecha_emision', endDate)
                 .is('eliminado_en', null)
                 .order('fecha_emision', { ascending: true });
-            if (error) throw error;
-            return (data || []) as FacturaRow[];
+
+            const [{ data: consumoData, error: consumoError }, { data: facturaData, error: facturaError }] = await Promise.all([
+                consumoQuery,
+                facturaQuery,
+            ]);
+
+            if (consumoError) throw consumoError;
+            if (facturaError) throw facturaError;
+
+            const consumoRows = ((consumoData || []) as ConsumoFacturacionRow[])
+                .map((row) => {
+                    const factura = Array.isArray(row.factura) ? row.factura[0] : row.factura;
+                    if (!factura || factura.eliminado_en) return null;
+
+                    return {
+                        fecha_emision: row.mes,
+                        factura_id: factura.id,
+                        consumo_kwh: Number(row.consumo_kwh) || 0,
+                        total: 0,
+                        precio_eur_kwh: null,
+                        source: 'consumo',
+                    } as FacturaRow;
+                })
+                .filter((row): row is FacturaRow => row !== null);
+
+            const facturaRows = ((facturaData || []) as FacturacionPuntoRow[])
+                .map((row) => ({
+                    fecha_emision: row.fecha_emision,
+                    factura_id: row.id,
+                    consumo_kwh: null,
+                    total: Number(row.total) || 0,
+                    precio_eur_kwh: row.precio_eur_kwh,
+                    source: 'factura' as const,
+                }));
+
+            return [...consumoRows, ...facturaRows].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
         },
         enabled: !!puntoId,
     });
@@ -176,9 +240,13 @@ export default function PuntoDetailPage() {
                 const d = new Date(f.fecha_emision);
                 const mIdx = d.getMonth();
                 if (months[mIdx]) {
-                    months[mIdx].consumo += f.consumo_kwh || 0;
-                    months[mIdx].coste += f.total || 0;
-                    if (f.precio_eur_kwh) {
+                    if (f.source === 'consumo') {
+                        months[mIdx].consumo += f.consumo_kwh || 0;
+                    }
+                    if (f.source === 'factura') {
+                        months[mIdx].coste += f.total || 0;
+                    }
+                    if (f.source === 'factura' && f.precio_eur_kwh) {
                         months[mIdx]._precioSum += f.precio_eur_kwh;
                         months[mIdx]._precioCount += 1;
                     }

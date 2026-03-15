@@ -137,18 +137,24 @@ export default function AgrupacionDetailPage() {
       mes: label,
       consumo: 0,
       coste: 0,
-      _totalSum: 0,
-      _consumoSum: 0,
+      _precioSum: 0,
+      _precioCount: 0,
       precio: null as number | null,
     }));
 
     filteredFacturas.forEach(f => {
       const mIdx = new Date(f.fecha_emision).getMonth();
       if (months[mIdx]) {
-        months[mIdx].consumo += f.consumo_kwh || 0;
-        months[mIdx].coste += f.total || 0;
-        months[mIdx]._totalSum += f.total || 0;
-        months[mIdx]._consumoSum += f.consumo_kwh || 0;
+        if (f.source === 'consumo') {
+          months[mIdx].consumo += f.consumo_kwh || 0;
+        }
+        if (f.source === 'factura') {
+          months[mIdx].coste += f.total || 0;
+          if (f.precio_eur_kwh) {
+            months[mIdx]._precioSum += f.precio_eur_kwh;
+            months[mIdx]._precioCount += 1;
+          }
+        }
       }
     });
 
@@ -156,7 +162,7 @@ export default function AgrupacionDetailPage() {
       mes: m.mes,
       consumo: Math.round(m.consumo),
       coste: Math.round(m.coste * 100) / 100,
-      precio: m._consumoSum > 0 ? Math.round((m._totalSum / m._consumoSum) * 10000) / 10000 : null,
+      precio: m._precioCount > 0 ? Math.round((m._precioSum / m._precioCount) * 10000) / 10000 : null,
     }));
   }, [filteredFacturas]);
 

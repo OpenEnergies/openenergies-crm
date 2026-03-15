@@ -18,6 +18,7 @@ import ExportButton from '@components/ExportButton';
 import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import toast from 'react-hot-toast';
+import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -71,6 +72,8 @@ interface FacturaCliente {
     precio_eur_kwh: number | null;
     observaciones: string | null;
     creado_en: string;
+    periodo_inicio_mes: string | null;
+    periodo_fin_mes: string | null;
     // Joined relations
     puntos_suministro: { cups: string; direccion_sum: string | null; localidad_sum: string | null; provincia_sum: string | null } | null;
     clientes: { id: string; nombre: string } | null;
@@ -90,7 +93,17 @@ async function fetchFacturas(): Promise<FacturaCliente[]> {
         .is('eliminado_en', null)
         .order('fecha_emision', { ascending: false });
 
-    return await fetchAllRows<FacturaCliente>(query);
+    const facturas = await fetchAllRows<FacturaCliente>(query);
+    const periodosMap = await fetchFacturaPeriodos(facturas.map(f => f.id));
+
+    return facturas.map((factura) => {
+        const periodo = periodosMap[factura.id] || { periodo_inicio_mes: null, periodo_fin_mes: null };
+        return {
+            ...factura,
+            periodo_inicio_mes: periodo.periodo_inicio_mes,
+            periodo_fin_mes: periodo.periodo_fin_mes,
+        };
+    });
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -198,6 +211,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
                         {renderField('Fecha Emisión', formatDate(factura.fecha_emision))}
                         {renderField('Tipo Factura', factura.tipo_factura)}
                         {renderField('Tarifa', factura.tarifa)}
+                        {renderField('Periodo Facturación', formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes))}
                     </div>
 
                     {/* Supply Info Section */}
@@ -269,6 +283,8 @@ export default function FacturasList() {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [dateFilter, setDateFilter] = useState<DateParts>({ year: null, month: null, day: null });
+    const [periodoInicioFilter, setPeriodoInicioFilter] = useState('');
+    const [periodoFinFilter, setPeriodoFinFilter] = useState('');
     const [columnFilters, setColumnFilters] = useState<{ comercializadora: string[]; tarifa: string[] }>({ comercializadora: [], tarifa: [] });
     const { theme } = useTheme();
 
@@ -396,6 +412,20 @@ export default function FacturasList() {
             data = data.filter(f => f.tarifa && columnFilters.tarifa.includes(f.tarifa));
         }
 
+        if (periodoInicioFilter) {
+            data = data.filter((f) => {
+                const inicio = toMonthKey(f.periodo_inicio_mes);
+                return !!inicio && inicio >= periodoInicioFilter;
+            });
+        }
+
+        if (periodoFinFilter) {
+            data = data.filter((f) => {
+                const fin = toMonthKey(f.periodo_fin_mes);
+                return !!fin && fin <= periodoFinFilter;
+            });
+        }
+
         if (!searchTerm) return data;
         const term = searchTerm.toLowerCase();
         return data.filter(f =>
@@ -404,7 +434,7 @@ export default function FacturasList() {
             f.clientes?.nombre?.toLowerCase().includes(term) ||
             f.direccion_suministro?.toLowerCase().includes(term)
         );
-    }, [facturas, searchTerm, columnFilters, dateFilter]);
+    }, [facturas, searchTerm, columnFilters, dateFilter, periodoInicioFilter, periodoFinFilter]);
 
     // Sorting with useSortableTable hook
     const { sortedData, handleSort, renderSortIcon } = useSortableTable<FacturaCliente>(filteredFacturas, {
@@ -420,6 +450,7 @@ export default function FacturasList() {
             total: (item: FacturaCliente) => item.total,
             consumo_kwh: (item: FacturaCliente) => item.consumo_kwh || 0,
             fecha_emision: (item: FacturaCliente) => item.fecha_emision,
+            periodo_facturacion: (item: FacturaCliente) => item.periodo_inicio_mes || '',
         },
     });
 
@@ -434,7 +465,7 @@ export default function FacturasList() {
     // Reset page when search or filters change
     useMemo(() => {
         setCurrentPage(1);
-    }, [searchTerm, columnFilters, dateFilter]);
+    }, [searchTerm, columnFilters, dateFilter, periodoInicioFilter, periodoFinFilter]);
 
 
 
@@ -474,6 +505,24 @@ export default function FacturasList() {
                             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-secondary">Periodo desde</label>
+                        <input
+                            type="month"
+                            value={periodoInicioFilter}
+                            onChange={(e) => { setPeriodoInicioFilter(e.target.value); setCurrentPage(1); }}
+                            className="glass-input w-40"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-secondary">Periodo hasta</label>
+                        <input
+                            type="month"
+                            value={periodoFinFilter}
+                            onChange={(e) => { setPeriodoFinFilter(e.target.value); setCurrentPage(1); }}
+                            className="glass-input w-40"
+                        />
+                    </div>
                     {isCliente || isComercial ? (
                         <ExportDropdownFacturas
                             showSage={isCliente}
@@ -498,7 +547,7 @@ export default function FacturasList() {
                             }}
                         />
                     )}
-                    {!isCliente && (
+                    {!isCliente && !isComercial && (
                         <Link
                             to="/app/facturas/importar"
                             className="flex items-center justify-center h-11 px-4 bg-bg-intermediate border border-fenix-500/30 hover:border-fenix-500 text-primary rounded-lg transition-all shadow-lg shadow-black/20"
@@ -508,7 +557,7 @@ export default function FacturasList() {
                             <span className="ml-2 hidden lg:inline">Importar</span>
                         </Link>
                     )}
-                    {!isCliente && (
+                    {!isCliente && !isComercial && (
                         <Link
                             to="/app/facturas/nuevo"
                             className="flex items-center justify-center h-11 px-4 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg transition-colors shadow-lg shadow-fenix-500/20"
@@ -604,6 +653,14 @@ export default function FacturasList() {
                                             />
                                         </div>
                                     </th>
+                                    <th className="p-4 text-left">
+                                        <button
+                                            onClick={() => handleSort('periodo_facturacion' as any)}
+                                            className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
+                                        >
+                                            Periodo Facturación {renderSortIcon('periodo_facturacion' as any)}
+                                        </button>
+                                    </th>
                                     <th className="p-4 text-right">Acciones</th>
                                 </tr>
                             </thead>
@@ -671,6 +728,11 @@ export default function FacturasList() {
                                         <td className="p-4 text-center">
                                             <span className="text-sm text-secondary font-medium">
                                                 {formatDate(factura.fecha_emision)}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="text-sm text-secondary font-medium">
+                                                {formatPeriodoFacturacion(factura.periodo_inicio_mes, factura.periodo_fin_mes)}
                                             </span>
                                         </td>
                                         {/* Actions */}

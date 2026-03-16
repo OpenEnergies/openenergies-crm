@@ -28,7 +28,7 @@ interface ClienteConAgregados {
 
 const PAGE_SIZE = 50;
 
-async function fetchClientes(search: string, empresaId?: string): Promise<ClienteConAgregados[]> {
+async function fetchClientes(search: string, empresaId?: string, rol?: string): Promise<ClienteConAgregados[]> {
   let query = supabase
     .from('clientes')
     .select(`
@@ -105,14 +105,27 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
       .order('creado_en', { ascending: false }) as any;
   }
 
-  if (search) {
-    query = query.or(`nombre.ilike.%${search}%,dni.ilike.%${search}%,cif.ilike.%${search}%`);
-  }
-
   query = query.range(0, 99999);
   const { data, error } = await query;
 
   if (error) throw error;
+
+  const decryptedById = new Map<string, { dni: string | null; cif: string | null }>();
+  if (rol === 'administrador' || rol === 'comercial') {
+    const { data: decryptedData } = await supabase.rpc('obtener_dni_cif_clientes', {
+      p_limit: 100000,
+      p_offset: 0,
+    });
+
+    const decryptedRows = Array.isArray(decryptedData) ? decryptedData : [];
+    for (const row of decryptedRows as Array<{ id?: string; dni?: string | null; cif?: string | null }>) {
+      if (!row.id) continue;
+      decryptedById.set(row.id, {
+        dni: row.dni ?? null,
+        cif: row.cif ?? null,
+      });
+    }
+  }
 
   // Fetch €/año from facturacion_clientes (last 365 days aggregate per client)
   const since = new Date();
@@ -132,22 +145,35 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
     }
   });
 
-  return (data || []).map((cliente: any) => {
+  const clientesConAgregados = (data || []).map((cliente: any) => {
     const puntos = cliente.puntos_suministro || [];
     const puntosActivos = puntos.filter((p: any) => p.id);
     const activo = puntosActivos.some((p: any) => p.estado === 'Aceptado');
+    const decrypted = decryptedById.get(cliente.id);
 
     return {
       id: cliente.id,
       nombre: cliente.nombre,
-      dni: cliente.dni,
-      cif: cliente.cif,
+      dni: decrypted?.dni ?? cliente.dni,
+      cif: decrypted?.cif ?? cliente.cif,
       creado_en: cliente.creado_en,
       puntos_count: puntosActivos.length,
       total_kwh: puntosActivos.reduce((acc: number, p: any) => acc + (Number(p.consumo_anual_kwh) || 0), 0),
       total_euros: eurosByCliente[cliente.id] || 0,
       activo,
     };
+  });
+
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return clientesConAgregados;
+  }
+
+  return clientesConAgregados.filter((cliente) => {
+    const nombre = cliente.nombre?.toLowerCase() || '';
+    const dni = cliente.dni?.toLowerCase() || '';
+    const cif = cliente.cif?.toLowerCase() || '';
+    return nombre.includes(normalizedSearch) || dni.includes(normalizedSearch) || cif.includes(normalizedSearch);
   });
 }
 
@@ -173,7 +199,9 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
 
   const { data: fetchedData, isLoading, isError } = useQuery({
     queryKey: ['clientes', filter, empresaId],
-    queryFn: () => fetchClientes(filter, empresaId),
+    queryFn: () => fetchClientes(filter, empresaId, rol ?? undefined),
+    enabled: rol !== null,
+    retry: false,
   });
 
   const deleteMutation = useMutation({

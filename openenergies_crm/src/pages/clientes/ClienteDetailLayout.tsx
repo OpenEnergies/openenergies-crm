@@ -23,33 +23,44 @@ interface ClienteDetallado {
   total_kwh: number;
 }
 
-async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
-  const { data: cliente, error } = await supabase
-    .from('clientes')
-    .select('*')
-    .eq('id', clienteId)
-    .is('eliminado_en', null)
-    .single();
+async function fetchCliente(clienteId: string, rol?: string): Promise<ClienteDetallado> {
+  let cliente: Record<string, any> | null = null;
 
-  if (error) throw error;
+  if (rol === 'administrador' || rol === 'comercial') {
+    const { data, error } = await supabase.rpc('obtener_cliente_completo', {
+      p_cliente_id: clienteId,
+    });
+
+    if (error) throw error;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Respuesta inválida de obtener_cliente_completo');
+    }
+    if ('error' in data && data.error) {
+      throw new Error(String(data.error));
+    }
+
+    cliente = data as Record<string, any>;
+  } else {
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', clienteId)
+      .is('eliminado_en', null)
+      .single();
+
+    if (error) throw error;
+    cliente = data;
+  }
 
   const { data: puntos } = await supabase
     .from('puntos_suministro')
-    .select('p1_kw, p2_kw, p3_kw, p4_kw, p5_kw, p6_kw')
+    .select('consumo_anual_kwh')
     .eq('cliente_id', clienteId)
     .is('eliminado_en', null)
     .range(0, 99999);
 
   const puntosCount = puntos?.length || 0;
-  const totalKwh = (puntos || []).reduce((acc, p) => {
-    return acc +
-      (Number(p.p1_kw) || 0) +
-      (Number(p.p2_kw) || 0) +
-      (Number(p.p3_kw) || 0) +
-      (Number(p.p4_kw) || 0) +
-      (Number(p.p5_kw) || 0) +
-      (Number(p.p6_kw) || 0);
-  }, 0);
+  const totalKwh = (puntos || []).reduce((acc, p) => acc + (Number((p as any).consumo_anual_kwh) || 0), 0);
 
   return {
     ...cliente,
@@ -67,8 +78,9 @@ export default function ClienteDetailLayout() {
 
   const { data: cliente, isLoading, isError } = useQuery({
     queryKey: ['cliente', clienteId],
-    queryFn: () => fetchCliente(clienteId),
-    enabled: !!clienteId,
+    queryFn: () => fetchCliente(clienteId, rol ?? undefined),
+    enabled: !!clienteId && rol !== null,
+    retry: false,
   });
 
   // Verificar si el cliente tiene usuario vinculado

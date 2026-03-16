@@ -13,7 +13,7 @@ import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
-import ExportButton from '@components/ExportButton';
+import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 
 // ============ STORAGE HELPERS ============
 const FACTURAS_BUCKET = 'facturas_clientes';
@@ -236,7 +236,7 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
 }
 
 // ============ MAIN COMPONENT ============
-export default function AgrupacionFacturas({ puntoIds }: { puntoIds: string[] }) {
+export default function AgrupacionFacturas({ puntoIds, agrupacionId }: { puntoIds: string[]; agrupacionId?: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFactura, setSelectedFactura] = useState<FacturaCliente | null>(null);
   const [previewModal, setPreviewModal] = useState<{ url: string; name: string } | null>(null);
@@ -438,7 +438,9 @@ export default function AgrupacionFacturas({ puntoIds }: { puntoIds: string[] })
                 className="glass-input w-full md:w-64"
               />
             </div>
-            <ExportButton
+            <ExportDropdownFacturas
+              showSage={false}
+              scope={{ agrupacionId, puntoIds }}
               exportParams={{
                 entity: 'facturas',
                 filters: {

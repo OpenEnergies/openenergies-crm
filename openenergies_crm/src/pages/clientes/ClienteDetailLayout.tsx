@@ -24,25 +24,14 @@ interface ClienteDetallado {
 }
 
 async function fetchCliente(clienteId: string): Promise<ClienteDetallado> {
-  // Usar la función RPC que descifra los datos sensibles
-  const { data: clienteDescifrado, error: rpcError } = await supabase
-    .rpc('obtener_cliente_completo', { p_cliente_id: clienteId });
+  const { data: cliente, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .eq('id', clienteId)
+    .is('eliminado_en', null)
+    .single();
 
-  // Fallback a consulta directa si la RPC falla
-  let cliente: any;
-  if (rpcError || !clienteDescifrado || clienteDescifrado.error) {
-    console.warn('RPC obtener_cliente_completo falló, usando consulta directa:', rpcError);
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .eq('id', clienteId)
-      .is('eliminado_en', null)
-      .single();
-    if (error) throw error;
-    cliente = data;
-  } else {
-    cliente = clienteDescifrado;
-  }
+  if (error) throw error;
 
   const { data: puntos } = await supabase
     .from('puntos_suministro')

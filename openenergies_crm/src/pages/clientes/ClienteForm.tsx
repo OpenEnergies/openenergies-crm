@@ -89,29 +89,18 @@ export default function ClienteForm({ id }: ClienteFormProps) {
     let isMounted = true;
 
     const fetchCliente = async () => {
-      // Intentar obtener datos descifrados con la función RPC
-      const { data: clienteDescifrado, error: rpcError } = await supabase
-        .rpc('obtener_cliente_completo', { p_cliente_id: id });
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', id)
+        .is('eliminado_en', null)
+        .maybeSingle();
 
       if (!isMounted) return;
 
-      // Usar datos descifrados si la RPC funciona, sino fallback a consulta directa
-      let data: any;
-      if (rpcError || !clienteDescifrado || clienteDescifrado.error) {
-        console.warn('RPC falló, usando consulta directa:', rpcError);
-        const { data: directData, error } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('id', id)
-          .is('eliminado_en', null)
-          .maybeSingle();
-        if (error) {
-          toast.error(`Error al cargar el cliente: ${error.message}`);
-          return;
-        }
-        data = directData;
-      } else {
-        data = clienteDescifrado;
+      if (error) {
+        toast.error(`Error al cargar el cliente: ${error.message}`);
+        return;
       }
 
       if (data) {

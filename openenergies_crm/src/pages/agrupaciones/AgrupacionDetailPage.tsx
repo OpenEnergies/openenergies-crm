@@ -645,7 +645,7 @@ export default function AgrupacionDetailPage() {
           TAB: FACTURAS
           ═══════════════════════════════════════════════════ */}
       {activeTab === 'facturas' && (
-        <AgrupacionFacturas puntoIds={puntoIdsInAgrupacion} />
+        <AgrupacionFacturas puntoIds={puntoIdsInAgrupacion} agrupacionId={id} />
       )}
 
       {/* ─── Modals ─── */}

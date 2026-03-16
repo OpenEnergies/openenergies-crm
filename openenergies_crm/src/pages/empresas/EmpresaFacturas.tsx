@@ -14,7 +14,7 @@ import FilePreviewModal from '@components/FilePreviewModal';
 import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import toast from 'react-hot-toast';
-import ExportButton from '@components/ExportButton';
+import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
 // ============ STORAGE HELPERS ============
@@ -330,7 +330,9 @@ export default function EmpresaFacturas() {
                                 className="glass-input w-full md:w-64"
                             />
                         </div>
-                        <ExportButton
+                        <ExportDropdownFacturas
+                            showSage={false}
+                            scope={{ comercializadoraId: empresaId }}
                             exportParams={{
                                 entity: 'facturas',
                                 filters: {

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FileSpreadsheet, ChevronDown, FileText, Database, Table2 } from 'lucide-react';
 import type { ExportParams } from '@hooks/useExportData';
+import type { FacturaExportScope } from '@hooks/facturaExportScope';
 import CsvExportModal from './CsvExportModal';
 import SageExportModal from './SageExportModal';
 import XlsxExportModal from './XlsxExportModal';
@@ -11,6 +12,7 @@ import XlsxExportModal from './XlsxExportModal';
 interface ExportDropdownFacturasProps {
     exportParams: ExportParams;
     showSage?: boolean;
+    scope?: FacturaExportScope;
 }
 
 function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
@@ -28,7 +30,7 @@ function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: ()
     }, [ref, handler]);
 }
 
-export default function ExportDropdownFacturas({ exportParams: _exportParams, showSage = true }: ExportDropdownFacturasProps) {
+export default function ExportDropdownFacturas({ exportParams: _exportParams, showSage = true, scope }: ExportDropdownFacturasProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [showCsvModal, setShowCsvModal] = useState(false);
     const [showSageModal, setShowSageModal] = useState(false);
@@ -123,6 +125,7 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
             <CsvExportModal
                 isOpen={showCsvModal}
                 onClose={() => setShowCsvModal(false)}
+                scope={scope}
             />
 
             {/* Sage 200 Export Modal */}
@@ -130,6 +133,7 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
                 <SageExportModal
                     isOpen={showSageModal}
                     onClose={() => setShowSageModal(false)}
+                    scope={scope}
                 />
             )}
 
@@ -137,6 +141,7 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
             <XlsxExportModal
                 isOpen={showXlsxModal}
                 onClose={() => setShowXlsxModal(false)}
+                scope={scope}
             />
         </>
     );

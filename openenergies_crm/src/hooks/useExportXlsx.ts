@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { supabase } from '@lib/supabase';
 import toast from 'react-hot-toast';
+import { addPeriodoFacturacionToPayload, filterExportRowsByScope } from '@hooks/facturaExportPayload';
 
 export interface XlsxExportFilters {
     cliente_id?: string | null;
     cliente_ids?: string[];
+    punto_ids?: string[];
     fecha_desde?: string;
     fecha_hasta?: string;
     comercializadoras?: string[];
@@ -50,14 +52,22 @@ export function useExportXlsx() {
                 }
             }
 
-            if (!xlsxData || (Array.isArray(xlsxData) && xlsxData.length === 0)) {
+            xlsxData = await filterExportRowsByScope(xlsxData, {
+                cliente_id: filters.cliente_id,
+                comercializadoras: filters.comercializadoras,
+                punto_ids: filters.punto_ids,
+            });
+
+            const webhookPayload = await addPeriodoFacturacionToPayload(xlsxData);
+
+            if (!webhookPayload || webhookPayload.length === 0) {
                 throw new Error('No se encontraron facturas con los filtros seleccionados');
             }
 
             const webhookResponse = await fetch(N8N_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(xlsxData),
+                body: JSON.stringify(webhookPayload),
             });
 
             if (!webhookResponse.ok) {

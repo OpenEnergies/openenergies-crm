@@ -13,7 +13,7 @@ import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
-import ExportButton from '@components/ExportButton';
+import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
 // ============ STORAGE HELPERS ============
@@ -454,7 +454,9 @@ export default function PuntoFacturas({ puntoId }: { puntoId: string }) {
                                 className="glass-input w-full md:w-64"
                             />
                         </div>
-                        <ExportButton
+                        <ExportDropdownFacturas
+                            showSage={false}
+                            scope={{ puntoId }}
                             exportParams={{
                                 entity: 'facturas',
                                 filters: {

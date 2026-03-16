@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { supabase } from '@lib/supabase';
 import toast from 'react-hot-toast';
+import { addPeriodoFacturacionToPayload, filterExportRowsByScope } from '@hooks/facturaExportPayload';
 
 export interface CsvExportFilters {
     cliente_id?: string | null;
     cliente_ids?: string[];
+    punto_ids?: string[];
     fecha_desde?: string;
     fecha_hasta?: string;
     comercializadoras?: string[];
@@ -50,14 +52,22 @@ export function useExportCsv() {
                 }
             }
 
-            if (!csvData || (Array.isArray(csvData) && csvData.length === 0)) {
+            csvData = await filterExportRowsByScope(csvData, {
+                cliente_id: filters.cliente_id,
+                comercializadoras: filters.comercializadoras,
+                punto_ids: filters.punto_ids,
+            });
+
+            const webhookPayload = await addPeriodoFacturacionToPayload(csvData);
+
+            if (!webhookPayload || webhookPayload.length === 0) {
                 throw new Error('No se encontraron facturas con los filtros seleccionados');
             }
 
             const webhookResponse = await fetch(N8N_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(csvData),
+                body: JSON.stringify(webhookPayload),
             });
 
             if (!webhookResponse.ok) {

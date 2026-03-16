@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, FileSpreadsheet, Check } from 'lucide-react';
 import { useExportSage } from '@hooks/useExportSage';
-import { useFacturaExportFilters } from '@hooks/useFacturaExportFilters';
+import { useFacturaExportFilters } from '../hooks/useFacturaExportFilters';
+import type { FacturaExportScope } from '@hooks/facturaExportScope';
 
 interface SageExportModalProps {
     isOpen: boolean;
     onClose: () => void;
+    scope?: FacturaExportScope;
 }
 
-export default function SageExportModal({ isOpen, onClose }: SageExportModalProps) {
+export default function SageExportModal({ isOpen, onClose, scope }: SageExportModalProps) {
     const { exportSage } = useExportSage();
     const {
         isComercial,
@@ -29,13 +31,16 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
         selectedTipos,
         setSelectedTipos,
         sociedadOptions,
+        fixedClienteIds,
+        canSelectSociedades,
         selectedSociedades,
         setSelectedSociedades,
         agrupaciones,
         selectedAgrupaciones,
         setSelectedAgrupaciones,
+        scopedPuntoIds,
         isInitializingFilters,
-    } = useFacturaExportFilters(isOpen);
+    } = useFacturaExportFilters(isOpen, scope);
 
     const CIRCUMFERENCE = 2 * Math.PI * 40;
     const [exportPhase, setExportPhase] = useState<'idle' | 'loading' | 'done'>('idle');
@@ -105,14 +110,19 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
 
     const handleExport = async () => {
         setExportPhase('loading');
+
+        const targetClienteId = clienteId ?? null;
+        const targetClienteIds = canSelectSociedades ? selectedSociedades : fixedClienteIds;
+
         const success = await exportSage({
-            cliente_id: isComercial ? null : (clienteId ?? null),
-            cliente_ids: isComercial ? selectedSociedades : undefined,
+            cliente_id: targetClienteId,
+            cliente_ids: !targetClienteId && targetClienteIds.length > 0 ? targetClienteIds : undefined,
             fecha_desde: fechaDesde || undefined,
             fecha_hasta: fechaHasta || undefined,
             comercializadoras: selectedComercializadoras.length > 0 ? selectedComercializadoras : undefined,
             tipos_suministro: selectedTipos.length > 0 ? selectedTipos : undefined,
             agrupaciones: selectedAgrupaciones.length > 0 ? selectedAgrupaciones : undefined,
+            punto_ids: scopedPuntoIds.length > 0 ? scopedPuntoIds : undefined,
         });
         if (timerRef.current) clearTimeout(timerRef.current);
         if (success) {
@@ -279,7 +289,7 @@ export default function SageExportModal({ isOpen, onClose }: SageExportModalProp
                             </div>
                         </div>
 
-                        {isComercial && (
+                        {canSelectSociedades && (
                             <div className="space-y-1">
                                 <label className="text-xs text-secondary font-medium uppercase tracking-wider">Sociedades</label>
                                 <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-bg-intermediate/20 rounded-lg border border-primary/10">

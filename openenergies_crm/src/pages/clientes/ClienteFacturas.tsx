@@ -14,7 +14,7 @@ import FilePreviewModal from '@components/FilePreviewModal';
 import DateFilterDropdown, { DateParts } from '@components/DateFilterDropdown';
 import ColumnFilterDropdown from '@components/ColumnFilterDropdown';
 import toast from 'react-hot-toast';
-import ExportButton from '@components/ExportButton';
+import ExportDropdownFacturas from '@components/ExportDropdownFacturas';
 import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import { fetchFacturaPeriodos, formatPeriodoFacturacion, toMonthKey } from '@lib/facturaPeriodo';
 
@@ -508,7 +508,9 @@ export default function ClienteFacturas() {
                                 className="glass-input w-full md:w-64"
                             />
                         </div>
-                        <ExportButton
+                        <ExportDropdownFacturas
+                            showSage={false}
+                            scope={{ clienteId }}
                             exportParams={{
                                 entity: 'facturas',
                                 filters: {

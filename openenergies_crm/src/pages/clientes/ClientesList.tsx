@@ -114,19 +114,6 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
 
   if (error) throw error;
 
-  // Fetch decrypted DNI/CIF via RPC (works for admin + comercial)
-  const { data: decryptedList } = await supabase.rpc('obtener_clientes_completos', {
-    p_limit: 100000,
-    p_offset: 0,
-  });
-
-  const decryptedMap: Record<string, { dni: string | null; cif: string | null }> = {};
-  if (Array.isArray(decryptedList)) {
-    decryptedList.forEach((c: any) => {
-      decryptedMap[c.id] = { dni: c.dni, cif: c.cif };
-    });
-  }
-
   // Fetch €/año from facturacion_clientes (last 365 days aggregate per client)
   const since = new Date();
   since.setFullYear(since.getFullYear() - 1);
@@ -153,8 +140,8 @@ async function fetchClientes(search: string, empresaId?: string): Promise<Client
     return {
       id: cliente.id,
       nombre: cliente.nombre,
-      dni: decryptedMap[cliente.id]?.dni ?? cliente.dni,
-      cif: decryptedMap[cliente.id]?.cif ?? cliente.cif,
+      dni: cliente.dni,
+      cif: cliente.cif,
       creado_en: cliente.creado_en,
       puntos_count: puntosActivos.length,
       total_kwh: puntosActivos.reduce((acc: number, p: any) => acc + (Number(p.consumo_anual_kwh) || 0), 0),

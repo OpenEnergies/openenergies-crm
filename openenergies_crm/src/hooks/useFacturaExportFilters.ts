@@ -4,6 +4,7 @@ import { supabase } from '@lib/supabase';
 import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useSession } from '@hooks/useSession';
 import { useClienteId } from '@hooks/useClienteId';
+import type { FacturaExportScope } from '@hooks/facturaExportScope';
 
 type ScopedInvoice = {
   id: string;
@@ -17,6 +18,11 @@ type ScopedInvoice = {
 };
 
 type SimpleOption = { id: string; nombre: string };
+
+type PuntoAgrupacionRow = {
+  id: string;
+  agrupacion_id: string | null;
+};
 
 const PUNTO_IDS_CHUNK_SIZE = 200;
 
@@ -41,7 +47,11 @@ function withinRange(date: string, from: string, to: string): boolean {
   return date >= from && date <= to;
 }
 
-export function useFacturaExportFilters(isOpen: boolean) {
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean))).sort();
+}
+
+export function useFacturaExportFilters(isOpen: boolean, scope?: FacturaExportScope) {
   const { rol, userId } = useSession();
   const { clienteId } = useClienteId();
 
@@ -55,6 +65,21 @@ export function useFacturaExportFilters(isOpen: boolean) {
   const [selectedAgrupaciones, setSelectedAgrupaciones] = useState<string[]>([]);
   const [selectedSociedades, setSelectedSociedades] = useState<string[]>([]);
 
+  const hasExplicitScope = Boolean(
+    scope?.clienteId
+    || scope?.puntoId
+    || scope?.comercializadoraId
+    || scope?.agrupacionId
+    || (scope?.puntoIds && scope.puntoIds.length > 0)
+  );
+
+  const effectiveClienteId = scope?.clienteId ?? (isCliente ? (clienteId ?? null) : null);
+  const canSelectSociedades = isComercial
+    && !scope?.clienteId
+    && !scope?.puntoId
+    && !(scope?.puntoIds && scope.puntoIds.length > 0)
+    && !scope?.agrupacionId;
+
   const { data: assignedPuntoIds = [], isLoading: isAssignedPuntosLoading } = useQuery({
     queryKey: ['export-facturas-assigned-puntos', userId],
     queryFn: async () => {
@@ -65,16 +90,59 @@ export function useFacturaExportFilters(isOpen: boolean) {
         .eq('comercial_user_id', userId);
 
       if (error) throw error;
-      return (data || []).map(r => r.punto_id);
+      return uniqueSorted((data || []).map(r => r.punto_id));
     },
-    enabled: isOpen && isComercial && !!userId,
+    enabled: isOpen && isComercial && !!userId && !hasExplicitScope,
+  });
+
+  const { data: contextPuntoIds = [], isLoading: isContextPuntosLoading } = useQuery({
+    queryKey: ['export-facturas-context-puntos', scope?.puntoId, scope?.puntoIds, scope?.agrupacionId, scope?.clienteId],
+    queryFn: async () => {
+      if (scope?.puntoId) {
+        return [scope.puntoId];
+      }
+
+      if (scope?.puntoIds && scope.puntoIds.length > 0) {
+        return uniqueSorted(scope.puntoIds);
+      }
+
+      if (!scope?.agrupacionId) {
+        return [];
+      }
+
+      let query = supabase
+        .from('puntos_suministro')
+        .select('id')
+        .eq('agrupacion_id', scope.agrupacionId)
+        .is('eliminado_en', null);
+
+      if (scope.clienteId) {
+        query = query.eq('cliente_id', scope.clienteId);
+      }
+
+      const { data, error } = await query.range(0, 99999);
+      if (error) throw error;
+
+      return uniqueSorted((data || []).map((row) => row.id));
+    },
+    enabled: isOpen && Boolean(scope?.puntoId || (scope?.puntoIds && scope.puntoIds.length > 0) || scope?.agrupacionId),
   });
 
   const { data: scopedInvoices = [], isLoading: isScopedInvoicesLoading } = useQuery({
-    queryKey: ['export-facturas-scoped-invoices', rol, userId, clienteId, assignedPuntoIds],
+    queryKey: [
+      'export-facturas-scoped-invoices',
+      rol,
+      userId,
+      clienteId,
+      effectiveClienteId,
+      scope?.comercializadoraId,
+      assignedPuntoIds,
+      contextPuntoIds,
+      hasExplicitScope,
+    ],
     queryFn: async () => {
-      const createBaseQuery = () =>
-        supabase
+      const createBaseQuery = () => {
+        let query = supabase
           .from('facturacion_clientes')
           .select(`
             id,
@@ -89,9 +157,31 @@ export function useFacturaExportFilters(isOpen: boolean) {
           .is('eliminado_en', null)
           .order('fecha_emision', { ascending: true });
 
-      if (isCliente && clienteId) {
-        return await fetchAllRows<ScopedInvoice>(createBaseQuery().eq('cliente_id', clienteId));
-      } else if (isComercial) {
+        if (scope?.comercializadoraId) {
+          query = query.eq('comercializadora_id', scope.comercializadoraId);
+        }
+
+        if (effectiveClienteId) {
+          query = query.eq('cliente_id', effectiveClienteId);
+        }
+
+        return query;
+      };
+
+      if (contextPuntoIds.length > 0) {
+        const chunks = chunkArray(contextPuntoIds, PUNTO_IDS_CHUNK_SIZE);
+        const allRows: ScopedInvoice[] = [];
+
+        for (const puntoChunk of chunks) {
+          const rows = await fetchAllRows<ScopedInvoice>(createBaseQuery().in('punto_id', puntoChunk));
+          allRows.push(...rows);
+        }
+
+        const uniqueById = new Map(allRows.map(row => [row.id, row]));
+        return [...uniqueById.values()].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
+      }
+
+      if (isComercial && !hasExplicitScope) {
         if (assignedPuntoIds.length === 0) return [];
 
         const chunks = chunkArray(assignedPuntoIds, PUNTO_IDS_CHUNK_SIZE);
@@ -108,7 +198,7 @@ export function useFacturaExportFilters(isOpen: boolean) {
 
       return await fetchAllRows<ScopedInvoice>(createBaseQuery());
     },
-    enabled: isOpen && (!isCliente || !!clienteId) && (!isComercial || !!userId),
+    enabled: isOpen && (!isCliente || !!clienteId) && (!isComercial || !!userId || hasExplicitScope),
   });
 
   const minFecha = useMemo(() => scopedInvoices.at(0)?.fecha_emision ?? '', [scopedInvoices]);
@@ -127,6 +217,13 @@ export function useFacturaExportFilters(isOpen: boolean) {
   const periodInvoices = useMemo(() => {
     return scopedInvoices.filter(i => withinRange(i.fecha_emision, fechaDesde || minFecha, fechaHasta || maxFecha));
   }, [scopedInvoices, fechaDesde, fechaHasta, minFecha, maxFecha]);
+
+  const scopedPuntoIds = useMemo(() => {
+    if (scope?.puntoId) return [scope.puntoId];
+    if (scope?.puntoIds && scope.puntoIds.length > 0) return uniqueSorted(scope.puntoIds);
+    if (scope?.agrupacionId) return contextPuntoIds;
+    return [];
+  }, [scope?.puntoId, scope?.puntoIds, scope?.agrupacionId, contextPuntoIds]);
 
   const comercializadoraOptions = useMemo<SimpleOption[]>(() => {
     const map = new Map<string, string>();
@@ -156,6 +253,11 @@ export function useFacturaExportFilters(isOpen: boolean) {
     return [...map.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [periodInvoices]);
 
+  const fixedClienteIds = useMemo<string[]>(() => {
+    if (effectiveClienteId) return [effectiveClienteId];
+    return uniqueSorted(periodInvoices.map((invoice) => invoice.cliente_id));
+  }, [effectiveClienteId, periodInvoices]);
+
   useEffect(() => {
     if (!isOpen) return;
     const ids = comercializadoraOptions.map(c => c.id);
@@ -176,68 +278,114 @@ export function useFacturaExportFilters(isOpen: boolean) {
   }, [isOpen, tipoOptions]);
 
   useEffect(() => {
-    if (!isOpen || !isComercial) return;
+    if (!isOpen || !canSelectSociedades) {
+      setSelectedSociedades([]);
+      return;
+    }
     const ids = sociedadOptions.map(s => s.id);
     setSelectedSociedades(prev => {
       const kept = prev.filter(id => ids.includes(id));
       const next = kept.length > 0 ? kept : ids;
       return arrayEquals(prev, next) ? prev : next;
     });
-  }, [isOpen, isComercial, sociedadOptions]);
+  }, [isOpen, canSelectSociedades, sociedadOptions]);
 
-  const agrupacionesEnabled = isOpen && (isCliente ? !!clienteId : isComercial ? selectedSociedades.length > 0 : true);
+  const agrupacionSourceInvoices = useMemo(() => {
+    if (!canSelectSociedades || selectedSociedades.length === 0) return periodInvoices;
+    return periodInvoices.filter((invoice) => selectedSociedades.includes(invoice.cliente_id));
+  }, [periodInvoices, canSelectSociedades, selectedSociedades]);
+
+  const agrupacionPuntoIds = useMemo(() => {
+    return uniqueSorted(agrupacionSourceInvoices.map((invoice) => invoice.punto_id));
+  }, [agrupacionSourceInvoices]);
 
   const { data: agrupaciones = [], isLoading: isAgrupacionesLoading } = useQuery({
-    queryKey: ['export-facturas-agrupaciones', isCliente ? clienteId : selectedSociedades],
+    queryKey: ['export-facturas-agrupaciones', agrupacionPuntoIds, scope?.agrupacionId],
     queryFn: async () => {
-      let query = supabase
+      if (scope?.agrupacionId) {
+        const { data, error } = await supabase
+          .from('agrupaciones_puntos')
+          .select('id, nombre, cliente_id')
+          .eq('id', scope.agrupacionId)
+          .is('eliminado_en', null)
+          .order('nombre');
+
+        if (error) throw error;
+        return data || [];
+      }
+
+      if (agrupacionPuntoIds.length === 0) return [];
+
+      const puntoChunks = chunkArray(agrupacionPuntoIds, PUNTO_IDS_CHUNK_SIZE);
+      const agrupacionIds = new Set<string>();
+
+      for (const puntoChunk of puntoChunks) {
+        const { data, error } = await supabase
+          .from('puntos_suministro')
+          .select('id, agrupacion_id')
+          .in('id', puntoChunk)
+          .is('eliminado_en', null);
+
+        if (error) throw error;
+
+        (data as PuntoAgrupacionRow[] | null)?.forEach((row) => {
+          if (row.agrupacion_id) agrupacionIds.add(row.agrupacion_id);
+        });
+      }
+
+      const ids = [...agrupacionIds];
+      if (ids.length === 0) return [];
+
+      const { data, error } = await supabase
         .from('agrupaciones_puntos')
         .select('id, nombre, cliente_id')
+        .in('id', ids)
         .is('eliminado_en', null)
         .order('nombre');
 
-      if (isCliente) {
-        if (!clienteId) return [];
-        query = query.eq('cliente_id', clienteId);
-      } else if (isComercial) {
-        if (selectedSociedades.length === 0) return [];
-        query = query.in('cliente_id', selectedSociedades);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
-    enabled: agrupacionesEnabled,
+    enabled: isOpen,
   });
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (scope?.agrupacionId) {
+      const ids = (agrupaciones || []).map((a) => a.id);
+      const next = ids.includes(scope.agrupacionId) ? [scope.agrupacionId] : [];
+      setSelectedAgrupaciones(prev => (arrayEquals(prev, next) ? prev : next));
+      return;
+    }
+
     const ids = (agrupaciones || []).map(a => a.id);
     setSelectedAgrupaciones(prev => {
       const next = prev.filter(id => ids.includes(id));
       return arrayEquals(prev, next) ? prev : next;
     });
-  }, [isOpen, agrupaciones]);
+  }, [isOpen, agrupaciones, scope?.agrupacionId]);
 
   const baseSelectionsReady =
     (comercializadoraOptions.length === 0 || selectedComercializadoras.length > 0)
     && (tipoOptions.length === 0 || selectedTipos.length > 0)
-    && (!isComercial || sociedadOptions.length === 0 || selectedSociedades.length > 0);
+    && (!canSelectSociedades || sociedadOptions.length === 0 || selectedSociedades.length > 0)
+    && (!scope?.agrupacionId || selectedAgrupaciones.length > 0);
 
   const isInitializingFilters =
     isOpen
     && (
       isAssignedPuntosLoading
+      || isContextPuntosLoading
       || isScopedInvoicesLoading
-      || (agrupacionesEnabled && isAgrupacionesLoading)
+      || isAgrupacionesLoading
       || !baseSelectionsReady
     );
 
   return {
     isCliente,
     isComercial,
-    clienteId,
+    clienteId: effectiveClienteId,
     fechaDesde,
     setFechaDesde,
     fechaHasta,
@@ -251,11 +399,14 @@ export function useFacturaExportFilters(isOpen: boolean) {
     selectedTipos,
     setSelectedTipos,
     sociedadOptions,
+    fixedClienteIds,
+    canSelectSociedades,
     selectedSociedades,
     setSelectedSociedades,
     agrupaciones,
     selectedAgrupaciones,
     setSelectedAgrupaciones,
+    scopedPuntoIds,
     isInitializingFilters,
   };
 }

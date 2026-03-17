@@ -305,14 +305,16 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   className="glass-input w-full md:w-64"
                 />
               </div>
-              <ExportButton
-                entity="clientes"
-                preFilters={{
-                  comercializadora_id: empresaId,
-                  search: filter
-                }}
-                label="Exportar"
-              />
+              {!isComercial && (
+                <ExportButton
+                  entity="clientes"
+                  preFilters={{
+                    comercializadora_id: empresaId,
+                    search: filter
+                  }}
+                  label="Exportar"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -478,12 +480,14 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   className="glass-input w-64"
                 />
               </div>
-              <ExportButton
-                exportParams={{
-                  entity: 'clientes',
-                  filters: { search: filter || undefined },
-                }}
-              />
+              {!isComercial && (
+                <ExportButton
+                  exportParams={{
+                    entity: 'clientes',
+                    filters: { search: filter || undefined },
+                  }}
+                />
+              )}
               {!isComercial && (
                 <Link to="/app/clientes/nuevo">
                   <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-medium shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">

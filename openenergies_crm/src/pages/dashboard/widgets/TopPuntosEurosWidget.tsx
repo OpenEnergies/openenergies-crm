@@ -76,9 +76,8 @@ export default function TopPuntosEurosWidget() {
                         </button>
                         {showInfo && (
                             <div className="absolute left-0 top-9 z-20 w-80 p-3 rounded-lg border border-fenix-500/20 bg-white dark:bg-slate-900 shadow-xl text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
-                                Top 5 por euros = suma de <span className="font-semibold">total</span> por <span className="font-semibold">punto_id</span>
-                                en los ultimos 12 meses, usando <span className="font-semibold">facturacion_clientes.fecha_emision</span> y excluyendo
-                                registros eliminados. Se ordena de mayor a menor y se muestran 5 resultados.
+                                Los 5 puntos que mas dinero han generado en facturas durante el ultimo año.
+                                Sumamos los importes de cada suministro y los mostramos de mayor a menor.
                             </div>
                         )}
                     </div>

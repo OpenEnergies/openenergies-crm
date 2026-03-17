@@ -769,7 +769,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     onChange={e => vistaAgrupaciones ? setAgrupacionFilter(e.target.value) : setFilter(e.target.value)}
                   />
                 </div>
-                {!isCliente && (
+                {!isCliente && !isComercial && (
                   <ExportButton
                     exportParams={{
                       entity: 'puntos_suministro',
@@ -777,7 +777,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                     }}
                   />
                 )}
-                {!isCliente && (
+                {!isCliente && !isComercial && (
                   <Link to="/app/puntos/nuevo">
                     <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
                       <MapPinPlus size={18} />
@@ -967,15 +967,17 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
                             className="glass-input w-full md:w-64"
                           />
                         </div>
-                        <ExportButton
-                          entity="puntos_suministro"
-                          preFilters={{
-                            cliente_id: clienteId,
-                            comercializadora_id: empresaId,
-                            search: filter
-                          }}
-                          label="Exportar"
-                        />
+                        {!isComercial && (
+                          <ExportButton
+                            entity="puntos_suministro"
+                            preFilters={{
+                              cliente_id: clienteId,
+                              comercializadora_id: empresaId,
+                              search: filter
+                            }}
+                            label="Exportar"
+                          />
+                        )}
                       </>
                     )}
                   </div>
@@ -987,7 +989,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
               <EmptyState
                 title="Sin puntos de suministro"
                 description="Aún no hay puntos de suministro (CUPS) registrados."
-                cta={<Link to="/app/puntos/nuevo"><button className="mt-4 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg">Crear el primero</button></Link>}
+                cta={!isComercial ? <Link to="/app/puntos/nuevo"><button className="mt-4 px-6 py-2 bg-fenix-500 hover:bg-fenix-400 text-white rounded-lg">Crear el primero</button></Link> : undefined}
               />
             )}
             {!isLoading && !isError && fetchedData && fetchedData.length === 0 && clienteId && (

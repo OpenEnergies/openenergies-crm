@@ -76,9 +76,8 @@ export default function TopPuntosKwhWidget() {
                         </button>
                         {showInfo && (
                             <div className="absolute left-0 top-9 z-20 w-80 p-3 rounded-lg border border-fenix-500/20 bg-white dark:bg-slate-900 shadow-xl text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
-                                Top 5 por kWh = suma de <span className="font-semibold">consumo_kwh</span> por <span className="font-semibold">punto_id</span>
-                                en los ultimos 12 meses, usando <span className="font-semibold">consumos_facturacion.mes</span> y excluyendo registros
-                                eliminados. Se ordena de mayor a menor y se muestran 5 resultados.
+                                Los 5 puntos que mas han consumido en el ultimo año.
+                                Sumamos el consumo de cada suministros y los mostramos de mayor a menor.
                             </div>
                         )}
                     </div>

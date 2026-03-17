@@ -2,7 +2,7 @@
 // Desplegable de exportación para facturas: CSV, XLSX y opcionalmente Sage 200
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FileSpreadsheet, ChevronDown, FileText, Database, Table2 } from 'lucide-react';
+import { FileSpreadsheet, ChevronDown } from 'lucide-react';
 import type { ExportParams } from '@hooks/useExportData';
 import type { FacturaExportScope } from '@hooks/facturaExportScope';
 import CsvExportModal from './CsvExportModal';
@@ -89,8 +89,8 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
                         }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <FileText size={16} className="text-emerald-500" />
-                        <span>Exportar a CSV</span>
+                        <img src="/logo-csv.png" alt="CSV" className="w-4 h-4 object-contain" />
+                        <span>CSV</span>
                     </button>
 
                     {showSage && (
@@ -101,7 +101,7 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
                             }}
                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                         >
-                            <Database size={16} className="text-blue-500" />
+                            <img src="/logo-sage200.png" alt="Sage 200" className="w-4 h-4 object-contain" />
                             <span>Exportar a Sage 200</span>
                         </button>
                     )}
@@ -114,8 +114,8 @@ export default function ExportDropdownFacturas({ exportParams: _exportParams, sh
                         }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-bg-intermediate rounded-md transition-colors cursor-pointer"
                     >
-                        <Table2 size={16} className="text-green-500" />
-                        <span>Exportar a XLSX</span>
+                        <img src="/logo-excel.png" alt="Excel" className="w-4 h-4 object-contain" />
+                        <span>Excel</span>
                     </button>
                 </div>,
                 document.body

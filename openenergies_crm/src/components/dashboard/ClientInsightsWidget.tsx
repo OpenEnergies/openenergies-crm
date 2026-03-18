@@ -54,10 +54,14 @@ interface FacturacionClienteRow {
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // ── Data Hook: invoices for a given year (or last 12 months if no year) ─────
-function useClientFacturas(clienteId?: string, empresaId?: string, year?: number) {
+function useClientFacturas(clienteId?: string, empresaId?: string, year?: number, clienteIds?: string[]) {
     return useQuery<FacturaRow[]>({
-        queryKey: ['client-dashboard-facturas', clienteId, empresaId, year ?? 'last12'],
+        queryKey: ['client-dashboard-facturas', clienteId, empresaId, year ?? 'last12', clienteIds],
         queryFn: async () => {
+            if (!clienteId && clienteIds && clienteIds.length === 0) {
+                return [];
+            }
+
             let consumoQuery = supabase
                 .from('consumos_facturacion')
                 .select('mes, consumo_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, comercializadora_id, eliminado_en)')
@@ -84,6 +88,9 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
             if (clienteId) {
                 consumoQuery = consumoQuery.eq('cliente_id', clienteId);
                 facturaQuery = facturaQuery.eq('cliente_id', clienteId);
+            } else if (clienteIds && clienteIds.length > 0) {
+                consumoQuery = consumoQuery.in('cliente_id', clienteIds);
+                facturaQuery = facturaQuery.in('cliente_id', clienteIds);
             }
             if (empresaId) {
                 facturaQuery = facturaQuery.eq('comercializadora_id', empresaId);
@@ -133,10 +140,10 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
 // ── Main Component (KPIs + 3 monthly charts) ───────────────────
 // year: if provided, fetches that year's data; otherwise last 12 months
 // month: 0-11, if provided KPIs aggregate only that month (charts stay full year)
-export default function ClientInsightsWidget({ clienteId, empresaId, year, month }: { clienteId?: string, empresaId?: string, year?: number, month?: number }) {
+export default function ClientInsightsWidget({ clienteId, empresaId, year, month, clienteIds }: { clienteId?: string, empresaId?: string, year?: number, month?: number, clienteIds?: string[] }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year);
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year, clienteIds);
 
     // Filter facturas for KPIs when in monthly mode
     const kpiFacturas = useMemo(() => {
@@ -380,10 +387,10 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
 
 // ── Cost Breakdown Widget (full-width, separate placement) ──────
 // year/month: same logic as ClientInsightsWidget — month filters the breakdown data
-export function CostBreakdownWidget({ clienteId, empresaId, year, month }: { clienteId?: string, empresaId?: string, year?: number, month?: number }) {
+export function CostBreakdownWidget({ clienteId, empresaId, year, month, clienteIds }: { clienteId?: string, empresaId?: string, year?: number, month?: number, clienteIds?: string[] }) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year);
+    const { data: facturas, isLoading } = useClientFacturas(clienteId, empresaId, year, clienteIds);
 
     // Filter by month for breakdown if monthly mode
     const filteredFacturas = useMemo(() => {

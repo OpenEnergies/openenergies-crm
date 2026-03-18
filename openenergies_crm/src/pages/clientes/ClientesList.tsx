@@ -19,6 +19,8 @@ interface ClienteConAgregados {
   nombre: string;
   dni: string | null;
   cif: string | null;
+  grupo_cliente_id: string | null;
+  grupo_cliente_nombre: string | null;
   creado_en: string;
   puntos_count: number;
   total_kwh: number;
@@ -29,43 +31,8 @@ interface ClienteConAgregados {
 const PAGE_SIZE = 50;
 
 async function fetchClientes(search: string, empresaId?: string, rol?: string): Promise<ClienteConAgregados[]> {
-  let query = supabase
-    .from('clientes')
-    .select(`
-      id,
-      nombre,
-      dni,
-      cif,
-      creado_en,
-      puntos_suministro!inner (
-        id,
-        consumo_anual_kwh,
-        current_comercializadora_id,
-        estado
-      )
-    `)
-    .is('eliminado_en', null)
-    .order('creado_en', { ascending: false });
+  let query: any;
 
-  if (empresaId) {
-    // Filter by clients having points with this comercializadora
-    query = query.eq('puntos_suministro.current_comercializadora_id', empresaId);
-  } else {
-    // If not filtering by empresa, we don't strictly need !inner, but for simplicity we keep the structure 
-    // or relax it. However, !inner forces presence of points. 
-    // To keep standard behavior (all clients even without points), we should conditionalize the select/join.
-    // But `select` string is static. 
-    // Actually, distinct clients behavior might be desired.
-    // Let's use conditional modification of the query object if possible, but the select clause hardcodes the relationship.
-    // Standard `fetchClientes` usually lists ALL clients.
-    // If `empresaId` is missing, we shouldn't force `!inner`.
-    // Reverting to `puntos_suministro` (left join) by default, and `!inner` filtering via `.not('puntos_suministro', 'is', null)` logic 
-    // or just applying the filter on the relationship if Supabase supports it without !inner for filtering.
-    // Actually, to filter parent by child, !inner is best.
-    // Let's redefine the query based on empresaId presence.
-  }
-
-  // Re-declare query to handle the join type diff
   if (empresaId) {
     query = supabase
       .from('clientes')
@@ -74,6 +41,11 @@ async function fetchClientes(search: string, empresaId?: string, rol?: string): 
           nombre,
           dni,
           cif,
+          grupo_cliente_id,
+          grupos_clientes (
+            id,
+            nombre
+          ),
           creado_en,
           puntos_suministro!inner (
              id,
@@ -93,6 +65,11 @@ async function fetchClientes(search: string, empresaId?: string, rol?: string): 
           nombre,
           dni,
           cif,
+          grupo_cliente_id,
+          grupos_clientes (
+            id,
+            nombre
+          ),
           creado_en,
           puntos_suministro (
              id,
@@ -156,6 +133,10 @@ async function fetchClientes(search: string, empresaId?: string, rol?: string): 
       nombre: cliente.nombre,
       dni: decrypted?.dni ?? cliente.dni,
       cif: decrypted?.cif ?? cliente.cif,
+      grupo_cliente_id: cliente.grupo_cliente_id ?? null,
+      grupo_cliente_nombre: Array.isArray(cliente.grupos_clientes)
+        ? cliente.grupos_clientes[0]?.nombre ?? null
+        : cliente.grupos_clientes?.nombre ?? null,
       creado_en: cliente.creado_en,
       puntos_count: puntosActivos.length,
       total_kwh: puntosActivos.reduce((acc: number, p: any) => acc + (Number(p.consumo_anual_kwh) || 0), 0),
@@ -169,7 +150,7 @@ async function fetchClientes(search: string, empresaId?: string, rol?: string): 
     return clientesConAgregados;
   }
 
-  return clientesConAgregados.filter((cliente) => {
+  return clientesConAgregados.filter((cliente: ClienteConAgregados) => {
     const nombre = cliente.nombre?.toLowerCase() || '';
     const dni = cliente.dni?.toLowerCase() || '';
     const cif = cliente.cif?.toLowerCase() || '';
@@ -384,25 +365,46 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
               </tbody>
             </table>
             {/* Pagination for Integrated View */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-bg-intermediate bg-bg-intermediate/5">
+            {totalItems > 0 && (
+              <div
+                className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t"
+                style={{ borderTopColor: tableBorderColor }}
+              >
                 <div className="text-sm text-secondary">
-                  Página {currentPage} de {totalPages}
+                  Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={() => goToPage(currentPage - 1)}
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => goToPage(1)}
                     disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg hover:bg-bg-intermediate disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-secondary hover:text-primary"
+                    title="Primera página"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronsLeft size={18} />
                   </button>
                   <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg hover:bg-bg-intermediate disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-secondary hover:text-primary"
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    title="Página anterior"
                   >
-                    <ChevronRight size={16} />
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    title="Página siguiente"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  <button
+                    className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                    onClick={() => goToPage(totalPages)}
+                    disabled={currentPage >= totalPages}
+                    title="Última página"
+                  >
+                    <ChevronsRight size={18} />
                   </button>
                 </div>
               </div>
@@ -586,6 +588,11 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                     </th>
                     {!isComercial && (
                       <>
+                        <th className="p-4 text-left">
+                          <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                            Cartera
+                          </span>
+                        </th>
                         <th className="p-4 text-center">
                           <button
                             onClick={() => handleSort('activo')}
@@ -651,6 +658,17 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                           </td>
                           {!isComercial && (
                             <>
+                              <td className="p-4 text-gray-400">
+                                {c.grupo_cliente_id && c.grupo_cliente_nombre ? (
+                                  <Link
+                                    to="/app/carteras-clientes/$id"
+                                    params={{ id: c.grupo_cliente_id }}
+                                    className="text-fenix-600 dark:text-fourth hover:underline font-medium"
+                                  >
+                                    {c.grupo_cliente_nombre}
+                                  </Link>
+                                ) : '—'}
+                              </td>
                               <td className="p-4 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${c.activo ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
                                   {c.activo ? 'ACTIVO' : 'INACTIVO'}
@@ -664,7 +682,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={isComercial ? 5 : 7} className="p-8 text-center text-gray-400">
+                      <td colSpan={isComercial ? 5 : 8} className="p-8 text-center text-gray-400">
                         Sin resultados que coincidan con la búsqueda.
                       </td>
                     </tr>
@@ -679,12 +697,11 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
               style={{ borderTopColor: tableBorderColor }}
             >
               <div className="text-sm text-secondary">
-                Total: <span className="text-primary font-bold">{totalItems}</span> registros •
-                Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
+                Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                   onClick={() => goToPage(1)}
                   disabled={currentPage === 1}
                   title="Primera página"
@@ -692,7 +709,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   <ChevronsLeft size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   title="Página anterior"
@@ -700,7 +717,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   <ChevronLeft size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage >= totalPages}
                   title="Página siguiente"
@@ -708,7 +725,7 @@ export default function ClientesList({ empresaId }: { empresaId?: string }) {
                   <ChevronRight size={18} />
                 </button>
                 <button
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                   onClick={() => goToPage(totalPages)}
                   disabled={currentPage >= totalPages}
                   title="Última página"

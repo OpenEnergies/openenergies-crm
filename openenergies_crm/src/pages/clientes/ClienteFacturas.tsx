@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useParams } from '@tanstack/react-router';
-import { clienteDetailRoute } from '@router/routes';
 import { X, FileText, Receipt, Loader2, Search, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { EmptyState } from '@components/EmptyState';
@@ -79,8 +78,12 @@ interface FacturaCliente {
 }
 
 // ============ FETCH FUNCTION ============
-async function fetchFacturas(clienteId: string): Promise<FacturaCliente[]> {
-    const { data, error } = await supabase
+async function fetchFacturas(clienteId?: string, clienteIds?: string[]): Promise<FacturaCliente[]> {
+    if (!clienteId && (!clienteIds || clienteIds.length === 0)) {
+        return [];
+    }
+
+    let query = supabase
         .from('facturacion_clientes')
         .select(`
       *,
@@ -88,10 +91,17 @@ async function fetchFacturas(clienteId: string): Promise<FacturaCliente[]> {
       clientes (nombre),
       comercializadora:empresas!comercializadora_id (nombre)
     `)
-        .eq('cliente_id', clienteId)
         .is('eliminado_en', null)
         .order('fecha_emision', { ascending: false })
         .range(0, 99999);
+
+    if (clienteId) {
+        query = query.eq('cliente_id', clienteId);
+    } else if (clienteIds && clienteIds.length > 0) {
+        query = query.in('cliente_id', clienteIds);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -269,8 +279,18 @@ function FacturaDetailModal({ factura, onClose }: FacturaModalProps) {
 }
 
 // ============ MAIN COMPONENT ============
-export default function ClienteFacturas() {
-    const { id: clienteId } = useParams({ from: clienteDetailRoute.id });
+interface ClienteFacturasProps {
+    clienteId?: string;
+    clienteIds?: string[];
+}
+
+export default function ClienteFacturas({ clienteId: clienteIdProp, clienteIds }: ClienteFacturasProps = {}) {
+    const params = useParams({ strict: false }) as { id?: string };
+    const routeClienteId = params.id;
+    const clienteId = clienteIdProp ?? routeClienteId;
+    const isGroupedView = Array.isArray(clienteIds) && clienteIds.length > 0;
+    const effectiveClienteId = isGroupedView ? undefined : clienteId;
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedFactura, setSelectedFactura] = useState<FacturaCliente | null>(null);
 
@@ -287,9 +307,9 @@ export default function ClienteFacturas() {
     const [columnFilters, setColumnFilters] = useState<{ comercializadora: string[]; tarifa: string[] }>({ comercializadora: [], tarifa: [] });
 
     const { data: facturas = [], isLoading, isError } = useQuery({
-        queryKey: ['cliente-facturas', clienteId],
-        queryFn: () => fetchFacturas(clienteId),
-        enabled: !!clienteId,
+        queryKey: ['cliente-facturas', effectiveClienteId, clienteIds],
+        queryFn: () => fetchFacturas(effectiveClienteId, clienteIds),
+        enabled: !!effectiveClienteId || !!(clienteIds && clienteIds.length > 0),
     });
 
     const { theme } = useTheme();
@@ -510,11 +530,11 @@ export default function ClienteFacturas() {
                         </div>
                         <ExportDropdownFacturas
                             showSage={false}
-                            scope={{ clienteId }}
+                            scope={effectiveClienteId ? { clienteId: effectiveClienteId } : undefined}
                             exportParams={{
                                 entity: 'facturas',
                                 filters: {
-                                    cliente_id: clienteId,
+                                    cliente_id: effectiveClienteId,
                                     search: searchTerm || undefined,
                                 },
                             }}

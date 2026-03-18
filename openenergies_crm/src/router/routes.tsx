@@ -54,6 +54,15 @@ import ActividadPage from '@pages/analytics/ActividadPage';
 import { InformesPage } from '@pages/informes';
 // Agrupaciones
 import AgrupacionDetailPage from '@pages/agrupaciones/AgrupacionDetailPage';
+// Carteras de clientes
+import CarterasList from '@pages/carteras/CarterasList';
+import CarteraDetailLayout from '@pages/carteras/CarteraDetailLayout';
+import CarteraGlobal from '@pages/carteras/CarteraGlobal';
+import CarteraSociedades from '@pages/carteras/CarteraSociedades';
+import CarteraPuntos from '@pages/carteras/CarteraPuntos';
+import CarteraContratos from '@pages/carteras/CarteraContratos';
+import CarteraFacturas from '@pages/carteras/CarteraFacturas';
+import CarteraActividad from '@pages/carteras/CarteraActividad';
 
 
 // --- 1. RUTA RAÍZ ---
@@ -114,6 +123,15 @@ const puntoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/punt
 const puntoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id', component: function EditPunto() { const { id } = useParams({ from: puntoEditRoute.id }); return <PuntoForm id={id} />; } });
 const puntoDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/puntos/$id/detalle', component: PuntoDetailPage });
 const agrupacionDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/agrupaciones/$id', component: AgrupacionDetailPage });
+const carterasClientesRoute = createRoute({ getParentRoute: () => appRoute, path: '/carteras-clientes', component: () => <RequireRole roles={['administrador']}><CarterasList /></RequireRole> });
+const carteraDetailRoute = createRoute({ getParentRoute: () => appRoute, path: '/carteras-clientes/$id', component: () => <RequireRole roles={['administrador']}><CarteraDetailLayout /></RequireRole> });
+const carteraDetailIndexRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/app/carteras-clientes/$id/global', params }); } });
+const carteraGlobalRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'global', component: CarteraGlobal });
+const carteraSociedadesRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'sociedades', component: CarteraSociedades });
+const carteraPuntosRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'puntos', component: CarteraPuntos });
+const carteraContratosRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'contratos', component: CarteraContratos });
+const carteraFacturasRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'facturas', component: CarteraFacturas });
+const carteraActividadRoute = createRoute({ getParentRoute: () => carteraDetailRoute, path: 'actividad', component: CarteraActividad });
 const contratosRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos', component: ContratosList });
 const contratoNewRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/nuevo', component: () => <ContratoForm /> });
 const contratoEditRoute = createRoute({ getParentRoute: () => appRoute, path: '/contratos/$id', component: function EditContrato() { const { id } = useParams({ from: contratoEditRoute.id }); return <ContratoForm id={id} />; } });
@@ -247,6 +265,16 @@ const routeTree = rootRoute.addChildren([
     puntoDetailRoute,
     puntoEditRoute,
     agrupacionDetailRoute,
+    carterasClientesRoute,
+    carteraDetailRoute.addChildren([
+      carteraDetailIndexRoute,
+      carteraGlobalRoute,
+      carteraSociedadesRoute,
+      carteraPuntosRoute,
+      carteraContratosRoute,
+      carteraFacturasRoute,
+      carteraActividadRoute,
+    ]),
     contratosRoute,
     contratoNewRoute,
     contratoEditRoute,

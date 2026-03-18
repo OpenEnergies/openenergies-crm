@@ -83,7 +83,7 @@ const initialColumnFilters: { estado: string[], fotovoltaica: string[], cobrado:
 };
 
 // ============ FETCH ============
-async function fetchContratos(filter: string, clienteId?: string, empresaId?: string): Promise<ContratoExtendido[]> {
+async function fetchContratos(filter: string, clienteId?: string, empresaId?: string, clienteIds?: string[]): Promise<ContratoExtendido[]> {
   let query = supabase
     .from('contratos')
     .select(`
@@ -103,7 +103,10 @@ async function fetchContratos(filter: string, clienteId?: string, empresaId?: st
     .order('creado_en', { ascending: false });
 
 
-  if (clienteId) {
+  if (clienteIds) {
+    if (clienteIds.length === 0) return [];
+    query = query.in('puntos_suministro.cliente_id', clienteIds);
+  } else if (clienteId) {
     query = query.eq('puntos_suministro.cliente_id', clienteId);
   }
 
@@ -607,7 +610,7 @@ function CobradoCheckbox({ contratoId, checked, onUpdate }: CobradoCheckboxProps
 }
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function ContratosList({ clienteId, empresaId, hideClienteColumn }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean }) {
+export default function ContratosList({ clienteId, empresaId, hideClienteColumn, clienteIds }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean; clienteIds?: string[] }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -622,8 +625,8 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['contratos', filter, clienteId, empresaId],
-    queryFn: () => fetchContratos(filter, clienteId, empresaId),
+    queryKey: ['contratos', filter, clienteId, empresaId, clienteIds?.join(',') || ''],
+    queryFn: () => fetchContratos(filter, clienteId, empresaId, clienteIds),
   });
 
   const handleInlineUpdate = () => {
@@ -763,7 +766,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
 
   const totalItems = filteredData.length;
 
-  const isDetailView = !!(clienteId || empresaId);
+  const isDetailView = !!(clienteId || empresaId || (clienteIds && clienteIds.length > 0));
 
   return (
     <div className={isDetailView ? "animate-fade-in" : "flex flex-col gap-6 animate-fade-in"}>
@@ -1197,18 +1200,17 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
         )}
 
         {/* Paginación */}
-        {!isLoading && !isError && totalPages > 1 && (
+        {!isLoading && !isError && totalItems > 0 && (
           <div
             className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4"
             style={{ borderTop: `2px solid ${tableBorderColor}` }}
           >
             <div className="text-sm text-secondary">
-              Total: <span className="text-primary font-medium">{filteredData.length}</span> registros •
-              Página <span className="text-primary font-medium">{currentPage}</span> de <span className="text-primary font-medium">{totalPages || 1}</span>
+              Total: <span className="text-primary font-bold">{totalItems}</span> registros • Página <span className="text-primary font-bold">{currentPage}</span> de <span className="text-primary font-bold">{totalPages || 1}</span>
             </div>
             <div className="flex items-center gap-1">
               <button
-                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1 || isLoading}
                 title="Primera página"
@@ -1216,7 +1218,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                 <ChevronsLeft size={18} />
               </button>
               <button
-                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1 || isLoading}
                 title="Página anterior"
@@ -1224,7 +1226,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                 <ChevronLeft size={18} />
               </button>
               <button
-                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-secondary hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage >= totalPages || isLoading}
                 title="Página siguiente"
@@ -1232,7 +1234,7 @@ export default function ContratosList({ clienteId, empresaId, hideClienteColumn 
                 <ChevronRight size={18} />
               </button>
               <button
-                className="p-2 rounded-lg text-secondary hover:text-primary hover:bg-bg-intermediate transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-2 rounded-lg hover:bg-bg-intermediate text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage >= totalPages || isLoading}
                 title="Última página"

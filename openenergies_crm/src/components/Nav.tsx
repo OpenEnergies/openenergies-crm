@@ -79,6 +79,7 @@ export function Nav({ isCollapsed }: { isCollapsed: boolean }) {
       label: 'Gestión comercial',
       icon: Handshake,
       items: [
+        { to: '/app/carteras-clientes', label: 'Carteras de clientes', module: 'carteras_clientes' },
         { to: '/app/clientes', label: isComercial ? 'Sociedades' : 'Clientes', module: 'clientes' },
         { to: '/app/empresas', label: 'Comercializadoras', module: 'empresas' },
         { to: '/app/puntos', label: 'Puntos de suministro', module: 'puntos' },

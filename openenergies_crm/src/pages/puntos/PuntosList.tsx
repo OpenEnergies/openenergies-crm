@@ -81,7 +81,7 @@ const initialColumnFilters = {
 };
 
 // ============ FETCH FUNCTION ============
-async function fetchPuntos(filter: string, clienteId?: string, empresaId?: string): Promise<PuntoConCliente[]> {
+async function fetchPuntos(filter: string, clienteId?: string, empresaId?: string, clienteIds?: string[]): Promise<PuntoConCliente[]> {
   let query = supabase
     .from('puntos_suministro')
     .select(`
@@ -122,7 +122,10 @@ async function fetchPuntos(filter: string, clienteId?: string, empresaId?: strin
     .is('eliminado_en', null)
     .order('creado_en', { ascending: false });
 
-  if (clienteId) {
+  if (clienteIds) {
+    if (clienteIds.length === 0) return [];
+    query = query.in('cliente_id', clienteIds);
+  } else if (clienteId) {
     query = query.eq('cliente_id', clienteId);
   }
 
@@ -469,7 +472,7 @@ function getComercializadoraNombre(punto: PuntoConCliente): string {
 }
 
 // ============ COMPONENTE PRINCIPAL ============
-export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean }) {
+export default function PuntosList({ clienteId, empresaId, hideClienteColumn, clienteIds }: { clienteId?: string; empresaId?: string; hideClienteColumn?: boolean; clienteIds?: string[] }) {
   const [filter, setFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState(initialColumnFilters);
   const [currentPage, setCurrentPage] = useState(1);
@@ -482,7 +485,7 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const navigate = useNavigate();
   const isCliente = rol === 'cliente';
   const isComercial = rol === 'comercial';
-  const isDetailView = !!(clienteId || empresaId);
+  const isDetailView = !!(clienteId || empresaId || (clienteIds && clienteIds.length > 0));
   const [vistaAgrupaciones, setVistaAgrupaciones] = useState(() => {
     // Only client role in global view restores from session; everything else starts on puntos
     if (isDetailView || !isCliente) return false;
@@ -517,8 +520,8 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn }: 
   const tableBorderColor = theme === 'dark' ? '#17553eff' : '#cbd5e1';
 
   const { data: fetchedData, isLoading, isError } = useQuery({
-    queryKey: ['puntos', filter, clienteId, empresaId],
-    queryFn: () => fetchPuntos(filter, clienteId, empresaId)
+    queryKey: ['puntos', filter, clienteId, empresaId, clienteIds?.join(',') || ''],
+    queryFn: () => fetchPuntos(filter, clienteId, empresaId, clienteIds)
   });
 
   const handleRefresh = () => {

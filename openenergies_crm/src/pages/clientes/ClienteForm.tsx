@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@lib/supabase';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@hooks/useSession';
 import { useTheme } from '@hooks/ThemeContext';
 import { HardHat, Tags, FileText, Mail, Users, Loader2, ArrowLeft, Phone, Lock, CreditCard, UserCircle } from 'lucide-react';
@@ -18,6 +18,7 @@ type TipoCliente = 'Persona fisica' | 'Persona juridica';
 const createClienteSchema = (createAccess: boolean) => z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   tipo: z.enum(['Persona fisica', 'Persona juridica']).optional().nullable(),
+  grupo_cliente_id: z.string().optional().nullable(),
   dni: z.string().optional().nullable(),
   cif: z.string().optional().nullable(),
   numero_cuenta: z.string().optional().nullable(),
@@ -62,6 +63,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
     defaultValues: {
       nombre: '',
       tipo: null,
+      grupo_cliente_id: '',
       dni: '',
       cif: '',
       numero_cuenta: '',
@@ -72,6 +74,21 @@ export default function ClienteForm({ id }: ClienteFormProps) {
   });
 
   const tipoCliente = watch('tipo');
+    const { data: gruposClientes = [] } = useQuery({
+      queryKey: ['grupos-clientes-selector'],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('grupos_clientes')
+          .select('id, nombre')
+          .is('eliminado_en', null)
+          .order('nombre', { ascending: true })
+          .range(0, 99999);
+
+        if (error) throw error;
+        return data || [];
+      },
+    });
+
   const isDniDisabled = tipoCliente === 'Persona juridica';
   const isCifDisabled = tipoCliente === 'Persona fisica';
 
@@ -107,6 +124,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
         reset({
           nombre: data.nombre || '',
           tipo: data.tipo as TipoCliente || null,
+          grupo_cliente_id: data.grupo_cliente_id || '',
           dni: data.dni || '',
           cif: data.cif || '',
           numero_cuenta: data.numero_cuenta || '',
@@ -132,6 +150,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
           .update({
             nombre: values.nombre,
             tipo: values.tipo,
+            grupo_cliente_id: values.grupo_cliente_id || null,
             dni: values.dni || null,
             cif: values.cif || null,
             numero_cuenta: values.numero_cuenta || null,
@@ -155,6 +174,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
               clientData: {
                 nombre: values.nombre,
                 tipo: values.tipo,
+                grupo_cliente_id: values.grupo_cliente_id || null,
                 dni: values.dni || null,
                 cif: values.cif || null,
                 numero_cuenta: values.numero_cuenta || null,
@@ -181,6 +201,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             .insert({
               nombre: values.nombre,
               tipo: values.tipo || 'Persona fisica',
+              grupo_cliente_id: values.grupo_cliente_id || null,
               dni: values.dni || null,
               cif: values.cif || null,
               numero_cuenta: values.numero_cuenta || null,
@@ -265,7 +286,27 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
           </div>
 
-          {/* Row 2: DNI + CIF */}
+          {/* Row 2: Cartera */}
+          <div>
+            <label htmlFor="grupo_cliente_id" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
+              <Users size={16} />
+              Cartera
+            </label>
+            <select
+              id="grupo_cliente_id"
+              {...register('grupo_cliente_id')}
+              className="glass-input w-full appearance-none cursor-pointer"
+            >
+              <option value="">Sin cartera</option>
+              {gruposClientes.map((grupo: any) => (
+                <option key={grupo.id} value={grupo.id}>
+                  {grupo.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Row 3: DNI + CIF */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={isDniDisabled ? 'opacity-50' : ''}>
               <label htmlFor="dni" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
@@ -298,7 +339,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
           </div>
 
-          {/* Row 3: IBAN + Representante */}
+          {/* Row 4: IBAN + Representante */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="numero_cuenta" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">
@@ -329,7 +370,7 @@ export default function ClienteForm({ id }: ClienteFormProps) {
             </div>
           </div>
 
-          {/* Row 4: Teléfonos + Email */}
+          {/* Row 5: Teléfonos + Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="telefonos" className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-tight mb-2">

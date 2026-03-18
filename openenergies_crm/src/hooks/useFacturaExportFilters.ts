@@ -279,7 +279,7 @@ export function useFacturaExportFilters(isOpen: boolean, scope?: FacturaExportSc
 
   useEffect(() => {
     if (!isOpen || !canSelectSociedades) {
-      setSelectedSociedades([]);
+      setSelectedSociedades((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     const ids = sociedadOptions.map(s => s.id);

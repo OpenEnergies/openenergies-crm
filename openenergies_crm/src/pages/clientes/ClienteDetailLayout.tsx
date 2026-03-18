@@ -3,10 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { clienteDetailRoute } from '@router/routes';
 import { useSession } from '@hooks/useSession';
-import { FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, UserCircle, UserPlus } from 'lucide-react';
+import { BriefcaseBusiness, FileText, Mail, Phone, MapPin, Zap, ArrowLeft, Loader2, Users, CreditCard, UserCircle, UserPlus } from 'lucide-react';
 import { formatIBAN } from '@lib/utils';
 import { useState } from 'react';
 import CrearUsuarioClienteModal from './CrearUsuarioClienteModal';
+import { getGrupoLogoPublicUrl } from '@hooks/useGruposClientes';
 
 interface ClienteDetallado {
   id: string;
@@ -18,9 +19,17 @@ interface ClienteDetallado {
   telefonos: string | null;
   numero_cuenta: string | null;
   representante: string | null;
+  grupo_cliente_id?: string | null;
+  grupo_cliente_nombre?: string | null;
   creado_en: string;
   puntos_count: number;
   total_kwh: number;
+}
+
+interface GrupoClienteMini {
+  id: string;
+  nombre: string;
+  logo_path: string | null;
 }
 
 async function fetchCliente(clienteId: string, rol?: string): Promise<ClienteDetallado> {
@@ -82,6 +91,50 @@ export default function ClienteDetailLayout() {
     enabled: !!clienteId && rol !== null,
     retry: false,
   });
+
+  const { data: clienteGrupoMembership } = useQuery({
+    queryKey: ['cliente-grupo-membership', clienteId],
+    queryFn: async (): Promise<{ grupo_cliente_id: string | null } | null> => {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('grupo_cliente_id')
+        .eq('id', clienteId)
+        .is('eliminado_en', null)
+        .maybeSingle();
+
+      if (error) return null;
+      return (data as { grupo_cliente_id: string | null } | null) || null;
+    },
+    enabled: !!clienteId,
+    retry: false,
+  });
+
+  const grupoClienteId = clienteGrupoMembership?.grupo_cliente_id || null;
+
+  const { data: grupoCliente } = useQuery({
+    queryKey: ['cliente-grupo-badge', grupoClienteId],
+    queryFn: async (): Promise<GrupoClienteMini | null> => {
+      if (!grupoClienteId) return null;
+      const { data, error } = await supabase
+        .from('grupos_clientes')
+        .select('id, nombre, logo_path')
+        .eq('id', grupoClienteId)
+        .is('eliminado_en', null)
+        .maybeSingle();
+
+      if (error) return null;
+      return (data as GrupoClienteMini | null) || null;
+    },
+    enabled: !!grupoClienteId,
+    retry: false,
+  });
+
+  const grupoNombre =
+    grupoCliente?.nombre ||
+    (cliente as ClienteDetallado | null)?.grupo_cliente_nombre ||
+    ((cliente as any)?.grupo_nombre as string | null | undefined) ||
+    null;
+  const grupoLogoUrl = getGrupoLogoPublicUrl(grupoCliente?.logo_path);
 
   // Verificar si el cliente tiene usuario vinculado
   const { data: contactoCliente } = useQuery({
@@ -201,6 +254,43 @@ export default function ClienteDetailLayout() {
               <p className="text-sm text-secondary opacity-70 mt-0.5 font-medium">
                 {cliente.dni || cliente.cif || 'Sin identificador'}
               </p>
+              {grupoClienteId && (
+                isAdmin ? (
+                  <Link
+                    to="/app/carteras-clientes/$id"
+                    params={{ id: grupoClienteId }}
+                    className="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-full bg-fenix-500/12 border border-fenix-500/25 hover:bg-fenix-500/18 transition-colors"
+                    title={grupoNombre ? `Pertenece a ${grupoNombre}` : 'Pertenece a una cartera'}
+                  >
+                    {grupoLogoUrl ? (
+                      <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                        <img src={grupoLogoUrl} alt={grupoNombre || 'Cartera'} className="w-full h-full object-contain" />
+                      </span>
+                    ) : (
+                      <BriefcaseBusiness size={12} className="text-fenix-500" />
+                    )}
+                    <span className="text-[11px] font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider">
+                      {grupoNombre || 'Cartera asignada'}
+                    </span>
+                  </Link>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-full bg-fenix-500/12 border border-fenix-500/25"
+                    title={grupoNombre ? `Pertenece a ${grupoNombre}` : 'Pertenece a una cartera'}
+                  >
+                    {grupoLogoUrl ? (
+                      <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                        <img src={grupoLogoUrl} alt={grupoNombre || 'Cartera'} className="w-full h-full object-contain" />
+                      </span>
+                    ) : (
+                      <BriefcaseBusiness size={12} className="text-fenix-500" />
+                    )}
+                    <span className="text-[11px] font-bold text-fenix-600 dark:text-fenix-400 uppercase tracking-wider">
+                      {grupoNombre || 'Cartera asignada'}
+                    </span>
+                  </span>
+                )
+              )}
             </div>
           </div>
 

@@ -39,8 +39,7 @@ const ESTADOS_FV: EstadoFV[] = ['activa', 'no', 'pendiente'];
 function getPotenciasActivas(tarifa: TipoTarifa | null): number {
   if (!tarifa) return 0;
   if (tarifa === '2.0TD') return 3; // P1, P2, P3
-  if (tarifa === '3.0TD') return 3;
-  return 6; // 6.1TD y todos los RL
+  return 6; // 3.0TD, 6.1TD y todos los RL
 }
 
 // ============ SCHEMA DE VALIDACIÓN ============
@@ -531,9 +530,8 @@ export default function PuntoForm({ id }: { id?: string }) {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   {[1, 2, 3, 4, 5, 6].map(i => {
-                    // Para 2.0TD y 3.0TD: P1, P2 y P3 habilitados
-                    // Para 6.1TD y RL: todos habilitados (P1-P6)
-                    const isDisabled = (watchedTarifa === '2.0TD' || watchedTarifa === '3.0TD') && i > 3;
+                    // El numero de peajes/potencias habilitadas depende de la tarifa seleccionada.
+                    const isDisabled = i > potenciasActivas;
 
                     return (
                       <div key={`p${i}`} className="form-group">

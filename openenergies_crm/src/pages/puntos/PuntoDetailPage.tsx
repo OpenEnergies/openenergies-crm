@@ -52,6 +52,8 @@ interface FacturaRow {
 interface ConsumoFacturacionRow {
     mes: string;
     consumo_kwh: number | null;
+    coste_total: number | null;
+    precio_kwh: number | null;
     factura: {
         id: string;
         eliminado_en: string | null;
@@ -59,13 +61,6 @@ interface ConsumoFacturacionRow {
         id: string;
         eliminado_en: string | null;
     }[] | null;
-}
-
-interface FacturacionPuntoRow {
-    id: string;
-    fecha_emision: string;
-    total: number;
-    precio_eur_kwh: number | null;
 }
 
 // ─── Month labels ───
@@ -127,29 +122,16 @@ function useFacturacionPuntoByYear(puntoId: string | undefined, year: number) {
             const endDate = `${year}-12-31`;
             const consumoQuery = supabase
                 .from('consumos_facturacion')
-                .select('mes, consumo_kwh, factura:facturacion_clientes!inner(id, eliminado_en)')
+                .select('mes, consumo_kwh, coste_total, precio_kwh, factura:facturacion_clientes!inner(id, eliminado_en)')
                 .eq('punto_id', puntoId)
                 .gte('mes', startDate)
                 .lte('mes', endDate)
                 .is('eliminado_en', null)
                 .order('mes', { ascending: true });
 
-            const facturaQuery = supabase
-                .from('facturacion_clientes')
-                .select('id, fecha_emision, total, precio_eur_kwh')
-                .eq('punto_id', puntoId)
-                .gte('fecha_emision', startDate)
-                .lte('fecha_emision', endDate)
-                .is('eliminado_en', null)
-                .order('fecha_emision', { ascending: true });
-
-            const [{ data: consumoData, error: consumoError }, { data: facturaData, error: facturaError }] = await Promise.all([
-                consumoQuery,
-                facturaQuery,
-            ]);
+            const { data: consumoData, error: consumoError } = await consumoQuery;
 
             if (consumoError) throw consumoError;
-            if (facturaError) throw facturaError;
 
             const consumoRows = ((consumoData || []) as ConsumoFacturacionRow[])
                 .map((row) => {
@@ -160,24 +142,14 @@ function useFacturacionPuntoByYear(puntoId: string | undefined, year: number) {
                         fecha_emision: row.mes,
                         factura_id: factura.id,
                         consumo_kwh: Number(row.consumo_kwh) || 0,
-                        total: 0,
-                        precio_eur_kwh: null,
+                        total: Number(row.coste_total) || 0,
+                        precio_eur_kwh: row.precio_kwh,
                         source: 'consumo',
                     } as FacturaRow;
                 })
                 .filter((row): row is FacturaRow => row !== null);
 
-            const facturaRows = ((facturaData || []) as FacturacionPuntoRow[])
-                .map((row) => ({
-                    fecha_emision: row.fecha_emision,
-                    factura_id: row.id,
-                    consumo_kwh: null,
-                    total: Number(row.total) || 0,
-                    precio_eur_kwh: row.precio_eur_kwh,
-                    source: 'factura' as const,
-                }));
-
-            return [...consumoRows, ...facturaRows].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
+            return consumoRows.sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
         },
         enabled: !!puntoId,
     });
@@ -231,8 +203,8 @@ export default function PuntoDetailPage() {
             consumo: 0,
             coste: 0,
             precio: null as number | null,
-            _precioSum: 0,
-            _precioCount: 0,
+            _precioXConsumo: 0,
+            _consumoConPrecio: 0,
         }));
 
         if (facturas) {
@@ -241,14 +213,14 @@ export default function PuntoDetailPage() {
                 const mIdx = d.getMonth();
                 if (months[mIdx]) {
                     if (f.source === 'consumo') {
-                        months[mIdx].consumo += f.consumo_kwh || 0;
-                    }
-                    if (f.source === 'factura') {
+                        const consumo = Number(f.consumo_kwh) || 0;
+                        const precio = f.precio_eur_kwh;
+                        months[mIdx].consumo += consumo;
                         months[mIdx].coste += f.total || 0;
-                    }
-                    if (f.source === 'factura' && f.precio_eur_kwh) {
-                        months[mIdx]._precioSum += f.precio_eur_kwh;
-                        months[mIdx]._precioCount += 1;
+                        if (precio != null && consumo > 0) {
+                            months[mIdx]._precioXConsumo += precio * consumo;
+                            months[mIdx]._consumoConPrecio += consumo;
+                        }
                     }
                 }
             });
@@ -258,7 +230,7 @@ export default function PuntoDetailPage() {
             mes: m.mes,
             consumo: Math.round(m.consumo),
             coste: Math.round(m.coste * 100) / 100,
-            precio: m._precioCount > 0 ? Math.round((m._precioSum / m._precioCount) * 10000) / 10000 : null,
+            precio: m._consumoConPrecio > 0 ? Math.round((m._precioXConsumo / m._consumoConPrecio) * 10000) / 10000 : null,
         }));
     }, [facturas]);
 

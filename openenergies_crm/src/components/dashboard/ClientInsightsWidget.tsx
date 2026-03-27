@@ -29,17 +29,21 @@ interface FacturaRow {
 interface ConsumoFacturacionRow {
     mes: string;
     consumo_kwh: number | null;
+    coste_total: number | null;
+    precio_kwh: number | null;
     punto_id: string;
     factura: {
         id: string;
         cliente_id: string;
         comercializadora_id: string;
         eliminado_en: string | null;
+        tipo_factura: string | null;
     } | {
         id: string;
         cliente_id: string;
         comercializadora_id: string;
         eliminado_en: string | null;
+        tipo_factura: string | null;
     }[] | null;
 }
 
@@ -64,7 +68,7 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
 
             let consumoQuery = supabase
                 .from('consumos_facturacion')
-                .select('mes, consumo_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, comercializadora_id, eliminado_en)')
+                .select('mes, consumo_kwh, coste_total, precio_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, comercializadora_id, eliminado_en, tipo_factura)')
                 .is('eliminado_en', null)
                 .order('mes', { ascending: true });
 
@@ -112,9 +116,9 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
                         factura_id: factura.id,
                         punto_id: row.punto_id,
                         consumo_kwh: Number(row.consumo_kwh) || 0,
-                        total: 0,
-                        precio_eur_kwh: null,
-                        tipo_factura: null,
+                        total: Number(row.coste_total) || 0,
+                        precio_eur_kwh: row.precio_kwh,
+                        tipo_factura: factura.tipo_factura,
                         source: 'consumo',
                     } as FacturaRow;
                 })
@@ -125,8 +129,8 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
                 factura_id: row.id,
                 punto_id: null,
                 consumo_kwh: null,
-                total: Number(row.total) || 0,
-                precio_eur_kwh: row.precio_eur_kwh,
+                total: 0,
+                precio_eur_kwh: null,
                 tipo_factura: row.tipo_factura,
                 source: 'factura' as const,
             }));
@@ -174,8 +178,8 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
             mes: label,
             consumo: 0,
             coste: 0,
-            _precioSum: 0,
-            _precioCount: 0,
+            _precioXConsumo: 0,
+            _consumoConPrecio: 0,
             precio: null as number | null,
         }));
 
@@ -184,13 +188,13 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
             if (months[mIdx]) {
                 if (f.source === 'consumo') {
                     months[mIdx].consumo += f.consumo_kwh || 0;
-                }
-                if (f.source === 'factura') {
                     months[mIdx].coste += f.total || 0;
-                }
-                if (f.source === 'factura' && f.precio_eur_kwh) {
-                    months[mIdx]._precioSum += f.precio_eur_kwh;
-                    months[mIdx]._precioCount += 1;
+                    const consumo = Number(f.consumo_kwh) || 0;
+                    const precio = f.precio_eur_kwh;
+                    if (precio != null && consumo > 0) {
+                        months[mIdx]._precioXConsumo += precio * consumo;
+                        months[mIdx]._consumoConPrecio += consumo;
+                    }
                 }
             }
         });
@@ -199,7 +203,7 @@ export default function ClientInsightsWidget({ clienteId, empresaId, year, month
             mes: m.mes,
             consumo: Math.round(m.consumo),
             coste: Math.round(m.coste * 100) / 100,
-            precio: m._precioCount > 0 ? Math.round((m._precioSum / m._precioCount) * 10000) / 10000 : null,
+            precio: m._consumoConPrecio > 0 ? Math.round((m._precioXConsumo / m._consumoConPrecio) * 10000) / 10000 : null,
         }));
     }, [facturas]);
 

@@ -18,16 +18,18 @@ async function fetchTopPuntosEuros(): Promise<TopPuntoEuro[]> {
     const sinceStr = since.toISOString().split('T')[0];
 
     const { data, error } = await supabase
-        .from('facturacion_clientes')
-        .select('punto_id, total, puntos_suministro!inner(id, cups, clientes!inner(nombre))')
+        .from('consumos_facturacion')
+        .select('punto_id, coste_total, factura:facturacion_clientes!inner(id, eliminado_en), puntos_suministro!inner(id, cups, clientes!inner(nombre))')
         .is('eliminado_en', null)
-        .gte('fecha_emision', sinceStr);
+        .gte('mes', sinceStr);
 
     if (error) throw error;
 
     // Aggregate by punto_id
     const byPunto: Record<string, { punto_id: string; cups: string; total_euros: number; cliente_nombre: string }> = {};
     (data || []).forEach((row: any) => {
+        const factura = Array.isArray(row.factura) ? row.factura[0] : row.factura;
+        if (!factura || factura.eliminado_en) return;
         const puntoId = row.punto_id;
         if (!puntoId) return;
         const ps = Array.isArray(row.puntos_suministro) ? row.puntos_suministro[0] : row.puntos_suministro;
@@ -39,7 +41,7 @@ async function fetchTopPuntosEuros(): Promise<TopPuntoEuro[]> {
         if (!byPunto[puntoId]) {
             byPunto[puntoId] = { punto_id: puntoId, cups, total_euros: 0, cliente_nombre: clienteNombre };
         }
-        byPunto[puntoId].total_euros += Number(row.total) || 0;
+        byPunto[puntoId].total_euros += Number(row.coste_total) || 0;
     });
 
     return Object.values(byPunto)
@@ -76,8 +78,8 @@ export default function TopPuntosEurosWidget() {
                         </button>
                         {showInfo && (
                             <div className="absolute left-0 top-9 z-20 w-80 p-3 rounded-lg border border-fenix-500/20 bg-white dark:bg-slate-900 shadow-xl text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
-                                Los 5 puntos que mas dinero han generado en facturas durante el ultimo año.
-                                Sumamos los importes de cada suministro y los mostramos de mayor a menor.
+                                Los 5 puntos con mayor importe del ultimo año.
+                                Sumamos coste_total de consumos_facturacion por suministro y ordenamos de mayor a menor.
                             </div>
                         )}
                     </div>

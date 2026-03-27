@@ -79,7 +79,7 @@ export function useAgrupacionesCliente(overrideClienteId?: string) {
 
       // 3. Get coste anual (last 12 months) for puntos in agrupaciones
       const puntoIds = (puntos || []).map(p => p.id);
-      let facturacionData: { punto_id: string; total: number }[] = [];
+      let facturacionData: { punto_id: string; coste_total: number | null }[] = [];
 
       if (puntoIds.length > 0) {
         const since = new Date();
@@ -87,16 +87,19 @@ export function useAgrupacionesCliente(overrideClienteId?: string) {
         const sinceStr = since.toISOString().split('T')[0];
 
         const { data: facturas, error: fErr } = await supabase
-          .from('facturacion_clientes')
-          .select('punto_id, total')
+          .from('consumos_facturacion')
+          .select('punto_id, coste_total, factura:facturacion_clientes!inner(id, eliminado_en)')
           .in('punto_id', puntoIds)
           .eq('cliente_id', clienteId)
-          .gte('fecha_emision', sinceStr)
+          .gte('mes', sinceStr)
           .is('eliminado_en', null)
           .range(0, 99999);
 
         if (fErr) throw fErr;
-        facturacionData = facturas || [];
+        facturacionData = (facturas || []).filter((row: any) => {
+          const factura = Array.isArray(row.factura) ? row.factura[0] : row.factura;
+          return !!factura && !factura.eliminado_en;
+        });
       }
 
       // 4. Build punto → agrupacion_id map
@@ -118,7 +121,7 @@ export function useAgrupacionesCliente(overrideClienteId?: string) {
       facturacionData.forEach(f => {
         const agId = puntoToAgrupacion.get(f.punto_id);
         if (agId) {
-          costeMap.set(agId, (costeMap.get(agId) || 0) + (f.total || 0));
+          costeMap.set(agId, (costeMap.get(agId) || 0) + (Number(f.coste_total) || 0));
         }
       });
 
@@ -204,26 +207,20 @@ export interface AgrupacionFacturaRow {
 interface ConsumoFacturacionAgrupacionRow {
   mes: string;
   consumo_kwh: number | null;
+  coste_total: number | null;
+  precio_kwh: number | null;
   punto_id: string;
   factura: {
     id: string;
     cliente_id: string;
     eliminado_en: string | null;
+    tipo_factura: string | null;
   } | {
     id: string;
     cliente_id: string;
     eliminado_en: string | null;
+    tipo_factura: string | null;
   }[] | null;
-}
-
-interface FacturacionAgrupacionRow {
-  id: string;
-  fecha_emision: string;
-  total: number;
-  precio_eur_kwh: number | null;
-  tipo_factura: string | null;
-  punto_id: string;
-  cliente_id: string;
 }
 
 export function useAgrupacionFacturacion(agrupacionId: string | undefined, year: number, overrideClienteId?: string) {
@@ -260,34 +257,20 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
       for (const puntoIdsChunk of puntoIdChunks) {
         let consumoQuery = supabase
           .from('consumos_facturacion')
-          .select('mes, consumo_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, eliminado_en)')
+          .select('mes, consumo_kwh, coste_total, precio_kwh, punto_id, factura:facturacion_clientes!inner(id, cliente_id, eliminado_en, tipo_factura)')
           .in('punto_id', puntoIdsChunk)
           .gte('mes', startDate)
           .lte('mes', endDate)
           .is('eliminado_en', null)
           .order('mes', { ascending: true });
 
-        let facturaQuery = supabase
-          .from('facturacion_clientes')
-          .select('id, fecha_emision, total, precio_eur_kwh, tipo_factura, punto_id, cliente_id')
-          .in('punto_id', puntoIdsChunk)
-          .gte('fecha_emision', startDate)
-          .lte('fecha_emision', endDate)
-          .is('eliminado_en', null)
-          .order('fecha_emision', { ascending: true });
-
         if (clienteId) {
           consumoQuery = consumoQuery.eq('cliente_id', clienteId);
-          facturaQuery = facturaQuery.eq('cliente_id', clienteId);
         }
 
-        const [{ data: consumos, error: consumoErr }, { data: facturas, error: facturaErr }] = await Promise.all([
-          consumoQuery.range(0, 99999),
-          facturaQuery.range(0, 99999),
-        ]);
+        const { data: consumos, error: consumoErr } = await consumoQuery.range(0, 99999);
 
         if (consumoErr) throw consumoErr;
-        if (facturaErr) throw facturaErr;
 
         ((consumos || []) as ConsumoFacturacionAgrupacionRow[])
           .forEach((row) => {
@@ -299,27 +282,11 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
               fecha_emision: row.mes,
               factura_id: factura.id,
               consumo_kwh: Number(row.consumo_kwh) || 0,
-              total: 0,
-              precio_eur_kwh: null,
-              tipo_factura: null,
+              total: Number(row.coste_total) || 0,
+              precio_eur_kwh: row.precio_kwh,
+              tipo_factura: factura.tipo_factura,
               punto_id: row.punto_id,
               source: 'consumo',
-            });
-          });
-
-        ((facturas || []) as FacturacionAgrupacionRow[])
-          .forEach((row) => {
-            if (clienteId && row.cliente_id !== clienteId) return;
-
-            rows.push({
-              fecha_emision: row.fecha_emision,
-              factura_id: row.id,
-              consumo_kwh: null,
-              total: Number(row.total) || 0,
-              precio_eur_kwh: row.precio_eur_kwh,
-              tipo_factura: row.tipo_factura,
-              punto_id: row.punto_id,
-              source: 'factura',
             });
           });
       }

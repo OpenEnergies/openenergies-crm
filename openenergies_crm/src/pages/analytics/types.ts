@@ -6,16 +6,11 @@ export type MetricMeasure =
   | 'total'
   | 'consumo_kwh'
   | 'precio_eur_kwh'
-  | 'potencia_kw_min'
-  | 'potencia_kw_max'
-  | 'importe_impuesto_principal'
-  | 'importe_impuesto_secundario'
-  | 'impuesto_total'
-  | 'precio_efectivo_kwh';
+  | 'potencia_kw';
 
-export type MetricAggregation = 'sum' | 'avg' | 'min' | 'max' | 'stddev' | 'count';
+export type MetricAggregation = 'sum' | 'avg' | 'min' | 'max';
 export type ChartType = 'bar' | 'line' | 'scatter' | 'pie';
-export type GroupByOption = 'none' | 'month' | 'client' | 'point' | 'retailer' | 'tariff' | 'province' | 'invoice_type';
+export type GroupByOption = 'month' | 'client' | 'point' | 'retailer' | 'invoice_type';
 export type TopMode = 'top' | 'bottom';
 
 export interface MetricConfig {
@@ -55,15 +50,10 @@ export type AggregateResponse = z.infer<typeof AggregateResponseSchema>;
 // ============ CONSTANTS ============
 
 export const MEASURE_LABELS: Record<string, string> = {
-  total: 'Total (€)',
+  total: 'Importe (€)',
   consumo_kwh: 'Consumo (kWh)',
-  precio_eur_kwh: 'PVP Medio (€/kWh)',
-  potencia_kw_min: 'Potencia Mín (kW)',
-  potencia_kw_max: 'Potencia Máx (kW)',
-  importe_impuesto_principal: 'Impuesto Princ. (€)',
-  importe_impuesto_secundario: 'Impuesto Sec. (€)',
-  impuesto_total: 'Impuestos Totales (€)',
-  precio_efectivo_kwh: 'Precio Efectivo (€/kWh)',
+  precio_eur_kwh: 'Precio (€/kWh)',
+  potencia_kw: 'Potencia (kW)',
 };
 
 export const AGG_LABELS: Record<string, string> = {
@@ -71,19 +61,14 @@ export const AGG_LABELS: Record<string, string> = {
   avg: 'Media',
   min: 'Mínimo',
   max: 'Máximo',
-  stddev: 'Desv. Estándar',
-  count: 'Recuento',
 };
 
 export const GROUP_LABELS: Record<GroupByOption, string> = {
-  none: 'Sin agrupación',
   month: 'Mes',
-  client: 'Cliente',
+  client: 'Sociedad',
   point: 'CUPS',
   retailer: 'Comercializadora',
-  tariff: 'Tarifa',
-  province: 'Provincia',
-  invoice_type: 'Tipo Factura',
+  invoice_type: 'Suministro',
 };
 
 export const CHART_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -116,7 +101,7 @@ export const createMetricId = (): string => `m-${Date.now()}-${++_counter}`;
 
 export const createDefaultMetric = (overrides?: Partial<MetricConfig>): MetricConfig => ({
   id: createMetricId(),
-  measure: 'total',
+  measure: 'consumo_kwh',
   aggregation: 'sum',
   chartType: 'bar',
   groupBy: 'month',

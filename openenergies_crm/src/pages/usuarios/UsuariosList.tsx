@@ -181,6 +181,9 @@ export default function UsuariosList() {
                   className="border-b-2 bg-bg-intermediate text-xs text-primary uppercase tracking-wider font-bold"
                   style={{ borderBottomColor: tableBorderColor }}
                 >
+                  <th className="w-14 p-4 text-left">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider">Foto</span>
+                  </th>
                   <th className="p-4 text-left">
                     <button
                       onClick={() => handleSort('nombre_completo' as unknown as any)}
@@ -215,14 +218,6 @@ export default function UsuariosList() {
                   </th>
                   <th className="p-4 text-left">
                     <button
-                      onClick={() => handleSort('empresa_nombre' as unknown as any)}
-                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
-                    >
-                      Comercializadora {renderSortIcon('empresa_nombre' as unknown as any)}
-                    </button>
-                  </th>
-                  <th className="p-4 text-left">
-                    <button
                       onClick={() => handleSort('activo')}
                       className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-wider hover:text-fenix-600 dark:hover:text-fenix-400 transition-colors cursor-pointer"
                     >
@@ -238,6 +233,19 @@ export default function UsuariosList() {
                 {displayedData.length > 0 ? (
                   displayedData.map(u => (
                     <tr key={u.user_id} className="hover:bg-bg-intermediate/50 transition-colors">
+                      <td className="p-4">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-fenix-500/20 bg-bg-intermediate flex items-center justify-center text-[10px] font-bold text-secondary">
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt={`Avatar de ${u.nombre ?? 'usuario'}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            `${u.nombre?.[0] ?? ''}${u.apellidos?.[0] ?? ''}`.toUpperCase() || 'U'
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4 font-bold text-secondary">
                         {u.nombre} {u.apellidos}
                       </td>
@@ -247,7 +255,6 @@ export default function UsuariosList() {
                           {u.rol}
                         </span>
                       </td>
-                      <td className="p-4 text-secondary font-medium">{u.empresas?.nombre ?? '—'}</td>
                       <td className="p-4">
                         <span className={`
                           px-2 py-1 text-xs font-bold rounded-full

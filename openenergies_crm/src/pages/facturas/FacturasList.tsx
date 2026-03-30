@@ -738,7 +738,7 @@ export default function FacturasList() {
                                         {/* Actions */}
                                         <td className="p-4">
                                             <div className="flex items-center justify-end gap-2">
-                                                {!isCliente && (
+                                                {!isCliente && !isComercial && (
                                                     <Link
                                                         to="/app/facturas/$id"
                                                         params={{ id: factura.id }}

@@ -403,23 +403,32 @@ export function CostBreakdownWidget({ clienteId, empresaId, year, month, cliente
         return facturas.filter(f => new Date(f.fecha_emision).getMonth() === month);
     }, [facturas, month]);
 
-    const costeAnual = useMemo(() => {
-        return filteredFacturas.reduce((sum, f) => sum + (f.total || 0), 0);
-    }, [filteredFacturas]);
-
-    const costByType = useMemo(() => {
+    const { costeAnual, costByType } = useMemo(() => {
+        const tipoPorFactura = new Map<string, string>();
         const totals = new Map<string, number>();
-        filteredFacturas.forEach(f => {
-            if ((f.total || 0) <= 0) return;
-            const tipo = f.tipo_factura || 'Otro';
-            totals.set(tipo, (totals.get(tipo) || 0) + (f.total || 0));
+
+        filteredFacturas.forEach((f) => {
+            if (f.source !== 'factura') return;
+            tipoPorFactura.set(f.factura_id, f.tipo_factura || 'Otro');
         });
-        const entries = Array.from(totals.entries()).map(([tipo, total]) => ({
-            tipo,
-            total: Math.round(total * 100) / 100,
-        }));
-        entries.sort((a, b) => b.total - a.total);
-        return entries;
+
+        filteredFacturas.forEach((f) => {
+            if (f.source !== 'consumo') return;
+            const importe = Number(f.total) || 0;
+            if (importe <= 0) return;
+
+            const tipo = tipoPorFactura.get(f.factura_id) || f.tipo_factura || 'Otro';
+            totals.set(tipo, (totals.get(tipo) || 0) + importe);
+        });
+
+        const entries = Array.from(totals.entries())
+            .map(([tipo, total]) => ({ tipo, total: Math.round(total * 100) / 100 }))
+            .sort((a, b) => b.total - a.total);
+
+        return {
+            costeAnual: Math.round(entries.reduce((sum, entry) => sum + entry.total, 0) * 100) / 100,
+            costByType: entries,
+        };
     }, [filteredFacturas]);
 
     const periodLabel = month !== undefined ? `Mensual (${MONTH_LABELS[month]}) por Tipo` : 'Anual por Tipo';

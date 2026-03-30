@@ -8,10 +8,8 @@ import {
 import {
   BarChart3, Loader2, Trash2, Copy, List, Receipt,
   PieChart as PieIcon, LineChart as LineIcon, BarChart2, MousePointer2,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { useTheme } from '@hooks/ThemeContext';
 import { useNavigate } from '@tanstack/react-router';
@@ -20,6 +18,20 @@ import {
   MEASURE_LABELS, AGG_LABELS, GROUP_LABELS, GroupByOption,
   getChartColor, formatValue,
 } from './types';
+
+const ALL_CHART_TYPES = ['bar', 'line', 'scatter', 'pie'] as const;
+const MONTH_WINDOW_SIZE = 12;
+
+const getAllowedAggregations = (measure: MetricConfig['measure']) =>
+  measure === 'precio_eur_kwh' ? (['avg'] as const) : (['sum', 'avg', 'min', 'max'] as const);
+
+const getAllowedChartTypes = (measure: MetricConfig['measure']) =>
+  measure === 'precio_eur_kwh' ? (['line', 'scatter'] as const) : ALL_CHART_TYPES;
+
+const getAllowedGroupBy = (measure: MetricConfig['measure']) => {
+  const base: GroupByOption[] = ['month', 'client', 'point', 'retailer', 'invoice_type'];
+  return measure === 'potencia_kw' ? base.filter((g) => g !== 'invoice_type') : base;
+};
 
 // ═══════════════════════════════════════════
 // Props
@@ -83,13 +95,32 @@ export default function MetricCard({
   const measureKey = `${config.measure}_${config.aggregation}`;
   const chartColor = getChartColor(index);
 
+  const extractYearMonth = useCallback((value: unknown): { year: number; month: number } | null => {
+    if (typeof value === 'string') {
+      const match = value.match(/(\d{4})-(\d{2})/);
+      if (match) {
+        return { year: Number(match[1]), month: Number(match[2]) };
+      }
+    }
+
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) return null;
+    return { year: date.getFullYear(), month: date.getMonth() + 1 };
+  }, []);
+
+  const formatMonthLabel = useCallback((value: unknown): string => {
+    const ym = extractYearMonth(value);
+    if (!ym) return String(value ?? '');
+    return `${String(ym.month).padStart(2, '0')}/${String(ym.year).slice(-2)}`;
+  }, [extractYearMonth]);
+
   const chartData = useMemo(() => {
     if (!rawData?.groups) return [];
     let data = [...rawData.groups];
 
     if (config.groupBy === 'month') {
       data.sort((a, b) => a.group_key.localeCompare(b.group_key));
-    } else if (config.groupBy !== 'none') {
+    } else {
       if (config.topMode === 'bottom') {
         data.sort((a, b) => (a[measureKey] || 0) - (b[measureKey] || 0));
       } else {
@@ -100,11 +131,109 @@ export default function MetricCard({
     return data;
   }, [rawData, config.topMode, config.topN, config.groupBy, measureKey]);
 
-  const currentChartType = config.chartType === 'pie' && config.groupBy === 'month' ? 'bar' : config.chartType;
-  const isPieFallback = config.chartType === 'pie' && config.groupBy === 'month';
-  const showTopControls = config.groupBy !== 'month' && config.groupBy !== 'none';
-  const summaryValue = rawData?.summary?.[measureKey];
+  const [yearFilterMode, setYearFilterMode] = useState<'all' | 'range'>('all');
+  const [selectedYearFrom, setSelectedYearFrom] = useState<number | null>(null);
+  const [selectedYearTo, setSelectedYearTo] = useState<number | null>(null);
+  const [monthWindowStart, setMonthWindowStart] = useState(0);
+
+  const availableYears = useMemo(() => {
+    if (config.groupBy !== 'month') return [] as number[];
+    const years = new Set<number>();
+    chartData.forEach((row) => {
+      const ym = extractYearMonth(row.group_key);
+      if (ym) years.add(ym.year);
+    });
+    return Array.from(years).sort((a, b) => a - b);
+  }, [chartData, config.groupBy, extractYearMonth]);
+
+  useEffect(() => {
+    if (config.groupBy !== 'month') {
+      setYearFilterMode('all');
+      setSelectedYearFrom(null);
+      setSelectedYearTo(null);
+      setMonthWindowStart(0);
+      return;
+    }
+
+    if (availableYears.length === 0) {
+      setSelectedYearFrom(null);
+      setSelectedYearTo(null);
+      setMonthWindowStart(0);
+      return;
+    }
+
+    const firstYear = availableYears[0] ?? null;
+    const lastYear = availableYears[availableYears.length - 1] ?? null;
+
+    setSelectedYearFrom((prev) => (prev != null && availableYears.includes(prev) ? prev : firstYear));
+    setSelectedYearTo((prev) => (prev != null && availableYears.includes(prev) ? prev : lastYear));
+    setMonthWindowStart(0);
+  }, [config.groupBy, availableYears]);
+
+  const yearFilteredData = useMemo(() => {
+    if (config.groupBy !== 'month') return chartData;
+    if (yearFilterMode === 'all' || selectedYearFrom == null || selectedYearTo == null) return chartData;
+
+    const minYear = Math.min(selectedYearFrom, selectedYearTo);
+    const maxYear = Math.max(selectedYearFrom, selectedYearTo);
+    return chartData.filter((row) => {
+      const ym = extractYearMonth(row.group_key);
+      return !!ym && ym.year >= minYear && ym.year <= maxYear;
+    });
+  }, [chartData, config.groupBy, yearFilterMode, selectedYearFrom, selectedYearTo, extractYearMonth]);
+
+  const maxMonthWindowStart = Math.max(0, yearFilteredData.length - MONTH_WINDOW_SIZE);
+
+  useEffect(() => {
+    setMonthWindowStart((prev) => Math.min(prev, maxMonthWindowStart));
+  }, [maxMonthWindowStart]);
+
+  const visibleChartData = useMemo(() => {
+    if (config.groupBy !== 'month') return chartData;
+    return yearFilteredData.slice(monthWindowStart, monthWindowStart + MONTH_WINDOW_SIZE);
+  }, [chartData, config.groupBy, yearFilteredData, monthWindowStart]);
+
+  const tableAndChartData = config.groupBy === 'month' ? visibleChartData : chartData;
+
+  const currentChartType = config.chartType;
+  const showTopControls = config.groupBy !== 'month';
   const rowCount = rawData?.meta?.row_count;
+
+  const allowedAggregations = useMemo(() => getAllowedAggregations(config.measure), [config.measure]);
+  const allowedChartTypes = useMemo<(typeof ALL_CHART_TYPES)[number][]>(
+    () => [...getAllowedChartTypes(config.measure)],
+    [config.measure],
+  );
+  const allowedGroupBy = useMemo(() => getAllowedGroupBy(config.measure), [config.measure]);
+  const formatGroupLabel = useCallback((row: { group_key?: string; group_label?: string }) => {
+    if (config.groupBy === 'month') return formatMonthLabel(row.group_key);
+    return row.group_label || row.group_key || '';
+  }, [config.groupBy, formatMonthLabel]);
+
+  useEffect(() => {
+    const updates: Partial<MetricConfig> = {};
+    if (!allowedAggregations.includes(config.aggregation as any)) {
+      updates.aggregation = allowedAggregations[0];
+    }
+    if (!allowedChartTypes.includes(config.chartType as any)) {
+      updates.chartType = allowedChartTypes[0];
+    }
+    if (!allowedGroupBy.includes(config.groupBy)) {
+      updates.groupBy = 'month';
+    }
+    if (Object.keys(updates).length > 0) {
+      onUpdate(config.id, updates);
+    }
+  }, [
+    allowedAggregations,
+    allowedChartTypes,
+    allowedGroupBy,
+    config.aggregation,
+    config.chartType,
+    config.groupBy,
+    config.id,
+    onUpdate,
+  ]);
 
   // ─── Theme-aware styles ───
   const tooltipStyle: React.CSSProperties = {
@@ -146,23 +275,7 @@ export default function MetricCard({
 
   const renderChart = () => {
     // "Sin agrupación" → show single summary value
-    if (config.groupBy === 'none') {
-      return (
-        <div className="flex flex-col items-center justify-center h-full">
-          <p className="text-xs text-secondary uppercase tracking-wider mb-2">
-            {AGG_LABELS[config.aggregation]} de {MEASURE_LABELS[config.measure]}
-          </p>
-          <p className="text-4xl font-bold text-primary">
-            {summaryValue != null ? formatValue(Number(summaryValue), config.measure) : '—'}
-          </p>
-          {rowCount != null && (
-            <p className="text-xs text-secondary opacity-60 mt-2">{rowCount.toLocaleString('es-ES')} facturas</p>
-          )}
-        </div>
-      );
-    }
-
-    if (chartData.length === 0) {
+    if (tableAndChartData.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500">
           <Receipt size={48} className="opacity-20 mb-2" />
@@ -182,7 +295,7 @@ export default function MetricCard({
     // ── Line ──
     if (currentChartType === 'line') {
       return (
-        <LineChart data={chartData} onClick={(e: any) => {
+        <LineChart data={tableAndChartData} onClick={(e: any) => {
           if (config.groupBy === 'point' && e?.activePayload?.[0]?.payload?.group_key) {
             handleCupsClick(e.activePayload[0].payload.group_key);
           }
@@ -193,7 +306,7 @@ export default function MetricCard({
             stroke={axisStroke}
             fontSize={10}
             tickFormatter={(val) =>
-              config.groupBy === 'month' ? format(new Date(val), 'MMM yy', { locale: es }) : val
+              config.groupBy === 'month' ? formatMonthLabel(val) : val
             }
           />
           <YAxis stroke={axisStroke} fontSize={10} tickFormatter={(val) => formatValue(val, config.measure)} />
@@ -202,7 +315,7 @@ export default function MetricCard({
             labelStyle={labelTextStyle}
             itemStyle={itemTextStyle}
             labelFormatter={(val) =>
-              config.groupBy === 'month' ? format(new Date(val), 'MMMM yyyy', { locale: es }) : val
+              config.groupBy === 'month' ? formatMonthLabel(val) : val
             }
             formatter={(val: any) => [formatValue(Number(val) || 0, config.measure), MEASURE_LABELS[config.measure]]}
             wrapperStyle={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
@@ -222,9 +335,9 @@ export default function MetricCard({
 
     // ── Bar ──
     if (currentChartType === 'bar') {
-      const isHorizontal = config.groupBy === 'month' || config.groupBy === 'invoice_type' || config.groupBy === 'tariff';
+      const isHorizontal = config.groupBy === 'month' || config.groupBy === 'invoice_type';
       return (
-        <BarChart data={chartData} layout={isHorizontal ? 'horizontal' : 'vertical'}
+        <BarChart data={tableAndChartData} layout={isHorizontal ? 'horizontal' : 'vertical'}
           onClick={(e: any) => {
             if (config.groupBy === 'point' && e?.activePayload?.[0]?.payload?.group_key) {
               handleCupsClick(e.activePayload[0].payload.group_key);
@@ -239,7 +352,7 @@ export default function MetricCard({
                 stroke={axisStroke}
                 fontSize={10}
                 tickFormatter={(val) =>
-                  config.groupBy === 'month' ? format(new Date(val), 'MMM yy', { locale: es }) : val
+                  config.groupBy === 'month' ? formatMonthLabel(val) : val
                 }
               />
               <YAxis stroke={axisStroke} fontSize={10} tickFormatter={(val) => formatValue(val, config.measure)} />
@@ -254,6 +367,9 @@ export default function MetricCard({
             contentStyle={tooltipStyle}
             labelStyle={labelTextStyle}
             itemStyle={itemTextStyle}
+            labelFormatter={(val) =>
+              config.groupBy === 'month' ? formatMonthLabel(val) : val
+            }
             formatter={(val: any) => [formatValue(Number(val) || 0, config.measure), MEASURE_LABELS[config.measure]]}
             wrapperStyle={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
           />
@@ -270,12 +386,12 @@ export default function MetricCard({
 
     // ── Scatter (FIXED) ──
     if (currentChartType === 'scatter') {
-      const scatterData = chartData.map((d, i) => ({
+      const scatterData = tableAndChartData.map((d, i) => ({
         ...d,
         __x: i,
         __y: Number(d[measureKey]) || 0,
         __label: config.groupBy === 'month'
-          ? format(new Date(d.group_key), 'MMM yy', { locale: es })
+          ? formatMonthLabel(d.group_key)
           : (d.group_label || d.group_key || ''),
       }));
 
@@ -334,14 +450,23 @@ export default function MetricCard({
 
     // ── Pie ──
     const pieData = (() => {
-      const sorted = [...chartData].sort((a, b) => (b[measureKey] || 0) - (a[measureKey] || 0));
+      const sorted = [...tableAndChartData].sort((a, b) => (b[measureKey] || 0) - (a[measureKey] || 0));
       const top = sorted.slice(0, 10);
       const rest = sorted.slice(10);
-      if (rest.length > 0) {
-        const restSum = rest.reduce((acc, curr) => acc + (curr[measureKey] || 0), 0);
-        return [...top, { group_label: 'Otros', [measureKey]: restSum }];
-      }
-      return top;
+      const withRest = (() => {
+        if (rest.length > 0) {
+          const restSum = rest.reduce((acc, curr) => acc + (curr[measureKey] || 0), 0);
+          return [...top, { group_label: 'Otros', [measureKey]: restSum }];
+        }
+        return top;
+      })();
+
+      return withRest.map((item: any) => ({
+        ...item,
+        __legendLabel: config.groupBy === 'month'
+          ? formatMonthLabel(item.group_key || item.group_label)
+          : (item.group_label || item.group_key || ''),
+      }));
     })();
 
     return (
@@ -349,15 +474,18 @@ export default function MetricCard({
         <Pie
           data={pieData}
           dataKey={measureKey}
-          nameKey="group_label"
+          nameKey="__legendLabel"
           cx="50%"
           cy="50%"
           outerRadius={100}
-          label={({ cx: pcx, cy: pcy, midAngle, outerRadius: oR, group_label, percent }: any) => {
+          label={({ cx: pcx, cy: pcy, midAngle, outerRadius: oR, group_key, group_label, percent }: any) => {
             const RADIAN = Math.PI / 180;
             const radius = (oR || 100) + 25;
             const x = pcx + radius * Math.cos(-midAngle * RADIAN);
             const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+            const segmentLabel = config.groupBy === 'month'
+              ? formatMonthLabel(group_key || group_label)
+              : (group_label || group_key || '');
             return (
               <text
                 x={x} y={y}
@@ -367,7 +495,7 @@ export default function MetricCard({
                 fontSize={10}
                 style={config.groupBy === 'point' ? { cursor: 'pointer' } : undefined}
               >
-                {`${group_label} (${(percent * 100).toFixed(0)}%)`}
+                {`${segmentLabel} (${(percent * 100).toFixed(0)}%)`}
               </text>
             );
           }}
@@ -384,12 +512,24 @@ export default function MetricCard({
           ))}
         </Pie>
         <Tooltip
-          contentStyle={tooltipStyle}
-          labelStyle={labelTextStyle}
-          itemStyle={itemTextStyle}
-          formatter={(val: any) => [formatValue(Number(val) || 0, config.measure), MEASURE_LABELS[config.measure]]}
+          content={({ active, payload }: any) => {
+            if (!active || !payload?.length) return null;
+            const point = payload[0]?.payload;
+            const label = config.groupBy === 'month'
+              ? formatMonthLabel(point?.group_key || point?.group_label)
+              : (point?.group_label || point?.group_key || '');
+
+            return (
+              <div style={tooltipStyle}>
+                <p style={{ ...labelTextStyle, marginBottom: 4 }}>{`${getGroupLabel(config.groupBy)}: ${label}`}</p>
+                <p style={itemTextStyle}>
+                  {MEASURE_LABELS[config.measure]}: {formatValue(Number(point?.[measureKey]) || 0, config.measure)}
+                </p>
+              </div>
+            );
+          }}
         />
-        <Legend />
+        <Legend formatter={(value: string) => value} />
       </PieChart>
     );
   };
@@ -399,15 +539,7 @@ export default function MetricCard({
   // ═══════════════════════════════════════
 
   const renderTable = () => {
-    if (config.groupBy === 'none') {
-      return (
-        <div className="flex items-center justify-center h-full text-gray-400 text-sm p-4">
-          Sin agrupación — valor único mostrado a la izquierda
-        </div>
-      );
-    }
-
-    if (chartData.length === 0) {
+    if (tableAndChartData.length === 0) {
       return (
         <div className="flex items-center justify-center h-full text-gray-400 text-sm p-4">
           Sin datos para mostrar
@@ -427,16 +559,14 @@ export default function MetricCard({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {chartData.map((row, idx) => (
+            {tableAndChartData.map((row, idx) => (
               <tr key={idx} className="hover:bg-bg-intermediate/50 transition-colors">
                 <td
                   className={`px-3 py-1.5 text-xs text-primary truncate max-w-[180px] ${config.groupBy === 'point' ? 'cursor-pointer hover:text-fenix-500 hover:underline transition-colors' : ''
                     }`}
                   onClick={() => config.groupBy === 'point' && handleCupsClick(row.group_key)}
                 >
-                  {config.groupBy === 'month'
-                    ? format(new Date(row.group_key), 'MMM yyyy', { locale: es })
-                    : row.group_label}
+                  {formatGroupLabel(row)}
                 </td>
                 <td className="px-3 py-1.5 text-right text-xs text-secondary font-mono">
                   {formatValue(row[measureKey] || 0, config.measure)}
@@ -480,8 +610,8 @@ export default function MetricCard({
               onChange={(e) => onUpdate(config.id, { measure: e.target.value as any })}
               title="Métrica"
             >
-              {Object.entries(MEASURE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {(['consumo_kwh', 'precio_eur_kwh', 'total', 'potencia_kw'] as const).map((k) => (
+                <option key={k} value={k}>{MEASURE_LABELS[k]}</option>
               ))}
             </select>
             <p className="text-[8px] text-secondary opacity-50 mt-0.5 px-1 leading-tight whitespace-nowrap">Métrica</p>
@@ -495,8 +625,8 @@ export default function MetricCard({
               onChange={(e) => onUpdate(config.id, { aggregation: e.target.value as any })}
               title="Operación"
             >
-              {Object.entries(AGG_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {allowedAggregations.map((k) => (
+                <option key={k} value={k}>{AGG_LABELS[k]}</option>
               ))}
             </select>
             <p className="text-[8px] text-secondary opacity-50 mt-0.5 px-1 leading-tight whitespace-nowrap">Operación</p>
@@ -505,19 +635,21 @@ export default function MetricCard({
           {/* 3 · Tipo de gráfico */}
           <div className="flex flex-col">
             <div className={`flex items-center gap-0.5 p-0.5 rounded-lg border h-10 ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-100 border-gray-200'}`}>
-              {(['bar', 'line', 'scatter', 'pie'] as const).map((type) => {
+              {ALL_CHART_TYPES.map((type) => {
                 const Icon = type === 'bar' ? BarChart2 : type === 'line' ? LineIcon : type === 'scatter' ? MousePointer2 : PieIcon;
                 const isSelected = config.chartType === type;
+                const isDisabled = !allowedChartTypes.includes(type);
                 return (
                   <button
                     key={type}
-                    onClick={() => onUpdate(config.id, { chartType: type })}
+                    onClick={() => !isDisabled && onUpdate(config.id, { chartType: type })}
+                    disabled={isDisabled}
                     className={`flex-1 h-full flex items-center justify-center rounded-md transition-all cursor-pointer ${isSelected
                       ? 'bg-fenix-500 text-white shadow-lg'
                       : theme === 'dark'
                         ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                         : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
-                      }`}
+                      } ${isDisabled ? 'opacity-35 cursor-not-allowed hover:bg-transparent hover:text-inherit' : ''}`}
                     title={type.charAt(0).toUpperCase() + type.slice(1)}
                   >
                     <Icon size={13} />
@@ -536,9 +668,9 @@ export default function MetricCard({
               onChange={(e) => onUpdate(config.id, { groupBy: e.target.value as GroupByOption })}
               title="Agrupar por"
             >
-              {Object.entries(GROUP_LABELS)
-                .filter(([k]) => !(isCliente && k === 'client'))
-                .map(([k, _v]) => (
+              {allowedGroupBy
+                .filter((k) => !(isCliente && k === 'client'))
+                .map((k) => (
                   <option key={k} value={k}>{getGroupLabel(k)}</option>
                 ))}
             </select>
@@ -634,11 +766,6 @@ export default function MetricCard({
           <span className="text-secondary font-normal text-xs">
             {MEASURE_LABELS[config.measure]} ({AGG_LABELS[config.aggregation]}) — {getGroupLabel(config.groupBy)} · {currentChartType}
           </span>
-          {isPieFallback && (
-            <span className="text-[9px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
-              Tarta no disponible con Mes → Barras
-            </span>
-          )}
           {rowCount != null && (
             <span className="text-[10px] text-secondary opacity-60 ml-auto whitespace-nowrap">
               {rowCount.toLocaleString('es-ES')} facturas analizadas
@@ -654,8 +781,114 @@ export default function MetricCard({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Chart */}
-            <div className="lg:col-span-3 h-[350px]">
-              {renderChart()}
+            <div className="lg:col-span-3">
+              <div className="h-[350px] flex items-stretch gap-2">
+                {config.groupBy === 'month' && (
+                  <button
+                    type="button"
+                    onClick={() => setMonthWindowStart((prev) => Math.max(0, prev - 1))}
+                    disabled={monthWindowStart <= 0}
+                    className={`w-8 h-8 self-center rounded-md border transition-colors ${theme === 'dark'
+                      ? 'border-white/10 text-gray-200 hover:bg-white/10 disabled:text-gray-500 disabled:border-white/5 disabled:hover:bg-transparent'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:hover:bg-transparent'
+                      }`}
+                    title="Meses anteriores"
+                  >
+                    <ChevronLeft size={16} className="mx-auto" />
+                  </button>
+                )}
+
+                <div className="flex-1 h-full">
+                  {renderChart()}
+                </div>
+
+                {config.groupBy === 'month' && (
+                  <button
+                    type="button"
+                    onClick={() => setMonthWindowStart((prev) => Math.min(maxMonthWindowStart, prev + 1))}
+                    disabled={monthWindowStart >= maxMonthWindowStart}
+                    className={`w-8 h-8 self-center rounded-md border transition-colors ${theme === 'dark'
+                      ? 'border-white/10 text-gray-200 hover:bg-white/10 disabled:text-gray-500 disabled:border-white/5 disabled:hover:bg-transparent'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:hover:bg-transparent'
+                      }`}
+                    title="Meses siguientes"
+                  >
+                    <ChevronRight size={16} className="mx-auto" />
+                  </button>
+                )}
+              </div>
+
+              {config.groupBy === 'month' && availableYears.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYearFilterMode('all');
+                      setMonthWindowStart(0);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-md border transition-colors ${yearFilterMode === 'all'
+                      ? 'bg-fenix-500 text-white border-fenix-500'
+                      : theme === 'dark'
+                        ? 'border-white/10 text-gray-200 hover:bg-white/10'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                      }`}
+                  >
+                    Todos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYearFilterMode('range');
+                      setMonthWindowStart(0);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-md border transition-colors ${yearFilterMode === 'range'
+                      ? 'bg-fenix-500 text-white border-fenix-500'
+                      : theme === 'dark'
+                        ? 'border-white/10 text-gray-200 hover:bg-white/10'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                      }`}
+                  >
+                    Rango de años
+                  </button>
+
+                  {yearFilterMode === 'range' && (
+                    <>
+                      <label className="flex flex-col items-center gap-1 text-secondary min-w-[92px]">
+                        <span className="leading-none">Desde</span>
+                        <select
+                          className={`glass-input text-xs px-2 h-10 text-center ${theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}`}
+                          value={selectedYearFrom ?? availableYears[0]}
+                          onChange={(e) => {
+                            setSelectedYearFrom(Number(e.target.value));
+                            setMonthWindowStart(0);
+                          }}
+                        >
+                          {availableYears.map((year) => (
+                            <option key={`from-${year}`} value={year}>{year}</option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="flex flex-col items-center gap-1 text-secondary min-w-[92px]">
+                        <span className="leading-none">Hasta</span>
+                        <select
+                          className={`glass-input text-xs px-2 h-10 text-center ${theme === 'dark' ? 'bg-[#141424] text-gray-100' : 'bg-white text-gray-900'}`}
+                          value={selectedYearTo ?? availableYears[availableYears.length - 1]}
+                          onChange={(e) => {
+                            setSelectedYearTo(Number(e.target.value));
+                            setMonthWindowStart(0);
+                          }}
+                        >
+                          {availableYears.map((year) => (
+                            <option key={`to-${year}`} value={year}>{year}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             {/* Table */}
             <div className={`lg:col-span-2 h-[350px] rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-white/5 bg-white/[0.02]' : 'border-gray-200 bg-gray-50/50'
@@ -663,7 +896,7 @@ export default function MetricCard({
               <div className={`px-3 py-2 border-b shrink-0 ${theme === 'dark' ? 'border-white/5 bg-white/[0.03]' : 'border-gray-200 bg-gray-100/50'
                 }`}>
                 <h5 className="text-[10px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <List size={11} /> Tabla · {chartData.length} filas
+                  <List size={11} /> Tabla · {tableAndChartData.length} filas
                 </h5>
               </div>
               {renderTable()}

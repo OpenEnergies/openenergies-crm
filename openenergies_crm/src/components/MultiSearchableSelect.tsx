@@ -24,6 +24,7 @@ interface MultiSearchableSelectProps {
     disabled?: boolean;
     allLabel?: string;
     showChips?: boolean;
+    clearBehavior?: 'selection' | 'search';
 }
 
 export default function MultiSearchableSelect({
@@ -38,7 +39,8 @@ export default function MultiSearchableSelect({
     isLoading = false,
     disabled = false,
     allLabel = 'Todos',
-    showChips = true
+    showChips = true,
+    clearBehavior = 'selection'
 }: MultiSearchableSelectProps) {
     const { theme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
@@ -154,7 +156,9 @@ export default function MultiSearchableSelect({
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onChange(null);
+        if (clearBehavior === 'selection') {
+            onChange(null);
+        }
         setSearchTerm('');
     };
 
@@ -268,7 +272,7 @@ export default function MultiSearchableSelect({
 
                     <div className="flex items-center gap-2 pr-1">
                         {isLoading && <Loader2 size={14} className="text-fenix-400 animate-spin" />}
-                        {!isAllSelected && !disabled && (
+                        {(!disabled && ((clearBehavior === 'selection' && !isAllSelected) || (clearBehavior === 'search' && (searchTerm.length > 0 || isOpen)))) && (
                             <button
                                 type="button"
                                 onClick={handleClear}

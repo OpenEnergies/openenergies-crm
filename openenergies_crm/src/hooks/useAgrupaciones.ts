@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { useClienteId } from './useClienteId';
 import { useSession } from './useSession';
+import { deduplicateConsumos } from '@lib/utils';
 
 const CHUNK_SIZE = 200;
 
@@ -292,7 +293,7 @@ export function useAgrupacionFacturacion(agrupacionId: string | undefined, year:
       }
 
       rows.sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
-      return rows;
+      return deduplicateConsumos(rows);
     },
     enabled: !!agrupacionId && (!!clienteId || isStaff),
   });

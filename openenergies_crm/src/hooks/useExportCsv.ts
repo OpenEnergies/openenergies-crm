@@ -16,7 +16,7 @@ export interface CsvExportFilters {
     tipos_suministro?: string[];
 }
 
-const N8N_WEBHOOK_URL = 'https://n8n.converlysolutions.com/webhook/cff4b7aa-b24e-4761-b729-da2d6da73244';
+const N8N_WEBHOOK_URL = 'https://n8n.openenergiesgroup.com/webhook/6bf89879-2e8f-4c92-9050-d04e3a1e22e7';
 
 export function useExportCsv() {
     const [isExporting, setIsExporting] = useState(false);

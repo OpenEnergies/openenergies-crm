@@ -19,17 +19,24 @@ async function fetchTopPuntosKwh(): Promise<TopPuntoKwh[]> {
 
     const { data, error } = await supabase
         .from('consumos_facturacion')
-        .select('punto_id, consumo_kwh, puntos_suministro!inner(id, cups, clientes!inner(nombre))')
+        .select('punto_id, consumo_kwh, mes, factura_id, puntos_suministro!inner(id, cups, clientes!inner(nombre))')
         .is('eliminado_en', null)
         .gte('mes', sinceStr);
 
     if (error) throw error;
 
-    // Aggregate by punto_id
+    // Deduplicate by (factura_id, mes) — some facturas have multiple rows per month
+    // where consumo_kwh is repeated but coste_total is split across sub-periods
+    const seen = new Set<string>();
     const byPunto: Record<string, { punto_id: string; cups: string; total_kwh: number; cliente_nombre: string }> = {};
     (data || []).forEach((row: any) => {
         const puntoId = row.punto_id;
         if (!puntoId) return;
+
+        const dedupKey = `${row.factura_id}|${row.mes}`;
+        if (seen.has(dedupKey)) return;
+        seen.add(dedupKey);
+
         const ps = Array.isArray(row.puntos_suministro) ? row.puntos_suministro[0] : row.puntos_suministro;
         const cups = ps?.cups || '';
         const clienteNombre = ps?.clientes

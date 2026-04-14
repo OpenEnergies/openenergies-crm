@@ -16,7 +16,7 @@ export interface SageExportFilters {
     tipos_suministro?: string[];
 }
 
-const N8N_WEBHOOK_URL = 'https://n8n.converlysolutions.com/webhook/917ee33f-9f65-4a38-9cb7-6a27c343c029';
+const N8N_WEBHOOK_URL = 'https://n8n.openenergiesgroup.com/webhook/c4a628c4-7f91-4a18-926c-2f6f0a7804f3';
 
 export function useExportSage() {
     const [isExporting, setIsExporting] = useState(false);

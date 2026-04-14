@@ -19,7 +19,7 @@ import { EmptyState } from '@components/EmptyState';
 import { DataTableSkeleton } from '@components/ui/DataTableSkeleton';
 import { useSortableTable } from '@hooks/useSortableTable';
 import { clsx } from '@lib/utils';
-import ExportButton from '@components/ExportButton';
+import ExportDropdownPuntos from '@components/ExportDropdownPuntos';
 import AgrupacionesGrid from '@components/agrupaciones/AgrupacionesGrid';
 import { useAgrupacionesCliente } from '@hooks/useAgrupaciones';
 import CrearAgrupacionModal from '@components/agrupaciones/CrearAgrupacionModal';
@@ -772,14 +772,12 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn, cl
                     onChange={e => vistaAgrupaciones ? setAgrupacionFilter(e.target.value) : setFilter(e.target.value)}
                   />
                 </div>
-                {!isCliente && !isComercial && (
-                  <ExportButton
-                    exportParams={{
-                      entity: 'puntos_suministro',
-                      filters: { search: filter || undefined }
-                    }}
-                  />
-                )}
+                <ExportDropdownPuntos
+                  scope={{
+                    clienteId: clienteId ?? undefined,
+                    clienteIds: clienteIds && clienteIds.length > 0 ? clienteIds : undefined,
+                  }}
+                />
                 {!isCliente && !isComercial && (
                   <Link to="/app/puntos/nuevo">
                     <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-fenix-500 to-fenix-600 hover:from-fenix-400 hover:to-fenix-500 text-white font-bold shadow-lg shadow-fenix-500/25 hover:shadow-fenix-500/40 transition-all duration-200 hover:scale-[1.02] cursor-pointer">
@@ -970,17 +968,12 @@ export default function PuntosList({ clienteId, empresaId, hideClienteColumn, cl
                             className="glass-input w-full md:w-64"
                           />
                         </div>
-                        {!isComercial && (
-                          <ExportButton
-                            entity="puntos_suministro"
-                            preFilters={{
-                              cliente_id: clienteId,
-                              comercializadora_id: empresaId,
-                              search: filter
-                            }}
-                            label="Exportar"
-                          />
-                        )}
+                        <ExportDropdownPuntos
+                          scope={{
+                            clienteId: clienteId ?? undefined,
+                            clienteIds: clienteIds && clienteIds.length > 0 ? clienteIds : undefined,
+                          }}
+                        />
                       </>
                     )}
                   </div>

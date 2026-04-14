@@ -15,6 +15,7 @@ import EmpresaLogo from '@components/EmpresaLogo';
 import { useAgrupacionPunto } from '@hooks/useAgrupaciones';
 import { getTipoBadgeClass } from '@components/agrupaciones/AgrupacionesGrid';
 import { useSession } from '@hooks/useSession';
+import { deduplicateConsumos } from '@lib/utils';
 import PuntoFacturas from './PuntoFacturas';
 
 // ─── Types ───
@@ -149,7 +150,7 @@ function useFacturacionPuntoByYear(puntoId: string | undefined, year: number) {
                 })
                 .filter((row): row is FacturaRow => row !== null);
 
-            return consumoRows.sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
+            return deduplicateConsumos(consumoRows).sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
         },
         enabled: !!puntoId,
     });

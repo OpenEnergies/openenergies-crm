@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@lib/supabase';
 import { fetchAllRows } from '@lib/supabaseFetchAll';
 import { useTheme } from '@hooks/ThemeContext';
+import { deduplicateConsumos } from '@lib/utils';
 import {
     BarChart3, TrendingUp, Zap, Loader2, Receipt,
 } from 'lucide-react';
@@ -124,6 +125,8 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
                 })
                 .filter((row): row is FacturaRow => row !== null);
 
+            const deduped = deduplicateConsumos(consumoRows);
+
             const facturaRows = facturasData.map((row) => ({
                 fecha_emision: row.fecha_emision,
                 factura_id: row.id,
@@ -135,7 +138,7 @@ function useClientFacturas(clienteId?: string, empresaId?: string, year?: number
                 source: 'factura' as const,
             }));
 
-            return [...consumoRows, ...facturaRows].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
+            return [...deduped, ...facturaRows].sort((a, b) => a.fecha_emision.localeCompare(b.fecha_emision));
         },
         staleTime: 5 * 60 * 1000,
     });

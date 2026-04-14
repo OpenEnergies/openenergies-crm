@@ -16,7 +16,7 @@ export interface XlsxExportFilters {
     tipos_suministro?: string[];
 }
 
-const N8N_WEBHOOK_URL = 'https://n8n.converlysolutions.com/webhook/67cc5442-a52b-4605-888d-e7445d4d13a6';
+const N8N_WEBHOOK_URL = 'https://n8n.openenergiesgroup.com/webhook/120991a1-c62c-40cc-88be-ad6dbbb63e31';
 
 export function useExportXlsx() {
     const [isExporting, setIsExporting] = useState(false);
